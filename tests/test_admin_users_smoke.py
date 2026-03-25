@@ -9,16 +9,18 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.deps import require_admin, require_instance
-from app.api.v1 import admin_users, attendance
+from app.api.v1 import admin_users, attendance, portal_auth
 from app.db.models import (
     Attendance,
     Base,
     ClientType,
+    AuthLockoutState,
     Instance,
     InstanceStatus,
     PortalUser,
     PortalUserRole,
 )
+from app.security.passwords import hash_password
 from app.security.csrf import require_csrf
 
 
@@ -34,6 +36,7 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
     app = FastAPI()
     app.include_router(admin_users.router)
     app.include_router(attendance.router)
+    app.include_router(portal_auth.router)
 
     def override_db():
         db = TestingSessionLocal()
@@ -44,6 +47,7 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
 
     app.dependency_overrides[admin_users.get_db] = override_db
     app.dependency_overrides[attendance.get_db] = override_db
+    app.dependency_overrides[portal_auth.get_db] = override_db
     app.dependency_overrides[require_admin] = lambda: {"ok": True}
     app.dependency_overrides[require_csrf] = lambda: None
 
@@ -54,6 +58,66 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
     app.dependency_overrides[require_instance] = override_instance
 
     return TestClient(app), TestingSessionLocal
+
+
+def test_portal_login_lockout_and_unlock_smoke() -> None:
+    client, session_local = _build_client()
+
+    with session_local() as db:
+        inst = Instance(
+            id="inst-lock",
+            client_type=ClientType.WEB,
+            device_fingerprint="fp-lock",
+            status=InstanceStatus.ACTIVE,
+            display_name="Lock",
+            created_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+        )
+        password_hash = hash_password("StrongPass123").value
+        user = PortalUser(
+            email="lock@example.com",
+            name="Lock User",
+            role=PortalUserRole.EMPLOYEE,
+            password_hash=password_hash,
+            instance_id=inst.id,
+        )
+        db.add(inst)
+        db.add(user)
+        db.commit()
+        user_id = user.id
+
+    for _ in range(2):
+        response = client.post(
+            "/api/v1/portal/login",
+            json={"email": "lock@example.com", "password": "bad-password"},
+        )
+        assert response.status_code == 401
+
+    locked_response = client.post(
+        "/api/v1/portal/login",
+        json={"email": "lock@example.com", "password": "bad-password"},
+    )
+    assert locked_response.status_code == 423
+
+    with session_local() as db:
+        lock_state = db.execute(
+            select(AuthLockoutState).where(
+                AuthLockoutState.actor_type == "portal",
+                AuthLockoutState.principal == "lock@example.com",
+            )
+        ).scalars().first()
+        assert lock_state is not None
+        assert lock_state.locked_until is not None
+
+    unlock_response = client.post(f"/api/v1/admin/users/{user_id}/unlock")
+    assert unlock_response.status_code == 200
+
+    login_response = client.post(
+        "/api/v1/portal/login",
+        json={"email": "lock@example.com", "password": "StrongPass123"},
+    )
+    assert login_response.status_code == 200
+    assert login_response.json()["instance_id"] == "inst-lock"
 
 
 def test_admin_update_user_smoke() -> None:

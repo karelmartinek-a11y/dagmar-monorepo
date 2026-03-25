@@ -33,6 +33,7 @@ from app.db.models import (
 from app.db.session import get_db
 from app.security.crypto import decrypt_secret
 from app.security.csrf import require_csrf
+from app.security.lockout import clear_user_lockout, revoke_unlock_tokens
 from app.security.passwords import hash_password
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin-users"])
@@ -176,6 +177,8 @@ def _apply_password(db: Session, user: PortalUser, raw_password: str | None) -> 
     user.password_hash = new_hash.value
     db.execute(delete(PortalUserResetToken).where(PortalUserResetToken.user_id == user.id))
     _invalidate_instance_token(user, db)
+    clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
+    revoke_unlock_tokens(db, actor_type="portal", principal=user.email.lower())
 
 
 @router.get("", response_model=PortalUserListOut)
@@ -358,6 +361,8 @@ def delete_user(
             if inst is not None:
                 db.delete(inst)
 
+    clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
+    revoke_unlock_tokens(db, actor_type="portal", principal=user.email.lower())
     db.commit()
     return OkOut(ok=True)
 
@@ -389,4 +394,21 @@ def send_reset_link(
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Odeslání selhalo: {exc}") from exc
 
+    return OkOut(ok=True)
+
+
+@router.post("/{user_id}/unlock", response_model=OkOut)
+def unlock_user(
+    user_id: int,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+):
+    user = db.get(PortalUser, int(user_id))
+    if user is None:
+        raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
+
+    clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
+    revoke_unlock_tokens(db, actor_type="portal", principal=user.email.lower())
+    db.commit()
     return OkOut(ok=True)
