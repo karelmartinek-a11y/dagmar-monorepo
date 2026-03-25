@@ -28,7 +28,10 @@ jobs:
       - name: Security audit (pip-audit)
         run: |
           pip install pip-audit
-          pip-audit
+          # pip-audit v tomto jobu audituje i nástrojové závislosti běžícího prostředí.
+          # Pygments je sem přitažený přes rich/pip-audit samotný a v GitHub runneru zatím
+          # vychází s CVE-2026-4539 bez dostupné opravné verze, proto jej explicitně ignorujeme.
+          pip-audit --ignore-vuln CVE-2026-4539
       - name: Mypy
         run: mypy app
       - name: Tests (pokud existuji)
