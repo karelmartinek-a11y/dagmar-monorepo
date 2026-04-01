@@ -61,7 +61,7 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
     return TestClient(app), TestingSessionLocal
 
 
-def test_portal_login_lockout_and_unlock_smoke() -> None:
+def test_portal_login_ignores_existing_lockout_and_uses_password_smoke() -> None:
     client, session_local = _build_client()
 
     with session_local() as db:
@@ -84,21 +84,21 @@ def test_portal_login_lockout_and_unlock_smoke() -> None:
         )
         db.add(inst)
         db.add(user)
-        db.commit()
-        user_id = user.id
-
-    for _ in range(2):
-        response = client.post(
-            "/api/v1/portal/login",
-            json={"email": "lock@example.com", "password": "bad-password"},
+        db.add(
+            AuthLockoutState(
+                actor_type="portal",
+                principal="lock@example.com",
+                failed_attempts=3,
+                locked_until=(datetime.now(UTC) + timedelta(minutes=30)).replace(microsecond=0),
+            )
         )
-        assert response.status_code == 401
+        db.commit()
 
-    locked_response = client.post(
+    wrong_password_response = client.post(
         "/api/v1/portal/login",
         json={"email": "lock@example.com", "password": "bad-password"},
     )
-    assert locked_response.status_code == 423
+    assert wrong_password_response.status_code == 401
 
     with session_local() as db:
         lock_state = db.execute(
@@ -108,10 +108,7 @@ def test_portal_login_lockout_and_unlock_smoke() -> None:
             )
         ).scalars().first()
         assert lock_state is not None
-        assert lock_state.locked_until is not None
-
-    unlock_response = client.post(f"/api/v1/admin/users/{user_id}/unlock")
-    assert unlock_response.status_code == 200
+        assert lock_state.locked_until is None
 
     login_response = client.post(
         "/api/v1/portal/login",

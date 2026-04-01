@@ -20,11 +20,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.security.lockout import (
-    PORTAL_LOCKOUT_DURATION,
     clear_user_lockout,
-    get_lockout_state,
-    is_locked,
-    record_failed_login,
 )
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import issue_instance_token_once, rotate_instance_token
@@ -70,30 +66,25 @@ def _get_settings(db: Session) -> AppSettings:
     return st
 
 
-def _record_login_failure(db: Session, lock_state, *, detail: str) -> NoReturn:
-    became_locked = record_failed_login(lock_state, lock_duration=PORTAL_LOCKOUT_DURATION)
-    db.add(lock_state)
-    db.commit()
-    if became_locked:
-        raise HTTPException(status_code=423, detail="Ucet je docasne zablokovany")
+def _record_login_failure(*, detail: str) -> NoReturn:
     raise HTTPException(status_code=401, detail=detail)
 
 
 @router.post("/login", response_model=PortalLoginOut)
 def portal_login(payload: PortalLoginIn, db: Session = Depends(get_db)):
     email = payload.email.strip().lower()
-    lock_state = get_lockout_state(db, actor_type="portal", principal=email)
-    if is_locked(lock_state):
-        raise HTTPException(status_code=423, detail="Ucet je docasne zablokovany")
+    clear_user_lockout(db, actor_type="portal", principal=email)
+    db.commit()
 
     user = db.execute(select(PortalUser).where(PortalUser.email == email)).scalars().first()
-    if user is None or not user.is_active or user.password_hash is None:
-        _record_login_failure(db, lock_state, detail="Neplatne prihlasovaci udaje")
+    if user is None:
+        _record_login_failure(detail="Neplatne prihlasovaci udaje")
+    if not user.is_active or user.password_hash is None:
+        _record_login_failure(detail="Neplatne prihlasovaci udaje")
     if user.role != PortalUserRole.EMPLOYEE:
-        _record_login_failure(db, lock_state, detail="Nepodporovany typ uctu")
-    assert user.password_hash is not None
+        _record_login_failure(detail="Nepodporovany typ uctu")
     if not verify_password(payload.password, user.password_hash):
-        _record_login_failure(db, lock_state, detail="Neplatne prihlasovaci udaje")
+        _record_login_failure(detail="Neplatne prihlasovaci udaje")
 
     if not user.instance_id:
         raise HTTPException(status_code=409, detail="Uzivatel nema prirazenu instanci")
