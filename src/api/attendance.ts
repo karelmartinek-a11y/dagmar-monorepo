@@ -2,21 +2,24 @@ import { apiFetch, ApiError } from "./client";
 import type { ShiftPlanDayStatus } from "./adminShiftPlan";
 
 export type AttendanceDay = {
-  date: string; // YYYY-MM-DD
-  arrival_time: string | null; // HH:MM
-  departure_time: string | null; // HH:MM
+  date: string;
+  arrival_time: string | null;
+  departure_time: string | null;
   planned_arrival_time: string | null;
   planned_departure_time: string | null;
   planned_status?: ShiftPlanDayStatus | null;
+  is_within_employment_period: boolean;
 };
 
 export type AttendanceMonthResponse = {
+  employment_id: number;
+  employment_label: string;
   days: AttendanceDay[];
-  instance_display_name?: string;
 };
 
 export type AttendanceUpsertBody = {
-  date: string; // YYYY-MM-DD
+  employment_id: number;
+  date: string;
   arrival_time: string | null;
   departure_time: string | null;
 };
@@ -29,7 +32,7 @@ async function fetchAttendanceWithPortalFallback<T>(
     body?: AttendanceUpsertBody;
     instanceToken: string;
     signal?: AbortSignal;
-  },
+  }
 ): Promise<T> {
   try {
     return await apiFetch<T>({
@@ -56,23 +59,27 @@ async function fetchAttendanceWithPortalFallback<T>(
 }
 
 export async function getAttendanceMonth(params: {
+  employmentId: number;
   year: number;
-  month: number; // 1-12
+  month: number;
   instanceToken: string;
   signal?: AbortSignal;
 }): Promise<AttendanceMonthResponse> {
-  const { year, month, instanceToken, signal } = params;
+  const { employmentId, year, month, instanceToken, signal } = params;
   if (!Number.isInteger(year) || year < 1970 || year > 2100) {
     throw new ApiError(400, "Invalid year");
   }
   if (!Number.isInteger(month) || month < 1 || month > 12) {
     throw new ApiError(400, "Invalid month");
   }
+  if (!Number.isInteger(employmentId) || employmentId < 1) {
+    throw new ApiError(400, "Invalid employmentId");
+  }
 
   const mm = String(month).padStart(2, "0");
   return fetchAttendanceWithPortalFallback<AttendanceMonthResponse>("/api/v1/attendance", {
     method: "GET",
-    query: { year, month: mm },
+    query: { employment_id: employmentId, year, month: mm },
     instanceToken,
     signal,
   });
@@ -85,17 +92,19 @@ export async function upsertAttendance(params: {
 }): Promise<{ ok: true }> {
   const { body, instanceToken, signal } = params;
 
-  // Minimal client-side checks (server is the source of truth)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
     throw new ApiError(400, "Invalid date format");
   }
-  for (const [k, v] of Object.entries({
+  if (!Number.isInteger(body.employment_id) || body.employment_id < 1) {
+    throw new ApiError(400, "Invalid employment_id");
+  }
+  for (const [key, value] of Object.entries({
     arrival_time: body.arrival_time,
     departure_time: body.departure_time,
   })) {
-    if (v === null) continue;
-    if (typeof v !== "string" || !/^\d{2}:\d{2}$/.test(v)) {
-      throw new ApiError(400, `Invalid ${k} format`);
+    if (value === null) continue;
+    if (typeof value !== "string" || !/^\d{2}:\d{2}$/.test(value)) {
+      throw new ApiError(400, `Invalid ${key} format`);
     }
   }
 
@@ -107,9 +116,8 @@ export async function upsertAttendance(params: {
   });
 }
 
-// Backwards-compatible helpers used by pages
-export function getAttendance(year: number, month: number, instanceToken: string, signal?: AbortSignal) {
-  return getAttendanceMonth({ year, month, instanceToken, signal });
+export function getAttendance(employmentId: number, year: number, month: number, instanceToken: string, signal?: AbortSignal) {
+  return getAttendanceMonth({ employmentId, year, month, instanceToken, signal });
 }
 
 export function putAttendance(body: AttendanceUpsertBody, instanceToken: string, signal?: AbortSignal) {

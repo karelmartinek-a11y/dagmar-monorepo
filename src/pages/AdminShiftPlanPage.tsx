@@ -72,7 +72,7 @@ function formatHours(mins: number) {
   return (mins / 60).toFixed(1);
 }
 
-type ContextMenuState = { x: number; y: number; instanceId: string; date: string };
+type ContextMenuState = { x: number; y: number; employmentId: number; date: string };
 
 export default function AdminShiftPlanPage() {
   const [month, setMonth] = useState(() => {
@@ -117,10 +117,10 @@ export default function AdminShiftPlanPage() {
   const workingFundHours = useMemo(() => workingDaysInMonthCs(year, monthNum) * 8, [year, monthNum]);
 
   const makeCellKey = (
-    instanceId: string,
+    employmentId: number,
     date: string,
     field: "arrival_time" | "departure_time",
-  ) => `${instanceId}:${date}:${field}`;
+  ) => `${employmentId}:${date}:${field}`;
 
   const addSuccessFlash = (cellKey: string) => {
     setSuccessCells((prev) => ({ ...prev, [cellKey]: true }));
@@ -139,11 +139,11 @@ export default function AdminShiftPlanPage() {
     }, 900);
   };
 
-  const setSavingForDay = (instanceId: string, date: string, value: boolean) => {
+  const setSavingForDay = (employmentId: number, date: string, value: boolean) => {
     setSavingCells((prev) => {
       const next = { ...prev };
-      const arrivalKey = makeCellKey(instanceId, date, "arrival_time");
-      const departureKey = makeCellKey(instanceId, date, "departure_time");
+      const arrivalKey = makeCellKey(employmentId, date, "arrival_time");
+      const departureKey = makeCellKey(employmentId, date, "departure_time");
       if (value) {
         next[arrivalKey] = true;
         next[departureKey] = true;
@@ -155,13 +155,13 @@ export default function AdminShiftPlanPage() {
     });
   };
 
-  const setSuccessForDay = (instanceId: string, date: string) => {
-    addSuccessFlash(makeCellKey(instanceId, date, "arrival_time"));
-    addSuccessFlash(makeCellKey(instanceId, date, "departure_time"));
+  const setSuccessForDay = (employmentId: number, date: string) => {
+    addSuccessFlash(makeCellKey(employmentId, date, "arrival_time"));
+    addSuccessFlash(makeCellKey(employmentId, date, "departure_time"));
   };
 
   const applyFieldValue = (
-    instanceId: string,
+    employmentId: number,
     date: string,
     field: "arrival_time" | "departure_time",
     value: string | null,
@@ -172,7 +172,7 @@ export default function AdminShiftPlanPage() {
       return {
         ...prev,
         rows: prev.rows.map((row) => {
-          if (row.instance_id !== instanceId) return row;
+          if (row.employment_id !== employmentId) return row;
 
           return {
             ...row,
@@ -308,20 +308,20 @@ export default function AdminShiftPlanPage() {
     };
   }, [plan?.rows.length]);
 
-  const selectedIds = plan?.selected_instance_ids ?? [];
-  const activeInstances = useMemo(() => plan?.active_instances ?? [], [plan?.active_instances]);
-  const filteredInstances = useMemo(() => {
+  const selectedIds = plan?.selected_employment_ids ?? [];
+  const activeEmployments = useMemo(() => plan?.available_employments ?? [], [plan?.available_employments]);
+  const filteredEmployments = useMemo(() => {
     const tokens = instanceQuery
       .trim()
       .toLowerCase()
       .split(/\s+/)
       .filter(Boolean);
-    if (tokens.length === 0) return activeInstances;
-    return activeInstances.filter((it) => {
-      const hay = `${it.display_name ?? ""} ${it.id} ${it.employment_template}`.toLowerCase();
+    if (tokens.length === 0) return activeEmployments;
+    return activeEmployments.filter((it) => {
+      const hay = `${it.display_label} ${it.user_name} ${it.title} ${it.id} ${it.employment_type}`.toLowerCase();
       return tokens.every((t) => hay.includes(t));
     });
-  }, [activeInstances, instanceQuery]);
+  }, [activeEmployments, instanceQuery]);
   const rows = plan?.rows ?? [];
 
   const handleMonthChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -342,15 +342,15 @@ export default function AdminShiftPlanPage() {
     scrollTableTo(wrapper.scrollLeft + delta);
   };
 
-  const handleToggleInstance = async (instanceId: string) => {
+  const handleToggleInstance = async (employmentId: number) => {
     if (!plan) return;
 
     setSaveError(null);
-    const exists = selectedIds.includes(instanceId);
-    const nextSelection = exists ? selectedIds.filter((id) => id !== instanceId) : [...selectedIds, instanceId];
+    const exists = selectedIds.includes(employmentId);
+    const nextSelection = exists ? selectedIds.filter((id) => id !== employmentId) : [...selectedIds, employmentId];
 
     try {
-      await adminSetShiftPlanSelection({ year, month: monthNum, instance_ids: nextSelection });
+      await adminSetShiftPlanSelection({ year, month: monthNum, employment_ids: nextSelection });
       setRefreshTick((tick) => tick + 1);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Nelze změnit výběr.");
@@ -358,7 +358,7 @@ export default function AdminShiftPlanPage() {
   };
 
   const handleInputChange = (
-    instanceId: string,
+    employmentId: number,
     date: string,
     field: "arrival_time" | "departure_time",
     value: string,
@@ -369,7 +369,7 @@ export default function AdminShiftPlanPage() {
       return {
         ...prev,
         rows: prev.rows.map((row) => {
-          if (row.instance_id !== instanceId) return row;
+          if (row.employment_id !== employmentId) return row;
 
           return {
             ...row,
@@ -391,14 +391,14 @@ export default function AdminShiftPlanPage() {
   };
 
   const handleInputBlur = async (
-    instanceId: string,
+    employmentId: number,
     date: string,
     field: "arrival_time" | "departure_time",
   ) => {
     if (!plan) return;
 
     setSaveError(null);
-    const row = plan.rows.find((item) => item.instance_id === instanceId);
+    const row = plan.rows.find((item) => item.employment_id === employmentId);
     const day = row?.days.find((item) => item.date === date);
     if (!row || !day) return;
 
@@ -410,17 +410,17 @@ export default function AdminShiftPlanPage() {
     }
 
     const finalValue = normalized === "" ? null : normalized;
-    applyFieldValue(instanceId, date, field, finalValue);
+    applyFieldValue(employmentId, date, field, finalValue);
 
     const arrivalValue = field === "arrival_time" ? finalValue : day.arrival_time;
     const departureValue = field === "departure_time" ? finalValue : day.departure_time;
-    const cellKey = `${instanceId}:${date}:${field}`;
+    const cellKey = `${employmentId}:${date}:${field}`;
 
     setSavingCells((prev) => ({ ...prev, [cellKey]: true }));
 
     try {
       await adminUpsertShiftPlan({
-        instance_id: instanceId,
+        employment_id: employmentId,
         date,
         arrival_time: arrivalValue,
         departure_time: departureValue,
@@ -452,12 +452,12 @@ export default function AdminShiftPlanPage() {
     }
   };
 
-  const handleDayStatusChange = async (instanceId: string, date: string, status: ShiftPlanDayStatus | null) => {
+  const handleDayStatusChange = async (employmentId: number, date: string, status: ShiftPlanDayStatus | null) => {
     if (!plan) return;
     setSaveError(null);
     setContextMenu(null);
 
-    const row = plan.rows.find((item) => item.instance_id === instanceId);
+    const row = plan.rows.find((item) => item.employment_id === employmentId);
     const day = row?.days.find((item) => item.date === date);
     if (!row || !day) return;
 
@@ -470,7 +470,7 @@ export default function AdminShiftPlanPage() {
       return {
         ...prev,
         rows: prev.rows.map((r) => {
-          if (r.instance_id !== instanceId) return r;
+          if (r.employment_id !== employmentId) return r;
           return {
             ...r,
             days: r.days.map((d) => {
@@ -487,27 +487,27 @@ export default function AdminShiftPlanPage() {
       };
     });
 
-    setSavingForDay(instanceId, date, true);
+    setSavingForDay(employmentId, date, true);
 
     try {
       await adminUpsertShiftPlan({
-        instance_id: instanceId,
+        employment_id: employmentId,
         date,
         arrival_time: nextArrival,
         departure_time: nextDeparture,
         status: nextStatus,
       });
-      setSuccessForDay(instanceId, date);
+      setSuccessForDay(employmentId, date);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Nelze uložit změnu.");
     } finally {
-      setSavingForDay(instanceId, date, false);
+      setSavingForDay(employmentId, date, false);
     }
   };
 
-  const handleCellContextMenu = (event: React.MouseEvent, instanceId: string, date: string) => {
+  const handleCellContextMenu = (event: React.MouseEvent, employmentId: number, date: string) => {
     event.preventDefault();
-    setContextMenu({ x: event.clientX, y: event.clientY, instanceId, date });
+    setContextMenu({ x: event.clientX, y: event.clientY, employmentId, date });
   };
 
   const instancePicker = (
@@ -518,7 +518,7 @@ export default function AdminShiftPlanPage() {
           <div className="plan-instance-subtitle">Jen seznam uživatelů, ne existující docházky.</div>
         </div>
         <div className="plan-instance-count">
-          Vybráno {selectedIds.length}/{activeInstances.length}
+          Vybráno {selectedIds.length}/{activeEmployments.length}
         </div>
       </div>
       <div className="plan-instance-filter">
@@ -532,7 +532,7 @@ export default function AdminShiftPlanPage() {
         />
       </div>
       <div className="plan-instance-list">
-        {filteredInstances.map((inst) => {
+        {filteredEmployments.map((inst) => {
           const selected = selectedIds.includes(inst.id);
           return (
             <label key={inst.id} className={`plan-instance-row${selected ? " selected" : ""}`}>
@@ -540,16 +540,16 @@ export default function AdminShiftPlanPage() {
                 type="checkbox"
                 checked={selected}
                 onChange={() => handleToggleInstance(inst.id)}
-                aria-label={`Zahrnout ${inst.display_name ?? inst.id}`}
+                aria-label={`Zahrnout ${inst.display_label}`}
               />
               <div className="plan-instance-main">
-                <div className="plan-instance-name">{inst.display_name ?? inst.id}</div>
-                <div className="plan-instance-meta">{employmentTemplateLabel(inst.employment_template)}</div>
+                <div className="plan-instance-name">{inst.display_label}</div>
+                <div className="plan-instance-meta">{employmentTemplateLabel(inst.employment_type)}</div>
               </div>
             </label>
           );
         })}
-        {filteredInstances.length === 0 ? <div className="plan-instance-empty">Žádný uživatel neodpovídá filtru.</div> : null}
+        {filteredEmployments.length === 0 ? <div className="plan-instance-empty">Žádný úvazek neodpovídá filtru.</div> : null}
       </div>
     </div>
   );
@@ -580,7 +580,7 @@ export default function AdminShiftPlanPage() {
           <div className="plan-toolbar">
             <div className="plan-toolbar-summary">
               <div className="plan-toolbar-count">
-                {filteredInstances.length} / {activeInstances.length} osob
+                {filteredEmployments.length} / {activeEmployments.length} úvazků
               </div>
               <div className="plan-toolbar-filter">
                 {instanceQuery.trim() ? (
@@ -693,7 +693,7 @@ export default function AdminShiftPlanPage() {
 
                   <tbody>
                     {rows.map((row) => {
-                      const rowId = row.instance_id;
+                      const rowId = row.employment_id;
                       const dayMap = row.days.reduce(
                         (acc, day) => {
                           acc[day.date] = day;
@@ -710,8 +710,8 @@ export default function AdminShiftPlanPage() {
                         <Fragment key={rowId}>
                           <tr className="plan-table-row plan-table-row-arrival">
                             <td className="plan-name-cell" rowSpan={2}>
-                              <div className="plan-name">{row.display_name ?? rowId}</div>
-                              <div className="plan-name-meta">{employmentTemplateLabel(row.employment_template)}</div>
+                              <div className="plan-name">{row.display_label}</div>
+                              <div className="plan-name-meta">{employmentTemplateLabel(row.employment_type)}</div>
                               <div className="plan-name-kindstack">
                                 <span className="plan-name-kind">Příchod</span>
                                 <span className="plan-name-kind plan-name-kind--muted">Odchod</span>
@@ -828,13 +828,13 @@ export default function AdminShiftPlanPage() {
 
               {contextMenu ? (
                 <div className="plan-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-                  <button type="button" onClick={() => handleDayStatusChange(contextMenu.instanceId, contextMenu.date, "HOLIDAY")}>
+                  <button type="button" onClick={() => handleDayStatusChange(contextMenu.employmentId, contextMenu.date, "HOLIDAY")}>
                     Dovolená
                   </button>
-                  <button type="button" onClick={() => handleDayStatusChange(contextMenu.instanceId, contextMenu.date, "OFF")}>
+                  <button type="button" onClick={() => handleDayStatusChange(contextMenu.employmentId, contextMenu.date, "OFF")}>
                     Volno
                   </button>
-                  <button type="button" onClick={() => handleDayStatusChange(contextMenu.instanceId, contextMenu.date, null)}>
+                  <button type="button" onClick={() => handleDayStatusChange(contextMenu.employmentId, contextMenu.date, null)}>
                     Vymazat
                   </button>
                 </div>

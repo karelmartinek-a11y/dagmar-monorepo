@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { adminListInstances, adminListUsers, type AdminInstance, type PortalUser } from "../api/admin";
-import { employmentTemplateLabel } from "../utils/uiLabels";
+import { adminListUsers, type PortalUser } from "../api/admin";
 
 type DocType = "attendance" | "plan";
+type EmploymentOption = PortalUser["employments"][number] & { user_name: string };
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -14,28 +14,26 @@ function yyyyMm(d: Date) {
 }
 
 export default function AdminPrintsPage() {
-  const [instances, setInstances] = useState<AdminInstance[]>([]);
   const [users, setUsers] = useState<PortalUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [docType, setDocType] = useState<DocType>("attendance");
   const [month, setMonth] = useState(() => yyyyMm(new Date()));
   const [query, setQuery] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    (async () => {
+    void (async () => {
       try {
-        const [instanceRes, userRes] = await Promise.all([adminListInstances(), adminListUsers()]);
+        const res = await adminListUsers();
         if (cancelled) return;
-        setInstances(instanceRes.instances);
-        setUsers(userRes.users);
+        setUsers(res.users);
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Nepodařilo se načíst seznam zařízení.");
+        setError(err instanceof Error ? err.message : "Nepodařilo se načíst seznam úvazků.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -45,35 +43,26 @@ export default function AdminPrintsPage() {
     };
   }, []);
 
-  const userNameByInstanceId = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const user of users) {
-      if (!user.profile_instance_id) continue;
-      map.set(user.profile_instance_id, user.name);
-    }
-    return map;
-  }, [users]);
-
-  const displayLabel = (instance: AdminInstance) => userNameByInstanceId.get(instance.id) ?? instance.display_name ?? instance.id;
+  const employments = useMemo<EmploymentOption[]>(
+    () => users.flatMap((user) => user.employments.map((employment) => ({ ...employment, user_name: user.name }))),
+    [users]
+  );
 
   const filtered = useMemo(() => {
-    const tokens = query
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (tokens.length === 0) return instances;
-    return instances.filter((it) => {
-      const hay = `${displayLabel(it)} ${it.display_name ?? ""} ${it.id}`.toLowerCase();
-      return tokens.every((t) => hay.includes(t));
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return employments;
+    return employments.filter((employment) => {
+      const hay = `${employment.user_name} ${employment.label} ${employment.id}`.toLowerCase();
+      return tokens.every((token) => hay.includes(token));
     });
-  }, [displayLabel, instances, query]);
+  }, [employments, query]);
 
-  const toggle = (id: string) => {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggle = (id: number) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   };
 
   function selectAllVisible() {
-    setSelectedIds(filtered.map((i) => i.id));
+    setSelectedIds(filtered.map((employment) => employment.id));
   }
 
   function clearAll() {
@@ -84,8 +73,7 @@ export default function AdminPrintsPage() {
     e.preventDefault();
     if (!month || selectedIds.length === 0) return;
     const idsParam = encodeURIComponent(selectedIds.join(","));
-    const url = `/admin/tisky/preview?type=${docType}&month=${month}&ids=${idsParam}`;
-    window.open(url, "_blank", "noopener");
+    window.open(`/admin/tisky/preview?type=${docType}&month=${month}&ids=${idsParam}`, "_blank", "noopener");
   }
 
   return (
@@ -93,14 +81,12 @@ export default function AdminPrintsPage() {
       <header className="print-hero">
         <div className="stack" style={{ gap: 6 }}>
           <span className="eyebrow">Administrace · Tisky</span>
-          <h1 className="print-title">Hromadné podklady k tisku</h1>
-          <p className="muted">
-            Vyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.
-          </p>
+          <h1 className="print-title">Tisky podle úvazků</h1>
+          <p className="muted">Vyberte typ dokumentu, měsíc a konkrétní úvazky zaměstnanců.</p>
         </div>
         <div className="print-counter">
           <div className="counter-number">{selectedIds.length}</div>
-          <div className="counter-label">vybraných osob</div>
+          <div className="counter-label">vybraných úvazků</div>
         </div>
       </header>
 
@@ -115,30 +101,19 @@ export default function AdminPrintsPage() {
               <span className="label">Typ dokumentu</span>
               <div className="pill-group">
                 <label className={`pill ${docType === "attendance" ? "pill--active" : ""}`}>
-                  <input
-                    type="radio"
-                    name="docType"
-                    value="attendance"
-                    checked={docType === "attendance"}
-                    onChange={() => setDocType("attendance")}
-                  />
-                  Docházkový list
+                  <input type="radio" checked={docType === "attendance"} onChange={() => setDocType("attendance")} />
+                  Evidence docházky
                 </label>
                 <label className={`pill ${docType === "plan" ? "pill--active" : ""}`}>
-                  <input type="radio" name="docType" value="plan" checked={docType === "plan"} onChange={() => setDocType("plan")} />
-                  Docházkový plán
+                  <input type="radio" checked={docType === "plan"} onChange={() => setDocType("plan")} />
+                  Plán služeb
                 </label>
               </div>
-              <p className="muted small">Volba určuje šablonu dokumentu v náhledu.</p>
             </div>
-
-            <div className="stack" style={{ gap: 10 }}>
-              <label className="stack" style={{ gap: 6 }}>
-                <span className="label">Měsíc</span>
-                <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} required />
-              </label>
-              <p className="muted small">Tisky se generují pro celé zvolené kalendářní období.</p>
-            </div>
+            <label className="stack" style={{ gap: 6 }}>
+              <span className="label">Měsíc</span>
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} required />
+            </label>
           </div>
         </section>
 
@@ -146,8 +121,7 @@ export default function AdminPrintsPage() {
           <div className="panel-head">
             <div>
               <div className="eyebrow">Krok 2</div>
-              <div className="panel-title">Výběr osob</div>
-              <p className="muted small">Filtrovat podle jména nebo identifikátoru, poté označit pro zahrnutí do podkladů k tisku.</p>
+              <div className="panel-title">Výběr úvazků</div>
             </div>
             <div className="row" style={{ gap: 8 }}>
               <button type="button" className="btn ghost" onClick={selectAllVisible} disabled={filtered.length === 0}>
@@ -164,7 +138,7 @@ export default function AdminPrintsPage() {
               <input
                 type="search"
                 className="input"
-                placeholder="Hledat podle jména nebo identifikátoru"
+                placeholder="Hledat podle zaměstnance nebo názvu úvazku"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 style={{ flex: 1, minWidth: 260 }}
@@ -178,14 +152,13 @@ export default function AdminPrintsPage() {
               {loading && <div className="muted">Načítám…</div>}
               {error && <div className="error">{error}</div>}
               {!loading && filtered.length === 0 ? <div className="muted">Nic nenalezeno.</div> : null}
-
-              {filtered.map((it) => (
-                <label key={it.id} className={`print-row ${selectedIds.includes(it.id) ? "print-row--selected" : ""}`}>
-                  <input type="checkbox" checked={selectedIds.includes(it.id)} onChange={() => toggle(it.id)} />
+              {filtered.map((employment) => (
+                <label key={employment.id} className={`print-row ${selectedIds.includes(employment.id) ? "print-row--selected" : ""}`}>
+                  <input type="checkbox" checked={selectedIds.includes(employment.id)} onChange={() => toggle(employment.id)} />
                   <div className="stack" style={{ gap: 2 }}>
-                    <span className="print-name">{displayLabel(it)}</span>
+                    <span className="print-name">{employment.label}</span>
                     <span className="muted small">
-                      Identifikátor {it.id} · {employmentTemplateLabel(it.employment_template)}
+                      {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
                     </span>
                   </div>
                 </label>
@@ -198,11 +171,10 @@ export default function AdminPrintsPage() {
           <div className="panel-head">
             <div className="eyebrow">Krok 3</div>
             <div className="panel-title">Potvrzení a tisk</div>
-            <p className="muted small">Náhled pro tisk se otevře v novém panelu. Původní stránka zůstane pro další tisk.</p>
           </div>
           <div className="panel-body row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <div className="muted small">
-              Vybraných osob: <strong>{selectedIds.length}</strong>
+              Vybraných úvazků: <strong>{selectedIds.length}</strong>
             </div>
             <div className="row" style={{ gap: 8 }}>
               <NavLink to="/admin/users" className="btn ghost">

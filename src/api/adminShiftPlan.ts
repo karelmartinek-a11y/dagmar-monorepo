@@ -1,10 +1,16 @@
 import { apiFetch } from "./client";
 import { ensureCsrfToken } from "./csrf";
+import type { EmploymentTemplate } from "../types/employment";
 
-export type ActiveInstance = {
-  id: string;
-  display_name: string | null;
-  employment_template: string;
+export type ActiveEmployment = {
+  id: number;
+  user_id: number;
+  user_name: string;
+  title: string;
+  employment_type: EmploymentTemplate;
+  display_label: string;
+  start_date: string;
+  end_date: string | null;
 };
 
 export type ShiftPlanDay = {
@@ -12,33 +18,36 @@ export type ShiftPlanDay = {
   arrival_time: string | null;
   departure_time: string | null;
   status?: ShiftPlanDayStatus | null;
+  is_within_employment_period: boolean;
 };
 
 export type ShiftPlanDayStatus = "HOLIDAY" | "OFF";
 
 export type ShiftPlanRow = {
-  instance_id: string;
-  display_name: string | null;
-  employment_template: string;
+  employment_id: number;
+  user_name: string;
+  title: string;
+  employment_type: EmploymentTemplate;
+  display_label: string;
   days: ShiftPlanDay[];
 };
 
 export type ShiftPlanMonth = {
   year: number;
   month: number;
-  selected_instance_ids: string[];
-  active_instances: ActiveInstance[];
+  selected_employment_ids: number[];
+  available_employments: ActiveEmployment[];
   rows: ShiftPlanRow[];
 };
 
 export type ShiftPlanSelectionRequest = {
   year: number;
   month: number;
-  instance_ids: string[];
+  employment_ids: number[];
 };
 
 export type ShiftPlanUpsertRequest = {
-  instance_id: string;
+  employment_id: number;
   date: string;
   arrival_time: string | null;
   departure_time: string | null;

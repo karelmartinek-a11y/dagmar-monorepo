@@ -1,10 +1,23 @@
 import { apiFetch } from "./client";
+import type { EmploymentTemplate } from "../types/employment";
+
+export type PortalLoginEmployment = {
+  id: number;
+  title: string;
+  employment_type: EmploymentTemplate;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  is_current: boolean;
+  label: string;
+};
 
 export type PortalLoginResponse = {
   instance_id: string;
   instance_token: string;
-  display_name?: string | null;
-  employment_template?: string | null;
+  display_name: string;
+  employment_id: number | null;
+  available_employments: PortalLoginEmployment[];
   afternoon_cutoff?: string | null;
 };
 

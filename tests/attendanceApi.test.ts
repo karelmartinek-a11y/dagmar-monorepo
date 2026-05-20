@@ -32,6 +32,7 @@ describe("attendance API fallback", () => {
       );
 
     const result = await getAttendanceMonth({
+      employmentId: 17,
       year: 2026,
       month: 4,
       instanceToken: "portal-token",
@@ -66,6 +67,7 @@ describe("attendance API fallback", () => {
     const result = await upsertAttendance({
       instanceToken: "portal-token",
       body: {
+        employment_id: 17,
         date: "2026-04-01",
         arrival_time: "08:00",
         departure_time: "16:00",

@@ -1,23 +1,27 @@
+import type { PortalLoginEmployment } from "../api/portal";
+
 export type PortalAuthState = {
   accessToken: string | null;
-  profileId: string | null;
+  employmentId: number | null;
   displayName: string | null;
+  employments: PortalLoginEmployment[];
 };
 
-const STORAGE_KEY = "dagmar_portal_auth_v1";
+const STORAGE_KEY = "dagmar_portal_auth_v2";
 
 function read(): PortalAuthState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { accessToken: null, profileId: null, displayName: null };
+    if (!raw) return { accessToken: null, employmentId: null, displayName: null, employments: [] };
     const parsed = JSON.parse(raw) as Partial<PortalAuthState>;
     return {
       accessToken: typeof parsed.accessToken === "string" ? parsed.accessToken : null,
-      profileId: typeof parsed.profileId === "string" ? parsed.profileId : null,
+      employmentId: typeof parsed.employmentId === "number" ? parsed.employmentId : null,
       displayName: typeof parsed.displayName === "string" ? parsed.displayName : null,
+      employments: Array.isArray(parsed.employments) ? parsed.employments : [],
     };
   } catch {
-    return { accessToken: null, profileId: null, displayName: null };
+    return { accessToken: null, employmentId: null, displayName: null, employments: [] };
   }
 }
 
@@ -38,5 +42,5 @@ export function setPortalAuthState(next: PortalAuthState) {
 }
 
 export function clearPortalAuthState() {
-  write({ accessToken: null, profileId: null, displayName: null });
+  write({ accessToken: null, employmentId: null, displayName: null, employments: [] });
 }

@@ -25,6 +25,60 @@ export type AdminInstance = {
   employment_template: EmploymentTemplate;
 };
 
+export type AdminEmployment = {
+  id: number;
+  user_id: number;
+  title: string;
+  employment_type: EmploymentTemplate;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  label: string;
+};
+
+export type PortalUser = {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+  has_password: boolean;
+  is_active: boolean;
+  is_locked: boolean;
+  locked_until?: string | null;
+  login_status: "ACTIVE" | "DEACTIVATED" | "EMPLOYMENT_WINDOW_BLOCKED";
+  login_status_reason?: string | null;
+  employments: AdminEmployment[];
+};
+
+export type AdminUsersResponse = {
+  users: PortalUser[];
+};
+
+export type EmploymentPeriodConflict = {
+  code: "employment_period_conflict";
+  message: string;
+  attendance_count: number;
+  shift_plan_count: number;
+  attendance_lock_count: number;
+  shift_plan_selection_count: number;
+  reminder_count: number;
+  problem_range_start: string | null;
+  problem_range_end: string | null;
+  requires_confirmation: true;
+};
+
+export type EmploymentUpdateResult =
+  | AdminEmployment
+  | {
+      ok: true;
+      deleted_attendance_count: number;
+      deleted_shift_plan_count: number;
+      deleted_attendance_lock_count: number;
+      deleted_shift_plan_selection_count: number;
+      deleted_reminder_count: number;
+    };
+
 export type AdminLoginRequest = {
   username?: string;
   email?: string;
@@ -53,7 +107,6 @@ export async function adminLogin(body: AdminLoginRequest): Promise<AdminLoginRes
     if (res?.csrf_token) setCsrfToken(res.csrf_token);
     return res;
   } catch (err) {
-    // Backward compatibility: some deployments accept `email` instead of `username`.
     if (err instanceof ApiError && err.status === 401 && body.username && !body.email) {
       const fallbackRes = await apiFetch<AdminLoginResponse>("/api/v1/admin/login", {
         method: "POST",
@@ -73,7 +126,6 @@ export async function adminLogout(): Promise<{ ok: true }> {
     method: "POST",
     headers: withCsrf(),
   });
-  // Best-effort clear.
   sessionStorage.removeItem("dagmar_csrf");
   return res;
 }
@@ -82,30 +134,12 @@ export async function adminMe(): Promise<AdminMe> {
   try {
     return await apiFetch<AdminMe>("/api/v1/admin/me", { method: "GET" });
   } catch (e) {
-    // If session expired, treat as not authenticated.
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       return { authenticated: false };
     }
     throw e;
   }
 }
-
-export type PortalUser = {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  has_password: boolean;
-  employment_template?: EmploymentTemplate | null;
-  profile_instance_id?: string | null;
-  is_active?: boolean;
-  is_locked?: boolean;
-  locked_until?: string | null;
-};
-
-export type AdminUsersResponse = {
-  users: PortalUser[];
-};
 
 export async function adminListUsers(): Promise<AdminUsersResponse> {
   return apiFetch<AdminUsersResponse>("/api/v1/admin/users", { method: "GET" });
@@ -114,9 +148,10 @@ export async function adminListUsers(): Promise<AdminUsersResponse> {
 export async function adminCreateUser(payload: {
   name: string;
   email: string;
+  phone?: string | null;
   role: string;
-  employment_template?: EmploymentTemplate | null;
-  profile_instance_id?: string | null;
+  password?: string | null;
+  is_active?: boolean;
 }): Promise<PortalUser> {
   return apiFetch<PortalUser>("/api/v1/admin/users", {
     method: "POST",
@@ -128,55 +163,18 @@ export async function adminCreateUser(payload: {
 export type AdminUpdateUserPayload = {
   name?: string;
   email?: string;
+  phone?: string | null;
   role?: string;
-  employment_template?: EmploymentTemplate | null;
-  profile_instance_id?: string | null;
+  password?: string | null;
+  is_active?: boolean;
 };
 
 export async function adminUpdateUser(userId: number, payload: AdminUpdateUserPayload): Promise<PortalUser> {
-  const path = `/api/v1/admin/users/${encodeURIComponent(String(userId))}`;
-
-  try {
-    return await apiFetch<PortalUser>(path, {
-      method: "PUT",
-      headers: withCsrf(),
-      body: payload,
-    });
-  } catch (err) {
-    if (err instanceof ApiError && (err.status === 404 || err.status === 405)) {
-      try {
-        // Some deployments expose PATCH on the same path.
-        return await apiFetch<PortalUser>(path, {
-          method: "PATCH",
-          headers: withCsrf(),
-          body: payload,
-        });
-      } catch (err2) {
-        if (err2 instanceof ApiError && (err2.status === 404 || err2.status === 405)) {
-          try {
-            // Older backends accept POST on the same path.
-            return await apiFetch<PortalUser>(path, {
-              method: "POST",
-              headers: withCsrf(),
-              body: payload,
-            });
-          } catch (err3) {
-            // Some very old deployments use POST /update.
-            if (err3 instanceof ApiError && err3.status === 404) {
-              return await apiFetch<PortalUser>(`${path}/update`, {
-                method: "POST",
-                headers: withCsrf(),
-                body: payload,
-              });
-            }
-            throw err3;
-          }
-        }
-        throw err2;
-      }
-    }
-    throw err;
-  }
+  return apiFetch<PortalUser>(`/api/v1/admin/users/${encodeURIComponent(String(userId))}`, {
+    method: "PUT",
+    headers: withCsrf(),
+    body: payload,
+  });
 }
 
 export async function adminSendUserReset(userId: number): Promise<{ ok: true }> {
@@ -196,6 +194,64 @@ export async function adminDeleteUser(userId: number): Promise<{ ok: true }> {
 export async function adminUnlockUser(userId: number): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>(`/api/v1/admin/users/${encodeURIComponent(String(userId))}/unlock`, {
     method: "POST",
+    headers: withCsrf(),
+  });
+}
+
+export async function adminListEmployments(userId: number): Promise<AdminEmployment[]> {
+  return apiFetch<AdminEmployment[]>(`/api/v1/admin/users/${encodeURIComponent(String(userId))}/employments`, {
+    method: "GET",
+  });
+}
+
+export async function adminCreateEmployment(
+  userId: number,
+  payload: {
+    title: string;
+    employment_type: EmploymentTemplate;
+    start_date: string;
+    end_date: string | null;
+    is_active?: boolean;
+  }
+): Promise<AdminEmployment> {
+  return apiFetch<AdminEmployment>(`/api/v1/admin/users/${encodeURIComponent(String(userId))}/employments`, {
+    method: "POST",
+    headers: withCsrf(),
+    body: payload,
+  });
+}
+
+export async function adminUpdateEmployment(
+  employmentId: number,
+  payload: {
+    title?: string;
+    employment_type?: EmploymentTemplate;
+    start_date?: string;
+    end_date?: string | null;
+    is_active?: boolean;
+    confirm_delete_out_of_range?: boolean;
+  }
+): Promise<EmploymentUpdateResult> {
+  try {
+    return await apiFetch<EmploymentUpdateResult>(`/api/v1/admin/employments/${encodeURIComponent(String(employmentId))}`, {
+      method: "PUT",
+      headers: withCsrf(),
+      body: payload,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      const detail = error.body?.detail;
+      if (detail && typeof detail === "object" && (detail as EmploymentPeriodConflict).code === "employment_period_conflict") {
+        throw detail as EmploymentPeriodConflict;
+      }
+    }
+    throw error;
+  }
+}
+
+export async function adminDeleteEmployment(employmentId: number): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/api/v1/admin/employments/${encodeURIComponent(String(employmentId))}`, {
+    method: "DELETE",
     headers: withCsrf(),
   });
 }
@@ -318,10 +374,10 @@ export async function adminDeletePendingInstances(): Promise<{ ok: true; deleted
   });
 }
 
-export function adminExportUrl(params: { month: string; instance_id?: string; bulk?: boolean }): string {
+export function adminExportUrl(params: { month: string; employment_id?: number; bulk?: boolean }): string {
   const q = new URLSearchParams();
   q.set("month", params.month);
-  if (params.instance_id) q.set("instance_id", params.instance_id);
+  if (params.employment_id) q.set("employment_id", String(params.employment_id));
   if (params.bulk) q.set("bulk", "true");
   return `/api/v1/admin/export?${q.toString()}`;
 }
@@ -330,7 +386,6 @@ export async function ensureAdminCsrfReady(): Promise<void> {
   void ensureCsrfToken();
 }
 
-// ---- Compatibility aliases for existing pages ----
 export const getAdminMe = adminMe;
 export const postAdminLogout = adminLogout;
 export const listInstances = async (): Promise<
@@ -347,11 +402,11 @@ export const listInstances = async (): Promise<
   return res.instances.map((i) => {
     const legacyLastSeen = "last_seen" in i ? (i as { last_seen?: string | null }).last_seen : null;
     return {
-    id: i.id,
-    client_type: i.client_type,
-    status: i.status,
-    display_name: i.display_name,
-    created_at: i.created_at,
+      id: i.id,
+      client_type: i.client_type,
+      status: i.status,
+      display_name: i.display_name,
+      created_at: i.created_at,
       last_seen: i.last_seen_at ?? legacyLastSeen ?? null,
     };
   });
@@ -366,6 +421,6 @@ export function adminExportBulkUrl(month: string): string {
   return adminExportUrl({ month, bulk: true });
 }
 
-export function adminExportInstanceUrl(month: string, instanceId: string): string {
-  return adminExportUrl({ month, instance_id: instanceId });
+export function adminExportEmploymentUrl(month: string, employmentId: number): string {
+  return adminExportUrl({ month, employment_id: employmentId });
 }

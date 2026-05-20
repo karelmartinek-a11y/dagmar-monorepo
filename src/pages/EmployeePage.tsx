@@ -4,7 +4,7 @@ import { ApiError } from "../api/client";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 import { getPragueTimeSnapshot, type PragueTimeSource } from "../api/time";
 import type { EmploymentTemplate } from "../types/employment";
-import { portalLogin } from "../api/portal";
+import { portalLogin, type PortalLoginEmployment } from "../api/portal";
 import { BRAND_ASSETS, APP_NAME_SHORT } from "../brand/brand";
 import { AndroidDownloadBanner } from "../components/AndroidDownloadBanner";
 import { clearPortalAuthState, getPortalAuthState, setPortalAuthState } from "../state/portalAuthStore";
@@ -224,8 +224,9 @@ function buildEmptyMonthRows(year: number, month: number): DayRow[] {
 export function EmployeePage() {
   const [online, setOnline] = useState<boolean>(navigator.onLine);
   const [token, setToken] = useState<string | null>(() => getPortalAuthState().accessToken);
-  const [profileId, setProfileId] = useState<string | null>(() => getPortalAuthState().profileId);
+  const [employmentId, setEmploymentId] = useState<number | null>(() => getPortalAuthState().employmentId);
   const [displayName, setDisplayName] = useState<string | null>(() => getPortalAuthState().displayName);
+  const [availableEmployments, setAvailableEmployments] = useState<PortalLoginEmployment[]>(() => getPortalAuthState().employments);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -260,6 +261,10 @@ export function EmployeePage() {
   const [sending, setSending] = useState<boolean>(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const pragueNow = useMemo(() => toPragueClock(clockNowMs + clockOffsetMs, clockSource), [clockNowMs, clockOffsetMs, clockSource]);
+  const selectedEmployment = useMemo(
+    () => availableEmployments.find((item) => item.id === employmentId) ?? null,
+    [availableEmployments, employmentId]
+  );
 
   const queueRef = useRef<QueueItem[]>([]);
   const workingFundHours = useMemo(() => {
@@ -324,7 +329,7 @@ export function EmployeePage() {
         setMonthLocked(false);
         return;
       }
-      if (!token) {
+      if (!token || !employmentId) {
         setRows([]);
         setMonthLocked(false);
         return;
@@ -332,8 +337,10 @@ export function EmployeePage() {
 
       try {
         const [y, m] = month.split("-").map((x) => parseInt(x, 10));
-        const res = await getAttendance(y, m, token);
+        const res = await getAttendance(employmentId, y, m, token);
         if (cancelled) return;
+        const activeEmployment = availableEmployments.find((item) => item.id === employmentId) ?? null;
+        if (activeEmployment) setEmploymentTemplate(activeEmployment.employment_type);
 
         // Normalize to full month list
         const dim = daysInMonth(y, m);
@@ -373,7 +380,7 @@ export function EmployeePage() {
     return () => {
       cancelled = true;
     };
-  }, [month, online, refreshTick, token]);
+  }, [availableEmployments, employmentId, month, online, refreshTick, token]);
 
   // Try to flush any offline queue whenever connectivity returns.
   useEffect(() => {
@@ -392,10 +399,17 @@ export function EmployeePage() {
     try {
       const res = await portalLogin({ email: loginEmail.trim(), password: loginPassword });
       setToken(res.instance_token);
-      setProfileId(res.instance_id);
+      setEmploymentId(res.employment_id);
       setDisplayName(res.display_name ?? null);
-      setPortalAuthState({ accessToken: res.instance_token, profileId: res.instance_id, displayName: res.display_name ?? null });
-      if (res.employment_template) setEmploymentTemplate(res.employment_template as EmploymentTemplate);
+      setAvailableEmployments(res.available_employments);
+      setPortalAuthState({
+        accessToken: res.instance_token,
+        employmentId: res.employment_id,
+        displayName: res.display_name ?? null,
+        employments: res.available_employments,
+      });
+      const defaultEmployment = res.available_employments.find((item) => item.id === res.employment_id) ?? res.available_employments[0];
+      if (defaultEmployment) setEmploymentTemplate(defaultEmployment.employment_type as EmploymentTemplate);
       if (res.afternoon_cutoff) setAfternoonCutoff(res.afternoon_cutoff);
     } catch (err: unknown) {
       setLoginError(errorMessage(err, "Přihlášení se nezdařilo."));
@@ -486,8 +500,10 @@ export function EmployeePage() {
       // Send in enqueue order
       while (q.length > 0) {
         const item = q[0];
+        if (!employmentId) break;
         await putAttendance(
           {
+            employment_id: employmentId,
             date: item.date,
             arrival_time: item.arrival_time,
             departure_time: item.departure_time,
@@ -542,12 +558,13 @@ export function EmployeePage() {
 
     // Compute payload from current state after update
     const payload = {
+      employment_id: employmentId ?? 0,
       date,
       arrival_time: field === "arrival_time" ? nextValue : row.arrival_time ?? null,
       departure_time: field === "departure_time" ? nextValue : row.departure_time ?? null,
     };
 
-    if (!online || !currentToken) {
+    if (!online || !currentToken || !employmentId) {
       enqueue({ ...payload, enqueuedAt: Date.now() });
       return;
     }
@@ -621,18 +638,46 @@ export function EmployeePage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ fontWeight: 700, fontSize: 20, textTransform: "uppercase" }}>
-                {monthHead} - {displayName || "—"}
+                {monthHead} - {(selectedEmployment?.label ?? displayName) || "—"}
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              {availableEmployments.length > 1 ? (
+                <select
+                  className="input"
+                  value={employmentId ?? ""}
+                  onChange={(e) => {
+                    const nextEmploymentId = Number(e.target.value);
+                    const nextEmployment = availableEmployments.find((item) => item.id === nextEmploymentId) ?? null;
+                    setEmploymentId(Number.isInteger(nextEmploymentId) ? nextEmploymentId : null);
+                    if (nextEmployment) {
+                      setEmploymentTemplate(nextEmployment.employment_type);
+                      setPortalAuthState({
+                        accessToken: token,
+                        employmentId: nextEmployment.id,
+                        displayName,
+                        employments: availableEmployments,
+                      });
+                    }
+                  }}
+                  style={{ minWidth: 280 }}
+                >
+                  {availableEmployments.map((employment) => (
+                    <option key={employment.id} value={employment.id}>
+                      {employment.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <img src={BRAND_ASSETS.logoHorizontal} alt={APP_NAME_SHORT} style={{ height: 32, width: "auto", objectFit: "contain" }} />
               <button
                 type="button"
                 onClick={() => {
                   clearPortalAuthState();
                   setToken(null);
-                  setProfileId(null);
+                  setEmploymentId(null);
                   setDisplayName(null);
+                  setAvailableEmployments([]);
                   queueRef.current = [];
                   persistQueue([]);
                   setQueuedCount(0);
@@ -737,6 +782,13 @@ export function EmployeePage() {
               Bez internetu nelze načíst historii ze serveru. Můžete zadávat změny; uloží se do zařízení a odešlou se po obnovení připojení.
               {queuedCount > 0 ? ` Ve frontě čeká ${queuedCount} změn.` : ""}
             </div>
+          </div>
+        ) : null}
+
+        {!selectedEmployment ? (
+          <div style={cardStyle()}>
+            <div style={{ fontWeight: 800, marginBottom: 6, color: "#b45309" }}>Není dostupný úvazek</div>
+            <div style={{ color: "var(--kb-brand-ink-600)" }}>Tento účet momentálně nemá vybraný úvazek pro zobrazení nebo zápis evidence docházky.</div>
           </div>
         ) : null}
 
@@ -883,8 +935,8 @@ export function EmployeePage() {
             gap: 12,
           }}
         >
-          <FooterStat label="Identifikátor profilu" value={profileId ?? "—"} />
-          <FooterStat label="Název zařízení" value={displayName || "—"} />
+          <FooterStat label="Identifikátor úvazku" value={employmentId ? String(employmentId) : "—"} />
+          <FooterStat label="Vybraný úvazek" value={(selectedEmployment?.label ?? displayName) || "—"} />
           <FooterStat
             label={`Součet hodin (${monthLabel(month)})`}
             value={`${formatHours(monthTotalMins)} h (z toho ${formatHours(monthHolidayMins)} h dovolená)`}

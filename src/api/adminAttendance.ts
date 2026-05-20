@@ -2,52 +2,37 @@ import { apiFetch, ApiError } from "./client";
 import type { ShiftPlanDayStatus } from "./adminShiftPlan";
 import { ensureCsrfToken } from "./csrf";
 
-export type AdminInstanceStatus = "PENDING" | "ACTIVE" | "REVOKED";
-export type AdminClientType = "ANDROID" | "WEB";
-
-export type AdminInstance = {
-  id: string;
-  client_type: AdminClientType;
-  device_fingerprint?: string;
-  status: AdminInstanceStatus;
-  display_name: string | null;
-  created_at?: string;
-  last_seen_at?: string | null;
-};
-
 export type AdminAttendanceDay = {
-  date: string; // YYYY-MM-DD
-  arrival_time: string | null; // HH:MM
-  departure_time: string | null; // HH:MM
+  date: string;
+  arrival_time: string | null;
+  departure_time: string | null;
   planned_arrival_time?: string | null;
   planned_departure_time?: string | null;
   planned_status?: ShiftPlanDayStatus | null;
+  is_within_employment_period: boolean;
 };
 
 export type AdminAttendanceMonthResponse = {
+  employment_id: number;
+  employment_label: string;
   days: AdminAttendanceDay[];
   locked: boolean;
-  afternoon_cutoff?: string | null;
 };
 
 export type AdminAttendanceUpsertBody = {
-  instance_id: string;
-  date: string; // YYYY-MM-DD
+  employment_id: number;
+  date: string;
   arrival_time: string | null;
   departure_time: string | null;
 };
 
-export async function adminListInstances(): Promise<AdminInstance[]> {
-  return apiFetch<AdminInstance[]>("/api/v1/admin/instances", { method: "GET" });
-}
-
 export async function adminGetAttendanceMonth(params: {
-  instanceId: string;
+  employmentId: number;
   year: number;
-  month: number; // 1-12
+  month: number;
   signal?: AbortSignal;
 }): Promise<AdminAttendanceMonthResponse> {
-  const { instanceId, year, month, signal } = params;
+  const { employmentId, year, month, signal } = params;
   if (!Number.isInteger(year) || year < 1970 || year > 2100) {
     throw new ApiError(400, "Invalid year");
   }
@@ -58,7 +43,7 @@ export async function adminGetAttendanceMonth(params: {
   return apiFetch<AdminAttendanceMonthResponse>({
     path: "/api/v1/admin/attendance",
     method: "GET",
-    query: { instance_id: instanceId, year, month },
+    query: { employment_id: employmentId, year, month },
     signal,
   });
 }
@@ -73,7 +58,7 @@ export async function adminUpsertAttendance(body: AdminAttendanceUpsertBody): Pr
   });
 }
 
-export async function adminLockAttendance(body: { instance_id: string; year: number; month: number }): Promise<{ ok: true }> {
+export async function adminLockAttendance(body: { employment_id: number; year: number; month: number }): Promise<{ ok: true }> {
   const csrf = await ensureCsrfToken();
   return apiFetch<{ ok: true }>({
     path: "/api/v1/admin/attendance/lock",
@@ -83,7 +68,7 @@ export async function adminLockAttendance(body: { instance_id: string; year: num
   });
 }
 
-export async function adminUnlockAttendance(body: { instance_id: string; year: number; month: number }): Promise<{ ok: true }> {
+export async function adminUnlockAttendance(body: { employment_id: number; year: number; month: number }): Promise<{ ok: true }> {
   const csrf = await ensureCsrfToken();
   return apiFetch<{ ok: true }>({
     path: "/api/v1/admin/attendance/unlock",
