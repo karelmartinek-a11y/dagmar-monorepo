@@ -6,11 +6,14 @@ import secrets
 import smtplib
 from datetime import UTC, date, datetime, timedelta
 from email.message import EmailMessage
+from types import SimpleNamespace
+from typing import cast as typing_cast
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import String, delete, select
+from sqlalchemy import cast as sa_cast
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import require_admin
@@ -243,12 +246,54 @@ def _apply_password(db: Session, user: PortalUser, raw_password: str | None) -> 
 
 @router.get("", response_model=PortalUserListOut)
 def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
-    rows = (
-        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).order_by(PortalUser.name.asc()))
-        .scalars()
-        .all()
-    )
-    principals = [user.email.lower() for user in rows if user.email]
+    users_table = PortalUser.__table__
+    employments_table = Employment.__table__
+
+    user_rows = db.execute(
+        select(
+            users_table.c.id,
+            users_table.c.name,
+            users_table.c.email,
+            users_table.c.phone,
+            sa_cast(users_table.c["role"], String).label("role"),
+            users_table.c.password_hash,
+            users_table.c.is_active,
+        ).order_by(users_table.c.name.asc())
+    ).mappings().all()
+
+    if not user_rows:
+        return PortalUserListOut(users=[])
+
+    user_ids = [int(row["id"]) for row in user_rows]
+    employment_rows = db.execute(
+        select(
+            employments_table.c.id,
+            employments_table.c.user_id,
+            employments_table.c.title,
+            employments_table.c.employment_type,
+            employments_table.c.start_date,
+            employments_table.c.end_date,
+            employments_table.c.is_active,
+        )
+        .where(employments_table.c.user_id.in_(user_ids))
+        .order_by(employments_table.c.start_date.asc(), employments_table.c.id.asc())
+    ).mappings().all()
+
+    employments_by_user: dict[int, list[SimpleNamespace]] = {}
+    for row in employment_rows:
+        employment = SimpleNamespace(
+            id=int(row["id"]),
+            user_id=int(row["user_id"]),
+            title=row["title"],
+            employment_type=row["employment_type"],
+            start_date=row["start_date"],
+            end_date=row["end_date"],
+            is_active=bool(row["is_active"]),
+            user=SimpleNamespace(name=""),
+        )
+        employments_by_user.setdefault(employment.user_id, []).append(employment)
+
+    principals = [str(row["email"]).lower() for row in user_rows if row["email"]]
     lock_rows = (
         db.execute(
             select(AuthLockoutState).where(
@@ -260,7 +305,28 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
         else []
     )
     locks_by_principal = {row.principal: row for row in lock_rows}
-    out = [_to_user_out(u, locks_by_principal.get(u.email.lower())) for u in rows]
+
+    out: list[PortalUserOut] = []
+    for row in user_rows:
+        user_id = int(row["id"])
+        name = str(row["name"] or "").strip()
+        email = str(row["email"] or "").strip()
+        employments = employments_by_user.get(user_id, [])
+        for employment in employments:
+            employment.user = SimpleNamespace(name=name)
+
+        user_like = SimpleNamespace(
+            id=user_id,
+            name=name,
+            email=email,
+            phone=row["phone"],
+            role=SimpleNamespace(value=str(row["role"] or "").strip() or "employee"),
+            password_hash=row["password_hash"],
+            is_active=bool(row["is_active"]),
+            employments=employments,
+        )
+        out.append(_to_user_out(typing_cast(PortalUser, user_like), locks_by_principal.get(email.lower()) if email else None))
+
     return PortalUserListOut(users=out)
 
 
