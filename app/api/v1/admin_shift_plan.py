@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -10,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_admin
-from app.db.models import Employment, ShiftPlan, ShiftPlanMonthInstance
+from app.db.models import Employment, PortalUser, ShiftPlan, ShiftPlanMonthInstance
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.employment_access import employment_label, employment_overlaps_month
@@ -121,6 +122,43 @@ def _load_available_employments(db: Session, year: int, month: int) -> list[Empl
     return [row for row in rows if employment_overlaps_month(row, month_start, month_end)]
 
 
+def _load_available_employment_rows(db: Session, year: int, month: int) -> list[SimpleNamespace]:
+    month_start, month_end = _month_range(year, month)
+    employments_table = Employment.__table__
+    users_table = PortalUser.__table__
+
+    rows = db.execute(
+        select(
+            employments_table.c.id,
+            employments_table.c.user_id,
+            employments_table.c.title,
+            employments_table.c.employment_type,
+            employments_table.c.start_date,
+            employments_table.c.end_date,
+            employments_table.c.is_active,
+            users_table.c.name.label("user_name"),
+        )
+        .select_from(employments_table.outerjoin(users_table, users_table.c.id == employments_table.c.user_id))
+        .order_by(employments_table.c.start_date.asc(), employments_table.c.id.asc())
+    ).mappings().all()
+
+    available: list[SimpleNamespace] = []
+    for row in rows:
+        employment = SimpleNamespace(
+            id=int(row["id"]),
+            user_id=int(row["user_id"]),
+            title=row["title"],
+            employment_type=row["employment_type"],
+            start_date=row["start_date"],
+            end_date=row["end_date"],
+            is_active=bool(row["is_active"]),
+            user=SimpleNamespace(name=row["user_name"] or f"Uživatel {row['user_id']}"),
+        )
+        if employment_overlaps_month(employment, month_start, month_end):
+            available.append(employment)
+    return available
+
+
 @router.get("/api/v1/admin/shift-plan", response_model=ShiftPlanMonthOut)
 def admin_get_shift_plan_month(
     year: int = Query(..., ge=2000, le=2100),
@@ -133,7 +171,7 @@ def admin_get_shift_plan_month(
 
 def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> ShiftPlanMonthOut:
     start, end = _month_range(year, month)
-    available_employments = _load_available_employments(db, year, month)
+    available_employments = _load_available_employment_rows(db, year, month)
     available_out = [_to_active_employment_out(item) for item in available_employments]
     available_ids = [item.id for item in available_employments]
 
@@ -154,21 +192,32 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
     if not selected_ids:
         return ShiftPlanMonthOut(year=year, month=month, selected_employment_ids=[], available_employments=available_out, rows=[])
 
-    employments = (
-        db.execute(select(Employment).options(joinedload(Employment.user)).where(Employment.id.in_(selected_ids)))
-        .scalars()
-        .all()
-    )
-    employment_by_id = {item.id: item for item in employments}
+    employment_by_id = {item.id: item for item in available_employments if item.id in selected_ids}
 
+    shift_plan_table = ShiftPlan.__table__
     plan_rows = db.execute(
-        select(ShiftPlan)
-        .where(ShiftPlan.employment_id.in_(selected_ids))
-        .where(ShiftPlan.date >= start)
-        .where(ShiftPlan.date < end)
-        .order_by(ShiftPlan.date.asc())
-    ).scalars().all()
-    plan_map: dict[tuple[int, dt.date], ShiftPlan] = {(row.employment_id, row.date): row for row in plan_rows}
+        select(
+            shift_plan_table.c.employment_id,
+            shift_plan_table.c.date,
+            shift_plan_table.c.arrival_time,
+            shift_plan_table.c.departure_time,
+            shift_plan_table.c.status,
+        )
+        .where(shift_plan_table.c.employment_id.in_(selected_ids))
+        .where(shift_plan_table.c.date >= start)
+        .where(shift_plan_table.c.date < end)
+        .order_by(shift_plan_table.c.date.asc())
+    ).mappings().all()
+    plan_map: dict[tuple[int, dt.date], SimpleNamespace] = {
+        (int(row["employment_id"]), row["date"]): SimpleNamespace(
+            employment_id=int(row["employment_id"]),
+            date=row["date"],
+            arrival_time=row["arrival_time"],
+            departure_time=row["departure_time"],
+            status=row["status"],
+        )
+        for row in plan_rows
+    }
 
     rows: list[ShiftPlanRowOut] = []
     for employment_id in selected_ids:
