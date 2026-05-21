@@ -297,15 +297,18 @@ def test_attendance_and_shift_plan_are_stored_by_employment_id() -> None:
         assert shift_plan_row.instance_id == instance_id
 
 
-def test_shift_plan_defaults_to_all_available_employments_when_month_has_no_selection() -> None:
+def test_shift_plan_defaults_to_active_employments_and_keeps_inactive_available_for_filtering() -> None:
     client, session_local = _build_client()
     with session_local() as db:
         first_user = _create_user(db, email="plan-first@example.com", name="První Uživatel")
         second_user = _create_user(db, email="plan-second@example.com", name="Druhý Uživatel")
+        inactive_user = _create_user(db, email="plan-inactive@example.com", name="Neaktivní Uživatel", is_active=False)
         first_employment = _add_employment(db, first_user, start_date=date(2025, 1, 1), title="Recepce")
         second_employment = _add_employment(db, second_user, start_date=date(2025, 1, 1), title="Úklid")
+        inactive_employment = _add_employment(db, inactive_user, start_date=date(2025, 1, 1), title="Archiv")
         first_employment_id = first_employment.id
         second_employment_id = second_employment.id
+        inactive_employment_id = inactive_employment.id
         db.add(
             ShiftPlan(
                 employment_id=first_employment_id,
@@ -323,6 +326,9 @@ def test_shift_plan_defaults_to_all_available_employments_when_month_has_no_sele
 
     assert payload["selected_employment_ids"] == [first_employment_id, second_employment_id]
     assert [row["employment_id"] for row in payload["rows"]] == [first_employment_id, second_employment_id]
+    assert inactive_employment_id in [item["id"] for item in payload["available_employments"]]
+    inactive_meta = next(item for item in payload["available_employments"] if item["id"] == inactive_employment_id)
+    assert inactive_meta["is_active_in_month"] is False
     assert payload["rows"][0]["days"][9]["arrival_time"] == "08:00"
     assert payload["rows"][1]["days"][9]["arrival_time"] is None
 

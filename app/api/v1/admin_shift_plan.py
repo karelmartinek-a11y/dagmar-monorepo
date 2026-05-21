@@ -30,6 +30,9 @@ class ActiveEmploymentOut(BaseModel):
     display_label: str
     start_date: str
     end_date: str | None = None
+    is_active: bool
+    user_is_active: bool
+    is_active_in_month: bool
 
 
 class ShiftPlanDayOut(BaseModel):
@@ -88,7 +91,12 @@ def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
     return start, end
 
 
-def _to_active_employment_out(employment: Employment) -> ActiveEmploymentOut:
+def _employment_is_active_in_month(employment: Employment, month_start: dt.date, month_end: dt.date) -> bool:
+    user_is_active = bool(employment.user.is_active) if employment.user is not None else False
+    return user_is_active and employment_overlaps_month(employment, month_start, month_end)
+
+
+def _to_active_employment_out(employment: Employment, month_start: dt.date, month_end: dt.date) -> ActiveEmploymentOut:
     user_name = employment.user.name if employment.user else f"Uživatel {employment.user_id}"
     return ActiveEmploymentOut(
         id=employment.id,
@@ -99,6 +107,9 @@ def _to_active_employment_out(employment: Employment) -> ActiveEmploymentOut:
         display_label=employment_label(employment, user_name),
         start_date=employment.start_date.isoformat(),
         end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
+        is_active=employment.is_active,
+        user_is_active=bool(employment.user.is_active) if employment.user is not None else False,
+        is_active_in_month=_employment_is_active_in_month(employment, month_start, month_end),
     )
 
 
@@ -113,18 +124,7 @@ def _get_employment(employment_id: int, db: Session) -> Employment:
     return employment
 
 
-def _load_available_employments(db: Session, year: int, month: int) -> list[Employment]:
-    month_start, month_end = _month_range(year, month)
-    rows = (
-        db.execute(select(Employment).options(joinedload(Employment.user)).order_by(Employment.start_date.asc(), Employment.id.asc()))
-        .scalars()
-        .all()
-    )
-    return [row for row in rows if employment_overlaps_month(row, month_start, month_end)]
-
-
-def _load_available_employment_rows(db: Session, year: int, month: int) -> list[SimpleNamespace]:
-    month_start, month_end = _month_range(year, month)
+def _load_available_employment_rows(db: Session) -> list[SimpleNamespace]:
     employments_table = Employment.__table__
     users_table = PortalUser.__table__
 
@@ -138,6 +138,7 @@ def _load_available_employment_rows(db: Session, year: int, month: int) -> list[
             employments_table.c.end_date,
             employments_table.c.is_active,
             users_table.c.name.label("user_name"),
+            users_table.c.is_active.label("user_is_active"),
         )
         .select_from(employments_table.outerjoin(users_table, users_table.c.id == employments_table.c.user_id))
         .order_by(employments_table.c.start_date.asc(), employments_table.c.id.asc())
@@ -153,10 +154,12 @@ def _load_available_employment_rows(db: Session, year: int, month: int) -> list[
             start_date=row["start_date"],
             end_date=row["end_date"],
             is_active=bool(row["is_active"]),
-            user=SimpleNamespace(name=row["user_name"] or f"Uživatel {row['user_id']}"),
+            user=SimpleNamespace(
+                name=row["user_name"] or f"Uživatel {row['user_id']}",
+                is_active=bool(row["user_is_active"]) if row["user_is_active"] is not None else False,
+            ),
         )
-        if employment_overlaps_month(cast(Employment, employment), month_start, month_end):
-            available.append(employment)
+        available.append(employment)
     return available
 
 
@@ -172,9 +175,11 @@ def admin_get_shift_plan_month(
 
 def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> ShiftPlanMonthOut:
     start, end = _month_range(year, month)
-    available_employments = _load_available_employment_rows(db, year, month)
-    available_out = [_to_active_employment_out(cast(Employment, item)) for item in available_employments]
-    available_ids = [item.id for item in available_employments]
+    available_employments = _load_available_employment_rows(db)
+    available_out = [_to_active_employment_out(cast(Employment, item), start, end) for item in available_employments]
+    active_default_ids = [
+        item.id for item in available_employments if _employment_is_active_in_month(cast(Employment, item), start, end)
+    ]
 
     try:
         selected = db.execute(
@@ -189,7 +194,7 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         # Pro samotné zobrazení plánu je bezpečné spadnout zpět na všechny dostupné úvazky.
         selected_ids = []
     if not selected_ids:
-        selected_ids = available_ids
+        selected_ids = active_default_ids
     if not selected_ids:
         return ShiftPlanMonthOut(year=year, month=month, selected_employment_ids=[], available_employments=available_out, rows=[])
 
@@ -340,10 +345,7 @@ def _admin_set_shift_plan_selection_impl(db: Session, body: ShiftPlanSelectionIn
     for employment_id in body.employment_ids:
         if employment_id in seen:
             continue
-        employment = _get_employment(employment_id, db)
-        month_start, month_end = _month_range(body.year, body.month)
-        if not employment_overlaps_month(employment, month_start, month_end):
-            raise HTTPException(status_code=400, detail="Nektery uvazek nelezi ve zvolenem mesici.")
+        _get_employment(employment_id, db)
         seen.add(employment_id)
         uniq.append(employment_id)
 
