@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { adminListUsers, type PortalUser } from "../api/admin";
+import { employmentIsActiveInMonth } from "../utils/employmentActivity";
 
 type DocType = "attendance" | "plan";
-type EmploymentOption = PortalUser["employments"][number] & { user_name: string };
+type EmploymentOption = PortalUser["employments"][number] & { user_name: string; user_is_active: boolean };
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -19,6 +20,7 @@ export default function AdminPrintsPage() {
   const [error, setError] = useState<string | null>(null);
   const [docType, setDocType] = useState<DocType>("attendance");
   const [month, setMonth] = useState(() => yyyyMm(new Date()));
+  const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
@@ -44,18 +46,28 @@ export default function AdminPrintsPage() {
   }, []);
 
   const employments = useMemo<EmploymentOption[]>(
-    () => users.flatMap((user) => user.employments.map((employment) => ({ ...employment, user_name: user.name }))),
+    () => users.flatMap((user) => user.employments.map((employment) => ({ ...employment, user_name: user.name, user_is_active: user.is_active }))),
     [users]
   );
 
+  const parsedMonth = useMemo(() => {
+    const match = /^(\d{4})-(\d{2})$/.exec(month);
+    if (!match) return null;
+    return { year: Number(match[1]), month: Number(match[2]) };
+  }, [month]);
+
   const filtered = useMemo(() => {
+    const visibleEmployments =
+      parsedMonth && !showInactiveEmployments
+        ? employments.filter((employment) => employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month))
+        : employments;
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return employments;
-    return employments.filter((employment) => {
+    if (tokens.length === 0) return visibleEmployments;
+    return visibleEmployments.filter((employment) => {
       const hay = `${employment.user_name} ${employment.label} ${employment.id}`.toLowerCase();
       return tokens.every((token) => hay.includes(token));
     });
-  }, [employments, query]);
+  }, [employments, parsedMonth, query, showInactiveEmployments]);
 
   const toggle = (id: number) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
@@ -147,6 +159,10 @@ export default function AdminPrintsPage() {
                 {filtered.length} nalezeno · {selectedIds.length} vybráno
               </div>
             </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700 }}>
+              <input type="checkbox" checked={showInactiveEmployments} onChange={(e) => setShowInactiveEmployments(e.target.checked)} />
+              Zobrazit i neaktivní úvazky
+            </label>
 
             <div className="print-list">
               {loading && <div className="muted">Načítám…</div>}
@@ -160,6 +176,9 @@ export default function AdminPrintsPage() {
                     <span className="muted small">
                       {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
                     </span>
+                    {parsedMonth && !employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month) ? (
+                      <span className="small" style={{ color: "#b45309", fontWeight: 700 }}>Neaktivní pro zvolený měsíc</span>
+                    ) : null}
                   </div>
                 </label>
               ))}

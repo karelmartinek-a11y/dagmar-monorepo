@@ -3,12 +3,13 @@ import { ApiError } from "../api/client";
 import { adminGetAttendanceMonth, adminLockAttendance, adminUpsertAttendance, adminUnlockAttendance, type AdminAttendanceDay } from "../api/adminAttendance";
 import { adminGetSettings, adminListUsers, type AdminEmployment, type PortalUser } from "../api/admin";
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
+import { employmentIsActiveInMonth } from "../utils/employmentActivity";
 import { normalizeTime, isValidTimeOrEmpty } from "../utils/timeInput";
 import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
 import { timeFieldPlaceholder } from "../utils/uiLabels";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 
-type EmploymentOption = AdminEmployment & { user_name: string };
+type EmploymentOption = AdminEmployment & { user_name: string; user_is_active: boolean };
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -65,6 +66,7 @@ function formatHours(mins: number): string {
 
 export default function AdminAttendanceSheetsPage() {
   const [users, setUsers] = useState<PortalUser[]>([]);
+  const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<EmploymentOption | null>(null);
   const [month, setMonth] = useState(() => yyyyMm(new Date()));
@@ -114,19 +116,42 @@ export default function AdminAttendanceSheetsPage() {
         user.employments.map((employment) => ({
           ...employment,
           user_name: user.name,
+          user_is_active: user.is_active,
         }))
       ),
     [users]
   );
 
+  const parsedMonth = useMemo(() => parseYYYYMM(month), [month]);
+
   const filtered = useMemo(() => {
+    const visibleEmployments = parsedMonth
+      ? employments.filter((employment) =>
+          showInactiveEmployments ? true : employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month),
+        )
+      : employments;
     const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return employments;
-    return employments.filter((employment) => {
+    if (tokens.length === 0) return visibleEmployments;
+    return visibleEmployments.filter((employment) => {
       const hay = `${employment.user_name} ${employment.label} ${employment.id}`.toLowerCase();
       return tokens.every((token) => hay.includes(token));
     });
-  }, [employments, query]);
+  }, [employments, parsedMonth, query, showInactiveEmployments]);
+
+  useEffect(() => {
+    if (filtered.length === 0) {
+      if (selected !== null) {
+        setSelected(null);
+      }
+      return;
+    }
+
+    if (selected && filtered.some((employment) => employment.id === selected.id)) {
+      return;
+    }
+
+    setSelected(filtered[0]);
+  }, [filtered, selected]);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,7 +250,14 @@ export default function AdminAttendanceSheetsPage() {
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
         <section style={{ background: "white", borderRadius: 16, padding: 16, border: "1px solid var(--line)", flex: "1 1 340px" }}>
           <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 10 }}>Výběr úvazku</div>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13, fontWeight: 700 }}>
+            <input type="checkbox" checked={showInactiveEmployments} onChange={(e) => setShowInactiveEmployments(e.target.checked)} />
+            Zobrazit i neaktivní úvazky
+          </label>
           <input className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Hledat podle zaměstnance nebo úvazku" />
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
+            Zobrazeno {filtered.length} z {employments.length} úvazků pro měsíc {monthLabel(month)}.
+          </div>
           <div style={{ marginTop: 12, display: "grid", gap: 8, maxHeight: 560, overflowY: "auto" }}>
             {loading ? <div style={{ color: "var(--muted)" }}>Načítám…</div> : null}
             {!loading && filtered.length === 0 ? <div style={{ color: "var(--muted)" }}>Nic nenalezeno.</div> : null}
@@ -249,6 +281,9 @@ export default function AdminAttendanceSheetsPage() {
                   <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                     {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
                   </div>
+                  {!parsedMonth || employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month) ? null : (
+                    <div style={{ fontSize: 11, color: "#b45309", marginTop: 6 }}>Neaktivní pro zvolený měsíc</div>
+                  )}
                 </button>
               );
             })}

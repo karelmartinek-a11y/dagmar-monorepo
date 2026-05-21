@@ -6,8 +6,9 @@ import { adminGetShiftPlanMonth, type ShiftPlanRow } from "../api/adminShiftPlan
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { computeDayCalc, computeMonthStats, getCzechHolidayName, isWeekendDate, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
+import { employmentIncludesDay } from "../utils/employmentActivity";
 
-type EmploymentInfo = PortalUser["employments"][number] & { user_name: string };
+type EmploymentInfo = PortalUser["employments"][number] & { user_name: string; user_is_active: boolean };
 type AttendanceDoc = {
   type: "attendance";
   employment: EmploymentInfo;
@@ -91,7 +92,9 @@ export default function AdminPrintPreviewPage() {
       try {
         const userRes = await adminListUsers();
         if (cancelled) return;
-        const employments = userRes.users.flatMap((user) => user.employments.map((employment) => ({ ...employment, user_name: user.name })));
+        const employments = userRes.users.flatMap((user) =>
+          user.employments.map((employment) => ({ ...employment, user_name: user.name, user_is_active: user.is_active })),
+        );
         const selected = employments.filter((employment) => idList.includes(employment.id));
         if (selected.length === 0) throw new Error("Nebyl nalezen žádný vybraný úvazek.");
 
@@ -110,12 +113,28 @@ export default function AdminPrintPreviewPage() {
         } else {
           const plan = await adminGetShiftPlanMonth({ year: parsedMonth.year, month: parsedMonth.month });
           if (cancelled) return;
-          const rows = plan.rows.filter((row) => idList.includes(row.employment_id));
-          const records: DocRecord[] = rows
-            .map((row) => {
-              const employment = selected.find((item) => item.id === row.employment_id);
-              if (!employment) return null;
-              return { type: "plan", employment, row } as DocRecord;
+          const rowById = new Map(plan.rows.map((row) => [row.employment_id, row]));
+          const records: DocRecord[] = selected
+            .map((employment) => {
+              const row =
+                rowById.get(employment.id) ??
+                {
+                  employment_id: employment.id,
+                  user_name: employment.user_name,
+                  title: employment.title,
+                  employment_type: employment.employment_type,
+                  display_label: employment.label,
+                  days: dayList(parsedMonth.year, parsedMonth.month).map((day) => ({
+                    date: day.date,
+                    arrival_time: null,
+                    departure_time: null,
+                    status: null,
+                    is_within_employment_period: employmentIncludesDay(employment, day.date),
+                  })),
+                };
+              const resolvedEmployment = selected.find((item) => item.id === row.employment_id);
+              if (!resolvedEmployment) return null;
+              return { type: "plan", employment: resolvedEmployment, row } as DocRecord;
             })
             .filter((item): item is DocRecord => item !== null);
           setDocs(records);
@@ -177,6 +196,7 @@ export default function AdminPrintPreviewPage() {
         th { background: var(--kb-text); color: #ffffff; font-weight: 600; }
         .row-weekend { background: rgba(82, 85, 93, 0.06); }
         .row-holiday { background: rgba(255,0,0,0.05); }
+        .row-outside { background: rgba(245, 158, 11, 0.14); color: #92400e; }
         .signature { margin-top: 14px; font-size: 10px; color: var(--kb-brand-ink-600); text-align: center; }
       `}</style>
 
@@ -194,6 +214,7 @@ export default function AdminPrintPreviewPage() {
                 <thead>
                   <tr>
                     <th>Datum</th>
+                    <th>Stav</th>
                     <th>Příchod</th>
                     <th>Odchod</th>
                     <th>Celkem</th>
@@ -212,20 +233,26 @@ export default function AdminPrintPreviewPage() {
                       doc.employment.employment_type,
                       doc.cutoffMinutes
                     );
-                    const rowClass = calc.isWeekendOrHoliday ? (getCzechHolidayName(day.date) ? "row-holiday" : "row-weekend") : "";
+                    const isOutsideEmployment = attendanceDay ? !attendanceDay.is_within_employment_period : !employmentIncludesDay(doc.employment, day.date);
+                    const rowClass = isOutsideEmployment
+                      ? "row-outside"
+                      : calc.isWeekendOrHoliday
+                        ? (getCzechHolidayName(day.date) ? "row-holiday" : "row-weekend")
+                        : "";
                     return (
                       <tr key={day.date} className={rowClass}>
                         <td>{formatDateLong(day.date)}</td>
-                        <td>{attendanceDay?.arrival_time ?? ""}</td>
-                        <td>{attendanceDay?.departure_time ?? ""}</td>
-                        <td>{calc.workedMins !== null ? `${formatHours(calc.workedMins)} h` : ""}</td>
+                        <td>{isOutsideEmployment ? "Mimo období úvazku" : getCzechHolidayName(day.date) ?? ""}</td>
+                        <td>{isOutsideEmployment ? "—" : attendanceDay?.arrival_time ?? ""}</td>
+                        <td>{isOutsideEmployment ? "—" : attendanceDay?.departure_time ?? ""}</td>
+                        <td>{isOutsideEmployment ? "—" : calc.workedMins !== null ? `${formatHours(calc.workedMins)} h` : ""}</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={4}>Odpracováno celkem: {formatHours(stats.totalMins)} h</td>
+                    <td colSpan={5}>Odpracováno celkem: {formatHours(stats.totalMins)} h</td>
                   </tr>
                 </tfoot>
               </table>
@@ -243,6 +270,7 @@ export default function AdminPrintPreviewPage() {
                 <tr>
                   <th>Datum</th>
                   <th>Den v týdnu</th>
+                  <th>Stav</th>
                   <th>Příchod</th>
                   <th>Odchod</th>
                 </tr>
@@ -251,20 +279,21 @@ export default function AdminPrintPreviewPage() {
                 {doc.row.days.map((day) => {
                   const holidayName = getCzechHolidayName(day.date);
                   const weekend = isWeekendDate(day.date);
-                  const rowClass = holidayName ? "row-holiday" : weekend ? "row-weekend" : "";
+                  const rowClass = !day.is_within_employment_period ? "row-outside" : holidayName ? "row-holiday" : weekend ? "row-weekend" : "";
                   return (
                     <tr key={day.date} className={rowClass}>
                       <td>{formatDateLong(day.date)}</td>
                       <td>{parseLocalDate(day.date).toLocaleDateString("cs-CZ", { weekday: "long" })}</td>
-                      <td>{day.arrival_time ?? ""}</td>
-                      <td>{day.departure_time ?? ""}</td>
+                      <td>{!day.is_within_employment_period ? "Mimo období úvazku" : day.status === "HOLIDAY" ? "Dovolená" : day.status === "OFF" ? "Volno" : holidayName ?? ""}</td>
+                      <td>{!day.is_within_employment_period ? "—" : day.arrival_time ?? ""}</td>
+                      <td>{!day.is_within_employment_period ? "—" : day.departure_time ?? ""}</td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={4}>Fond: {formatHours(workingDaysInMonthCs(parsedMonth.year, parsedMonth.month) * 8 * 60)} h</td>
+                  <td colSpan={5}>Fond: {formatHours(workingDaysInMonthCs(parsedMonth.year, parsedMonth.month) * 8 * 60)} h</td>
                 </tr>
               </tfoot>
             </table>

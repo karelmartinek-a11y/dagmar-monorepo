@@ -834,6 +834,14 @@ textarea {
   color: var(--kb-brand-ink-700);
 }
 
+.plan-instance-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .plan-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1595,6 +1603,10 @@ textarea {
   background: rgba(0, 102, 204, 0.12);
 }
 
+.plan-table-cell--outside {
+  background: rgba(245, 158, 11, 0.14);
+}
+
 .plan-table-status-label {
   position: absolute;
   inset: 0;
@@ -1619,6 +1631,11 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   color: #111111;
+}
+
+.plan-table-cell--outside .plan-table-input {
+  background: rgba(255, 255, 255, 0.72);
+  color: #92400e;
 }
 
 .plan-table-input:focus {

@@ -89,6 +89,7 @@ export default function AdminShiftPlanPage() {
   const [tableScrollWidth, setTableScrollWidth] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [instanceQuery, setInstanceQuery] = useState("");
+  const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
   const [sidebarBottomTarget, setSidebarBottomTarget] = useState<HTMLElement | null>(null);
   const successTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tableWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -310,19 +311,31 @@ export default function AdminShiftPlanPage() {
 
   const selectedIds = plan?.selected_employment_ids ?? [];
   const activeEmployments = useMemo(() => plan?.available_employments ?? [], [plan?.available_employments]);
+  const visibleEmployments = useMemo(
+    () => (showInactiveEmployments ? activeEmployments : activeEmployments.filter((item) => item.is_active_in_month)),
+    [activeEmployments, showInactiveEmployments],
+  );
   const filteredEmployments = useMemo(() => {
     const tokens = instanceQuery
       .trim()
       .toLowerCase()
       .split(/\s+/)
       .filter(Boolean);
-    if (tokens.length === 0) return activeEmployments;
-    return activeEmployments.filter((it) => {
+    if (tokens.length === 0) return visibleEmployments;
+    return visibleEmployments.filter((it) => {
       const hay = `${it.display_label} ${it.user_name} ${it.title} ${it.id} ${it.employment_type}`.toLowerCase();
       return tokens.every((t) => hay.includes(t));
     });
-  }, [activeEmployments, instanceQuery]);
-  const rows = plan?.rows ?? [];
+  }, [instanceQuery, visibleEmployments]);
+  const rows = useMemo(
+    () =>
+      (plan?.rows ?? []).filter((row) => {
+        const meta = activeEmployments.find((item) => item.id === row.employment_id);
+        if (!meta) return showInactiveEmployments;
+        return showInactiveEmployments || meta.is_active_in_month;
+      }),
+    [activeEmployments, plan?.rows, showInactiveEmployments],
+  );
 
   const handleMonthChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.value) return;
@@ -521,6 +534,10 @@ export default function AdminShiftPlanPage() {
           Vybráno {selectedIds.length}/{activeEmployments.length}
         </div>
       </div>
+      <label className="plan-instance-toggle">
+        <input type="checkbox" checked={showInactiveEmployments} onChange={(e) => setShowInactiveEmployments(e.target.checked)} />
+        <span>Zobrazit i neaktivní úvazky</span>
+      </label>
       <div className="plan-instance-filter">
         <label htmlFor="plan-instance-search">Filtrovat</label>
         <input
@@ -544,7 +561,10 @@ export default function AdminShiftPlanPage() {
               />
               <div className="plan-instance-main">
                 <div className="plan-instance-name">{inst.display_label}</div>
-                <div className="plan-instance-meta">{employmentTemplateLabel(inst.employment_type)}</div>
+                <div className="plan-instance-meta">
+                  {employmentTemplateLabel(inst.employment_type)}
+                  {!inst.is_active_in_month ? " · neaktivní pro zvolený měsíc" : ""}
+                </div>
               </div>
             </label>
           );
@@ -588,7 +608,7 @@ export default function AdminShiftPlanPage() {
                     Filtr: <strong>{instanceQuery.trim()}</strong>
                   </>
                 ) : (
-                  "Bez filtru"
+                  showInactiveEmployments ? "Včetně neaktivních úvazků" : "Jen aktivní úvazky pro zvolený měsíc"
                 )}
               </div>
             </div>
@@ -723,7 +743,8 @@ export default function AdminShiftPlanPage() {
                               const value = planDay?.arrival_time ?? "";
                               const cellKey = `${rowId}:${day.date}:arrival_time`;
                               const statusLabel = planStatusLabel(planDay?.status);
-                              const isBlocked = Boolean(statusLabel);
+                              const isOutsideEmployment = planDay ? !planDay.is_within_employment_period : false;
+                              const isBlocked = Boolean(statusLabel) || isOutsideEmployment;
                               const statusClass =
                                 planDay?.status === "HOLIDAY"
                                   ? " plan-table-cell--holiday"
@@ -735,7 +756,7 @@ export default function AdminShiftPlanPage() {
                                 <td
                                   className={`plan-table-cell${day.isWeekendOrHoliday ? " plan-table-cell--weekend" : ""}${
                                     successCells[cellKey] ? " plan-table-cell--success" : ""
-                                  }${statusClass}`}
+                                  }${statusClass}${isOutsideEmployment ? " plan-table-cell--outside" : ""}`}
                                   key={cellKey}
                                   onContextMenu={(event) => handleCellContextMenu(event, rowId, day.date)}
                                 >
@@ -751,11 +772,16 @@ export default function AdminShiftPlanPage() {
                                     onBlur={() => handleInputBlur(rowId, day.date, "arrival_time")}
                                     onKeyDown={handleInputKeyDown}
                                     placeholder={
-                                      isBlocked ? planStatusInputPlaceholder(planDay?.status) ?? timeFieldPlaceholder() : timeFieldPlaceholder()
+                                      isOutsideEmployment
+                                        ? "Mimo úvazek"
+                                        : isBlocked
+                                          ? planStatusInputPlaceholder(planDay?.status) ?? timeFieldPlaceholder()
+                                          : timeFieldPlaceholder()
                                     }
                                     maxLength={5}
                                     disabled={isBlocked}
                                   />
+                                  {isOutsideEmployment ? <div className="plan-saving">Mimo období úvazku</div> : null}
                                   <div className="plan-saving">{savingCells[cellKey] ? "Ukládám…" : null}</div>
                                 </td>
                               );
@@ -777,7 +803,8 @@ export default function AdminShiftPlanPage() {
                               const value = planDay?.departure_time ?? "";
                               const cellKey = `${rowId}:${day.date}:departure_time`;
                               const statusLabel = planStatusLabel(planDay?.status);
-                              const isBlocked = Boolean(statusLabel);
+                              const isOutsideEmployment = planDay ? !planDay.is_within_employment_period : false;
+                              const isBlocked = Boolean(statusLabel) || isOutsideEmployment;
                               const statusClass =
                                 planDay?.status === "HOLIDAY"
                                   ? " plan-table-cell--holiday"
@@ -789,7 +816,7 @@ export default function AdminShiftPlanPage() {
                                 <td
                                   className={`plan-table-cell${day.isWeekendOrHoliday ? " plan-table-cell--weekend" : ""}${
                                     successCells[cellKey] ? " plan-table-cell--success" : ""
-                                  }${statusClass}`}
+                                  }${statusClass}${isOutsideEmployment ? " plan-table-cell--outside" : ""}`}
                                   key={cellKey}
                                   onContextMenu={(event) => handleCellContextMenu(event, rowId, day.date)}
                                 >
@@ -805,11 +832,16 @@ export default function AdminShiftPlanPage() {
                                     onBlur={() => handleInputBlur(rowId, day.date, "departure_time")}
                                     onKeyDown={handleInputKeyDown}
                                     placeholder={
-                                      isBlocked ? planStatusInputPlaceholder(planDay?.status) ?? timeFieldPlaceholder() : timeFieldPlaceholder()
+                                      isOutsideEmployment
+                                        ? "Mimo úvazek"
+                                        : isBlocked
+                                          ? planStatusInputPlaceholder(planDay?.status) ?? timeFieldPlaceholder()
+                                          : timeFieldPlaceholder()
                                     }
                                     maxLength={5}
                                     disabled={isBlocked}
                                   />
+                                  {isOutsideEmployment ? <div className="plan-saving">Mimo období úvazku</div> : null}
                                   <div className="plan-saving">{savingCells[cellKey] ? "Ukládám…" : null}</div>
                                 </td>
                               );

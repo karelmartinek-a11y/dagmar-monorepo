@@ -81,6 +81,7 @@ function isUserEditDirty(
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<PortalUser[]>([]);
+  const [showInactiveUsers, setShowInactiveUsers] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -122,6 +123,7 @@ export default function AdminUsersPage() {
 
   const activeUserCount = useMemo(() => users.filter((user) => user.login_status === "ACTIVE").length, [users]);
   const blockedUserCount = useMemo(() => users.filter((user) => user.login_status === "EMPLOYMENT_WINDOW_BLOCKED").length, [users]);
+  const visibleUsers = useMemo(() => (showInactiveUsers ? users : users.filter((user) => user.is_active)), [showInactiveUsers, users]);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -455,12 +457,23 @@ export default function AdminUsersPage() {
         </section>
 
         <section className="card pad">
-          <div style={{ fontWeight: 850 }}>Seznam uživatelů</div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Ruční deaktivace účtu zůstává zachovaná. Přihlašovací stav se navíc odvozuje z přístupového okna nad úvazky.</div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontWeight: 850 }}>Seznam uživatelů</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                Ruční deaktivace účtu zůstává zachovaná. Přihlašovací stav se navíc odvozuje z přístupového okna nad úvazky.
+              </div>
+            </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700 }}>
+              <input type="checkbox" checked={showInactiveUsers} onChange={(e) => setShowInactiveUsers(e.target.checked)} />
+              Zobrazit i neaktivní
+            </label>
+          </div>
           {loading ? <div style={{ marginTop: 12, color: "var(--muted)" }}>Načítám…</div> : null}
+          {!loading ? <div style={{ marginTop: 10, fontSize: 12, color: "var(--muted)" }}>Zobrazeno {visibleUsers.length} z {users.length} uživatelů.</div> : null}
 
           <div style={{ display: "grid", gap: 16, marginTop: 14 }}>
-            {users.map((user) => {
+            {visibleUsers.map((user) => {
               const createForm = employmentForms[user.id] ?? emptyEmploymentForm();
               const userEditDirty =
                 editingUserId === user.id

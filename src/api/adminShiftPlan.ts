@@ -11,6 +11,9 @@ export type ActiveEmployment = {
   display_label: string;
   start_date: string;
   end_date: string | null;
+  is_active: boolean;
+  user_is_active: boolean;
+  is_active_in_month: boolean;
 };
 
 export type ShiftPlanDay = {
