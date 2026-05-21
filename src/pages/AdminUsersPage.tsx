@@ -10,6 +10,7 @@ import {
   adminUpdateEmployment,
   adminUpdateUser,
   type AdminEmployment,
+  type EmploymentDeleteConflict,
   type EmploymentPeriodConflict,
   type PortalUser,
 } from "../api/admin";
@@ -63,6 +64,19 @@ function fromEmployment(employment: AdminEmployment): EmploymentFormState {
     end_date: employment.end_date ?? "",
     is_indefinite: employment.end_date === null,
   };
+}
+
+function isUserEditDirty(
+  user: PortalUser,
+  draft: { name: string; email: string; phone: string; password: string; is_active: boolean }
+): boolean {
+  return (
+    draft.name !== user.name ||
+    draft.email !== user.email ||
+    draft.phone !== (user.phone ?? "") ||
+    draft.password.trim() !== "" ||
+    draft.is_active !== user.is_active
+  );
 }
 
 export default function AdminUsersPage() {
@@ -331,6 +345,31 @@ export default function AdminUsersPage() {
       await adminDeleteEmployment(employment.id);
       await load();
     } catch (err: unknown) {
+      const conflict = err as EmploymentDeleteConflict;
+      if (conflict?.code === "employment_delete_conflict") {
+        const confirmedDelete = window.confirm(
+          `Úvazek obsahuje navázaná data.\n\n` +
+            `Docházka: ${conflict.attendance_count}\n` +
+            `Plán služeb: ${conflict.shift_plan_count}\n` +
+            `Zámky měsíců: ${conflict.attendance_lock_count}\n` +
+            `Výběry plánu: ${conflict.shift_plan_selection_count}\n` +
+            `Připomínky: ${conflict.reminder_count}\n\n` +
+            `Opravdu chcete úvazek i s těmito daty trvale smazat?`
+        );
+        if (!confirmedDelete) {
+          setSaving(false);
+          return;
+        }
+        try {
+          await adminDeleteEmployment(employment.id, { confirm_delete_related: true });
+          await load();
+        } catch (retryError: unknown) {
+          setError(errorMessage(retryError, "Smazání úvazku se nezdařilo."));
+        } finally {
+          setSaving(false);
+        }
+        return;
+      }
       setError(errorMessage(err, "Smazání úvazku se nezdařilo. Pokud má data, ukončete ho datem."));
     } finally {
       setSaving(false);
@@ -423,6 +462,16 @@ export default function AdminUsersPage() {
           <div style={{ display: "grid", gap: 16, marginTop: 14 }}>
             {users.map((user) => {
               const createForm = employmentForms[user.id] ?? emptyEmploymentForm();
+              const userEditDirty =
+                editingUserId === user.id
+                  ? isUserEditDirty(user, {
+                      name: editName,
+                      email: editEmail,
+                      phone: editPhone,
+                      password: editPassword,
+                      is_active: editIsActive,
+                    })
+                  : false;
               return (
                 <div key={user.id} style={{ border: "1px solid var(--kb-border)", borderRadius: 16, padding: 16, display: "grid", gap: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -472,6 +521,31 @@ export default function AdminUsersPage() {
 
                   {editingUserId === user.id ? (
                     <form onSubmit={onUpdate} className="stack" style={{ gap: 12 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          background: userEditDirty ? "rgba(245,158,11,0.1)" : "rgba(35,41,44,0.04)",
+                          border: userEditDirty ? "1px solid rgba(245,158,11,0.24)" : "1px solid rgba(35,41,44,0.08)",
+                        }}
+                      >
+                        <div style={{ fontSize: 13, color: userEditDirty ? "#b45309" : "var(--muted)", fontWeight: 700 }}>
+                          {userEditDirty ? "Změny profilu čekají na uložení." : "Profil je beze změn."}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" className="btn" onClick={cancelEdit} disabled={saving}>
+                            Zrušit
+                          </button>
+                          <button type="submit" className="btn solid" disabled={saving || !userEditDirty}>
+                            {saving ? "Ukládám…" : "Uložit profil"}
+                          </button>
+                        </div>
+                      </div>
                       <div className="admin-form-grid">
                         <div>
                           <div className="label">Jméno</div>
@@ -500,14 +574,6 @@ export default function AdminUsersPage() {
                             {editIsActive ? "Aktivovat" : "Deaktivovat"}
                           </button>
                         </label>
-                      </div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button type="button" className="btn" onClick={cancelEdit} disabled={saving}>
-                          Zrušit
-                        </button>
-                        <button type="submit" className="btn solid" disabled={saving}>
-                          {saving ? "Ukládám…" : "Uložit účet"}
-                        </button>
                       </div>
                     </form>
                   ) : null}

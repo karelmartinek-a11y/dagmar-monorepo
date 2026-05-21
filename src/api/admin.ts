@@ -68,6 +68,19 @@ export type EmploymentPeriodConflict = {
   requires_confirmation: true;
 };
 
+export type EmploymentDeleteConflict = {
+  code: "employment_delete_conflict";
+  message: string;
+  attendance_count: number;
+  shift_plan_count: number;
+  attendance_lock_count: number;
+  shift_plan_selection_count: number;
+  reminder_count: number;
+  problem_range_start: string | null;
+  problem_range_end: string | null;
+  requires_confirmation: true;
+};
+
 export type EmploymentUpdateResult =
   | AdminEmployment
   | {
@@ -249,11 +262,25 @@ export async function adminUpdateEmployment(
   }
 }
 
-export async function adminDeleteEmployment(employmentId: number): Promise<{ ok: true }> {
-  return apiFetch<{ ok: true }>(`/api/v1/admin/employments/${encodeURIComponent(String(employmentId))}`, {
-    method: "DELETE",
-    headers: withCsrf(),
-  });
+export async function adminDeleteEmployment(
+  employmentId: number,
+  payload?: { confirm_delete_related?: boolean }
+): Promise<{ ok: true }> {
+  try {
+    return await apiFetch<{ ok: true }>(`/api/v1/admin/employments/${encodeURIComponent(String(employmentId))}`, {
+      method: "DELETE",
+      headers: withCsrf(),
+      body: payload,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      const detail = error.body?.detail;
+      if (detail && typeof detail === "object" && (detail as EmploymentDeleteConflict).code === "employment_delete_conflict") {
+        throw detail as EmploymentDeleteConflict;
+      }
+    }
+    throw error;
+  }
 }
 
 export type SmtpSettings = {
