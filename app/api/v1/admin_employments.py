@@ -8,7 +8,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
@@ -54,6 +54,10 @@ class EmploymentDeleteOut(BaseModel):
     deleted_attendance_lock_count: int = 0
     deleted_shift_plan_selection_count: int = 0
     deleted_reminder_count: int = 0
+
+
+class EmploymentDeleteIn(BaseModel):
+    confirm_delete_related: bool = False
 
 
 @dataclass
@@ -191,6 +195,75 @@ def _raise_range_conflict(summary: RangeConflictSummary) -> None:
     )
 
 
+def _raise_delete_conflict(summary: RangeConflictSummary) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "employment_delete_conflict",
+            "message": "Uvazek obsahuje navazana data. Smazani je nutne potvrdit.",
+            "attendance_count": summary.attendance_count,
+            "shift_plan_count": summary.shift_plan_count,
+            "attendance_lock_count": summary.attendance_lock_count,
+            "shift_plan_selection_count": summary.shift_plan_selection_count,
+            "reminder_count": summary.reminder_count,
+            "problem_range_start": summary.min_date.isoformat() if summary.min_date is not None else None,
+            "problem_range_end": summary.max_date.isoformat() if summary.max_date is not None else None,
+            "requires_confirmation": True,
+        },
+    )
+
+
+def _collect_related_data_summary(employment_id: int, db: Session) -> RangeConflictSummary:
+    summary = RangeConflictSummary()
+
+    attendance_dates = db.execute(
+        select(Attendance.date).where(Attendance.employment_id == employment_id).order_by(Attendance.date.asc())
+    ).all()
+    if attendance_dates:
+        summary.attendance_count = len(attendance_dates)
+        summary.touch(attendance_dates[0][0], attendance_dates[-1][0])
+
+    shift_dates = db.execute(
+        select(ShiftPlan.date).where(ShiftPlan.employment_id == employment_id).order_by(ShiftPlan.date.asc())
+    ).all()
+    if shift_dates:
+        summary.shift_plan_count = len(shift_dates)
+        summary.touch(shift_dates[0][0], shift_dates[-1][0])
+
+    lock_months = db.execute(
+        select(AttendanceLock.year, AttendanceLock.month)
+        .where(AttendanceLock.employment_id == employment_id)
+        .order_by(AttendanceLock.year.asc(), AttendanceLock.month.asc())
+    ).all()
+    if lock_months:
+        summary.attendance_lock_count = len(lock_months)
+        first_lock = _month_bounds(lock_months[0][0], lock_months[0][1])
+        last_lock = _month_bounds(lock_months[-1][0], lock_months[-1][1])
+        summary.touch(first_lock[0], last_lock[1])
+
+    selection_months = db.execute(
+        select(ShiftPlanMonthInstance.year, ShiftPlanMonthInstance.month)
+        .where(ShiftPlanMonthInstance.employment_id == employment_id)
+        .order_by(ShiftPlanMonthInstance.year.asc(), ShiftPlanMonthInstance.month.asc())
+    ).all()
+    if selection_months:
+        summary.shift_plan_selection_count = len(selection_months)
+        first_selection = _month_bounds(selection_months[0][0], selection_months[0][1])
+        last_selection = _month_bounds(selection_months[-1][0], selection_months[-1][1])
+        summary.touch(first_selection[0], last_selection[1])
+
+    reminder_dates = db.execute(
+        select(AttendanceReminderEvent.attendance_date)
+        .where(AttendanceReminderEvent.employment_id == employment_id)
+        .order_by(AttendanceReminderEvent.attendance_date.asc())
+    ).all()
+    if reminder_dates:
+        summary.reminder_count = len(reminder_dates)
+        summary.touch(reminder_dates[0][0], reminder_dates[-1][0])
+
+    return summary
+
+
 def _delete_row_count(result: CursorResult[Any]) -> int:
     return int(result.rowcount or 0)
 
@@ -269,6 +342,33 @@ def _delete_out_of_range_records(employment_id: int, start_date: date, end_date:
         deleted_attendance_lock_count=attendance_lock_deleted,
         deleted_shift_plan_selection_count=shift_plan_selection_deleted,
         deleted_reminder_count=reminder_deleted,
+    )
+
+
+def _delete_all_related_records(employment_id: int, db: Session) -> EmploymentDeleteOut:
+    return EmploymentDeleteOut(
+        ok=True,
+        deleted_attendance_count=_delete_row_count(
+            cast(CursorResult[Any], db.execute(delete(Attendance).where(Attendance.employment_id == employment_id)))
+        ),
+        deleted_shift_plan_count=_delete_row_count(
+            cast(CursorResult[Any], db.execute(delete(ShiftPlan).where(ShiftPlan.employment_id == employment_id)))
+        ),
+        deleted_attendance_lock_count=_delete_row_count(
+            cast(CursorResult[Any], db.execute(delete(AttendanceLock).where(AttendanceLock.employment_id == employment_id)))
+        ),
+        deleted_shift_plan_selection_count=_delete_row_count(
+            cast(
+                CursorResult[Any],
+                db.execute(delete(ShiftPlanMonthInstance).where(ShiftPlanMonthInstance.employment_id == employment_id)),
+            )
+        ),
+        deleted_reminder_count=_delete_row_count(
+            cast(
+                CursorResult[Any],
+                db.execute(delete(AttendanceReminderEvent).where(AttendanceReminderEvent.employment_id == employment_id)),
+            )
+        ),
     )
 
 
@@ -363,6 +463,7 @@ def update_employment(
 @router.delete("/api/v1/admin/employments/{employment_id}", response_model=EmploymentDeleteOut)
 def delete_employment(
     employment_id: int,
+    payload: EmploymentDeleteIn | None = None,
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
@@ -371,19 +472,24 @@ def delete_employment(
     if employment is None:
         raise HTTPException(status_code=404, detail="Uvazek nenalezen.")
 
+    summary = _collect_related_data_summary(employment.id, db)
     related_count = (
-        db.execute(select(func.count(Attendance.id)).where(Attendance.employment_id == employment_id)).scalar_one()
-        + db.execute(select(func.count(ShiftPlan.id)).where(ShiftPlan.employment_id == employment_id)).scalar_one()
-        + db.execute(select(func.count(AttendanceLock.id)).where(AttendanceLock.employment_id == employment_id)).scalar_one()
-        + db.execute(select(func.count(ShiftPlanMonthInstance.id)).where(ShiftPlanMonthInstance.employment_id == employment_id)).scalar_one()
-        + db.execute(select(func.count(AttendanceReminderEvent.id)).where(AttendanceReminderEvent.employment_id == employment_id)).scalar_one()
+        summary.attendance_count
+        + summary.shift_plan_count
+        + summary.attendance_lock_count
+        + summary.shift_plan_selection_count
+        + summary.reminder_count
     )
+    confirm_delete_related = payload.confirm_delete_related if payload is not None else False
+    if related_count > 0 and not confirm_delete_related:
+        _raise_delete_conflict(summary)
+
+    delete_summary = None
     if related_count > 0:
-        raise HTTPException(
-            status_code=409,
-            detail="Uvazek obsahuje navazana data. Nastavte datum ukonceni nebo potvrzenou zmenu obdobi misto fyzickeho smazani.",
-        )
+        delete_summary = _delete_all_related_records(employment.id, db)
 
     db.delete(employment)
     db.commit()
+    if delete_summary is not None:
+        return delete_summary
     return EmploymentDeleteOut(ok=True)

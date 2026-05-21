@@ -13,6 +13,7 @@ from app.api.v1 import admin_attendance, admin_shift_plan, admin_users, attendan
 from app.api.v1.admin_employments import router as admin_employments_router
 from app.db.models import (
     Attendance,
+    AttendanceLock,
     Base,
     ClientType,
     Employment,
@@ -21,6 +22,7 @@ from app.db.models import (
     PortalUser,
     PortalUserRole,
     ShiftPlan,
+    ShiftPlanMonthInstance,
 )
 from app.security.csrf import require_csrf
 from app.security.passwords import hash_password
@@ -323,3 +325,59 @@ def test_shift_plan_defaults_to_all_available_employments_when_month_has_no_sele
     assert [row["employment_id"] for row in payload["rows"]] == [first_employment_id, second_employment_id]
     assert payload["rows"][0]["days"][9]["arrival_time"] == "08:00"
     assert payload["rows"][1]["days"][9]["arrival_time"] is None
+
+
+def test_employment_delete_with_related_data_returns_409_until_confirmed() -> None:
+    client, session_local = _build_client()
+    with session_local() as db:
+        user = _create_user(db, email="delete-employment@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(Attendance(employment_id=employment.id, instance_id=user.instance_id, date=date(2026, 2, 10), arrival_time="08:00"))
+        db.add(ShiftPlan(employment_id=employment.id, instance_id=user.instance_id, date=date(2026, 2, 11), arrival_time="08:00", departure_time="16:00"))
+        db.add(AttendanceLock(employment_id=employment.id, instance_id=user.instance_id, year=2026, month=2, locked_by="admin"))
+        db.add(ShiftPlanMonthInstance(employment_id=employment.id, instance_id=user.instance_id, year=2026, month=2))
+        db.commit()
+        employment_id = employment.id
+
+    response = client.delete(f"/api/v1/admin/employments/{employment_id}")
+    assert response.status_code == 409
+    payload = response.json()["detail"]
+    assert payload["code"] == "employment_delete_conflict"
+    assert payload["attendance_count"] == 1
+    assert payload["shift_plan_count"] == 1
+    assert payload["attendance_lock_count"] == 1
+    assert payload["shift_plan_selection_count"] == 1
+
+    confirmed_response = client.request(
+        "DELETE",
+        f"/api/v1/admin/employments/{employment_id}",
+        json={"confirm_delete_related": True},
+    )
+    assert confirmed_response.status_code == 200
+    confirmed_payload = confirmed_response.json()
+    assert confirmed_payload["deleted_attendance_count"] == 1
+    assert confirmed_payload["deleted_shift_plan_count"] == 1
+    assert confirmed_payload["deleted_attendance_lock_count"] == 1
+    assert confirmed_payload["deleted_shift_plan_selection_count"] == 1
+
+    with session_local() as db:
+        assert db.get(Employment, employment_id) is None
+        assert db.execute(select(Attendance).where(Attendance.employment_id == employment_id)).scalars().all() == []
+        assert db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == employment_id)).scalars().all() == []
+
+
+def test_delete_user_removes_user_and_employments() -> None:
+    client, session_local = _build_client()
+    with session_local() as db:
+        user = _create_user(db, email="delete-user@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        user_id = user.id
+        employment_id = employment.id
+
+    response = client.delete(f"/api/v1/admin/users/{user_id}")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+    with session_local() as db:
+        assert db.get(PortalUser, user_id) is None
+        assert db.get(Employment, employment_id) is None

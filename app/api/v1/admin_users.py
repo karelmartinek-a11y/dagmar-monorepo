@@ -504,13 +504,19 @@ def delete_user(
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
 ):
-    user = db.get(PortalUser, int(user_id))
+    user = (
+        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).where(PortalUser.id == int(user_id)))
+        .scalars()
+        .first()
+    )
     if user is None:
         raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
 
     instance_id = user.instance_id
     clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
     revoke_unlock_tokens(db, actor_type="portal", principal=user.email.lower())
+    for employment in list(user.employments):
+        db.delete(employment)
     db.delete(user)
 
     if instance_id:
