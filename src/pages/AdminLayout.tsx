@@ -1,44 +1,58 @@
 import React from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { adminLogout, getAdminMe } from "../api/admin";
 import Button from "../ui/Button";
 import { BRAND_ASSETS } from "../brand/brand";
 
-type MeState =
-  | { kind: "loading" }
-  | { kind: "anon" }
-  | { kind: "auth"; username: string };
+type MeState = { kind: "loading" } | { kind: "anon" } | { kind: "auth"; username: string };
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+const NAV_ITEMS = [
+  { to: "/admin/prehled", label: "Přehled" },
+  { to: "/admin/users", label: "Uživatelé" },
+  { to: "/admin/dochazka", label: "Docházka" },
+  { to: "/admin/plan-sluzeb", label: "Plán služeb" },
+  { to: "/admin/tisky", label: "Tisky" },
+  { to: "/admin/export", label: "Export" },
+  { to: "/admin/settings", label: "Nastavení" },
+  { to: "/admin/instances", label: "Zařízení" },
+];
+
+function locationLabel(pathname: string) {
+  const found = NAV_ITEMS.find((item) => pathname.startsWith(item.to));
+  return found?.label ?? "Administrace";
+}
+
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [me, setMe] = React.useState<MeState>({ kind: "loading" });
 
   React.useEffect(() => {
     let mounted = true;
-    (async () => {
+    void (async () => {
       try {
-        const r = await getAdminMe();
+        const response = await getAdminMe();
         if (!mounted) return;
-        if (!r.authenticated || !r.username) {
+        if (!response.authenticated || !response.username) {
           setMe({ kind: "anon" });
-          navigate("/admin/login", { replace: true });
+          navigate(`/admin/login?next=${encodeURIComponent(location.pathname + location.search)}`, { replace: true });
           return;
         }
-        setMe({ kind: "auth", username: r.username });
+        setMe({ kind: "auth", username: response.username });
       } catch {
         if (!mounted) return;
         setMe({ kind: "anon" });
-        navigate("/admin/login", { replace: true });
+        navigate(`/admin/login?next=${encodeURIComponent(location.pathname + location.search)}`, { replace: true });
       }
     })();
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, [location.pathname, location.search, navigate]);
 
   async function onLogout() {
     try {
@@ -50,84 +64,8 @@ export default function AdminLayout() {
     }
   }
 
-  const items: Array<{ to: string; label: string; icon: React.ReactNode }> = [
-    {
-      to: "/admin/users",
-      label: "Uživatelé",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z" stroke="currentColor" strokeWidth="2" />
-          <path d="M4 20a8 8 0 0 1 16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      to: "/admin/dochazka",
-      label: "Evidence docházky",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M7 3v3M17 3v3M4 8h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          <path
-            d="M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-          <path d="M8 12h4M8 16h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      to: "/admin/plan-sluzeb",
-      label: "Plán služeb",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
-          <path d="M4 10h16M10 6v4M14 6v4M14 14v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      to: "/admin/tisky",
-      label: "Tisky",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M7 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          <rect x="5" y="9" width="14" height="8" rx="2" stroke="currentColor" strokeWidth="2" />
-          <path d="M8 13h8M8 16h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      to: "/admin/export",
-      label: "Export",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          <path d="M8 9l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M5 21h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      to: "/admin/settings",
-      label: "Nastavení",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" stroke="currentColor" strokeWidth="2" />
-          <path
-            d="M3 12h3m12 0h3M12 3v3m0 12v3m-6.4-2.4 2.1-2.1m8.6-8.6 2.1-2.1m0 14.8-2.1-2.1m-8.6-8.6-2.1-2.1"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      ),
-    },
-  ];
-
   return (
-    <div className="kb-admin">
+    <div className="admin-shell">
       {me.kind === "loading" ? (
         <div className="kb-intro" role="status" aria-label="Načítání">
           <div className="kb-intro-card">
@@ -137,52 +75,71 @@ export default function AdminLayout() {
               </div>
             </div>
             <div>
-              <div className="kb-intro-title">Administrace</div>
-              <div className="kb-intro-sub">Načítám…</div>
+              <div className="kb-intro-title">Operační cockpit</div>
+              <div className="kb-intro-sub">Připravuji administraci…</div>
             </div>
             <div className="kb-spinner" aria-hidden="true" />
           </div>
         </div>
       ) : null}
 
-      <aside className="kb-sidebar" aria-label="Admin navigace">
-        <div className="kb-sidebar-head">
-          <img src={BRAND_ASSETS.logoHorizontal} alt="" className="kb-sidebar-logo" />
+      <aside className="admin-sidebar" aria-label="Admin navigace">
+        <div className="admin-sidebar-brand">
+          <img src={BRAND_ASSETS.logoHorizontal} alt="" className="admin-sidebar-logo" />
           <div>
-            <div className="kb-sidebar-title">Administrace</div>
-            <div className="kb-sidebar-sub">{me.kind === "auth" ? me.username : ""}</div>
+            <div className="admin-sidebar-title">KájovoDagmar</div>
+            <div className="admin-sidebar-subtitle">Operační cockpit hotelu</div>
           </div>
         </div>
 
-        <nav className="kb-nav">
-          {items.map((it) => (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              className={({ isActive }) => cx("kb-navlink", isActive && "active")}
-              end
-            >
-              {it.icon}
-              <span>{it.label}</span>
+        <div className="admin-sidebar-section">
+          <div className="admin-sidebar-caption">Přihlášený správce</div>
+          <div className="admin-sidebar-user">{me.kind === "auth" ? me.username : "—"}</div>
+        </div>
+
+        <nav className="admin-sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => cx("admin-sidebar-link", isActive && "active")} end={item.to === "/admin/prehled"}>
+              {item.label}
             </NavLink>
           ))}
         </nav>
 
         <div id="admin-sidebar-extra" className="kb-sidebar-extra" />
 
-        <div className="kb-sidebar-foot">
-          <Button type="button" variant="primary" style={{ width: "100%" }} onClick={() => {
-            void onLogout();
-          }}>
+        <div className="admin-sidebar-footer">
+          <div className="admin-sidebar-context">
+            <span>Aktuální sekce</span>
+            <strong>{locationLabel(location.pathname)}</strong>
+          </div>
+          <Button type="button" variant="primary" style={{ width: "100%" }} onClick={() => void onLogout()}>
             Odhlásit
           </Button>
         </div>
+
         <div id="admin-sidebar-bottom-extra" className="kb-sidebar-bottom-extra" />
       </aside>
 
-      <main className="kb-admin-main">
-        <Outlet />
-      </main>
+      <div className="admin-content">
+        <div className="admin-topbar">
+          <div>
+            <div className="admin-topbar-kicker">Produkční administrace</div>
+            <div className="admin-topbar-title">{locationLabel(location.pathname)}</div>
+          </div>
+          <div className="admin-topbar-actions">
+            <NavLink className="admin-mini-link" to="/admin/settings">
+              Nastavení
+            </NavLink>
+            <NavLink className="admin-mini-link" to="/admin/instances">
+              Zařízení
+            </NavLink>
+          </div>
+        </div>
+
+        <main className="admin-main">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

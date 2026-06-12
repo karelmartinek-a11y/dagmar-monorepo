@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import EmployeePage from "./pages/EmployeePage";
 import AdminLayout from "./pages/AdminLayout";
 import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminOverviewPage from "./pages/AdminOverviewPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminExportPage from "./pages/AdminExportPage";
 import AdminAttendanceSheetsPage from "./pages/AdminAttendanceSheetsPage";
@@ -10,6 +11,7 @@ import AdminSettingsPage from "./pages/AdminSettingsPage";
 import AdminShiftPlanPage from "./pages/AdminShiftPlanPage";
 import AdminPrintsPage from "./pages/AdminPrintsPage";
 import AdminPrintPreviewPage from "./pages/AdminPrintPreviewPage";
+import AdminInstancesPage from "./pages/AdminInstancesPage";
 import PortalResetPage from "./pages/PortalResetPage";
 
 type VersionPayload = {
@@ -80,13 +82,15 @@ function AppShell() {
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin/tisky/preview" element={<AdminPrintPreviewPage />} />
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="users" replace />} />
+          <Route index element={<Navigate to="prehled" replace />} />
+          <Route path="prehled" element={<AdminOverviewPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="dochazka" element={<AdminAttendanceSheetsPage />} />
           <Route path="plan-sluzeb" element={<AdminShiftPlanPage />} />
           <Route path="export" element={<AdminExportPage />} />
           <Route path="tisky" element={<AdminPrintsPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="instances" element={<AdminInstancesPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/app" replace />} />

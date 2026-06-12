@@ -14,7 +14,9 @@ import {
   type EmploymentPeriodConflict,
   type PortalUser,
 } from "../api/admin";
+import { ConfirmDialog, EmptyState, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge, Toast } from "../components/admin/AdminUI";
 import type { EmploymentTemplate } from "../types/employment";
+import Button from "../ui/Button";
 
 type EmploymentFormState = {
   title: string;
@@ -24,6 +26,13 @@ type EmploymentFormState = {
   is_indefinite: boolean;
 };
 
+type DialogState =
+  | { kind: "none" }
+  | { kind: "deleteUser"; user: PortalUser }
+  | { kind: "deleteEmployment"; employment: AdminEmployment }
+  | { kind: "employmentUpdateConflict"; user: PortalUser; employment: AdminEmployment; conflict: EmploymentPeriodConflict; draft: EmploymentFormState }
+  | { kind: "employmentDeleteConflict"; employment: AdminEmployment; conflict: EmploymentDeleteConflict };
+
 function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) return err.message;
   if (typeof err === "string") return err;
@@ -31,29 +40,13 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 function loginStatusLabel(user: PortalUser): string {
-  if (user.login_status === "ACTIVE") return "Aktivní";
-  if (user.login_status === "DEACTIVATED") return "Deaktivovaný";
-  return "Zamítnut přihlášením kvůli úvazku";
-}
-
-function loginStatusTone(user: PortalUser): React.CSSProperties {
-  if (user.login_status === "ACTIVE") {
-    return { background: "rgba(16,185,129,0.09)", borderColor: "rgba(16,185,129,0.24)", color: "#047857" };
-  }
-  if (user.login_status === "DEACTIVATED") {
-    return { background: "rgba(239,68,68,0.09)", borderColor: "rgba(239,68,68,0.24)", color: "#b91c1c" };
-  }
-  return { background: "rgba(245,158,11,0.12)", borderColor: "rgba(245,158,11,0.28)", color: "#b45309" };
+  if (user.login_status === "ACTIVE") return "Aktivní přihlášení";
+  if (user.login_status === "DEACTIVATED") return "Ručně deaktivováno";
+  return "Blokováno oknem úvazku";
 }
 
 function emptyEmploymentForm(): EmploymentFormState {
-  return {
-    title: "",
-    employment_type: "DPP_DPC",
-    start_date: "",
-    end_date: "",
-    is_indefinite: true,
-  };
+  return { title: "", employment_type: "DPP_DPC", start_date: "", end_date: "", is_indefinite: true };
 }
 
 function fromEmployment(employment: AdminEmployment): EmploymentFormState {
@@ -66,25 +59,22 @@ function fromEmployment(employment: AdminEmployment): EmploymentFormState {
   };
 }
 
-function isUserEditDirty(
-  user: PortalUser,
-  draft: { name: string; email: string; phone: string; password: string; is_active: boolean }
-): boolean {
-  return (
-    draft.name !== user.name ||
-    draft.email !== user.email ||
-    draft.phone !== (user.phone ?? "") ||
-    draft.password.trim() !== "" ||
-    draft.is_active !== user.is_active
-  );
+function userTone(user: PortalUser): "ok" | "danger" | "warning" {
+  if (user.login_status === "ACTIVE") return "ok";
+  if (user.login_status === "DEACTIVATED") return "danger";
+  return "warning";
 }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<PortalUser[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [showInactiveUsers, setShowInactiveUsers] = useState(false);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -109,6 +99,7 @@ export default function AdminUsersPage() {
     try {
       const res = await adminListUsers();
       setUsers(res.users || []);
+      setSelectedUserId((current) => (res.users.some((user) => user.id === current) ? current : res.users[0]?.id ?? null));
     } catch (err: unknown) {
       setError(errorMessage(err, "Nepodařilo se načíst uživatele."));
       setUsers([]);
@@ -121,12 +112,30 @@ export default function AdminUsersPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
   const activeUserCount = useMemo(() => users.filter((user) => user.login_status === "ACTIVE").length, [users]);
   const blockedUserCount = useMemo(() => users.filter((user) => user.login_status === "EMPLOYMENT_WINDOW_BLOCKED").length, [users]);
-  const visibleUsers = useMemo(() => (showInactiveUsers ? users : users.filter((user) => user.is_active)), [showInactiveUsers, users]);
+  const withoutPasswordCount = useMemo(() => users.filter((user) => !user.has_password).length, [users]);
 
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
+  const visibleUsers = useMemo(() => {
+    const base = showInactiveUsers ? users : users.filter((user) => user.is_active);
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return base;
+    return base.filter((user) => {
+      const hay = `${user.name} ${user.email} ${user.phone ?? ""}`.toLowerCase();
+      return tokens.every((token) => hay.includes(token));
+    });
+  }, [query, showInactiveUsers, users]);
+
+  const selectedUser = useMemo(() => users.find((user) => user.id === selectedUserId) ?? null, [selectedUserId, users]);
+
+  async function onCreate(event: React.FormEvent) {
+    event.preventDefault();
     if (!name.trim() || !email.trim()) {
       setError("Vyplňte jméno a e-mail.");
       return;
@@ -147,6 +156,7 @@ export default function AdminUsersPage() {
       setPhone("");
       setPassword("");
       setIsActive(true);
+      setToast("Uživatel byl vytvořen.");
       await load();
     } catch (err: unknown) {
       setError(errorMessage(err, "Uložení se nezdařilo."));
@@ -164,17 +174,8 @@ export default function AdminUsersPage() {
     setEditIsActive(user.is_active);
   }
 
-  function cancelEdit() {
-    setEditingUserId(null);
-    setEditName("");
-    setEditEmail("");
-    setEditPhone("");
-    setEditPassword("");
-    setEditIsActive(true);
-  }
-
-  async function onUpdate(e: React.FormEvent) {
-    e.preventDefault();
+  async function onUpdate(event: React.FormEvent) {
+    event.preventDefault();
     if (!editingUserId) return;
     setSaving(true);
     setError(null);
@@ -187,7 +188,8 @@ export default function AdminUsersPage() {
         role: "employee",
         is_active: editIsActive,
       });
-      cancelEdit();
+      setToast("Profil uživatele byl uložen.");
+      setEditingUserId(null);
       await load();
     } catch (err: unknown) {
       setError(errorMessage(err, "Uložení změn se nezdařilo."));
@@ -196,59 +198,12 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function sendReset(userId: number) {
-    setSaving(true);
-    setError(null);
-    try {
-      await adminSendUserReset(userId);
-    } catch (err: unknown) {
-      setError(errorMessage(err, "Odeslání odkazu se nezdařilo."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function deleteUser(user: PortalUser) {
-    const confirmed = window.confirm(`Smazat uživatele ${user.name}? Smažou se i jeho úvazky a navázaná evidence.`);
-    if (!confirmed) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await adminDeleteUser(user.id);
-      if (editingUserId === user.id) cancelEdit();
-      await load();
-    } catch (err: unknown) {
-      setError(errorMessage(err, "Smazání uživatele se nezdařilo."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function unlockUser(user: PortalUser) {
-    setSaving(true);
-    setError(null);
-    try {
-      await adminUnlockUser(user.id);
-      await load();
-    } catch (err: unknown) {
-      setError(errorMessage(err, "Odblokování účtu se nezdařilo."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function updateNewEmploymentForm(userId: number, next: Partial<EmploymentFormState>) {
-    setEmploymentForms((prev) => ({
-      ...prev,
-      [userId]: { ...(prev[userId] ?? emptyEmploymentForm()), ...next },
-    }));
+    setEmploymentForms((prev) => ({ ...prev, [userId]: { ...(prev[userId] ?? emptyEmploymentForm()), ...next } }));
   }
 
   function updateExistingEmploymentForm(employmentId: number, next: Partial<EmploymentFormState>, fallback: AdminEmployment) {
-    setEmploymentDrafts((prev) => ({
-      ...prev,
-      [employmentId]: { ...(prev[employmentId] ?? fromEmployment(fallback)), ...next },
-    }));
+    setEmploymentDrafts((prev) => ({ ...prev, [employmentId]: { ...(prev[employmentId] ?? fromEmployment(fallback)), ...next } }));
   }
 
   async function createEmployment(userId: number) {
@@ -268,6 +223,7 @@ export default function AdminUsersPage() {
         is_active: true,
       });
       setEmploymentForms((prev) => ({ ...prev, [userId]: emptyEmploymentForm() }));
+      setToast("Úvazek byl vytvořen.");
       await load();
     } catch (err: unknown) {
       setError(errorMessage(err, "Vytvoření úvazku se nezdařilo."));
@@ -293,405 +249,464 @@ export default function AdminUsersPage() {
         is_active: true,
       });
       setEditingEmploymentId(null);
+      setToast("Úvazek byl uložen.");
       await load();
     } catch (err: unknown) {
       const conflict = err as EmploymentPeriodConflict;
       if (conflict?.code === "employment_period_conflict") {
-        const problemRange =
-          conflict.problem_range_start && conflict.problem_range_end
-            ? ` Problematické období: ${conflict.problem_range_start} až ${conflict.problem_range_end}.`
-            : "";
-        const confirmed = window.confirm(
-          `Změna období úvazku uživatele ${user.name} smaže záznamy mimo nové období.\n\n` +
-            `Docházka mimo období: ${conflict.attendance_count}\n` +
-            `Plán služeb mimo období: ${conflict.shift_plan_count}\n` +
-            `Zámky měsíců mimo období: ${conflict.attendance_lock_count}\n` +
-            `Výběry plánu mimo období: ${conflict.shift_plan_selection_count}\n` +
-            `${problemRange}\n\n` +
-            `Pokračovat a trvale smazat záznamy mimo nové období úvazku?`
-        );
-        if (!confirmed) {
-          setSaving(false);
-          return;
-        }
-        try {
-          await adminUpdateEmployment(employment.id, {
-            title: draft.title.trim(),
-            employment_type: draft.employment_type,
-            start_date: draft.start_date,
-            end_date: draft.is_indefinite ? null : draft.end_date || null,
-            is_active: true,
-            confirm_delete_out_of_range: true,
-          });
-          setEditingEmploymentId(null);
-          await load();
-        } catch (retryError: unknown) {
-          setError(errorMessage(retryError, "Potvrzená změna úvazku se nezdařila."));
-        } finally {
-          setSaving(false);
-        }
-        return;
+        setDialog({ kind: "employmentUpdateConflict", user, employment, conflict, draft });
+      } else {
+        setError(errorMessage(err, "Úprava úvazku se nezdařila."));
       }
-      setError(errorMessage(err, "Úprava úvazku se nezdařila."));
     } finally {
       setSaving(false);
     }
   }
 
-  async function removeEmployment(employment: AdminEmployment) {
-    const confirmed = window.confirm(`Opravdu smazat úvazek „${employment.label}“?`);
-    if (!confirmed) return;
+  async function confirmEmploymentPeriodConflict() {
+    if (dialog.kind !== "employmentUpdateConflict") return;
+    const { employment, draft } = dialog;
+    setSaving(true);
+    setError(null);
+    try {
+      await adminUpdateEmployment(employment.id, {
+        title: draft.title.trim(),
+        employment_type: draft.employment_type,
+        start_date: draft.start_date,
+        end_date: draft.is_indefinite ? null : draft.end_date || null,
+        is_active: true,
+        confirm_delete_out_of_range: true,
+      });
+      setDialog({ kind: "none" });
+      setEditingEmploymentId(null);
+      setToast("Kolizní změna úvazku byla potvrzena a uložena.");
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Potvrzená změna úvazku se nezdařila."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteEmployment(employment: AdminEmployment) {
     setSaving(true);
     setError(null);
     try {
       await adminDeleteEmployment(employment.id);
+      setToast("Úvazek byl smazán.");
       await load();
     } catch (err: unknown) {
       const conflict = err as EmploymentDeleteConflict;
       if (conflict?.code === "employment_delete_conflict") {
-        const confirmedDelete = window.confirm(
-          `Úvazek obsahuje navázaná data.\n\n` +
-            `Docházka: ${conflict.attendance_count}\n` +
-            `Plán služeb: ${conflict.shift_plan_count}\n` +
-            `Zámky měsíců: ${conflict.attendance_lock_count}\n` +
-            `Výběry plánu: ${conflict.shift_plan_selection_count}\n` +
-            `Připomínky: ${conflict.reminder_count}\n\n` +
-            `Opravdu chcete úvazek i s těmito daty trvale smazat?`
-        );
-        if (!confirmedDelete) {
-          setSaving(false);
-          return;
-        }
-        try {
-          await adminDeleteEmployment(employment.id, { confirm_delete_related: true });
-          await load();
-        } catch (retryError: unknown) {
-          setError(errorMessage(retryError, "Smazání úvazku se nezdařilo."));
-        } finally {
-          setSaving(false);
-        }
-        return;
+        setDialog({ kind: "employmentDeleteConflict", employment, conflict });
+      } else {
+        setError(errorMessage(err, "Smazání úvazku se nezdařilo."));
       }
-      setError(errorMessage(err, "Smazání úvazku se nezdařilo. Pokud má data, ukončete ho datem."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmDeleteEmploymentConflict() {
+    if (dialog.kind !== "employmentDeleteConflict") return;
+    setSaving(true);
+    setError(null);
+    try {
+      await adminDeleteEmployment(dialog.employment.id, { confirm_delete_related: true });
+      setDialog({ kind: "none" });
+      setToast("Úvazek i navázaná data byly smazány.");
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Smazání úvazku se nezdařilo."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function sendReset(userId: number) {
+    setSaving(true);
+    setError(null);
+    try {
+      await adminSendUserReset(userId);
+      setToast("Reset hesla byl odeslán.");
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Odeslání odkazu se nezdařilo."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function unlockUser(userId: number) {
+    setSaving(true);
+    setError(null);
+    try {
+      await adminUnlockUser(userId);
+      setToast("Účet byl odblokován.");
+      await load();
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Odblokování účtu se nezdařilo."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleActive(user: PortalUser) {
+    setSaving(true);
+    setError(null);
+    try {
+      await adminUpdateUser(user.id, { is_active: !user.is_active, role: "employee" });
+      setToast(user.is_active ? "Účet byl deaktivován." : "Účet byl aktivován.");
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Změna aktivace se nezdařila."));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="admin-page">
-      <section className="card admin-hero">
-        <div className="admin-hero-copy">
-          <div className="eyebrow">Administrace · Uživatelé</div>
-          <h1 className="admin-hero-title">Účty zaměstnanců a úvazky</h1>
-          <div className="admin-hero-text">
-            Účet zaměstnance je oddělený od jeho úvazků. Přihlášení, plán služeb i evidence docházky se nyní řídí konkrétním vybraným úvazkem.
-          </div>
-        </div>
-        <div className="admin-kpis">
-          <div className="admin-kpi">
-            <div className="admin-kpi-value">{users.length}</div>
-            <div className="admin-kpi-label">Celkem uživatelů</div>
-          </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-value">{activeUserCount}</div>
-            <div className="admin-kpi-label">Může se přihlásit</div>
-          </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-value">{blockedUserCount}</div>
-            <div className="admin-kpi-label">Zablokováno úvazkem</div>
-          </div>
-        </div>
+    <div className="admin-page-grid">
+      <PageHeader
+        eyebrow="Účty a přístupy"
+        title="Uživatelé a úvazky"
+        description="Správa zaměstnaneckých účtů a jejich úvazků v jednom split-view pracovním prostoru."
+      />
+
+      {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
+
+      <section className="admin-metric-grid">
+        <MetricCard label="Celkem uživatelů" value={users.length} />
+        <MetricCard label="Aktivní přihlášení" value={activeUserCount} tone="ok" />
+        <MetricCard label="Blokováno úvazkem" value={blockedUserCount} tone={blockedUserCount ? "danger" : "default"} />
+        <MetricCard label="Bez hesla" value={withoutPasswordCount} tone={withoutPasswordCount ? "danger" : "default"} />
       </section>
 
-      {error ? (
-        <div style={{ border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.08)", borderRadius: 12, padding: 12, color: "#b91c1c" }}>
-          {error}
-        </div>
-      ) : null}
+      <div className="admin-split-layout">
+        <section className="admin-surface">
+          <div className="admin-surface-head">
+            <div>
+              <div className="admin-surface-title">Filtr a seznam osob</div>
+              <div className="admin-surface-subtitle">Vyberte účet vlevo, detail a úvazky se otevřou v pravém panelu.</div>
+            </div>
+          </div>
 
-      <div className="admin-two-column">
-        <section className="card pad admin-side-card">
-          <div style={{ fontSize: 18, fontWeight: 850 }}>Nový uživatel</div>
-          <div style={{ color: "var(--muted)", marginTop: 4 }}>Vytvoří účet zaměstnance. Úvazky se přidávají zvlášť přímo u uživatele.</div>
-          <form onSubmit={onCreate} className="stack" style={{ gap: 12, marginTop: 12 }}>
+          <FilterBar>
+            <input className="kb-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Hledat podle jména, e-mailu nebo telefonu" />
+            <label className="admin-checkbox-row">
+              <input type="checkbox" checked={showInactiveUsers} onChange={(e) => setShowInactiveUsers(e.target.checked)} />
+              <span>Zobrazit i neaktivní</span>
+            </label>
+          </FilterBar>
+
+          <form onSubmit={onCreate} className="admin-form-section">
+            <div className="admin-form-section-title">Nový uživatel</div>
             <div className="admin-form-grid">
               <div>
-                <div className="label">Jméno</div>
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Např. Jan Novák" />
+                <div className="kb-label">Jméno</div>
+                <input className="kb-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Např. Jan Novák" />
               </div>
               <div>
-                <div className="label">E-mail</div>
-                <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jan@example.cz" />
+                <div className="kb-label">E-mail</div>
+                <input className="kb-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jan@example.cz" />
               </div>
               <div>
-                <div className="label">Telefon</div>
-                <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+420..." />
+                <div className="kb-label">Telefon</div>
+                <input className="kb-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+420…" />
               </div>
               <div>
-                <div className="label">Role</div>
-                <select className="input" value="employee" disabled>
-                  <option value="employee">Zaměstnanec</option>
-                </select>
+                <div className="kb-label">Počáteční heslo</div>
+                <input className="kb-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="volitelné" />
               </div>
-              <div>
-                <div className="label">Počáteční heslo</div>
-                <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="volitelné" />
-              </div>
-              <label style={{ display: "grid", gap: 6, alignContent: "end" }}>
-                <span className="label">Ruční aktivace</span>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setIsActive((value) => !value)}
-                  style={isActive ? undefined : { borderColor: "rgba(239,68,68,0.28)", color: "#b91c1c" }}
-                >
-                  {isActive ? "Aktivovat" : "Deaktivovat"}
-                </button>
-              </label>
             </div>
-            <button type="submit" className="btn solid" disabled={saving}>
-              {saving ? "Ukládám…" : "Přidat uživatele"}
-            </button>
+            <div className="admin-action-row">
+              <Button type="button" variant="ghost" onClick={() => setIsActive((value) => !value)}>
+                {isActive ? "Ruční aktivace zapnutá" : "Ruční aktivace vypnutá"}
+              </Button>
+              <Button type="submit" variant="primary" disabled={saving}>
+                {saving ? "Ukládám…" : "Přidat uživatele"}
+              </Button>
+            </div>
           </form>
+
+          {loading ? (
+            <InlineNotice>Načítám uživatele…</InlineNotice>
+          ) : visibleUsers.length === 0 ? (
+            <EmptyState title="Žádní uživatelé" description="Aktuální filtr nevrátil žádný účet." />
+          ) : (
+            <div className="admin-list">
+              {visibleUsers.map((user) => (
+                <button key={user.id} type="button" className={`admin-selection-row${selectedUserId === user.id ? " active" : ""}`} onClick={() => setSelectedUserId(user.id)}>
+                  <div>
+                    <div className="admin-list-title">{user.name}</div>
+                    <div className="admin-list-subtitle">{user.email}</div>
+                  </div>
+                  <StateBadge tone={userTone(user)}>{loginStatusLabel(user)}</StateBadge>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
-        <section className="card pad">
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <section className="admin-surface">
+          <div className="admin-surface-head">
             <div>
-              <div style={{ fontWeight: 850 }}>Seznam uživatelů</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                Ruční deaktivace účtu zůstává zachovaná. Přihlašovací stav se navíc odvozuje z přístupového okna nad úvazky.
-              </div>
+              <div className="admin-surface-title">Detail účtu a úvazků</div>
+              <div className="admin-surface-subtitle">Pracujte v kontextu jedné osoby, bez skrytých dopadů a slepých akcí.</div>
             </div>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700 }}>
-              <input type="checkbox" checked={showInactiveUsers} onChange={(e) => setShowInactiveUsers(e.target.checked)} />
-              Zobrazit i neaktivní
-            </label>
           </div>
-          {loading ? <div style={{ marginTop: 12, color: "var(--muted)" }}>Načítám…</div> : null}
-          {!loading ? <div style={{ marginTop: 10, fontSize: 12, color: "var(--muted)" }}>Zobrazeno {visibleUsers.length} z {users.length} uživatelů.</div> : null}
 
-          <div style={{ display: "grid", gap: 16, marginTop: 14 }}>
-            {visibleUsers.map((user) => {
-              const createForm = employmentForms[user.id] ?? emptyEmploymentForm();
-              const userEditDirty =
-                editingUserId === user.id
-                  ? isUserEditDirty(user, {
-                      name: editName,
-                      email: editEmail,
-                      phone: editPhone,
-                      password: editPassword,
-                      is_active: editIsActive,
-                    })
-                  : false;
-              return (
-                <div key={user.id} style={{ border: "1px solid var(--kb-border)", borderRadius: 16, padding: 16, display: "grid", gap: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          {!selectedUser ? (
+            <EmptyState title="Není vybraný účet" description="Vyberte uživatele ze seznamu vlevo." />
+          ) : (
+            <div className="admin-stack">
+              <div className="admin-definition-list">
+                <div><span>E-mail</span><strong>{selectedUser.email}</strong></div>
+                <div><span>Telefon</span><strong>{selectedUser.phone || "neuvedeno"}</strong></div>
+                <div><span>Heslo</span><strong>{selectedUser.has_password ? "Nastaveno" : "Bez hesla"}</strong></div>
+                <div><span>Přihlášení</span><strong>{loginStatusLabel(selectedUser)}</strong></div>
+              </div>
+
+              <div className="admin-badge-row">
+                <StateBadge tone={selectedUser.is_active ? "ok" : "danger"}>{selectedUser.is_active ? "Ruční aktivace zapnutá" : "Ručně deaktivováno"}</StateBadge>
+                <StateBadge tone={selectedUser.has_password ? "ok" : "warning"}>{selectedUser.has_password ? "Heslo připraveno" : "Chybí heslo"}</StateBadge>
+                <StateBadge tone={userTone(selectedUser)}>{loginStatusLabel(selectedUser)}</StateBadge>
+              </div>
+
+              {selectedUser.login_status_reason ? <InlineNotice tone="warning">{selectedUser.login_status_reason}</InlineNotice> : null}
+
+              <div className="admin-action-row">
+                <Button type="button" variant="ghost" onClick={() => startEdit(selectedUser)}>Upravit účet</Button>
+                <Button type="button" variant="ghost" onClick={() => void sendReset(selectedUser.id)} disabled={saving}>Poslat reset hesla</Button>
+                <Button type="button" variant="ghost" onClick={() => void unlockUser(selectedUser.id)} disabled={saving || !selectedUser.is_locked}>Odblokovat</Button>
+                <Button type="button" variant="danger" onClick={() => void toggleActive(selectedUser)} disabled={saving}>
+                  {selectedUser.is_active ? "Deaktivovat" : "Aktivovat"}
+                </Button>
+                <Button type="button" variant="danger" onClick={() => setDialog({ kind: "deleteUser", user: selectedUser })} disabled={saving}>
+                  Smazat uživatele
+                </Button>
+              </div>
+
+              {editingUserId === selectedUser.id ? (
+                <form onSubmit={onUpdate} className="admin-form-section">
+                  <div className="admin-form-section-title">Úprava profilu</div>
+                  <div className="admin-form-grid">
                     <div>
-                      <div style={{ fontWeight: 850, fontSize: 18 }}>{user.name}</div>
-                      <div style={{ color: "var(--muted)", marginTop: 4 }}>{user.email}</div>
-                      {user.phone ? <div style={{ color: "var(--muted)", marginTop: 2 }}>{user.phone}</div> : null}
+                      <div className="kb-label">Jméno</div>
+                      <input className="kb-input" value={editName} onChange={(e) => setEditName(e.target.value)} />
                     </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
-                      <span className="chip">{user.role === "employee" ? "Zaměstnanec" : user.role}</span>
-                      <span className="chip" style={loginStatusTone(user)}>
-                        {loginStatusLabel(user)}
-                      </span>
-                      <span className="chip" style={user.has_password ? { background: "rgba(16,185,129,0.09)", borderColor: "rgba(16,185,129,0.24)", color: "#047857" } : undefined}>
-                        {user.has_password ? "Heslo nastaveno" : "Bez hesla"}
-                      </span>
+                    <div>
+                      <div className="kb-label">E-mail</div>
+                      <input className="kb-input" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+                    </div>
+                    <div>
+                      <div className="kb-label">Telefon</div>
+                      <input className="kb-input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+                    </div>
+                    <div>
+                      <div className="kb-label">Nové heslo</div>
+                      <input className="kb-input" type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="ponechte prázdné" />
                     </div>
                   </div>
-
-                  {user.login_status_reason ? <div style={{ fontSize: 12, color: "var(--muted)" }}>{user.login_status_reason}</div> : null}
-
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button type="button" className="btn sm" onClick={() => startEdit(user)} disabled={saving}>
-                      Upravit účet
-                    </button>
-                    <button type="button" className="btn sm" onClick={() => sendReset(user.id)} disabled={saving}>
-                      Poslat reset hesla
-                    </button>
-                    <button type="button" className="btn sm" onClick={() => unlockUser(user)} disabled={saving || !user.is_locked}>
-                      Odblokovat
-                    </button>
-                    <button
-                      type="button"
-                      className="btn sm"
-                      onClick={() =>
-                        adminUpdateUser(user.id, { is_active: !user.is_active, role: "employee" }).then(load).catch((err) => setError(errorMessage(err, "Změna aktivace se nezdařila.")))
-                      }
-                      disabled={saving}
-                      style={!user.is_active ? undefined : { borderColor: "rgba(239,68,68,0.28)", color: "#b91c1c" }}
-                    >
-                      {user.is_active ? "Deaktivovat" : "Aktivovat"}
-                    </button>
-                    <button type="button" className="btn sm" onClick={() => deleteUser(user)} disabled={saving} style={{ borderColor: "rgba(239,68,68,0.28)", color: "#b91c1c" }}>
-                      Smazat uživatele
-                    </button>
+                  <div className="admin-action-row">
+                    <Button type="button" variant="ghost" onClick={() => setEditingUserId(null)}>Zavřít editor</Button>
+                    <Button type="button" variant="ghost" onClick={() => setEditIsActive((value) => !value)}>
+                      {editIsActive ? "Ruční aktivace zapnutá" : "Ruční aktivace vypnutá"}
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={saving}>{saving ? "Ukládám…" : "Uložit profil"}</Button>
                   </div>
+                </form>
+              ) : null}
 
-                  {editingUserId === user.id ? (
-                    <form onSubmit={onUpdate} className="stack" style={{ gap: 12 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 10,
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          background: userEditDirty ? "rgba(245,158,11,0.1)" : "rgba(35,41,44,0.04)",
-                          border: userEditDirty ? "1px solid rgba(245,158,11,0.24)" : "1px solid rgba(35,41,44,0.08)",
-                        }}
-                      >
-                        <div style={{ fontSize: 13, color: userEditDirty ? "#b45309" : "var(--muted)", fontWeight: 700 }}>
-                          {userEditDirty ? "Změny profilu čekají na uložení." : "Profil je beze změn."}
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button type="button" className="btn" onClick={cancelEdit} disabled={saving}>
-                            Zrušit
-                          </button>
-                          <button type="submit" className="btn solid" disabled={saving || !userEditDirty}>
-                            {saving ? "Ukládám…" : "Uložit profil"}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="admin-form-grid">
-                        <div>
-                          <div className="label">Jméno</div>
-                          <input className="input" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                        </div>
-                        <div>
-                          <div className="label">E-mail</div>
-                          <input className="input" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
-                        </div>
-                        <div>
-                          <div className="label">Telefon</div>
-                          <input className="input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
-                        </div>
-                        <div>
-                          <div className="label">Nové heslo</div>
-                          <input className="input" type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="ponechte prázdné" />
-                        </div>
-                        <label style={{ display: "grid", gap: 6, alignContent: "end" }}>
-                          <span className="label">Ruční aktivace</span>
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => setEditIsActive((value) => !value)}
-                            style={editIsActive ? undefined : { borderColor: "rgba(239,68,68,0.28)", color: "#b91c1c" }}
-                          >
-                            {editIsActive ? "Aktivovat" : "Deaktivovat"}
-                          </button>
-                        </label>
-                      </div>
-                    </form>
-                  ) : null}
-
-                  <section style={{ display: "grid", gap: 10 }}>
-                    <div style={{ fontWeight: 800 }}>Úvazky</div>
-                    {user.employments.length === 0 ? <div style={{ fontSize: 13, color: "var(--muted)" }}>Uživatel zatím nemá žádný úvazek.</div> : null}
-                    {user.employments.map((employment) => {
-                      const isEditing = editingEmploymentId === employment.id;
-                      const draft = employmentDrafts[employment.id] ?? fromEmployment(employment);
-                      return (
-                        <div key={employment.id} style={{ border: "1px solid rgba(35,41,44,0.12)", borderRadius: 14, padding: 12, display: "grid", gap: 10 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                            <div>
-                              <div style={{ fontWeight: 700 }}>{employment.label}</div>
-                              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                                {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                              <button type="button" className="btn sm" onClick={() => setEditingEmploymentId(isEditing ? null : employment.id)}>
-                                {isEditing ? "Zavřít" : "Upravit úvazek"}
-                              </button>
-                              <button type="button" className="btn sm" onClick={() => removeEmployment(employment)} style={{ borderColor: "rgba(239,68,68,0.28)", color: "#b91c1c" }}>
-                                Smazat
-                              </button>
+              <div className="admin-form-section">
+                <div className="admin-form-section-title">Úvazky</div>
+                {selectedUser.employments.length === 0 ? <EmptyState title="Žádný úvazek" description="Tento účet zatím nemá přiřazené žádné období ani typ práce." /> : null}
+                <div className="admin-stack">
+                  {selectedUser.employments.map((employment) => {
+                    const isEditing = editingEmploymentId === employment.id;
+                    const draft = employmentDrafts[employment.id] ?? fromEmployment(employment);
+                    return (
+                      <section key={employment.id} className="admin-subsurface">
+                        <div className="admin-surface-head">
+                          <div>
+                            <div className="admin-surface-title">{employment.label}</div>
+                            <div className="admin-surface-subtitle">
+                              {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
                             </div>
                           </div>
+                          <div className="admin-action-row">
+                            <Button type="button" variant="ghost" onClick={() => setEditingEmploymentId(isEditing ? null : employment.id)}>
+                              {isEditing ? "Zavřít" : "Upravit úvazek"}
+                            </Button>
+                            <Button type="button" variant="danger" onClick={() => setDialog({ kind: "deleteEmployment", employment })}>
+                              Smazat
+                            </Button>
+                          </div>
+                        </div>
 
-                          {isEditing ? (
-                            <div className="admin-form-grid">
-                              <div>
-                                <div className="label">Název úvazku</div>
-                                <input className="input" value={draft.title} onChange={(e) => updateExistingEmploymentForm(employment.id, { title: e.target.value }, employment)} />
-                              </div>
-                              <div>
-                                <div className="label">Typ</div>
-                                <select className="input" value={draft.employment_type} onChange={(e) => updateExistingEmploymentForm(employment.id, { employment_type: e.target.value as EmploymentTemplate }, employment)}>
-                                  <option value="DPP_DPC">DPP/DPČ</option>
-                                  <option value="HPP">HPP</option>
-                                </select>
-                              </div>
-                              <div>
-                                <div className="label">Začátek</div>
-                                <input className="input" type="date" value={draft.start_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { start_date: e.target.value }, employment)} />
-                              </div>
-                              <div>
-                                <div className="label">Konec</div>
-                                <input className="input" type="date" disabled={draft.is_indefinite} value={draft.end_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { end_date: e.target.value }, employment)} />
-                              </div>
-                              <label style={{ display: "grid", gap: 6, alignContent: "end" }}>
-                                <span className="label">Na dobu neurčitou</span>
-                                <input type="checkbox" checked={draft.is_indefinite} onChange={(e) => updateExistingEmploymentForm(employment.id, { is_indefinite: e.target.checked }, employment)} />
-                              </label>
-                              <div style={{ display: "flex", alignItems: "end" }}>
-                                <button type="button" className="btn solid" onClick={() => saveEmployment(user, employment)} disabled={saving}>
-                                  Uložit úvazek
-                                </button>
-                              </div>
+                        {isEditing ? (
+                          <div className="admin-form-grid">
+                            <div>
+                              <div className="kb-label">Název úvazku</div>
+                              <input className="kb-input" value={draft.title} onChange={(e) => updateExistingEmploymentForm(employment.id, { title: e.target.value }, employment)} />
                             </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-
-                    <div style={{ borderTop: "1px solid rgba(35,41,44,0.08)", paddingTop: 12, display: "grid", gap: 10 }}>
-                      <div style={{ fontWeight: 700 }}>Přidat úvazek</div>
-                      <div className="admin-form-grid">
-                        <div>
-                          <div className="label">Název úvazku</div>
-                          <input className="input" value={createForm.title} onChange={(e) => updateNewEmploymentForm(user.id, { title: e.target.value })} placeholder="Např. Recepce" />
-                        </div>
-                        <div>
-                          <div className="label">Typ</div>
-                          <select className="input" value={createForm.employment_type} onChange={(e) => updateNewEmploymentForm(user.id, { employment_type: e.target.value as EmploymentTemplate })}>
-                            <option value="DPP_DPC">DPP/DPČ</option>
-                            <option value="HPP">HPP</option>
-                          </select>
-                        </div>
-                        <div>
-                          <div className="label">Začátek</div>
-                          <input className="input" type="date" value={createForm.start_date} onChange={(e) => updateNewEmploymentForm(user.id, { start_date: e.target.value })} />
-                        </div>
-                        <div>
-                          <div className="label">Konec</div>
-                          <input className="input" type="date" disabled={createForm.is_indefinite} value={createForm.end_date} onChange={(e) => updateNewEmploymentForm(user.id, { end_date: e.target.value })} />
-                        </div>
-                        <label style={{ display: "grid", gap: 6, alignContent: "end" }}>
-                          <span className="label">Na dobu neurčitou</span>
-                          <input type="checkbox" checked={createForm.is_indefinite} onChange={(e) => updateNewEmploymentForm(user.id, { is_indefinite: e.target.checked })} />
-                        </label>
-                        <div style={{ display: "flex", alignItems: "end" }}>
-                          <button type="button" className="btn solid" onClick={() => createEmployment(user.id)} disabled={saving}>
-                            Přidat úvazek
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
+                            <div>
+                              <div className="kb-label">Typ</div>
+                              <select className="kb-select" value={draft.employment_type} onChange={(e) => updateExistingEmploymentForm(employment.id, { employment_type: e.target.value as EmploymentTemplate }, employment)}>
+                                <option value="DPP_DPC">DPP / DPČ</option>
+                                <option value="HPP">HPP</option>
+                              </select>
+                            </div>
+                            <div>
+                              <div className="kb-label">Začátek</div>
+                              <input className="kb-input" type="date" value={draft.start_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { start_date: e.target.value }, employment)} />
+                            </div>
+                            <div>
+                              <div className="kb-label">Konec</div>
+                              <input className="kb-input" type="date" disabled={draft.is_indefinite} value={draft.end_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { end_date: e.target.value }, employment)} />
+                            </div>
+                            <label className="admin-checkbox-row">
+                              <input type="checkbox" checked={draft.is_indefinite} onChange={(e) => updateExistingEmploymentForm(employment.id, { is_indefinite: e.target.checked }, employment)} />
+                              <span>Na dobu neurčitou</span>
+                            </label>
+                            <div className="admin-action-row">
+                              <Button type="button" variant="primary" onClick={() => void saveEmployment(selectedUser, employment)} disabled={saving}>
+                                Uložit úvazek
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </section>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+
+              <div className="admin-form-section">
+                <div className="admin-form-section-title">Přidat úvazek</div>
+                <div className="admin-form-grid">
+                  <div>
+                    <div className="kb-label">Název úvazku</div>
+                    <input className="kb-input" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).title} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { title: e.target.value })} placeholder="Např. Recepce" />
+                  </div>
+                  <div>
+                    <div className="kb-label">Typ</div>
+                    <select className="kb-select" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).employment_type} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { employment_type: e.target.value as EmploymentTemplate })}>
+                      <option value="DPP_DPC">DPP / DPČ</option>
+                      <option value="HPP">HPP</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div className="kb-label">Začátek</div>
+                    <input className="kb-input" type="date" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).start_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { start_date: e.target.value })} />
+                  </div>
+                  <div>
+                    <div className="kb-label">Konec</div>
+                    <input className="kb-input" type="date" disabled={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).is_indefinite} value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).end_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { end_date: e.target.value })} />
+                  </div>
+                  <label className="admin-checkbox-row">
+                    <input type="checkbox" checked={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).is_indefinite} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { is_indefinite: e.target.checked })} />
+                    <span>Na dobu neurčitou</span>
+                  </label>
+                </div>
+                <div className="admin-action-row">
+                  <Button type="button" variant="primary" onClick={() => void createEmployment(selectedUser.id)} disabled={saving}>
+                    Přidat úvazek
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       </div>
+
+      <ConfirmDialog
+        open={dialog.kind === "deleteUser"}
+        title="Smazat uživatele"
+        description={`Účet ${dialog.kind === "deleteUser" ? dialog.user.name : ""} bude odstraněn i se všemi úvazky a navázanou evidencí.`}
+        confirmLabel="Smazat uživatele"
+        tone="danger"
+        busy={saving}
+        onClose={() => setDialog({ kind: "none" })}
+        onConfirm={() =>
+          dialog.kind === "deleteUser"
+            ? void (async () => {
+                setSaving(true);
+                try {
+                  await adminDeleteUser(dialog.user.id);
+                  setDialog({ kind: "none" });
+                  setToast("Uživatel byl smazán.");
+                  setEditingUserId(null);
+                  await load();
+                } catch (err) {
+                  setError(errorMessage(err, "Smazání uživatele se nezdařilo."));
+                } finally {
+                  setSaving(false);
+                }
+              })()
+            : undefined
+        }
+      />
+
+      <ConfirmDialog
+        open={dialog.kind === "deleteEmployment"}
+        title="Smazat úvazek"
+        description={dialog.kind === "deleteEmployment" ? `Opravdu smazat úvazek „${dialog.employment.label}“?` : ""}
+        confirmLabel="Smazat úvazek"
+        tone="danger"
+        busy={saving}
+        onClose={() => setDialog({ kind: "none" })}
+        onConfirm={() => (dialog.kind === "deleteEmployment" ? void deleteEmployment(dialog.employment) : undefined)}
+      />
+
+      <ConfirmDialog
+        open={dialog.kind === "employmentUpdateConflict"}
+        title="Potvrdit kolizní změnu období"
+        description={
+          dialog.kind === "employmentUpdateConflict"
+            ? `Změna období úvazku uživatele ${dialog.user.name} smaže data mimo nové období${dialog.conflict.problem_range_start && dialog.conflict.problem_range_end ? ` (${dialog.conflict.problem_range_start} až ${dialog.conflict.problem_range_end})` : ""}.`
+            : ""
+        }
+        confirmLabel="Potvrdit a smazat kolize"
+        tone="danger"
+        busy={saving}
+        details={
+          dialog.kind === "employmentUpdateConflict"
+            ? [
+                { label: "Docházka mimo období", value: dialog.conflict.attendance_count },
+                { label: "Plán služeb mimo období", value: dialog.conflict.shift_plan_count },
+                { label: "Zámky měsíců", value: dialog.conflict.attendance_lock_count },
+                { label: "Výběry plánu", value: dialog.conflict.shift_plan_selection_count },
+                { label: "Připomínky", value: dialog.conflict.reminder_count },
+              ]
+            : undefined
+        }
+        onClose={() => setDialog({ kind: "none" })}
+        onConfirm={() => void confirmEmploymentPeriodConflict()}
+      />
+
+      <ConfirmDialog
+        open={dialog.kind === "employmentDeleteConflict"}
+        title="Úvazek obsahuje navázaná data"
+        description="Backend potvrdil, že před smazáním je potřeba výslovně schválit odstranění všech navázaných záznamů."
+        confirmLabel="Smazat úvazek i data"
+        tone="danger"
+        busy={saving}
+        details={
+          dialog.kind === "employmentDeleteConflict"
+            ? [
+                { label: "Docházka", value: dialog.conflict.attendance_count },
+                { label: "Plán služeb", value: dialog.conflict.shift_plan_count },
+                { label: "Zámky měsíců", value: dialog.conflict.attendance_lock_count },
+                { label: "Výběry plánu", value: dialog.conflict.shift_plan_selection_count },
+                { label: "Připomínky", value: dialog.conflict.reminder_count },
+              ]
+            : undefined
+        }
+        onClose={() => setDialog({ kind: "none" })}
+        onConfirm={() => void confirmDeleteEmploymentConflict()}
+      />
+
+      <Toast message={toast} tone="ok" />
     </div>
   );
 }

@@ -143,6 +143,14 @@ export async function adminLogout(): Promise<{ ok: true }> {
   return res;
 }
 
+export async function adminForgotPassword(email: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>("/api/v1/admin/forgot-password", {
+    method: "POST",
+    headers: withCsrf(),
+    body: { email },
+  });
+}
+
 export async function adminMe(): Promise<AdminMe> {
   try {
     return await apiFetch<AdminMe>("/api/v1/admin/me", { method: "GET" });

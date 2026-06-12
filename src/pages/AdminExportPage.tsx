@@ -1,6 +1,6 @@
-import type { CSSProperties } from "react";
-import { useMemo, useState } from "react";
-import { adminExportBulkUrl, adminExportEmploymentUrl } from "../api/admin";
+import { useEffect, useMemo, useState } from "react";
+import { adminExportBulkUrl, adminExportEmploymentUrl, adminListUsers } from "../api/admin";
+import { FilterBar, InlineNotice, PageHeader } from "../components/admin/AdminUI";
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -14,10 +14,47 @@ function parseYYYYMM(s: string): boolean {
   return /^([0-9]{4})-([0-9]{2})$/.test(s.trim());
 }
 
+function errorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
 export default function AdminExportPage() {
   const defaultMonth = useMemo(() => monthToYYYYMM(new Date()), []);
   const [month, setMonth] = useState<string>(defaultMonth);
   const [employmentId, setEmploymentId] = useState<string>("");
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState<Array<{ id: number; label: string }>>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void adminListUsers()
+      .then((response) => {
+        if (cancelled) return;
+        setOptions(
+          response.users.flatMap((user) =>
+            user.employments.map((employment) => ({
+              id: employment.id,
+              label: `${employment.label} · ${employment.start_date}${employment.end_date ? ` až ${employment.end_date}` : ""}`,
+            })),
+          ),
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(errorMessage(err, "Nepodařilo se načíst seznam úvazků pro export."));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return options;
+    return options.filter((option) => tokens.every((token) => option.label.toLowerCase().includes(token) || String(option.id).includes(token)));
+  }, [options, query]);
 
   const bulkUrl = useMemo(() => (parseYYYYMM(month) ? adminExportBulkUrl(month) : null), [month]);
   const singleUrl = useMemo(() => {
@@ -28,76 +65,63 @@ export default function AdminExportPage() {
   }, [employmentId, month]);
 
   return (
-    <div className="admin-page">
-      <section className="card admin-hero">
-        <div className="admin-hero-copy">
-          <div className="eyebrow">Administrace · Export</div>
-          <h1 className="admin-hero-title">Export evidence docházky</h1>
-          <div className="admin-hero-text">Exporty se nově vztahují ke konkrétním úvazkům. Jednotlivý export očekává `employment_id`, hromadný export připraví všechny relevantní úvazky za zvolený měsíc.</div>
-        </div>
-      </section>
+    <div className="admin-page-grid">
+      <PageHeader
+        eyebrow="Exporty a podklady"
+        title="Export evidence docházky"
+        description="Jednotlivý export pracuje s konkrétním employment ID. Hromadný export připraví ZIP balík všech relevantních úvazků za zvolený měsíc."
+      />
 
-      <div className="admin-two-column">
-        <section style={card}>
-          <h2 style={h2}>Volba období</h2>
-          <input value={month} onChange={(e) => setMonth(e.target.value)} placeholder="2026-03" style={input} />
-        </section>
+      {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
 
-        <section style={card}>
-          <h2 style={h2}>Jednotlivý export</h2>
-          <div style={{ color: "rgba(35,41,44,0.7)", fontSize: 13, marginTop: 8 }}>Zadejte číselné `employment_id` konkrétního úvazku.</div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
-            <input value={employmentId} onChange={(e) => setEmploymentId(e.target.value)} placeholder="např. 17" style={input} />
-            <a href={singleUrl ?? "#"} style={{ ...btnPrimary, opacity: singleUrl ? 1 : 0.5, pointerEvents: singleUrl ? "auto" : "none", textDecoration: "none" }} download>
-              Stáhnout export
-            </a>
+      <div className="admin-overview-grid">
+        <section className="admin-surface">
+          <div className="admin-surface-head">
+            <div>
+              <div className="admin-surface-title">Parametry exportu</div>
+              <div className="admin-surface-subtitle">Nastavte období a případně vyberte konkrétní úvazek.</div>
+            </div>
           </div>
+          <div className="admin-form-grid">
+            <div>
+              <div className="kb-label">Měsíc</div>
+              <input className="kb-input" value={month} onChange={(e) => setMonth(e.target.value)} placeholder="2026-03" />
+            </div>
+            <div>
+              <div className="kb-label">Vybrané employment ID</div>
+              <input className="kb-input" value={employmentId} onChange={(e) => setEmploymentId(e.target.value)} placeholder="např. 17" />
+            </div>
+          </div>
+          <FilterBar>
+            <a href={singleUrl ?? "#"} className="admin-action-link" style={singleUrl ? undefined : { opacity: 0.5, pointerEvents: "none" }} download>
+              Stáhnout jednotlivý export
+            </a>
+            <a href={bulkUrl ?? "#"} className="admin-action-link" style={bulkUrl ? undefined : { opacity: 0.5, pointerEvents: "none" }} download>
+              Stáhnout hromadný ZIP
+            </a>
+          </FilterBar>
         </section>
 
-        <section style={card}>
-          <h2 style={h2}>Hromadný export</h2>
-          <a href={bulkUrl ?? "#"} style={{ ...btnPrimary, opacity: bulkUrl ? 1 : 0.5, pointerEvents: bulkUrl ? "auto" : "none", textDecoration: "none", marginTop: 12 }} download>
-            Stáhnout balík
-          </a>
+        <section className="admin-surface">
+          <div className="admin-surface-head">
+            <div>
+              <div className="admin-surface-title">Lookup helper úvazků</div>
+              <div className="admin-surface-subtitle">Vyberte existující úvazek místo ručního dohledávání ID.</div>
+            </div>
+          </div>
+          <input className="kb-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Hledat podle jména, typu nebo čísla úvazku" />
+          <div className="admin-list" style={{ marginTop: 12 }}>
+            {filtered.slice(0, 20).map((option) => (
+              <button key={option.id} type="button" className={`admin-selection-row${employmentId === String(option.id) ? " active" : ""}`} onClick={() => setEmploymentId(String(option.id))}>
+                <div>
+                  <div className="admin-list-title">{option.label}</div>
+                  <div className="admin-list-subtitle">employment_id: {option.id}</div>
+                </div>
+              </button>
+            ))}
+          </div>
         </section>
       </div>
     </div>
   );
 }
-
-const card: CSSProperties = {
-  background: "white",
-  border: "1px solid rgba(35,41,44,0.10)",
-  borderRadius: 14,
-  padding: 16,
-  boxShadow: "0 8px 26px rgba(35,41,44,0.06)",
-};
-
-const h2: CSSProperties = {
-  margin: 0,
-  fontSize: 16,
-  fontWeight: 800,
-};
-
-const input: CSSProperties = {
-  height: 44,
-  borderRadius: 12,
-  border: "1px solid rgba(35,41,44,0.16)",
-  padding: "0 12px",
-  fontSize: 14,
-  outline: "none",
-};
-
-const btnPrimary: CSSProperties = {
-  height: 44,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: 12,
-  padding: "0 14px",
-  fontWeight: 800,
-  fontSize: 14,
-  border: "1px solid rgba(38,43,49,0.25)",
-  background: "linear-gradient(90deg, rgba(38,43,49,0.98), rgba(38,43,49,0.96))",
-  color: "white",
-};
