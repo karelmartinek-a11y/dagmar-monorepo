@@ -1,6 +1,7 @@
 # ruff: noqa: B008
 from __future__ import annotations
 
+import json
 import smtplib
 from email.message import EmailMessage
 
@@ -15,23 +16,28 @@ from app.security.crypto import decrypt_secret
 from app.security.csrf import csrf_issue_token
 from app.security.passwords import verify_password
 from app.security.rate_limit import limiter
-from app.security.sessions import (
-    clear_admin_session,
-    get_admin_session,
-    set_admin_session,
-)
+from app.security.sessions import clear_admin_session, get_admin_session, set_admin_session
 
 router = APIRouter(tags=["admin"])
 
+
 class AdminLoginBody(BaseModel):
     username: str | None = Field(default=None, min_length=1, max_length=128)
+    email: str | None = Field(default=None, min_length=3, max_length=160)
     password: str = Field(min_length=1, max_length=256)
-
-
 
 
 class AdminForgotPasswordIn(BaseModel):
     email: str = Field(min_length=3, max_length=160)
+
+
+class AdminMeResponse(BaseModel):
+    authenticated: bool
+    username: str | None = None
+
+
+class CsrfTokenResponse(BaseModel):
+    csrf_token: str
 
 
 def _smtp_settings(db):
@@ -77,6 +83,35 @@ def _send_admin_help_email(*, settings: Settings, to_email: str, cfg: AppSetting
         server.quit()
 
 
+async def _parse_admin_login_body(request: Request) -> AdminLoginBody | None:
+    raw_body = await request.body()
+    payload: AdminLoginBody | None = None
+
+    if raw_body:
+        try:
+            payload = AdminLoginBody.model_validate(json.loads(raw_body))
+        except (ValueError, ValidationError):
+            payload = None
+
+    if payload is None:
+        try:
+            form = await request.form()
+            raw_username = form.get("username")
+            raw_email = form.get("email")
+            raw_password = form.get("password")
+            payload = AdminLoginBody(
+                username=(raw_username.strip() if isinstance(raw_username, str) else "") or None,
+                email=(raw_email.strip() if isinstance(raw_email, str) else "") or None,
+                password=raw_password if isinstance(raw_password, str) else "",
+            )
+        except ValidationError:
+            raise HTTPException(status_code=400, detail="Vyplňte uživatelské jméno a heslo.") from None
+        except Exception:
+            raise HTTPException(status_code=400, detail="Nelze zpracovat přihlašovací údaje.") from None
+
+    return payload
+
+
 @router.post("/api/v1/admin/forgot-password")
 async def admin_forgot_password(
     payload: AdminForgotPasswordIn,
@@ -88,14 +123,6 @@ async def admin_forgot_password(
         cfg = _smtp_settings(db)
         _send_admin_help_email(settings=settings, to_email=requested, cfg=cfg)
     return {"ok": True}
-
-class AdminMeResponse(BaseModel):
-    authenticated: bool
-    username: str | None = None
-
-
-class CsrfTokenResponse(BaseModel):
-    csrf_token: str
 
 
 @router.post("/api/v1/admin/login")
@@ -117,8 +144,6 @@ async def admin_login(
       - Session is server-side (in-memory) and intended for single-node deployment.
     """
 
-    # Prevent timing attacks on username checks by always doing hash verify
-    # when a hash is configured.
     configured_user = (settings.admin_username or "").strip().lower()
     configured_hash = settings.admin_password_hash
 
@@ -128,33 +153,11 @@ async def admin_login(
             detail="Admin účet není inicializován. Spusťte scripts/seed_admin.sh.",
         )
 
-    payload: AdminLoginBody | None = None
-
-    # Try JSON first; avoid framework-level 422 by parsing manually.
-    try:
-        raw_json = await request.json()
-        payload = AdminLoginBody.model_validate(raw_json)
-    except (ValidationError, Exception):
-        payload = None
-
-    if payload is None:
-        try:
-            form = await request.form()
-            raw_username = form.get("username")
-            raw_password = form.get("password")
-            payload = AdminLoginBody(
-                username=(raw_username.strip() if isinstance(raw_username, str) else "") or None,
-                password=raw_password if isinstance(raw_password, str) else "",
-            )
-        except ValidationError:
-            raise HTTPException(status_code=400, detail="Vyplňte uživatelské jméno a heslo.") from None
-        except Exception:
-            raise HTTPException(status_code=400, detail="Nelze zpracovat přihlašovací údaje.") from None
-
+    payload = await _parse_admin_login_body(request)
     if not payload:
         raise HTTPException(status_code=400, detail="Vyplňte uživatelské jméno a heslo.")
 
-    username = (payload.username or "").strip().lower()
+    username = (payload.username or payload.email or "").strip().lower()
     if not username or not payload.password:
         raise HTTPException(status_code=400, detail="Vyplňte uživatelské jméno a heslo.")
 
@@ -165,10 +168,7 @@ async def admin_login(
         raise HTTPException(status_code=401, detail="Neplatné přihlašovací údaje")
 
     set_admin_session(response=response, username=configured_user, settings=settings)
-
-    # Issue CSRF token (returned in JSON; frontend stores in memory and sends header)
     csrf = csrf_issue_token(request=request, response=response, settings=settings)
-
     return {"ok": True, "csrf_token": csrf}
 
 
