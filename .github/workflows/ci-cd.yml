@@ -68,6 +68,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           password: ${{ secrets.DEPLOY_PASS }}
+          command_timeout: 20m
           script: |
             set -e
             LOCK_FILE=/tmp/dagmar-deploy.lock
