@@ -167,7 +167,7 @@ def portal_reset(payload: PortalResetIn, db: Session = Depends(get_db)):
         .where(PortalUserResetToken.expires_at > now)
     ).scalars().first()
 
-    if not row or not row.user:
+    if not row or not row.user or not row.user.is_active:
         raise HTTPException(status_code=400, detail="Odkaz je neplatny nebo vyprsel")
 
     try:

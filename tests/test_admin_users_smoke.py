@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import FastAPI
@@ -20,6 +21,7 @@ from app.db.models import (
     Instance,
     InstanceStatus,
     PortalUser,
+    PortalUserResetToken,
     PortalUserRole,
     ShiftPlan,
     ShiftPlanMonthInstance,
@@ -154,6 +156,26 @@ def test_manually_deactivated_user_with_valid_employment_cannot_login() -> None:
 
     response = _portal_login(client, "deactivated@example.com")
     assert response.status_code == 401
+
+
+def test_portal_reset_rejects_inactive_user() -> None:
+    client, session_local = _build_client()
+    with session_local() as db:
+        user = _create_user(db, email="inactive-reset@example.com")
+        token_value = "inactive-reset-token"
+        db.add(
+            PortalUserResetToken(
+                user_id=user.id,
+                token_hash=hashlib.sha256(token_value.encode("utf-8")).hexdigest(),
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
+            )
+        )
+        user.is_active = False
+        db.add(user)
+        db.commit()
+
+    response = client.post("/api/v1/portal/reset", json={"token": token_value, "password": "NewStrongPass123"})
+    assert response.status_code == 400
 
 
 def test_employment_starting_in_less_than_one_calendar_month_can_login() -> None:
