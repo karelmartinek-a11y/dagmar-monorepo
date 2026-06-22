@@ -1,8 +1,8 @@
 import React from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { adminLogout, getAdminMe } from "../api/admin";
-import Button from "../ui/Button";
 import { BRAND_ASSETS } from "../brand/brand";
+import Button from "../ui/Button";
 
 type MeState = { kind: "loading" } | { kind: "anon" } | { kind: "auth"; username: string };
 
@@ -24,6 +24,25 @@ const NAV_ITEMS = [
 function locationLabel(pathname: string) {
   const found = NAV_ITEMS.find((item) => pathname.startsWith(item.to));
   return found?.label ?? "Administrace";
+}
+
+function LoadingState() {
+  return (
+    <div className="kb-intro" role="status" aria-label="Načítání">
+      <div className="kb-intro-card">
+        <div className="kb-intro-top">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <img src={BRAND_ASSETS.logoHorizontal} alt="" style={{ height: 38, width: "auto" }} />
+          </div>
+        </div>
+        <div>
+          <div className="kb-intro-title">Operační cockpit</div>
+          <div className="kb-intro-sub">Připravuji administraci…</div>
+        </div>
+        <div className="kb-spinner" aria-hidden="true" />
+      </div>
+    </div>
+  );
 }
 
 export default function AdminLayout() {
@@ -64,25 +83,18 @@ export default function AdminLayout() {
     }
   }
 
+  // Dokud není auth potvrzená, nesmíme mountnout admin stránky,
+  // jinak jejich datové hooky vyrábějí zbytečné 401 na login obrazovce.
+  if (me.kind === "loading") {
+    return <LoadingState />;
+  }
+
+  if (me.kind === "anon") {
+    return null;
+  }
+
   return (
     <div className="admin-shell">
-      {me.kind === "loading" ? (
-        <div className="kb-intro" role="status" aria-label="Načítání">
-          <div className="kb-intro-card">
-            <div className="kb-intro-top">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <img src={BRAND_ASSETS.logoHorizontal} alt="" style={{ height: 38, width: "auto" }} />
-              </div>
-            </div>
-            <div>
-              <div className="kb-intro-title">Operační cockpit</div>
-              <div className="kb-intro-sub">Připravuji administraci…</div>
-            </div>
-            <div className="kb-spinner" aria-hidden="true" />
-          </div>
-        </div>
-      ) : null}
-
       <aside className="admin-sidebar" aria-label="Admin navigace">
         <div className="admin-sidebar-brand">
           <img src={BRAND_ASSETS.logoHorizontal} alt="" className="admin-sidebar-logo" />
@@ -94,7 +106,7 @@ export default function AdminLayout() {
 
         <div className="admin-sidebar-section">
           <div className="admin-sidebar-caption">Přihlášený správce</div>
-          <div className="admin-sidebar-user">{me.kind === "auth" ? me.username : "—"}</div>
+          <div className="admin-sidebar-user">{me.username}</div>
         </div>
 
         <nav className="admin-sidebar-nav">

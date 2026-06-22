@@ -73,11 +73,11 @@ async function fetchServerTime(): Promise<PragueTimeSnapshot | null> {
 }
 
 export async function getPragueTimeSnapshot(): Promise<PragueTimeSnapshot> {
-  const internet = await fetchInternetTime();
-  if (internet) return internet;
-
   const server = await fetchServerTime();
   if (server) return server;
+
+  const internet = await fetchInternetTime();
+  if (internet) return internet;
 
   return { timestamp: Date.now(), source: "browser" };
 }
