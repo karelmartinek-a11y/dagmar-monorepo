@@ -7,8 +7,6 @@ Backend pro KájovoDagmar docházkový systém.
 - Interní bind: **127.0.0.1:8101** (host-level)
 - Databáze: PostgreSQL v Dockeru, publikovaná pouze na **127.0.0.1:5433**
 
-> Pozor: Nikde nepoužívejte doménu `dochazka.hcasc.cz` – je zakázaná.
-
 ---
 
 ## 1) Co backend dělá
