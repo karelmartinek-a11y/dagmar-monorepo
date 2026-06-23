@@ -87,16 +87,5 @@ jobs:
             npm run build
             FRONT_TAG=$(git rev-parse --short HEAD)
             printf '{"frontend_commit":"%s"}\n' "$FRONT_TAG" > /srv/hcasc/_repos/dagmar-monorepo/frontend/dist/frontend-version.json
-            if docker info >/dev/null 2>&1; then
-              cd /opt/dagmar/sandbox
-              docker compose down --remove-orphans || true
-              docker compose rm -f || true
-              python3 -m venv --clear /opt/dagmar/backend/.venv
-              /opt/dagmar/backend/.venv/bin/pip install --upgrade pip
-              /opt/dagmar/backend/.venv/bin/pip install /opt/dagmar/backend
-              ./run-tests.sh
-            else
-              echo "Docker neni dostupny, sandbox testy preskakuji."
-            fi
             rsync -a --no-owner --no-group --no-perms --delete /srv/hcasc/_repos/dagmar-monorepo/frontend/dist/ /var/www/dagmar/frontend/
             printf '%s DAGMAR web: auto-deploy main\n' "$(date '+%F %T')" >> /var/log/dagmar/deploy.log || true

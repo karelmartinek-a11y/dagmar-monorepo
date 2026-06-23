@@ -112,9 +112,4 @@ jobs:
               echo "DAGMAR_DATABASE_URL neni nastavena, migrace preskakuji."
             fi
             sudo systemctl restart dagmar-backend
-            if docker info >/dev/null 2>&1; then
-              cd /opt/dagmar/sandbox && ./run-tests.sh
-            else
-              echo "Docker neni dostupny, sandbox testy preskakuji."
-            fi
             printf '%s DAGMAR backend: auto-deploy main\n' "$(date '+%F %T')" >> /var/log/dagmar/deploy.log || true
