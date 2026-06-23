@@ -51,7 +51,7 @@ jobs:
           missing=""
           [ -z "${{ secrets.DEPLOY_HOST }}" ] && missing="$missing DEPLOY_HOST"
           [ -z "${{ secrets.DEPLOY_USER }}" ] && missing="$missing DEPLOY_USER"
-          [ -z "${{ secrets.DEPLOY_PASS }}" ] && missing="$missing DEPLOY_PASS"
+          [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ] && missing="$missing DEPLOY_SSH_KEY"
           if [ -n "$missing" ]; then
             echo "missing=$missing" >> $GITHUB_OUTPUT
           fi
@@ -65,7 +65,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          password: ${{ secrets.DEPLOY_PASS }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
             LOCK_FILE=/tmp/dagmar-deploy.lock
