@@ -400,6 +400,8 @@ class IntegrationClient(Base):
     scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     allowed_employment_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)
     allowed_employee_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)
+    data_scope_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="ALL_EMPLOYMENTS", server_default="ALL_EMPLOYMENTS")
+    include_inactive_employments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     ip_allowlist: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import IntegrationAuth, require_integration_auth
@@ -25,6 +25,12 @@ from app.db import models
 from app.db.session import get_db
 from app.security.integration_rate_limit import rate_limit_dependency
 from app.services.employment_access import employment_label
+from app.services.integration_admin import (
+    DATA_SCOPE_ACTIVE_ONLY,
+    DATA_SCOPE_SELECTED_EMPLOYEES,
+    DATA_SCOPE_SELECTED_EMPLOYMENTS,
+    infer_data_scope_mode,
+)
 
 router = APIRouter(prefix="/api/v1/integration", tags=["integration"])
 
@@ -57,11 +63,15 @@ def _ensure_scope(auth: IntegrationAuth, scope: str) -> None:
 
 
 def _allowed_employment_ids(auth: IntegrationAuth) -> set[int] | None:
+    if infer_data_scope_mode(auth.client) != DATA_SCOPE_SELECTED_EMPLOYMENTS:
+        return None
     values = {int(item) for item in (auth.client.allowed_employment_ids or [])}
     return values if values else None
 
 
 def _allowed_employee_ids(auth: IntegrationAuth) -> set[int] | None:
+    if infer_data_scope_mode(auth.client) != DATA_SCOPE_SELECTED_EMPLOYEES:
+        return None
     values = {int(item) for item in (auth.client.allowed_employee_ids or [])}
     return values if values else None
 
@@ -69,28 +79,54 @@ def _allowed_employee_ids(auth: IntegrationAuth) -> set[int] | None:
 def _check_requested_scope(
     *,
     auth: IntegrationAuth,
+    db: Session,
     employment_id: int | None,
     employee_id: int | None,
 ) -> None:
+    scope_mode = infer_data_scope_mode(auth.client)
     allowed_employment_ids = _allowed_employment_ids(auth)
     allowed_employee_ids = _allowed_employee_ids(auth)
     if employment_id is not None and allowed_employment_ids is not None and employment_id not in allowed_employment_ids:
         raise_integration_error(status.HTTP_403_FORBIDDEN, "insufficient_scope", "Požadovaný úvazek není v rozsahu klienta.")
     if employee_id is not None and allowed_employee_ids is not None and employee_id not in allowed_employee_ids:
         raise_integration_error(status.HTTP_403_FORBIDDEN, "insufficient_scope", "Požadovaný zaměstnanec není v rozsahu klienta.")
+    if scope_mode == DATA_SCOPE_ACTIVE_ONLY and employment_id is not None:
+        employment = db.get(models.Employment, employment_id)
+        if employment is not None and not employment.is_active:
+            raise_integration_error(status.HTTP_403_FORBIDDEN, "insufficient_scope", "Požadovaný úvazek není v rozsahu klienta.")
+    if scope_mode == DATA_SCOPE_ACTIVE_ONLY and employee_id is not None:
+        active_employment_count = int(
+            db.execute(
+                select(func.count(models.Employment.id)).where(
+                    models.Employment.user_id == employee_id,
+                    models.Employment.is_active.is_(True),
+                )
+            ).scalar_one()
+        )
+        if active_employment_count == 0:
+            raise_integration_error(status.HTTP_403_FORBIDDEN, "insufficient_scope", "Požadovaný zaměstnanec není v rozsahu klienta.")
 
 
 def _filter_employments_by_scope(
     employments: Sequence[models.Employment],
     auth: IntegrationAuth,
 ) -> list[models.Employment]:
+    scope_mode = infer_data_scope_mode(auth.client)
     allowed_employment_ids = _allowed_employment_ids(auth)
     allowed_employee_ids = _allowed_employee_ids(auth)
     filtered: list[models.Employment] = []
     for item in employments:
+        if scope_mode == DATA_SCOPE_ACTIVE_ONLY and not item.is_active:
+            continue
         if allowed_employment_ids is not None and item.id not in allowed_employment_ids:
             continue
         if allowed_employee_ids is not None and item.user_id not in allowed_employee_ids:
+            continue
+        if (
+            scope_mode == DATA_SCOPE_SELECTED_EMPLOYEES
+            and not bool(getattr(auth.client, "include_inactive_employments", False))
+            and not item.is_active
+        ):
             continue
         filtered.append(item)
     return filtered
@@ -198,7 +234,7 @@ def integration_employments(
 ) -> dict[str, Any]:
     request.state.integration_rate_key = f"client:{auth.client.id}"
     _ensure_scope(auth, "employments:read")
-    _check_requested_scope(auth=auth, employment_id=employment_id, employee_id=employee_id)
+    _check_requested_scope(auth=auth, db=db, employment_id=employment_id, employee_id=employee_id)
     limit = _normalize_limit(limit)
     cursor_value = decode_cursor(cursor)
     rows = db.execute(select(models.Employment).options(joinedload(models.Employment.user)).order_by(models.Employment.id.asc())).scalars().all()
@@ -241,7 +277,7 @@ def integration_shift_plan(
 ) -> dict[str, Any]:
     request.state.integration_rate_key = f"client:{auth.client.id}"
     _ensure_scope(auth, "shift_plan:read")
-    _check_requested_scope(auth=auth, employment_id=employment_id, employee_id=employee_id)
+    _check_requested_scope(auth=auth, db=db, employment_id=employment_id, employee_id=employee_id)
     limit = _normalize_limit(limit)
     start, end = _period(date_from, date_to)
     cursor_value = decode_cursor(cursor)
@@ -306,7 +342,7 @@ def integration_attendances(
 ) -> dict[str, Any]:
     request.state.integration_rate_key = f"client:{auth.client.id}"
     _ensure_scope(auth, "attendance:read")
-    _check_requested_scope(auth=auth, employment_id=employment_id, employee_id=employee_id)
+    _check_requested_scope(auth=auth, db=db, employment_id=employment_id, employee_id=employee_id)
     limit = _normalize_limit(limit)
     start, end = _period(date_from, date_to)
     cursor_value = decode_cursor(cursor)
@@ -406,7 +442,7 @@ def integration_punches(
 ) -> dict[str, Any]:
     request.state.integration_rate_key = f"client:{auth.client.id}"
     _ensure_scope(auth, "punches:read")
-    _check_requested_scope(auth=auth, employment_id=employment_id, employee_id=employee_id)
+    _check_requested_scope(auth=auth, db=db, employment_id=employment_id, employee_id=employee_id)
     if event_type not in (None, "ARRIVAL", "DEPARTURE"):
         raise_integration_error(status.HTTP_400_BAD_REQUEST, "invalid_request", "Pole event_type musí být ARRIVAL nebo DEPARTURE.")
     limit = _normalize_limit(limit)
@@ -481,7 +517,7 @@ def integration_locks(
 ) -> dict[str, Any]:
     request.state.integration_rate_key = f"client:{auth.client.id}"
     _ensure_scope(auth, "locks:read")
-    _check_requested_scope(auth=auth, employment_id=employment_id, employee_id=employee_id)
+    _check_requested_scope(auth=auth, db=db, employment_id=employment_id, employee_id=employee_id)
     limit = _normalize_limit(limit)
     cursor_value = decode_cursor(cursor)
     if year is None and month is None and (date_from is None or date_to is None):

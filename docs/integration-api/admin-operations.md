@@ -16,32 +16,93 @@ Fallback:
 
 Admin sekce `/admin/integrace` aktuálně podporuje:
 
-- výpis klientů
-- vytvoření klienta
-- nastavení scope
-- omezení na `allowed_employment_ids`
-- omezení na `allowed_employee_ids`
-- IP allowlist
-- expiraci `expires_at`
+- přehled všech integrací se stavem, lidsky čitelnými oprávněními, rozsahem dat, IP režimem, expirací a posledním použitím
+- detail integrace rozdělený na základní údaje, oprávnění, rozsah dat, bezpečnost, token a auditní informace
+- vytvoření nové integrace, kde správce ručně píše pouze název integrace
+- validovaný výběr oprávnění pomocí checkboxů
+- předpřipravené profily oprávnění pro typické read-only scénáře
+- validovaný výběr datového rozsahu:
+  - všechny aktivní úvazky
+  - kompatibilitní režim pro všechny úvazky
+  - vybraní zaměstnanci
+  - vybrané úvazky
+- zobrazení, že docházka, plán služeb a zámky se vždy vážou na `employment_id`
+- validovaný výběr IP režimu bez volného textového pole
+- validovaný výběr expirace včetně date pickeru pro vlastní datum
 - zobrazení fingerprintu a `last4`
 - zobrazení plaintext tokenu pouze jednou po vytvoření nebo rotaci
 - rotaci tokenu
-- zakázání klienta
-- opětovné povolení klienta
-- revokaci aktivního secretu
+- deaktivaci klienta
+- opětovnou aktivaci klienta
+- revokaci aktivního tokenu
+- auditní přehled posledního použití, poslední chyby, poslední cesty a bezpečně zkrácené IP
 
 ## Vytvoření klienta v admin UI
 
 1. Přihlaste se do adminu.
 2. Otevřete `/admin/integrace`.
-3. Vyplňte název klienta.
-4. Vyplňte scopes jako čárkou oddělený seznam.
-5. Volitelně vyplňte povolené `employment_id`.
-6. Volitelně vyplňte povolené `employee_id`.
-7. Volitelně vyplňte IP allowlist.
-8. Volitelně nastavte `expires_at` v ISO 8601.
+3. Vyplňte název integrace.
+4. Volitelně vyberte profil oprávnění nebo ručně zaškrtněte potřebné checkboxy.
+5. Vyberte datový rozsah ze schválených možností.
+6. Pokud je rozsah omezený na zaměstnance nebo úvazky, vyberte konkrétní položky ze seznamu.
+7. Vyberte režim IP omezení.
+8. Vyberte režim expirace a případně datum expirace.
 9. Odešlete formulář.
 10. Zobrazený plaintext token bezpečně předejte partnerovi. Později už se v UI znovu neukáže.
+
+## Oprávnění a profily
+
+Admin UI nepřijímá ručně psané raw scope stringy. Každé oprávnění má český název, nápovědu a popis rizika.
+
+Aktuálně používané scope:
+
+- `integration:health`
+- `employments:read`
+- `shift_plan:read`
+- `attendance:read`
+- `punches:read`
+- `locks:read`
+- `openapi:read`
+
+Scope `changes:read` zůstává v seznamu jen jako nedostupná budoucí volba. UI ji neumožní uložit, protože endpoint `/api/v1/integration/changes` není implementovaný.
+
+## Rozsah dat
+
+Klient může být omezený jedním z těchto režimů:
+
+- `ALL_ACTIVE_EMPLOYMENTS`: dynamicky zahrne všechny aktivní úvazky
+- `ALL_EMPLOYMENTS`: kompatibilitní režim pro starší klienty, zahrne i neaktivní úvazky
+- `SELECTED_EMPLOYEES`: jen vybraní zaměstnanci, volitelně včetně neaktivních úvazků těchto osob
+- `SELECTED_EMPLOYMENTS`: jen přesně vybrané úvazky
+
+Poznámky:
+
+- docházka, plán služeb i zámky jsou v API vždy vedené podle `employment_id`
+- rozdíl mezi osobou a úvazkem musí být v UI zachovaný
+- při výběru úvazků se používají lidské popisky odvozené z jména, typu úvazku a názvu úvazku
+
+## IP omezení
+
+Admin UI nepovoluje ruční psaní IP adres do hlavního formuláře.
+
+Dostupné režimy:
+
+- `NONE`: bez IP omezení
+- `SERVER_MANAGED`: technický správce drží allowlist mimo tuto obrazovku
+
+Pokud klient už má technicky nastavený allowlist, detail ukáže, že IP omezení je spravované mimo UI. Pro běžné správce se allowlist přímo needituje.
+
+## Expirace
+
+Admin UI nabízí:
+
+- bez expirace
+- 30 dní
+- 90 dní
+- 1 rok
+- vlastní datum přes date picker
+
+Backend výběr vždy znovu validuje. Vlastní datum musí ležet v budoucnosti.
 
 ## Rotace tokenu
 
@@ -52,29 +113,25 @@ Rotace v implementaci znamená:
 - partner musí začít používat nový token
 - starý token se pak na API projeví jako `401 invalid_token`
 
-## Zakázání klienta
+## Deaktivace klienta
 
-Akce `Zakázat` mění status klienta na `DISABLED`.
+Akce `Deaktivovat` mění status klienta na `DISABLED`.
 
 Chování v API:
 
 - požadavky s jinak platným tokenem vracejí `403 client_disabled`
 
-## Povolení klienta
+## Aktivace klienta
 
-Akce `Povolit` vrací status klienta na `ACTIVE`.
+Akce `Aktivovat` vrací status klienta na `ACTIVE`.
 
-Aktuální backend umí při povolení současně změnit:
+Podmínka:
 
-- scopes
-- `allowed_employment_ids`
-- `allowed_employee_ids`
-- `ip_allowlist`
-- `expires_at`
+- klient musí mít vybrané alespoň jedno platné oprávnění
 
-## Revokace secretu
+## Revokace tokenu
 
-Akce `Revokovat secret`:
+Akce `Revokovat`:
 
 - nastaví `revoked_at` na všech aktivních secretech klienta
 - přepne klienta do stavu `REVOKED`
@@ -82,18 +139,6 @@ Akce `Revokovat secret`:
 Chování v API:
 
 - dosavadní token se projeví jako `401 invalid_token`
-
-## IP allowlist
-
-Povolené jsou:
-
-- jednotlivé IP
-- CIDR rozsahy
-
-Příklad:
-
-- `203.0.113.10`
-- `198.51.100.0/24`
 
 ## Audit log
 
@@ -137,4 +182,4 @@ Pozor:
 - používejte jednorázový zabezpečený kanál
 - nesdílejte token v běžném e-mailovém vlákně bez šifrování
 - nesdílejte screenshot tokenu ve skupinových chatech
-- partnerovi předejte i informaci o scope, povoleném rozsahu a IP allowlistu
+- partnerovi předejte i informaci o scope, povoleném rozsahu a IP režimu
