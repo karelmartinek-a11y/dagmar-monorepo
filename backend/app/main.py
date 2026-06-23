@@ -58,6 +58,7 @@ def _now_ms() -> int:
 def _deployed_backend_tag(settings: Settings) -> str:
     candidates = [
         Path("/opt/dagmar/backend/backend-version.json"),
+        Path("/srv/hcasc/_repos/dagmar-monorepo/backend/backend-version.json"),
         Path("/srv/hcasc/_repos/dagmar-backend/backend-version.json"),
     ]
     for candidate in candidates:

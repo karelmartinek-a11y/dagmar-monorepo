@@ -8,7 +8,10 @@ from app.config import Settings
 
 FORBIDDEN_DOMAIN = "dochazka.hcasc.cz"
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-FRONTEND_ROOT = BACKEND_ROOT.parent / "dagmar-frontend"
+FRONTEND_ROOT_CANDIDATES = (
+    BACKEND_ROOT.parent / "frontend",
+    BACKEND_ROOT.parent.parent / "dagmar-frontend",
+)
 TEXT_SUFFIXES = {
     ".md",
     ".py",
@@ -44,6 +47,13 @@ SKIP_DIRS = {
     "build",
     "__pycache__",
 }
+
+
+def _resolve_frontend_root() -> Path | None:
+    for candidate in FRONTEND_ROOT_CANDIDATES:
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def _iter_text_files(root: Path) -> list[Path]:
@@ -85,7 +95,8 @@ def test_backend_repo_does_not_reintroduce_forbidden_domain() -> None:
 
 
 def test_frontend_repo_does_not_reintroduce_forbidden_domain() -> None:
-    if not FRONTEND_ROOT.exists():
+    frontend_root = _resolve_frontend_root()
+    if frontend_root is None:
         pytest.skip("Frontend checkout neni v tomto prostredi k dispozici.")
-    hits = _find_forbidden_refs(FRONTEND_ROOT, FRONTEND_ALLOWED)
+    hits = _find_forbidden_refs(frontend_root, FRONTEND_ALLOWED)
     assert hits == []

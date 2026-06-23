@@ -1,0 +1,22 @@
+# Monorepo runtime a cache
+.DS_Store
+Thumbs.db
+
+# Backend
+/backend/.venv/
+/backend/.mypy_cache/
+/backend/.pytest_cache/
+/backend/.ruff_cache/
+/backend/**/__pycache__/
+/backend/**/*.pyc
+
+# Frontend
+/frontend/node_modules/
+/frontend/dist/
+/frontend/coverage/
+/frontend/tsconfig.tsbuildinfo
+
+# Obecné
+.env
+.env.*
+!.env.example
