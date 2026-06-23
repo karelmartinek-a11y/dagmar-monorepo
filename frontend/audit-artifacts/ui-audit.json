@@ -1,0 +1,5141 @@
+[
+  {
+    "name": "app-attendance",
+    "url": "http://127.0.0.1:4173/app",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\app-attendance.png",
+    "abbreviations": [],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "app-plan",
+    "url": "http://127.0.0.1:4173/app",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\app-plan.png",
+    "abbreviations": [
+      {
+        "hay": "KájovoBŘEZEN 2026 - Dagmar ProvozováOdhlásitPlán směn←Docházkový listObnovit→DenPříchodOdchodHodiny01.nedělePříchodOdchod8.5 h02.pondělíPříchodOdchod8.5 h03.úterýPříchodOdchod8.5 h04.středaPříchodOdchod8.5 h05.čtvrtekPříchodOdchod8.5 h06.pátekPříchodOdchod8.5 h07.sobotaPříchodOdchod—08.nedělePříchodOdchod—09.pondělíPříchodOdchod8.0 h10.úterýPříchodOdchod8.0 h11.středaPříchodOdchod—12.čtvrtekPříchodOdchod8.0 h13.pátekPříchodOdchod—14.sobotaPříchodOdchod—15.nedělePříchodOdchod—16.pondělíPříchodOdchod—17.úterýPříchodOdchod—18.středaPříchodOdchod—19.čtvrtekPříchodOdchod—20.pátekDnesPříchodOdchod—21.sobotaPříchodOdchod—22.nedělePříchodOdchod—23.pondělíPříchodOdchod—24.úterýPříchodOdchod—25.středaPříchodOdchod—26.čtvrtekPříchodOdchod—27.pátekPříchodOdchod—28.sobotaPříchodOdchod—29.nedělePříchodOdchod—30.pondělíPříchodOdchod—31.úterýPříchodOdchod—ID profiluinst-001Název entityDagmar ProvozováSoučet hodin (březen 2026)83.0 h (z toho 8.0 h dovolená)Víkend + svátky0.0 hOdpolední (17:00)0.0 hPracovní fond176 hDocházka se ukládá na serveru. Offline změny se průběžně ukládají i v zařízení a po obnovení připojení se odešlou automaticky. Uživatelská omezení se vyhodnocují podle času v Praze (internet).Frontend: audit-frontBackend: audit-backend",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "KájovoBŘEZEN 2026 - Dagmar ProvozováOdhlásitPlán směn←Docházkový listObnovit→DenPříchodOdchodHodiny01.nedělePříchodOdchod8.5 h02.pondělíPříchodOdchod8.5 h03.úterýPříchodOdchod8.5 h04.středaPříchodOdchod8.5 h05.čtvrtekPříchodOdchod8.5 h06.pátekPříchodOdchod8.5 h07.sobotaPříchodOdchod—08.nedělePříchodOdchod—09.pondělíPříchodOdchod8.0 h10.úterýPříchodOdchod8.0 h11.středaPříchodOdchod—12.čtvrtekPříchodOdchod8.0 h13.pátekPříchodOdchod—14.sobotaPříchodOdchod—15.nedělePříchodOdchod—16.pondělíPříchodOdchod—17.úterýPříchodOdchod—18.středaPříchodOdchod—19.čtvrtekPříchodOdchod—20.pátekDnesPříchodOdchod—21.sobotaPříchodOdchod—22.nedělePříchodOdchod—23.pondělíPříchodOdchod—24.úterýPříchodOdchod—25.středaPříchodOdchod—26.čtvrtekPříchodOdchod—27.pátekPříchodOdchod—28.sobotaPříchodOdchod—29.nedělePříchodOdchod—30.pondělíPříchodOdchod—31.úterýPříchodOdchod—ID profiluinst-001Název entityDagmar ProvozováSoučet hodin (březen 2026)83.0 h (z toho 8.0 h dovolená)Víkend + svátky0.0 hOdpolední (17:00)0.0 hPracovní fond176 hDocházka se ukládá na serveru. Offline změny se průběžně ukládají i v zařízení a po obnovení připojení se odešlou automaticky. Uživatelská omezení se vyhodnocují podle času v Praze (internet).Frontend: audit-frontBackend: audit-backend",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "BŘEZEN 2026 - Dagmar ProvozováOdhlásitPlán směn←Docházkový listObnovit→DenPříchodOdchodHodiny01.nedělePříchodOdchod8.5 h02.pondělíPříchodOdchod8.5 h03.úterýPříchodOdchod8.5 h04.středaPříchodOdchod8.5 h05.čtvrtekPříchodOdchod8.5 h06.pátekPříchodOdchod8.5 h07.sobotaPříchodOdchod—08.nedělePříchodOdchod—09.pondělíPříchodOdchod8.0 h10.úterýPříchodOdchod8.0 h11.středaPříchodOdchod—12.čtvrtekPříchodOdchod8.0 h13.pátekPříchodOdchod—14.sobotaPříchodOdchod—15.nedělePříchodOdchod—16.pondělíPříchodOdchod—17.úterýPříchodOdchod—18.středaPříchodOdchod—19.čtvrtekPříchodOdchod—20.pátekDnesPříchodOdchod—21.sobotaPříchodOdchod—22.nedělePříchodOdchod—23.pondělíPříchodOdchod—24.úterýPříchodOdchod—25.středaPříchodOdchod—26.čtvrtekPříchodOdchod—27.pátekPříchodOdchod—28.sobotaPříchodOdchod—29.nedělePříchodOdchod—30.pondělíPříchodOdchod—31.úterýPříchodOdchod—ID profiluinst-001Název entityDagmar ProvozováSoučet hodin (březen 2026)83.0 h (z toho 8.0 h dovolená)Víkend + svátky0.0 hOdpolední (17:00)0.0 hPracovní fond176 hDocházka se ukládá na serveru. Offline změny se průběžně ukládají i v zařízení a po obnovení připojení se odešlou automaticky. Uživatelská omezení se vyhodnocují podle času v Praze (internet).Frontend: audit-frontBackend: audit-backend | KájovoDagmar docházkový systém",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "BŘEZEN 2026 - Dagmar ProvozováOdhlásitPlán směn←Docházkový listObnovit→DenPříchodOdchodHodiny01.nedělePříchodOdchod8.5 h02.pondělíPříchodOdchod8.5 h03.úterýPříchodOdchod8.5 h04.středaPříchodOdchod8.5 h05.čtvrtekPříchodOdchod8.5 h06.pátekPříchodOdchod8.5 h07.sobotaPříchodOdchod—08.nedělePříchodOdchod—09.pondělíPříchodOdchod8.0 h10.úterýPříchodOdchod8.0 h11.středaPříchodOdchod—12.čtvrtekPříchodOdchod8.0 h13.pátekPříchodOdchod—14.sobotaPříchodOdchod—15.nedělePříchodOdchod—16.pondělíPříchodOdchod—17.úterýPříchodOdchod—18.středaPříchodOdchod—19.čtvrtekPříchodOdchod—20.pátekDnesPříchodOdchod—21.sobotaPříchodOdchod—22.nedělePříchodOdchod—23.pondělíPříchodOdchod—24.úterýPříchodOdchod—25.středaPříchodOdchod—26.čtvrtekPříchodOdchod—27.pátekPříchodOdchod—28.sobotaPříchodOdchod—29.nedělePříchodOdchod—30.pondělíPříchodOdchod—31.úterýPříchodOdchod—ID profiluinst-001Název entityDagmar ProvozováSoučet hodin (březen 2026)83.0 h (z toho 8.0 h dovolená)Víkend + svátky0.0 hOdpolední (17:00)0.0 hPracovní fond176 hDocházka se ukládá na serveru. Offline změny se průběžně ukládají i v zařízení a po obnovení připojení se odešlou automaticky. Uživatelská omezení se vyhodnocují podle času v Praze (internet).",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "ID profiluinst-001Název entityDagmar ProvozováSoučet hodin (březen 2026)83.0 h (z toho 8.0 h dovolená)Víkend + svátky0.0 hOdpolední (17:00)0.0 hPracovní fond176 hDocházka se ukládá na serveru. Offline změny se průběžně ukládají i v zařízení a po obnovení připojení se odešlou automaticky. Uživatelská omezení se vyhodnocují podle času v Praze (internet).",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "ID profiluinst-001Název entityDagmar ProvozováSoučet hodin (březen 2026)83.0 h (z toho 8.0 h dovolená)Víkend + svátky0.0 hOdpolední (17:00)0.0 hPracovní fond176 h",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "ID profiluinst-001",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "ID profilu",
+        "found": [
+          "ID"
+        ]
+      }
+    ],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 3814
+    }
+  },
+  {
+    "name": "app-login",
+    "url": "http://127.0.0.1:4173/app",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\app-login.png",
+    "abbreviations": [],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "portal-reset",
+    "url": "http://127.0.0.1:4173/reset",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\portal-reset.png",
+    "abbreviations": [],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "admin-login",
+    "url": "http://127.0.0.1:4173/admin/login",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-login.png",
+    "abbreviations": [],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "admin-users",
+    "url": "http://127.0.0.1:4173/admin/users",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-users.png",
+    "abbreviations": [
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitUživateléSpráva přístupů pro zaměstnance.JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidatSeznam uživatelůReset hesla má platnost 24 hodin. Smazání uživatele maže i jeho docházku.JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatFrontend: audit-frontBackend: audit-backend",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitUživateléSpráva přístupů pro zaměstnance.JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidatSeznam uživatelůReset hesla má platnost 24 hodin. Smazání uživatele maže i jeho docházku.JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatFrontend: audit-frontBackend: audit-backend",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitUživateléSpráva přístupů pro zaměstnance.JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidatSeznam uživatelůReset hesla má platnost 24 hodin. Smazání uživatele maže i jeho docházku.JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatFrontend: audit-frontBackend: audit-backend | KájovoDagmar docházkový systém",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitUživateléSpráva přístupů pro zaměstnance.JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidatSeznam uživatelůReset hesla má platnost 24 hodin. Smazání uživatele maže i jeho docházku.JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "UživateléSpráva přístupů pro zaměstnance.JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidatSeznam uživatelůReset hesla má platnost 24 hodin. Smazání uživatele maže i jeho docházku.JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "UživateléSpráva přístupů pro zaměstnance.JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidatSeznam uživatelůReset hesla má platnost 24 hodin. Smazání uživatele maže i jeho docházku.JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "UživateléSpráva přístupů pro zaměstnance.JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "JménoE-mailDruh pohleduZamestnanecÚvazekHPPDPP / DPČMigrovat docházky na uživatelePřidat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Seznam uživatelůReset hesla má platnost 24 hodin. Smazání uživatele maže i jeho docházku.JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "JménoE-mailRoleÚvazekHesloAkceDagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Dagmar Provozovádagmar@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazatJana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazatPetr Dlouhýpetr@example.czZamestnanecHPPnastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Jana Novákovájana@example.czZamestnanecDPP / DPČnenastavenoUpravitPoslat linkSmazat",
+        "found": [
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "DPP / DPČ",
+        "found": [
+          "DPP"
+        ]
+      },
+      {
+        "hay": "HPP",
+        "found": [
+          "HPP"
+        ]
+      }
+    ],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "admin-dochazka",
+    "url": "http://127.0.0.1:4173/admin/dochazka",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-dochazka.png",
+    "abbreviations": [],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "admin-plan-sluzeb",
+    "url": "http://127.0.0.1:4173/admin/plan-sluzeb",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-plan-sluzeb.png",
+    "abbreviations": [
+      {
+        "hay": "např. Novák, pokoj, DPP…",
+        "found": [
+          "DPP"
+        ]
+      },
+      {
+        "hay": "Dagmar ProvozováHPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Dagmar ProvozováHPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Dagmar ProvozováHPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "HH:MM",
+        "found": [
+          "HH:MM"
+        ]
+      }
+    ],
+    "overflow": [
+      {
+        "tag": "DIV",
+        "className": "",
+        "text": "",
+        "right": 2994,
+        "viewport": 1600
+      },
+      {
+        "tag": "TABLE",
+        "className": "plan-table",
+        "text": "JménoTyp01020304050607080910111213141516171819202122232425262728293031CelkemNEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONE",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "COLGROUP",
+        "className": "",
+        "text": "",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "COL",
+        "className": "",
+        "text": "",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "THEAD",
+        "className": "",
+        "text": "JménoTyp01020304050607080910111213141516171819202122232425262728293031CelkemNEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONE",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-head plan-table-head--numbers",
+        "text": "JménoTyp01020304050607080910111213141516171819202122232425262728293031Celkem",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day plan-table-th--weekend",
+        "text": "14",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day plan-table-th--weekend",
+        "text": "15",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "16",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "17",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "18",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "19",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "20",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day plan-table-th--weekend",
+        "text": "21",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day plan-table-th--weekend",
+        "text": "22",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "23",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "24",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "25",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "26",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "27",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day plan-table-th--weekend",
+        "text": "28",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day plan-table-th--weekend",
+        "text": "29",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "30",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--day",
+        "text": "31",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-head plan-table-head--weekday",
+        "text": "NEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONEPOÚT",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday plan-table-th--weekend",
+        "text": "SO",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday plan-table-th--weekend",
+        "text": "NE",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "PO",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "ÚT",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "ST",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "ČT",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "PÁ",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday plan-table-th--weekend",
+        "text": "SO",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday plan-table-th--weekend",
+        "text": "NE",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "PO",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "ÚT",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "ST",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "ČT",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "PÁ",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday plan-table-th--weekend",
+        "text": "SO",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday plan-table-th--weekend",
+        "text": "NE",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "PO",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--weekday",
+        "text": "ÚT",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-head plan-table-head--holiday",
+        "text": "víkendvíkendvíkendvíkendvíkendvíkendvíkendvíkendvíkend",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday plan-table-th--weekend",
+        "text": "víkend",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday plan-table-th--weekend",
+        "text": "víkend",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday plan-table-th--weekend",
+        "text": "víkend",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday plan-table-th--weekend",
+        "text": "víkend",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday plan-table-th--weekend",
+        "text": "víkend",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday plan-table-th--weekend",
+        "text": "víkend",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "TH",
+        "className": "plan-table-th plan-table-th--holiday",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "TBODY",
+        "className": "",
+        "text": "Dagmar ProvozováHPPPŘÍCHODCelkem měsíc228.5 hz toho 16.0 h dovolenáFond 176.0 hODCHODJana Nováková pokoj 12DPP_DPCPŘÍCHO",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-arrival",
+        "text": "Dagmar ProvozováHPPPŘÍCHODCelkem měsíc228.5 hz toho 16.0 h dovolenáFond 176.0 h",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--holiday",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-departure",
+        "text": "ODCHOD",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--holiday",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-arrival",
+        "text": "Jana Nováková pokoj 12DPP_DPCPŘÍCHODCelkem měsíc216.0 hz toho 16.0 h dovolenáFond 176.0 h",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--holiday",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-departure",
+        "text": "ODCHOD",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--holiday",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-arrival",
+        "text": "Petr Dlouhý RecepceHPPPŘÍCHODCelkem měsíc216.0 hz toho 16.0 h dovolenáFond 176.0 h",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--holiday",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-departure",
+        "text": "ODCHOD",
+        "right": 2995,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 1665,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1659,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 1735,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1729,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1805,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1799,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 1875,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1869,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--holiday",
+        "text": "",
+        "right": 1945,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 1939,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2015,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2009,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2085,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2079,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2155,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2149,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2225,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2219,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2295,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2289,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2365,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2359,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2435,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2429,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2505,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2499,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2575,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2569,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend plan-table-cell--off",
+        "text": "",
+        "right": 2645,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2639,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell plan-table-cell--weekend",
+        "text": "",
+        "right": 2715,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2709,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2785,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2779,
+        "viewport": 1600
+      },
+      {
+        "tag": "TD",
+        "className": "plan-table-cell",
+        "text": "",
+        "right": 2855,
+        "viewport": 1600
+      },
+      {
+        "tag": "INPUT",
+        "className": "plan-table-input",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "plan-saving",
+        "text": "",
+        "right": 2849,
+        "viewport": 1600
+      },
+      {
+        "tag": "DIV",
+        "className": "",
+        "text": "",
+        "right": 2994,
+        "viewport": 1600
+      }
+    ],
+    "clip": [
+      {
+        "axis": "x",
+        "tag": "DIV",
+        "className": "plan-table-wrapper",
+        "text": "JménoTyp01020304050607080910111213141516171819202122232425262728293031CelkemNEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONEPOÚTSTČTPÁSONE",
+        "scrollWidth": 2698,
+        "clientWidth": 1302,
+        "overflowX": "auto",
+        "whiteSpace": "normal"
+      },
+      {
+        "axis": "y",
+        "tag": "TR",
+        "className": "plan-table-head plan-table-head--numbers",
+        "text": "JménoTyp01020304050607080910111213141516171819202122232425262728293031Celkem",
+        "scrollHeight": 96,
+        "clientHeight": 35,
+        "overflowY": "visible"
+      },
+      {
+        "axis": "y",
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-arrival",
+        "text": "Dagmar ProvozováHPPPŘÍCHODCelkem měsíc228.5 hz toho 16.0 h dovolenáFond 176.0 h",
+        "scrollHeight": 130,
+        "clientHeight": 65,
+        "overflowY": "visible"
+      },
+      {
+        "axis": "y",
+        "tag": "DIV",
+        "className": "plan-sum-value",
+        "text": "228.5 h",
+        "scrollHeight": 26,
+        "clientHeight": 22,
+        "overflowY": "visible"
+      },
+      {
+        "axis": "y",
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-arrival",
+        "text": "Jana Nováková pokoj 12DPP_DPCPŘÍCHODCelkem měsíc216.0 hz toho 16.0 h dovolenáFond 176.0 h",
+        "scrollHeight": 130,
+        "clientHeight": 65,
+        "overflowY": "visible"
+      },
+      {
+        "axis": "y",
+        "tag": "DIV",
+        "className": "plan-sum-value",
+        "text": "216.0 h",
+        "scrollHeight": 26,
+        "clientHeight": 22,
+        "overflowY": "visible"
+      },
+      {
+        "axis": "y",
+        "tag": "TR",
+        "className": "plan-table-row plan-table-row-arrival",
+        "text": "Petr Dlouhý RecepceHPPPŘÍCHODCelkem měsíc216.0 hz toho 16.0 h dovolenáFond 176.0 h",
+        "scrollHeight": 130,
+        "clientHeight": 65,
+        "overflowY": "visible"
+      },
+      {
+        "axis": "y",
+        "tag": "DIV",
+        "className": "plan-sum-value",
+        "text": "216.0 h",
+        "scrollHeight": 26,
+        "clientHeight": 22,
+        "overflowY": "visible"
+      }
+    ],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "admin-export",
+    "url": "http://127.0.0.1:4173/admin/export",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-export.png",
+    "abbreviations": [
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitExportCSV export docházky dle měsíce. Individuálně pro instanci nebo hromadně pro všechny.←→Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).Frontend: audit-frontBackend: audit-backend",
+        "found": [
+          "ID",
+          "CSV",
+          "ZIP",
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitExportCSV export docházky dle měsíce. Individuálně pro instanci nebo hromadně pro všechny.←→Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).Frontend: audit-frontBackend: audit-backend",
+        "found": [
+          "ID",
+          "CSV",
+          "ZIP",
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitExportCSV export docházky dle měsíce. Individuálně pro instanci nebo hromadně pro všechny.←→Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).Frontend: audit-frontBackend: audit-backend | KájovoDagmar docházkový systém",
+        "found": [
+          "ID",
+          "CSV",
+          "ZIP",
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitExportCSV export docházky dle měsíce. Individuálně pro instanci nebo hromadně pro všechny.←→Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).",
+        "found": [
+          "ID",
+          "CSV",
+          "ZIP",
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "ExportCSV export docházky dle měsíce. Individuálně pro instanci nebo hromadně pro všechny.←→Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).",
+        "found": [
+          "ID",
+          "CSV",
+          "ZIP",
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "ExportCSV export docházky dle měsíce. Individuálně pro instanci nebo hromadně pro všechny.←→Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).",
+        "found": [
+          "ID",
+          "CSV",
+          "ZIP",
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "CSV export docházky dle měsíce. Individuálně pro instanci nebo hromadně pro všechny.",
+        "found": [
+          "CSV"
+        ]
+      },
+      {
+        "hay": "Měsíc (YYYY-MM) | YYYY-MM",
+        "found": [
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).",
+        "found": [
+          "ID",
+          "CSV",
+          "ZIP",
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "Individuální exportZadejte ID instance a stáhněte CSV pro vybraný měsíc.Stáhnout CSVTip: ID instance najdete v sekci Instances.",
+        "found": [
+          "ID",
+          "CSV"
+        ]
+      },
+      {
+        "hay": "Zadejte ID instance a stáhněte CSV pro vybraný měsíc.",
+        "found": [
+          "ID",
+          "CSV"
+        ]
+      },
+      {
+        "hay": "ID instance",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "Stáhnout CSV",
+        "found": [
+          "CSV"
+        ]
+      },
+      {
+        "hay": "ID instance | instance_id",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "Stáhnout CSV",
+        "found": [
+          "CSV"
+        ]
+      },
+      {
+        "hay": "Tip: ID instance najdete v sekci Instances.",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "Hromadný exportStáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.Stáhnout ZIPSouborové názvy mají tvar nazev_instance_YYYY-MM.csv.",
+        "found": [
+          "ZIP",
+          "CSV"
+        ]
+      },
+      {
+        "hay": "Stáhne ZIP obsahující CSV soubory pro všechny aktivní instance za vybraný měsíc.",
+        "found": [
+          "ZIP",
+          "CSV"
+        ]
+      },
+      {
+        "hay": "Stáhnout ZIP",
+        "found": [
+          "ZIP"
+        ]
+      },
+      {
+        "hay": "PoznámkyExport pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).",
+        "found": [
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "Export pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).Datum je ve formátu YYYY-MM-DD.Pokud je instance REVOKED, export může být prázdný (podle dat v DB).",
+        "found": [
+          "HH:MM",
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "Export pracuje s uloženými hodnotami příchod a odchod (HH:MM nebo prázdné).",
+        "found": [
+          "HH:MM"
+        ]
+      },
+      {
+        "hay": "Datum je ve formátu YYYY-MM-DD.",
+        "found": [
+          "YYYY-MM"
+        ]
+      },
+      {
+        "hay": "YYYY-MM-DD",
+        "found": [
+          "YYYY-MM"
+        ]
+      }
+    ],
+    "overflow": [],
+    "clip": [
+      {
+        "axis": "y",
+        "tag": "DIV",
+        "className": "",
+        "text": "Souborové názvy mají tvar nazev_instance_YYYY-MM.csv.",
+        "scrollHeight": 19,
+        "clientHeight": 16,
+        "overflowY": "visible"
+      }
+    ],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "admin-tisky",
+    "url": "http://127.0.0.1:4173/admin/tisky",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-tisky.png",
+    "abbreviations": [
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitAdmin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.0vybraných osobKrok 1Parametry tiskuTyp dokumentuDocházkový listDocházkový plánVolba určuje šablonu dokumentu v náhledu.MěsícTisky se generují pro celé zvolené kalendářní období.Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPPKrok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDFFrontend: audit-frontBackend: audit-backend",
+        "found": [
+          "PDF",
+          "ID"
+        ]
+      },
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitAdmin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.0vybraných osobKrok 1Parametry tiskuTyp dokumentuDocházkový listDocházkový plánVolba určuje šablonu dokumentu v náhledu.MěsícTisky se generují pro celé zvolené kalendářní období.Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPPKrok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDFFrontend: audit-frontBackend: audit-backend",
+        "found": [
+          "PDF",
+          "ID"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitAdmin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.0vybraných osobKrok 1Parametry tiskuTyp dokumentuDocházkový listDocházkový plánVolba určuje šablonu dokumentu v náhledu.MěsícTisky se generují pro celé zvolené kalendářní období.Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPPKrok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDFFrontend: audit-frontBackend: audit-backend | KájovoDagmar docházkový systém",
+        "found": [
+          "PDF",
+          "ID"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitAdmin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.0vybraných osobKrok 1Parametry tiskuTyp dokumentuDocházkový listDocházkový plánVolba určuje šablonu dokumentu v náhledu.MěsícTisky se generují pro celé zvolené kalendářní období.Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPPKrok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDF",
+        "found": [
+          "PDF",
+          "ID"
+        ]
+      },
+      {
+        "hay": "Admin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.0vybraných osobKrok 1Parametry tiskuTyp dokumentuDocházkový listDocházkový plánVolba určuje šablonu dokumentu v náhledu.MěsícTisky se generují pro celé zvolené kalendářní období.Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPPKrok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDF",
+        "found": [
+          "PDF",
+          "ID"
+        ]
+      },
+      {
+        "hay": "Admin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.0vybraných osobKrok 1Parametry tiskuTyp dokumentuDocházkový listDocházkový plánVolba určuje šablonu dokumentu v náhledu.MěsícTisky se generují pro celé zvolené kalendářní období.Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPPKrok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDF",
+        "found": [
+          "PDF",
+          "ID"
+        ]
+      },
+      {
+        "hay": "Admin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.0vybraných osob",
+        "found": [
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Admin · TiskyHromadné PDF výstupyVyberte typ dokumentu, měsíc a osoby. Náhled se otevře v novém okně, stránka zůstane připravená pro další akci.",
+        "found": [
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Hromadné PDF výstupy",
+        "found": [
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Krok 1Parametry tiskuTyp dokumentuDocházkový listDocházkový plánVolba určuje šablonu dokumentu v náhledu.MěsícTisky se generují pro celé zvolené kalendářní období.Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPPKrok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDF",
+        "found": [
+          "ID",
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPP",
+        "found": [
+          "ID",
+          "PDF",
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.Označit všeVyčistit",
+        "found": [
+          "ID",
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Krok 2Výběr osobFiltrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.",
+        "found": [
+          "ID",
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Filtrovat podle jména nebo ID, poté označit pro zahrnutí do PDF.",
+        "found": [
+          "ID",
+          "PDF"
+        ]
+      },
+      {
+        "hay": "3 nalezeno · 0 vybránoDagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Hledat podle jména nebo ID",
+        "found": [
+          "ID"
+        ]
+      },
+      {
+        "hay": "Dagmar Provozováinst-001 · HPPJana Nováková pokoj 12inst-002 · DPP_DPCPetr Dlouhý Recepceinst-003 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Dagmar Provozováinst-001 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Dagmar Provozováinst-001 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "inst-001 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Petr Dlouhý Recepceinst-003 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Petr Dlouhý Recepceinst-003 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "inst-003 · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "Krok 3Potvrzení a tiskPDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.Vybraných osob: 0ZpětVygenerovat PDF",
+        "found": [
+          "PDF"
+        ]
+      },
+      {
+        "hay": "PDF náhled se otevře v novém panelu. Původní stránka zůstane pro další tisk.",
+        "found": [
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Vybraných osob: 0ZpětVygenerovat PDF",
+        "found": [
+          "PDF"
+        ]
+      },
+      {
+        "hay": "ZpětVygenerovat PDF",
+        "found": [
+          "PDF"
+        ]
+      },
+      {
+        "hay": "Vygenerovat PDF",
+        "found": [
+          "PDF"
+        ]
+      }
+    ],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  },
+  {
+    "name": "admin-tisky-preview-attendance",
+    "url": "http://127.0.0.1:4173/admin/tisky/preview?type=attendance&month=2026-03&ids=inst-001%2Cinst-002",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-tisky-preview-attendance.png",
+    "abbreviations": [
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásit body { background: #ffffff; } .sheet { width: 210mm; min-height: 297mm; padding: 15mm 12mm; margin: 6mm auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); } .sheet + .sheet { page-break-before: always; } h1 { margin: 0 0 4px 0; font-size: 18px; } h2 { margin: 0 0 12px 0; font-size: 14px; color: var(--kb-brand-ink-600); } table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border: 1px solid rgba(82, 85, 93, 0.22); padding: 4px 6px; text-align: left; } th { background: var(--kb-text); color: #ffffff; font-weight: 600; } .row-weekend { background: rgba(82, 85, 93, 0.06); } .row-holiday { background: rgba(255,0,0,0.05); } .footer { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; font-size: 12px; } .pill { background: var(--kb-text); color: #fff; padding: 6px 10px; border-radius: 8px; display: inline-block; font-weight: 600; } .small { color: var(--kb-brand-ink-600); font-size: 11px; } .signature { margin-top: 14px; font-size: 10px; color: var(--kb-brand-ink-600); text-align: center; } @media print { body { background: white; } .sheet { box-shadow: none; margin: 0 auto; } } .t-center { text-align: center; } .t-right { text-align: right; } Nacitam data...březen 2026 · DOCHAZKOVY LISTDagmar Provozová · HPPDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0014:0014:3016:308,08,02. března 202608:0014:0014:3016:308,03. března 202608:0014:0014:3016:308,04. března 202608:0014:0014:3016:308,05. března 202608:0014:0014:3016:308,06. března 202609:1515:1515:4517:458,00,87. března 20268. března 20269. března 202610. března 202611. března 202607:3013:3014:0015:007,012. března 202611:0017:0017:3019:007,51,513. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202670,5 h2,3 h8,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.březen 2026 · DOCHAZKOVY LISTJana Nováková pokoj 12 · DPP/DPČDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0016:308,58,52. března 202608:0016:308,53. března 202608:0016:308,54. března 202608:0016:308,55. března 202608:0016:308,56. března 202609:1517:458,57. března 20268. března 20269. března 202610. března 202611. března 202607:3015:007,512. března 202611:0019:008,013. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202674,5 h0,0 h0,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.Frontend: audit-frontBackend: audit-backend",
+        "found": [
+          "DPP",
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásit body { background: #ffffff; } .sheet { width: 210mm; min-height: 297mm; padding: 15mm 12mm; margin: 6mm auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); } .sheet + .sheet { page-break-before: always; } h1 { margin: 0 0 4px 0; font-size: 18px; } h2 { margin: 0 0 12px 0; font-size: 14px; color: var(--kb-brand-ink-600); } table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border: 1px solid rgba(82, 85, 93, 0.22); padding: 4px 6px; text-align: left; } th { background: var(--kb-text); color: #ffffff; font-weight: 600; } .row-weekend { background: rgba(82, 85, 93, 0.06); } .row-holiday { background: rgba(255,0,0,0.05); } .footer { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; font-size: 12px; } .pill { background: var(--kb-text); color: #fff; padding: 6px 10px; border-radius: 8px; display: inline-block; font-weight: 600; } .small { color: var(--kb-brand-ink-600); font-size: 11px; } .signature { margin-top: 14px; font-size: 10px; color: var(--kb-brand-ink-600); text-align: center; } @media print { body { background: white; } .sheet { box-shadow: none; margin: 0 auto; } } .t-center { text-align: center; } .t-right { text-align: right; } Nacitam data...březen 2026 · DOCHAZKOVY LISTDagmar Provozová · HPPDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0014:0014:3016:308,08,02. března 202608:0014:0014:3016:308,03. března 202608:0014:0014:3016:308,04. března 202608:0014:0014:3016:308,05. března 202608:0014:0014:3016:308,06. března 202609:1515:1515:4517:458,00,87. března 20268. března 20269. března 202610. března 202611. března 202607:3013:3014:0015:007,012. března 202611:0017:0017:3019:007,51,513. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202670,5 h2,3 h8,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.březen 2026 · DOCHAZKOVY LISTJana Nováková pokoj 12 · DPP/DPČDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0016:308,58,52. března 202608:0016:308,53. března 202608:0016:308,54. března 202608:0016:308,55. března 202608:0016:308,56. března 202609:1517:458,57. března 20268. března 20269. března 202610. března 202611. března 202607:3015:007,512. března 202611:0019:008,013. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202674,5 h0,0 h0,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.Frontend: audit-frontBackend: audit-backend",
+        "found": [
+          "DPP",
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásit body { background: #ffffff; } .sheet { width: 210mm; min-height: 297mm; padding: 15mm 12mm; margin: 6mm auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); } .sheet + .sheet { page-break-before: always; } h1 { margin: 0 0 4px 0; font-size: 18px; } h2 { margin: 0 0 12px 0; font-size: 14px; color: var(--kb-brand-ink-600); } table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border: 1px solid rgba(82, 85, 93, 0.22); padding: 4px 6px; text-align: left; } th { background: var(--kb-text); color: #ffffff; font-weight: 600; } .row-weekend { background: rgba(82, 85, 93, 0.06); } .row-holiday { background: rgba(255,0,0,0.05); } .footer { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; font-size: 12px; } .pill { background: var(--kb-text); color: #fff; padding: 6px 10px; border-radius: 8px; display: inline-block; font-weight: 600; } .small { color: var(--kb-brand-ink-600); font-size: 11px; } .signature { margin-top: 14px; font-size: 10px; color: var(--kb-brand-ink-600); text-align: center; } @media print { body { background: white; } .sheet { box-shadow: none; margin: 0 auto; } } .t-center { text-align: center; } .t-right { text-align: right; } Nacitam data...březen 2026 · DOCHAZKOVY LISTDagmar Provozová · HPPDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0014:0014:3016:308,08,02. března 202608:0014:0014:3016:308,03. března 202608:0014:0014:3016:308,04. března 202608:0014:0014:3016:308,05. března 202608:0014:0014:3016:308,06. března 202609:1515:1515:4517:458,00,87. března 20268. března 20269. března 202610. března 202611. března 202607:3013:3014:0015:007,012. března 202611:0017:0017:3019:007,51,513. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202670,5 h2,3 h8,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.březen 2026 · DOCHAZKOVY LISTJana Nováková pokoj 12 · DPP/DPČDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0016:308,58,52. března 202608:0016:308,53. března 202608:0016:308,54. března 202608:0016:308,55. března 202608:0016:308,56. března 202609:1517:458,57. března 20268. března 20269. března 202610. března 202611. března 202607:3015:007,512. března 202611:0019:008,013. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202674,5 h0,0 h0,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.Frontend: audit-frontBackend: audit-backend | KájovoDagmar docházkový systém",
+        "found": [
+          "DPP",
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásit body { background: #ffffff; } .sheet { width: 210mm; min-height: 297mm; padding: 15mm 12mm; margin: 6mm auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); } .sheet + .sheet { page-break-before: always; } h1 { margin: 0 0 4px 0; font-size: 18px; } h2 { margin: 0 0 12px 0; font-size: 14px; color: var(--kb-brand-ink-600); } table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border: 1px solid rgba(82, 85, 93, 0.22); padding: 4px 6px; text-align: left; } th { background: var(--kb-text); color: #ffffff; font-weight: 600; } .row-weekend { background: rgba(82, 85, 93, 0.06); } .row-holiday { background: rgba(255,0,0,0.05); } .footer { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; font-size: 12px; } .pill { background: var(--kb-text); color: #fff; padding: 6px 10px; border-radius: 8px; display: inline-block; font-weight: 600; } .small { color: var(--kb-brand-ink-600); font-size: 11px; } .signature { margin-top: 14px; font-size: 10px; color: var(--kb-brand-ink-600); text-align: center; } @media print { body { background: white; } .sheet { box-shadow: none; margin: 0 auto; } } .t-center { text-align: center; } .t-right { text-align: right; } Nacitam data...březen 2026 · DOCHAZKOVY LISTDagmar Provozová · HPPDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0014:0014:3016:308,08,02. března 202608:0014:0014:3016:308,03. března 202608:0014:0014:3016:308,04. března 202608:0014:0014:3016:308,05. března 202608:0014:0014:3016:308,06. března 202609:1515:1515:4517:458,00,87. března 20268. března 20269. března 202610. března 202611. března 202607:3013:3014:0015:007,012. března 202611:0017:0017:3019:007,51,513. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202670,5 h2,3 h8,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.březen 2026 · DOCHAZKOVY LISTJana Nováková pokoj 12 · DPP/DPČDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0016:308,58,52. března 202608:0016:308,53. března 202608:0016:308,54. března 202608:0016:308,55. března 202608:0016:308,56. března 202609:1517:458,57. března 20268. března 20269. března 202610. března 202611. března 202607:3015:007,512. března 202611:0019:008,013. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202674,5 h0,0 h0,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.",
+        "found": [
+          "DPP",
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "body { background: #ffffff; } .sheet { width: 210mm; min-height: 297mm; padding: 15mm 12mm; margin: 6mm auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); } .sheet + .sheet { page-break-before: always; } h1 { margin: 0 0 4px 0; font-size: 18px; } h2 { margin: 0 0 12px 0; font-size: 14px; color: var(--kb-brand-ink-600); } table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border: 1px solid rgba(82, 85, 93, 0.22); padding: 4px 6px; text-align: left; } th { background: var(--kb-text); color: #ffffff; font-weight: 600; } .row-weekend { background: rgba(82, 85, 93, 0.06); } .row-holiday { background: rgba(255,0,0,0.05); } .footer { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; font-size: 12px; } .pill { background: var(--kb-text); color: #fff; padding: 6px 10px; border-radius: 8px; display: inline-block; font-weight: 600; } .small { color: var(--kb-brand-ink-600); font-size: 11px; } .signature { margin-top: 14px; font-size: 10px; color: var(--kb-brand-ink-600); text-align: center; } @media print { body { background: white; } .sheet { box-shadow: none; margin: 0 auto; } } .t-center { text-align: center; } .t-right { text-align: right; } Nacitam data...březen 2026 · DOCHAZKOVY LISTDagmar Provozová · HPPDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0014:0014:3016:308,08,02. března 202608:0014:0014:3016:308,03. března 202608:0014:0014:3016:308,04. března 202608:0014:0014:3016:308,05. března 202608:0014:0014:3016:308,06. března 202609:1515:1515:4517:458,00,87. března 20268. března 20269. března 202610. března 202611. března 202607:3013:3014:0015:007,012. března 202611:0017:0017:3019:007,51,513. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202670,5 h2,3 h8,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.březen 2026 · DOCHAZKOVY LISTJana Nováková pokoj 12 · DPP/DPČDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0016:308,58,52. března 202608:0016:308,53. března 202608:0016:308,54. března 202608:0016:308,55. března 202608:0016:308,56. března 202609:1517:458,57. března 20268. března 20269. března 202610. března 202611. března 202607:3015:007,512. března 202611:0019:008,013. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202674,5 h0,0 h0,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.",
+        "found": [
+          "DPP",
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "body { background: #ffffff; } .sheet { width: 210mm; min-height: 297mm; padding: 15mm 12mm; margin: 6mm auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); } .sheet + .sheet { page-break-before: always; } h1 { margin: 0 0 4px 0; font-size: 18px; } h2 { margin: 0 0 12px 0; font-size: 14px; color: var(--kb-brand-ink-600); } table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border: 1px solid rgba(82, 85, 93, 0.22); padding: 4px 6px; text-align: left; } th { background: var(--kb-text); color: #ffffff; font-weight: 600; } .row-weekend { background: rgba(82, 85, 93, 0.06); } .row-holiday { background: rgba(255,0,0,0.05); } .footer { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; font-size: 12px; } .pill { background: var(--kb-text); color: #fff; padding: 6px 10px; border-radius: 8px; display: inline-block; font-weight: 600; } .small { color: var(--kb-brand-ink-600); font-size: 11px; } .signature { margin-top: 14px; font-size: 10px; color: var(--kb-brand-ink-600); text-align: center; } @media print { body { background: white; } .sheet { box-shadow: none; margin: 0 auto; } } .t-center { text-align: center; } .t-right { text-align: right; } Nacitam data...březen 2026 · DOCHAZKOVY LISTDagmar Provozová · HPPDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0014:0014:3016:308,08,02. března 202608:0014:0014:3016:308,03. března 202608:0014:0014:3016:308,04. března 202608:0014:0014:3016:308,05. března 202608:0014:0014:3016:308,06. března 202609:1515:1515:4517:458,00,87. března 20268. března 20269. března 202610. března 202611. března 202607:3013:3014:0015:007,012. března 202611:0017:0017:3019:007,51,513. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202670,5 h2,3 h8,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.březen 2026 · DOCHAZKOVY LISTJana Nováková pokoj 12 · DPP/DPČDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0016:308,58,52. března 202608:0016:308,53. března 202608:0016:308,54. března 202608:0016:308,55. března 202608:0016:308,56. března 202609:1517:458,57. března 20268. března 20269. března 202610. března 202611. března 202607:3015:007,512. března 202611:0019:008,013. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202674,5 h0,0 h0,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.",
+        "found": [
+          "DPP",
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Dagmar Provozová · HPP",
+        "found": [
+          "HPP"
+        ]
+      },
+      {
+        "hay": "březen 2026 · DOCHAZKOVY LISTJana Nováková pokoj 12 · DPP/DPČDatumSTAMP1STAMP2STAMP3STAMP4STAMP5STAMPT6CELKEMODPSONESV1. března 202608:0016:308,58,52. března 202608:0016:308,53. března 202608:0016:308,54. března 202608:0016:308,55. března 202608:0016:308,56. března 202609:1517:458,57. března 20268. března 20269. března 202610. března 202611. března 202607:3015:007,512. března 202611:0019:008,013. března 202614. března 202615. března 202616. března 202617. března 202618. března 202619. března 202620. března 202621. března 202622. března 202623. března 202624. března 202625. března 202626. března 202627. března 202628. března 202629. března 202630. března 202631. března 202674,5 h0,0 h0,0 hTento docházkový list pro Vás zpracoval systém KájovoDagmar.",
+        "found": [
+          "DPP",
+          "DPČ"
+        ]
+      },
+      {
+        "hay": "Jana Nováková pokoj 12 · DPP/DPČ",
+        "found": [
+          "DPP"
+        ]
+      }
+    ],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 2426
+    }
+  },
+  {
+    "name": "admin-tisky-preview-plan",
+    "url": "http://127.0.0.1:4173/admin/tisky/preview?type=plan&month=2026-03&ids=inst-001%2Cinst-002",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-tisky-preview-plan.png",
+    "abbreviations": [],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 2426
+    }
+  },
+  {
+    "name": "admin-settings",
+    "url": "http://127.0.0.1:4173/admin/settings",
+    "screenshot": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\admin-settings.png",
+    "abbreviations": [
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitNastaveníSMTP pro odesilani resetovacich odkazu.SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložitFrontend: audit-frontBackend: audit-backend",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "KájovoAdministraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitNastaveníSMTP pro odesilani resetovacich odkazu.SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložitFrontend: audit-frontBackend: audit-backend",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitNastaveníSMTP pro odesilani resetovacich odkazu.SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložitFrontend: audit-frontBackend: audit-backend | KájovoDagmar docházkový systém",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "Administraceaudit.adminUživateléDocházkové listyPlán služebTiskyExportNastaveníOdhlásitNastaveníSMTP pro odesilani resetovacich odkazu.SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložit",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "NastaveníSMTP pro odesilani resetovacich odkazu.SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložit",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "NastaveníSMTP pro odesilani resetovacich odkazu.SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložit",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "NastaveníSMTP pro odesilani resetovacich odkazu.SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložit",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "SMTP pro odesilani resetovacich odkazu.",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmenoUložit",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "SMTP hostPortZabezpeceniSSLSTARTTLSNONEUzivatelske jmenoHesloFrom e-mailFrom jmeno",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "SMTP host",
+        "found": [
+          "SMTP"
+        ]
+      },
+      {
+        "hay": "SMTP host",
+        "found": [
+          "SMTP"
+        ]
+      }
+    ],
+    "overflow": [],
+    "clip": [],
+    "viewport": {
+      "width": 1600,
+      "height": 1200
+    },
+    "doc": {
+      "width": 1600,
+      "height": 1200
+    }
+  }
+]

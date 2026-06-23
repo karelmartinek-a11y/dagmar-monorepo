@@ -1,0 +1,1 @@
+﻿- Backend needs dedicated Android update metadata endpoint (docs mention direct metadata)\n- AssetLinks + verified links to be published to connect web banner with app

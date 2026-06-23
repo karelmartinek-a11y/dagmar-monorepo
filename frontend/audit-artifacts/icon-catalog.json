@@ -1,0 +1,82 @@
+[
+  {
+    "id": "icon-admin-users",
+    "ui": "Admin navigace / Uživatelé",
+    "name": "Ikona uživatelů",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-admin-users.png",
+    "action": "Přechod na záložku Uživatelé",
+    "tooltip": "Bez tooltipu"
+  },
+  {
+    "id": "icon-admin-attendance",
+    "ui": "Admin navigace / Docházkové listy",
+    "name": "Ikona docházkových listů",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-admin-attendance.png",
+    "action": "Přechod na záložku Docházkové listy",
+    "tooltip": "Bez tooltipu"
+  },
+  {
+    "id": "icon-admin-plan",
+    "ui": "Admin navigace / Plán služeb",
+    "name": "Ikona plánu služeb",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-admin-plan.png",
+    "action": "Přechod na záložku Plán služeb",
+    "tooltip": "Bez tooltipu"
+  },
+  {
+    "id": "icon-admin-prints",
+    "ui": "Admin navigace / Tisky",
+    "name": "Ikona tisků",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-admin-prints.png",
+    "action": "Přechod na záložku Tisky",
+    "tooltip": "Bez tooltipu"
+  },
+  {
+    "id": "icon-admin-export",
+    "ui": "Admin navigace / Export",
+    "name": "Ikona exportu",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-admin-export.png",
+    "action": "Přechod na záložku Export",
+    "tooltip": "Bez tooltipu"
+  },
+  {
+    "id": "icon-admin-settings",
+    "ui": "Admin navigace / Nastavení",
+    "name": "Ikona nastavení",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-admin-settings.png",
+    "action": "Přechod na záložku Nastavení",
+    "tooltip": "Bez tooltipu"
+  },
+  {
+    "id": "icon-month-prev",
+    "ui": "Zaměstnanec / horní navigace",
+    "name": "Šipka na předchozí měsíc",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-month-prev.png",
+    "action": "Přechod na předchozí měsíc",
+    "tooltip": "Předchozí měsíc"
+  },
+  {
+    "id": "icon-month-next",
+    "ui": "Zaměstnanec / horní navigace",
+    "name": "Šipka na další měsíc",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-month-next.png",
+    "action": "Přechod na další měsíc",
+    "tooltip": "Další měsíc"
+  },
+  {
+    "id": "icon-export-prev",
+    "ui": "Admin / Export",
+    "name": "Šipka exportu na předchozí měsíc",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-export-prev.png",
+    "action": "Posun exportu na předchozí měsíc",
+    "tooltip": "Předchozí měsíc"
+  },
+  {
+    "id": "icon-export-next",
+    "ui": "Admin / Export",
+    "name": "Šipka exportu na další měsíc",
+    "file": "C:\\GitHub\\dagmar-frontend\\audit-artifacts\\icons\\icon-export-next.png",
+    "action": "Posun exportu na další měsíc",
+    "tooltip": "Další měsíc"
+  }
+]

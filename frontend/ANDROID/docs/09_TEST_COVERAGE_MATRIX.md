@@ -1,0 +1,1 @@
+﻿| Tool | Command | Result |\n| npm | npm ci, npm run build, npm run lint | OK (build warning about chunk size) |\n| backend | .venv\python -m pytest | 6 tests pass |\n| Android | Pending | project skeleton under construction |

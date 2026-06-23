@@ -1,0 +1,46 @@
+[versions]
+kotlin = "1.9.0"
+coroutines = "1.7.3"
+compose = "1.5.0"
+compose-compiler = "1.5.0"
+hilt = "2.51.1"
+hilt-androidx = "1.2.0"
+retrofit = "2.9.0"
+okhttp = "4.12.0"
+serialized = "1.6.0"
+navigation = "2.7.7"
+"accompanist" = "0.34.0"
+play-core = "1.10.3"
+material3 = "1.2.1"
+
+[libraries]
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
+coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "compose" }
+compose-material = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "compose" }
+activity-compose = { group = "androidx.activity", name = "activity-compose", version = "1.8.2" }
+navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-androidx" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-kotlinx-serialization = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version = "1.0.0" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialized" }
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version = "1.1.1" }
+ktor-core = { group = "io.ktor", name = "ktor-client-core", version = "2.3.10" }
+ktor-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version = "2.3.10" }
+log-timber = { group = "com.jakewharton.timber", name = "timber", version = "5.0.1" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version = "2.6.0" }
+play-core = { group = "com.google.android.play", name = "core", version.ref = "play-core" }
+
+[plugins]
+android-application = { id = "com.android.application", version = "8.6.0" }
+android-library = { id = "com.android.library", version = "8.6.0" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+serial = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

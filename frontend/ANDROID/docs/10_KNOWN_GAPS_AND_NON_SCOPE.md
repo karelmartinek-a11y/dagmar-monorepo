@@ -1,0 +1,4 @@
+- Admin users/attendance/export shells still need Compose UIs and API wiring.
+- Native PDF printing uses the prototype PdfDocument exporter; full formatting/sharing needs more work.
+- Update metadata endpoint for the direct flavor and APK hosting/assetlinks.json are still missing on the backend.
+- Android builds currently fail on Java 21 because kapt cannot access com.sun.tools.javac.main; the Gradle JVM arguments must export the module or the project must run on Java 17 before APKs can be produced.

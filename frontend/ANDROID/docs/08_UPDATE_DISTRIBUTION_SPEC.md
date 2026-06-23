@@ -1,0 +1,1 @@
+﻿- Play flavor: use Play Core AppUpdateManager\n- Direct flavor: fetch metadata JSON, compare version codes, download APK, verify checksum

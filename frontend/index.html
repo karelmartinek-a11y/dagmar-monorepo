@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta name="application-name" content="KájovoDagmar docházkový systém" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light" />
+    <meta name="description" content="KájovoDagmar docházkový systém." />
+
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/png" href="/LOGO/assets/icons/favicon-64.png" />
+    <link rel="apple-touch-icon" href="/LOGO/assets/icons/apple-touch-180.png" />
+
+    <title>KájovoDagmar docházkový systém</title>
+
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap");
+
+      :root {
+        --kb-bg: #ffffff;
+        --kb-surface: #ffffff;
+        --kb-border: rgba(35, 41, 44, 0.18);
+        --kb-text: #23292c;
+        --kb-muted: rgba(35, 41, 44, 0.72);
+        --kb-shadow: 0 14px 40px rgba(35, 41, 44, 0.12);
+        --kb-radius: 16px;
+        --kb-systembar-h: 44px;
+        --kb-red: #ff0000;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--kb-bg);
+        color: var(--kb-text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+          "Segoe UI Emoji";
+      }
+
+      #root {
+        min-height: 100%;
+      }
+
+      .kb-systembar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--kb-systembar-h);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+        background: rgba(255, 255, 255, 0.94);
+        border-bottom: 1px solid var(--kb-border);
+        backdrop-filter: blur(10px);
+      }
+
+      .kb-signage {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        min-width: 120px;
+        background: var(--kb-red);
+        padding: 0 10px;
+        border-radius: 8px;
+        box-shadow: 0 8px 18px rgba(35, 41, 44, 0.2);
+      }
+
+      .kb-signage span {
+        font-family: "Montserrat", ui-sans-serif, system-ui;
+        font-weight: 700;
+        color: #000000;
+        letter-spacing: 0.2px;
+      }
+
+      .kb-boot {
+        min-height: 100vh;
+        padding-top: calc(var(--kb-systembar-h) + 18px);
+        display: grid;
+        place-items: center;
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .kb-boot-card {
+        width: min(560px, 100%);
+        background: var(--kb-surface);
+        border: 1px solid var(--kb-border);
+        border-radius: var(--kb-radius);
+        box-shadow: var(--kb-shadow);
+        padding: 22px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .kb-boot-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .kb-boot-title {
+        font-weight: 750;
+        letter-spacing: 0.2px;
+      }
+
+      .kb-boot-sub {
+        font-size: 12px;
+        color: var(--kb-muted);
+        line-height: 1.45;
+      }
+
+      .kb-boot-logo {
+        width: 84px;
+        height: 84px;
+        object-fit: contain;
+      }
+
+      .kb-spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 3px solid rgba(35, 41, 44, 0.22);
+        border-top-color: rgba(35, 41, 44, 0.7);
+        animation: spin 1.05s linear infinite;
+        justify-self: start;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>Pro použití aplikace je nutné povolit JavaScript.</noscript>
+
+    <div id="root">
+      <div class="kb-systembar" aria-label="Systémová lišta">
+        <div class="kb-signage" aria-label="Signace Kájovo"><span>Kájovo</span></div>
+        <img src="/LOGO/assets/svg/logo-mark.svg" alt="" style="height: 26px; width: auto" />
+      </div>
+
+      <div class="kb-boot" aria-label="Načítání aplikace">
+        <div class="kb-boot-card" role="status">
+          <div class="kb-boot-head">
+            <div>
+              <div class="kb-boot-title">KájovoDagmar docházkový systém</div>
+              <div class="kb-boot-sub">Načítám…</div>
+            </div>
+            <img class="kb-boot-logo" src="/LOGO/assets/svg/logo-mark.svg" alt="" />
+          </div>
+          <div class="kb-spinner" role="progressbar" aria-valuetext="Načítám" aria-busy="true"></div>
+          <div class="kb-boot-sub">Pokud používáte Android, instalace aplikace je volitelná.</div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+tsconfig.tsbuildinfo
+ZIP.BAT
+__pycache__/
+ANDROID/.gradle/
+ANDROID/.idea/
+ANDROID/**/build/
+ANDROID/build/
+ANDROID/local.properties
+ANDROID/gradle-assemble.log
+ANDROID/1
+ANDROID/META-INF/
+ANDROID/jdk17.zip
+ANDROID/material3-1.3.2.jar
+output/playwright/
