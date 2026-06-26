@@ -12,6 +12,7 @@ from app.api.deps import require_admin
 from app.db.models import Attendance, AttendanceLock, Employment, ShiftPlan
 from app.db.session import get_db
 from app.security.csrf import require_csrf
+from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
@@ -155,6 +156,9 @@ def admin_upsert_attendance(
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise HTTPException(status_code=409, detail="Datum nelezi v obdobi platnosti vybraneho uvazku.")
+    blocked_status = get_day_status(db, employment_id=employment.id, day=day)
+    if blocked_status is not None:
+        raise HTTPException(status_code=409, detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.")
 
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)

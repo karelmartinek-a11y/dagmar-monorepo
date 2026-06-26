@@ -10,6 +10,7 @@ from .v1.attendance import router as attendance_router
 from .v1.integration import router as integration_router
 from .v1.portal_auth import router as portal_auth_router
 from .v1.public_instances import router as public_instances_router
+from .v1.shift_plan import router as shift_plan_router
 
 
 def build_api_router() -> APIRouter:
@@ -23,6 +24,7 @@ def build_api_router() -> APIRouter:
 
     v1 = APIRouter(prefix="/v1")
     v1.include_router(attendance_router, tags=["attendance"])
+    v1.include_router(shift_plan_router, tags=["shift-plan"])
     v1.include_router(admin_auth_router, tags=["admin-auth"])
     v1.include_router(admin_instances_router, tags=["admin-instances"])
     v1.include_router(admin_export_router, tags=["admin-export"])

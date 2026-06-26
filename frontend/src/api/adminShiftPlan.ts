@@ -57,6 +57,13 @@ export type ShiftPlanUpsertRequest = {
   status?: ShiftPlanDayStatus | null;
 };
 
+export type AdminDayStatusUpsertRequest = {
+  employment_id: number;
+  date: string;
+  status: ShiftPlanDayStatus | null;
+  confirm_delete_conflicts?: boolean;
+};
+
 export async function adminGetShiftPlanMonth(params: { year: number; month: number }): Promise<ShiftPlanMonth> {
   const { year, month } = params;
   if (!Number.isInteger(year) || year < 1970 || year > 2100) {
@@ -89,6 +96,19 @@ export async function adminSetShiftPlanSelection(body: ShiftPlanSelectionRequest
     path: "/api/v1/admin/shift-plan/selection",
     method: "PUT",
     body,
+    csrfToken: csrf,
+  });
+}
+
+export async function adminUpsertDayStatus(body: AdminDayStatusUpsertRequest): Promise<{ ok: true }> {
+  const csrf = await ensureCsrfToken();
+  return apiFetch<{ ok: true }>({
+    path: "/api/v1/admin/day-status",
+    method: "PUT",
+    body: {
+      ...body,
+      confirm_delete_conflicts: body.confirm_delete_conflicts ?? false,
+    },
     csrfToken: csrf,
   });
 }

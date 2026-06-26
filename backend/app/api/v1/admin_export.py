@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import distinct, or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from ...db.models import Attendance, Employment
+from ...db.models import Attendance, Employment, ShiftPlan
 from ...db.session import get_db
 from ...utils.slugify import filename_safe
 from ..deps import require_admin
@@ -58,21 +58,48 @@ def _csv_for_employment(
         .where(Attendance.date < end)
         .order_by(Attendance.date.asc())
     )
-    rows = db.execute(q).scalars().all()
+    attendance_rows = db.execute(q).scalars().all()
+    plan_rows = db.execute(
+        select(ShiftPlan)
+        .where(ShiftPlan.employment_id == employment.id)
+        .where(ShiftPlan.date >= start)
+        .where(ShiftPlan.date < end)
+        .order_by(ShiftPlan.date.asc())
+    ).scalars().all()
+    attendance_by_date = {row.date: row for row in attendance_rows}
+    plan_by_date = {row.date: row for row in plan_rows}
+    all_dates = sorted(set(attendance_by_date) | set(plan_by_date))
 
     buf = io.StringIO(newline="")
     w = csv.writer(buf, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-    w.writerow(["zamestnanec", "uvazek", "typ_uvazku", "datum", "prichod", "odchod"])
+    w.writerow(
+        [
+            "zamestnanec",
+            "uvazek",
+            "typ_uvazku",
+            "datum",
+            "prichod",
+            "odchod",
+            "stav_dne",
+            "plan_prichod",
+            "plan_odchod",
+        ]
+    )
     user_name = employment.user.name if employment.user else f"Uzivatel {employment.user_id}"
-    for row in rows:
+    for day in all_dates:
+        attendance_row = attendance_by_date.get(day)
+        plan_row = plan_by_date.get(day)
         w.writerow(
             [
                 user_name,
                 employment.title,
                 employment.employment_type,
-                row.date.isoformat(),
-                row.arrival_time or "",
-                row.departure_time or "",
+                day.isoformat(),
+                attendance_row.arrival_time if attendance_row is not None and attendance_row.arrival_time else "",
+                attendance_row.departure_time if attendance_row is not None and attendance_row.departure_time else "",
+                plan_row.status if plan_row is not None and plan_row.status else "",
+                plan_row.arrival_time if plan_row is not None and plan_row.arrival_time else "",
+                plan_row.departure_time if plan_row is not None and plan_row.departure_time else "",
             ]
         )
 

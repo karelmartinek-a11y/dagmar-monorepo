@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import FastAPI
@@ -9,6 +10,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+shift_plan = importlib.import_module("app.api.v1.shift_plan")
 from app.api.deps import require_admin
 from app.api.v1 import admin_attendance, admin_shift_plan, admin_users, attendance, portal_auth
 from app.api.v1.admin_employments import router as admin_employments_router
@@ -47,6 +49,7 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
     app.include_router(admin_attendance.router)
     app.include_router(admin_shift_plan.router)
     app.include_router(portal_auth.router)
+    app.include_router(shift_plan.router)
 
     def override_db():
         db = TestingSessionLocal()
@@ -55,7 +58,7 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
         finally:
             db.close()
 
-    for module in (admin_users, attendance, admin_attendance, admin_shift_plan, portal_auth):
+    for module in (admin_users, attendance, admin_attendance, admin_shift_plan, portal_auth, shift_plan):
         app.dependency_overrides[module.get_db] = override_db
     app.dependency_overrides[require_admin] = lambda: {"username": "admin"}
     app.dependency_overrides[require_csrf] = lambda: None
@@ -347,7 +350,8 @@ def test_portal_attendance_rejects_locked_month_for_read_and_write() -> None:
         f"/api/v1/attendance?employment_id={employment_id}&year={target_day.year}&month={target_day.month}",
         headers=headers,
     )
-    assert read_response.status_code == 423
+    assert read_response.status_code == 200
+    assert read_response.json()["locked"] is True
 
     write_response = client.put(
         "/api/v1/attendance",
@@ -360,6 +364,181 @@ def test_portal_attendance_rejects_locked_month_for_read_and_write() -> None:
         },
     )
     assert write_response.status_code == 423
+
+
+def test_portal_day_status_rejects_locked_month() -> None:
+    client, session_local = _build_client()
+    target_day = date(2026, 2, 10)
+    with session_local() as db:
+        user = _create_user(db, email="locked-plan-status@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(
+            AttendanceLock(
+                employment_id=employment.id,
+                instance_id=user.instance_id,
+                year=target_day.year,
+                month=target_day.month,
+                locked_by="admin",
+            )
+        )
+        db.commit()
+        employment_id = employment.id
+
+    login_response = _portal_login(client, "locked-plan-status@example.com")
+    assert login_response.status_code == 200
+    token = login_response.json()["instance_token"]
+
+    response = client.put(
+        "/api/v1/shift-plan/day-status",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "status": "OFF",
+        },
+    )
+    assert response.status_code == 423
+
+
+def test_admin_day_status_requires_confirmation_and_deletes_conflicts() -> None:
+    client, session_local = _build_client()
+    target_day = date(2026, 3, 10)
+    with session_local() as db:
+        user = _create_user(db, email="day-status-admin@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(Attendance(employment_id=employment.id, instance_id=user.instance_id, date=target_day, arrival_time="08:00", departure_time="16:00"))
+        db.add(ShiftPlan(employment_id=employment.id, instance_id=user.instance_id, date=target_day, arrival_time="08:00", departure_time="16:00"))
+        db.commit()
+        employment_id = employment.id
+
+    conflict_response = client.put(
+        "/api/v1/admin/day-status",
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "status": "HOLIDAY",
+        },
+    )
+    assert conflict_response.status_code == 409
+    detail = conflict_response.json()["detail"]
+    assert detail["code"] == "day_status_conflict"
+    assert detail["requires_confirmation"] is True
+    assert detail["attendance_exists"] is True
+    assert detail["shift_plan_exists"] is True
+
+    confirm_response = client.put(
+        "/api/v1/admin/day-status",
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "status": "HOLIDAY",
+            "confirm_delete_conflicts": True,
+        },
+    )
+    assert confirm_response.status_code == 200
+
+    with session_local() as db:
+        attendance_row = db.execute(select(Attendance).where(Attendance.employment_id == employment_id, Attendance.date == target_day)).scalar_one_or_none()
+        shift_row = db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == employment_id, ShiftPlan.date == target_day)).scalar_one()
+        assert attendance_row is None
+        assert shift_row.arrival_time is None
+        assert shift_row.departure_time is None
+        assert shift_row.status == "HOLIDAY"
+
+
+def test_day_status_blocks_admin_and_employee_time_writes() -> None:
+    client, session_local = _build_client()
+    target_day = date.today() - timedelta(days=1)
+    with session_local() as db:
+        user = _create_user(db, email="blocked-writes@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(ShiftPlan(employment_id=employment.id, instance_id=user.instance_id, date=target_day, status="OFF"))
+        db.commit()
+        employment_id = employment.id
+
+    login_response = _portal_login(client, "blocked-writes@example.com")
+    assert login_response.status_code == 200
+    token = login_response.json()["instance_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    employee_attendance = client.put(
+        "/api/v1/attendance",
+        headers=headers,
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:00",
+            "departure_time": "16:00",
+        },
+    )
+    assert employee_attendance.status_code == 409
+
+    admin_attendance_response = client.put(
+        "/api/v1/admin/attendance",
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:00",
+            "departure_time": "16:00",
+        },
+    )
+    assert admin_attendance_response.status_code == 409
+
+    admin_shift_plan_response = client.put(
+        "/api/v1/admin/shift-plan",
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:00",
+            "departure_time": "16:00",
+        },
+    )
+    assert admin_shift_plan_response.status_code == 409
+
+
+def test_portal_day_status_can_be_cleared_without_restoring_deleted_times() -> None:
+    client, session_local = _build_client()
+    target_day = date.today() - timedelta(days=1)
+    with session_local() as db:
+        user = _create_user(db, email="clear-day-status@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(ShiftPlan(employment_id=employment.id, instance_id=user.instance_id, date=target_day, status="OFF"))
+        db.commit()
+        employment_id = employment.id
+
+    login_response = _portal_login(client, "clear-day-status@example.com")
+    assert login_response.status_code == 200
+    token = login_response.json()["instance_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    clear_response = client.put(
+        "/api/v1/shift-plan/day-status",
+        headers=headers,
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "status": None,
+        },
+    )
+    assert clear_response.status_code == 200
+
+    attendance_response = client.put(
+        "/api/v1/attendance",
+        headers=headers,
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:00",
+            "departure_time": "16:00",
+        },
+    )
+    assert attendance_response.status_code == 200
+
+    with session_local() as db:
+        shift_row = db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == employment_id, ShiftPlan.date == target_day)).scalar_one_or_none()
+        attendance_row = db.execute(select(Attendance).where(Attendance.employment_id == employment_id, Attendance.date == target_day)).scalar_one()
+        assert shift_row is None
+        assert attendance_row.arrival_time == "08:00"
 
 
 def test_shift_plan_defaults_to_active_employments_and_keeps_inactive_available_for_filtering() -> None:

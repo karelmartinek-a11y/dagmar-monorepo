@@ -23,6 +23,7 @@ describe("attendanceCalc", () => {
     );
 
     expect(stats.holidayMins).toBe(8 * 60);
+    expect(stats.vacationDays).toBe(1);
     expect(stats.totalMins).toBe((8 * 60) + (8 * 60));
   });
 });

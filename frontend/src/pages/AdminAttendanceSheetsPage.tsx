@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { adminGetSettings, adminListUsers, type AdminEmployment, type PortalUser } from "../api/admin";
-import { adminGetAttendanceMonth, adminLockAttendance, adminUnlockAttendance, adminUpsertAttendance, type AdminAttendanceDay } from "../api/adminAttendance";
+import { adminGetAttendanceMonth, adminLockAttendance, adminUnlockAttendance, adminUpsertAttendance, adminUpsertDayStatus, type AdminAttendanceDay } from "../api/adminAttendance";
 import { ApiError } from "../api/client";
-import { FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
+import { ConfirmDialog, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { employmentIsActiveInMonth } from "../utils/employmentActivity";
 import { normalizeTime, isValidTimeOrEmpty } from "../utils/timeInput";
@@ -11,6 +11,14 @@ import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus
 import { timeFieldPlaceholder } from "../utils/uiLabels";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 import Button from "../ui/Button";
+
+type ContextMenuState = { x: number; y: number; date: string };
+type DayStatusDialogState = {
+  date: string;
+  status: ShiftPlanDayStatus;
+  attendanceExists: boolean;
+  shiftPlanExists: boolean;
+};
 
 type EmploymentOption = AdminEmployment & { user_name: string; user_is_active: boolean };
 
@@ -78,6 +86,8 @@ export default function AdminAttendanceSheetsPage() {
   const [daysLoading, setDaysLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorByKey, setErrorByKey] = useState<Record<string, string>>({});
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
 
   const cutoffMinutes = useMemo(() => parseCutoffToMinutes(afternoonCutoff), [afternoonCutoff]);
   const template = selected?.employment_type ?? "DPP_DPC";
@@ -87,6 +97,23 @@ export default function AdminAttendanceSheetsPage() {
     return parsed ? workingDaysInMonthCs(parsed.year, parsed.month) * 8 : 0;
   }, [month]);
   const today = isoToday();
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setContextMenu(null);
+    };
+
+    document.addEventListener("click", closeMenu);
+    document.addEventListener("scroll", closeMenu, true);
+    document.addEventListener("keydown", handleKey);
+
+    return () => {
+      document.removeEventListener("click", closeMenu);
+      document.removeEventListener("scroll", closeMenu, true);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,6 +198,13 @@ export default function AdminAttendanceSheetsPage() {
     const nextValue = normalized === "" ? null : normalized;
     const row = days?.find((item) => item.date === date);
     if (!row) return;
+    if (row.planned_status) {
+      setErrorByKey((prev) => ({
+        ...prev,
+        [`${date}:${field}`]: `Do dne označeného jako ${row.planned_status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO"} nelze zapisovat čas.`,
+      }));
+      return;
+    }
     setDays((prev) => prev?.map((item) => (item.date === date ? { ...item, [field]: nextValue } : item)) ?? null);
     try {
       await adminUpsertAttendance({
@@ -188,6 +222,77 @@ export default function AdminAttendanceSheetsPage() {
       const message = err instanceof ApiError ? err.message : errorMessage(err, "Uložení se nezdařilo.");
       setErrorByKey((prev) => ({ ...prev, [`${date}:${field}`]: message }));
     }
+  }
+
+  async function handleDayStatusChange(date: string, status: ShiftPlanDayStatus | null) {
+    if (!selected) return;
+    setContextMenu(null);
+    setError(null);
+    const row = days?.find((item) => item.date === date);
+    if (!row) return;
+
+    setDays((prev) =>
+      prev?.map((item) =>
+        item.date === date
+          ? {
+              ...item,
+              planned_status: status,
+              planned_arrival_time: status ? null : item.planned_arrival_time,
+              planned_departure_time: status ? null : item.planned_departure_time,
+              arrival_time: status ? null : item.arrival_time,
+              departure_time: status ? null : item.departure_time,
+            }
+          : item,
+      ) ?? null,
+    );
+
+    try {
+      await adminUpsertDayStatus({
+        employment_id: selected.id,
+        date,
+        status,
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409 && err.body?.detail && typeof err.body.detail !== "string" && status) {
+        const detail = err.body.detail as {
+          attendance_exists?: boolean;
+          shift_plan_exists?: boolean;
+        };
+        setDayStatusDialog({
+          date,
+          status,
+          attendanceExists: Boolean(detail.attendance_exists),
+          shiftPlanExists: Boolean(detail.shift_plan_exists),
+        });
+        await reloadMonth();
+        return;
+      }
+      setError(errorMessage(err, "Uložení se nezdařilo."));
+      await reloadMonth();
+    }
+  }
+
+  async function confirmDayStatusChange() {
+    if (!selected || !dayStatusDialog) return;
+    try {
+      await adminUpsertDayStatus({
+        employment_id: selected.id,
+        date: dayStatusDialog.date,
+        status: dayStatusDialog.status,
+        confirm_delete_conflicts: true,
+      });
+      setDayStatusDialog(null);
+      await reloadMonth();
+    } catch (err) {
+      setError(errorMessage(err, "Uložení se nezdařilo."));
+    }
+  }
+
+  async function reloadMonth() {
+    if (!selected || !parsedMonth) return;
+    const res = await adminGetAttendanceMonth({ employmentId: selected.id, year: parsedMonth.year, month: parsedMonth.month });
+    setDays(res.days);
+    setLocked(res.locked);
   }
 
   async function toggleLock(nextLocked: boolean) {
@@ -286,7 +391,21 @@ export default function AdminAttendanceSheetsPage() {
               const calc = computeDayCalc({ date: day.date, arrival_time: day.arrival_time, departure_time: day.departure_time, planned_status: day.planned_status }, template, cutoffMinutes);
               const isToday = day.date === today;
               return (
-                <div key={day.date} className={`admin-attendance-row${isToday ? " is-today" : ""}${!day.is_within_employment_period ? " is-outside" : ""}`}>
+                <div
+                  key={day.date}
+                  className={`admin-attendance-row${isToday ? " is-today" : ""}${!day.is_within_employment_period ? " is-outside" : ""}`}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setContextMenu({ x: event.clientX, y: event.clientY, date: day.date });
+                  }}
+                  style={
+                    day.planned_status === "HOLIDAY"
+                      ? { background: "rgba(255, 0, 0, 0.08)", borderRadius: 14 }
+                      : day.planned_status === "OFF"
+                        ? { background: "rgba(12, 95, 211, 0.08)", borderRadius: 14 }
+                        : undefined
+                  }
+                >
                   <div className="admin-attendance-date">
                     <strong>{day.date.slice(8, 10)}.</strong>
                     <span>{toDowLabel(day.date)}</span>
@@ -299,7 +418,7 @@ export default function AdminAttendanceSheetsPage() {
                     plannedValue={day.planned_arrival_time}
                     plannedStatus={day.planned_status}
                     error={errorByKey[`${day.date}:arrival_time`] ?? null}
-                    readOnly={locked || !day.is_within_employment_period}
+                    readOnly={locked || !day.is_within_employment_period || Boolean(day.planned_status)}
                     onCommit={(value) => void commitTime(day.date, "arrival_time", value)}
                   />
                   <TimeInput
@@ -309,7 +428,7 @@ export default function AdminAttendanceSheetsPage() {
                     plannedValue={day.planned_departure_time}
                     plannedStatus={day.planned_status}
                     error={errorByKey[`${day.date}:departure_time`] ?? null}
-                    readOnly={locked || !day.is_within_employment_period}
+                    readOnly={locked || !day.is_within_employment_period || Boolean(day.planned_status)}
                     onCommit={(value) => void commitTime(day.date, "departure_time", value)}
                   />
                   <div className="admin-attendance-hours">{calc.workedMins !== null ? `${formatHours(calc.workedMins)} h` : "—"}</div>
@@ -317,6 +436,19 @@ export default function AdminAttendanceSheetsPage() {
               );
             })}
           </div>
+          {contextMenu ? (
+            <div className="plan-context-menu" style={{ top: contextMenu.y, left: contextMenu.x, position: "fixed" }}>
+              <button type="button" onClick={() => void handleDayStatusChange(contextMenu.date, "HOLIDAY")}>
+                Označit jako DOVOLENÁ
+              </button>
+              <button type="button" onClick={() => void handleDayStatusChange(contextMenu.date, "OFF")}>
+                Označit jako VOLNO
+              </button>
+              <button type="button" onClick={() => void handleDayStatusChange(contextMenu.date, null)}>
+                Zrušit označení dne
+              </button>
+            </div>
+          ) : null}
         </section>
 
         <aside className="admin-surface">
@@ -329,6 +461,7 @@ export default function AdminAttendanceSheetsPage() {
           <div className="admin-stack">
             <MetricCard label="Součet hodin" value={`${formatHours(monthStats.totalMins)} h`} tone="accent" />
             <MetricCard label="Dovolená" value={`${formatHours(monthStats.holidayMins)} h`} />
+            <MetricCard label="Počet dní dovolené" value={String(monthStats.vacationDays)} />
             <MetricCard label="Odpolední" value={`${formatHours(monthStats.afternoonMins)} h`} />
             <MetricCard label="Víkendy a svátky" value={`${formatHours(monthStats.weekendHolidayMins)} h`} />
             <MetricCard label="Pracovní fond" value={`${workingFundHours} h`} />
@@ -338,6 +471,29 @@ export default function AdminAttendanceSheetsPage() {
           </div>
         </aside>
       </div>
+      <ConfirmDialog
+        open={dayStatusDialog !== null}
+        title="Smazat kolidující údaje?"
+        description="V tomto dni už existuje plán směny nebo docházka. Potvrzením budou stávající údaje pro tento den smazány a den se označí vybraným stavem."
+        confirmLabel="Potvrdit a smazat údaje"
+        cancelLabel="Zrušit"
+        tone="danger"
+        details={
+          dayStatusDialog
+            ? [
+                { label: "Datum", value: dayStatusDialog.date },
+                { label: "Nový stav", value: dayStatusDialog.status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO" },
+                { label: "Docházka", value: dayStatusDialog.attendanceExists ? "Ano" : "Ne" },
+                { label: "Plán směny", value: dayStatusDialog.shiftPlanExists ? "Ano" : "Ne" },
+              ]
+            : []
+        }
+        onConfirm={() => void confirmDayStatusChange()}
+        onClose={() => {
+          setDayStatusDialog(null);
+          void reloadMonth();
+        }}
+      />
     </div>
   );
 }

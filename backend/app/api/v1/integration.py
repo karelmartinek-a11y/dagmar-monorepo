@@ -26,6 +26,7 @@ from app.config import Settings, get_settings
 from app.db import models
 from app.db.session import get_db
 from app.security.integration_rate_limit import rate_limit_dependency
+from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
 from app.services.integration_admin import (
     DATA_SCOPE_ACTIVE_ONLY,
@@ -613,6 +614,13 @@ def create_integration_attendance(
     employment = _get_employment_for_write(db, employment_id=payload.employment_id)
     _ensure_attendance_in_employment_period(employment, day=day)
     _ensure_attendance_month_not_locked(db, employment_id=employment.id, day=day)
+    blocked_status = get_day_status(db, employment_id=employment.id, day=day)
+    if blocked_status is not None:
+        raise_integration_error(
+            status.HTTP_409_CONFLICT,
+            "day_status_blocked",
+            f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
+        )
     arrival_time, departure_time = _parse_attendance_times(
         arrival_time=payload.arrival_time,
         departure_time=payload.departure_time,
@@ -699,6 +707,13 @@ def patch_integration_attendance(
     employee_id = row.employment.user_id if row.employment is not None else None
     _check_requested_scope(auth=auth, db=db, employment_id=row.employment_id, employee_id=employee_id)
     _ensure_attendance_month_not_locked(db, employment_id=row.employment_id, day=row.date)
+    blocked_status = get_day_status(db, employment_id=row.employment_id, day=row.date)
+    if blocked_status is not None:
+        raise_integration_error(
+            status.HTTP_409_CONFLICT,
+            "day_status_blocked",
+            f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
+        )
     _ensure_expected_updated_at(row, expected_updated_at=expected_updated_at)
     arrival_time, departure_time = _parse_attendance_times(
         arrival_time=payload.arrival_time,

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { getAttendance, putAttendance } from "../api/attendance";
+import { getAttendance, putAttendance, upsertPortalDayStatus } from "../api/attendance";
 import { ApiError } from "../api/client";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 import { getPragueTimeSnapshot, type PragueTimeSource } from "../api/time";
@@ -7,6 +7,7 @@ import type { EmploymentTemplate } from "../types/employment";
 import { portalLogin, type PortalLoginEmployment } from "../api/portal";
 import { BRAND_ASSETS, APP_NAME_SHORT } from "../brand/brand";
 import { AndroidDownloadBanner } from "../components/AndroidDownloadBanner";
+import { ConfirmDialog } from "../components/admin/AdminUI";
 import { clearPortalAuthState, getPortalAuthState, setPortalAuthState } from "../state/portalAuthStore";
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
@@ -19,6 +20,7 @@ type DayRow = {
   planned_arrival_time: string | null;
   planned_departure_time: string | null;
   planned_status?: ShiftPlanDayStatus | null;
+  is_within_employment_period?: boolean;
 };
 
 type QueueItem = {
@@ -144,6 +146,14 @@ type PragueClock = {
   source: PragueTimeSource;
 };
 
+type ContextMenuState = { x: number; y: number; date: string };
+type DayStatusDialogState = {
+  date: string;
+  status: ShiftPlanDayStatus;
+  attendanceExists: boolean;
+  shiftPlanExists: boolean;
+};
+
 function getPragueParts(timestamp: number) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: PRAGUE_TIME_ZONE,
@@ -260,6 +270,8 @@ export function EmployeePage() {
   const [queuedCount, setQueuedCount] = useState<number>(0);
   const [sending, setSending] = useState<boolean>(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
   const pragueNow = useMemo(() => toPragueClock(clockNowMs + clockOffsetMs, clockSource), [clockNowMs, clockOffsetMs, clockSource]);
   const selectedEmployment = useMemo(
     () => availableEmployments.find((item) => item.id === employmentId) ?? null,
@@ -283,6 +295,23 @@ export function EmployeePage() {
     return () => {
       window.removeEventListener("online", onUp);
       window.removeEventListener("offline", onDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setContextMenu(null);
+    };
+
+    document.addEventListener("click", closeMenu);
+    document.addEventListener("scroll", closeMenu, true);
+    document.addEventListener("keydown", handleKey);
+
+    return () => {
+      document.removeEventListener("click", closeMenu);
+      document.removeEventListener("scroll", closeMenu, true);
+      document.removeEventListener("keydown", handleKey);
     };
   }, []);
 
@@ -362,7 +391,7 @@ export function EmployeePage() {
           );
         }
         setRows(out);
-        setMonthLocked(false);
+        setMonthLocked(res.locked);
       } catch (err) {
         if (cancelled) return;
         const [y, m] = month.split("-").map((x) => parseInt(x, 10));
@@ -531,6 +560,10 @@ export function EmployeePage() {
 
     const row = rows.find((item) => item.date === date);
     if (!row) return;
+    if (row.planned_status) {
+      window.alert(`Do dne označeného jako ${row.planned_status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO"} nelze zapisovat čas.`);
+      return;
+    }
 
     const readOnlyReason = getHistoricalReadOnlyReason(row, field, pragueNow.date);
     if (readOnlyReason) {
@@ -582,6 +615,79 @@ export function EmployeePage() {
     }
   }
 
+  async function handlePlanDayStatusChange(date: string, status: ShiftPlanDayStatus | null) {
+    if (!employmentId || !token || monthLocked) return;
+    setContextMenu(null);
+
+    setRows((prev) =>
+      prev.map((row) =>
+        row.date === date
+          ? {
+              ...row,
+              planned_status: status,
+              planned_arrival_time: null,
+              planned_departure_time: null,
+              arrival_time: status ? null : row.arrival_time,
+              departure_time: status ? null : row.departure_time,
+            }
+          : row,
+      ),
+    );
+
+    try {
+      await upsertPortalDayStatus(
+        {
+          employment_id: employmentId,
+          date,
+          status,
+        },
+        token,
+      );
+      setDayStatusDialog(null);
+      setRefreshTick((tick) => tick + 1);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409 && err.body?.detail && typeof err.body.detail !== "string" && status) {
+        const detail = err.body.detail as {
+          attendance_exists?: boolean;
+          shift_plan_exists?: boolean;
+        };
+        setDayStatusDialog({
+          date,
+          status,
+          attendanceExists: Boolean(detail.attendance_exists),
+          shiftPlanExists: Boolean(detail.shift_plan_exists),
+        });
+        setRefreshTick((tick) => tick + 1);
+        return;
+      }
+      if (err instanceof ApiError && err.status === 423) {
+        setMonthLocked(true);
+      }
+      setRefreshTick((tick) => tick + 1);
+    }
+  }
+
+  async function confirmPlanDayStatusChange() {
+    if (!employmentId || !token || !dayStatusDialog) return;
+    try {
+      await upsertPortalDayStatus(
+        {
+          employment_id: employmentId,
+          date: dayStatusDialog.date,
+          status: dayStatusDialog.status,
+          confirm_delete_conflicts: true,
+        },
+        token,
+      );
+      setDayStatusDialog(null);
+      setRefreshTick((tick) => tick + 1);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 423) {
+        setMonthLocked(true);
+      }
+    }
+  }
+
   const today = pragueNow.date || isoToday();
   const monthHead = monthLabel(month).toUpperCase();
 
@@ -593,6 +699,10 @@ export function EmployeePage() {
     const todayRow = rows.find((r) => r.date === today);
     if (!todayRow) {
       window.alert("Dnešní den není v aktuálním přehledu.");
+      return;
+    }
+    if (todayRow.planned_status) {
+      window.alert(`Dnešní den je označen jako ${todayRow.planned_status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO"}. Čas nelze zapsat.`);
       return;
     }
     const hhmm = pragueNow.time;
@@ -770,7 +880,7 @@ export function EmployeePage() {
           <div style={cardStyle()}>
             <div style={{ fontWeight: 800, marginBottom: 6, color: "var(--kb-red)" }}>Měsíc uzavřen</div>
             <div style={{ color: "var(--kb-brand-ink-600)" }}>
-              Docházka za {monthLabel(month)} je uzavřena administrátorem. Úpravy ani zobrazení v této sekci nejsou pro toto zařízení dostupné.
+              Měsíc {monthLabel(month)} je uzavřen administrátorem. Data zůstávají viditelná, ale nové zápisy ani změny označení dne nejsou povolené.
             </div>
           </div>
         ) : null}
@@ -830,6 +940,11 @@ export function EmployeePage() {
               <div
                 key={r.date}
                 className="attendance-grid-row"
+                onContextMenu={(event) => {
+                  if (viewMode !== "plan" || monthLocked || !r.is_within_employment_period) return;
+                  event.preventDefault();
+                  setContextMenu({ x: event.clientX, y: event.clientY, date: r.date });
+                }}
                 style={{
                   ...cardStyle(),
                   border: isToday
@@ -842,7 +957,14 @@ export function EmployeePage() {
                     : hasPlan
                       ? "0 8px 20px rgba(38,43,49,0.1)"
                       : "0 6px 18px rgba(35, 41, 44, 0.06)",
-                  background: isSpecial ? "rgba(255,0,0,0.08)" : "white",
+                  background:
+                    r.planned_status === "HOLIDAY"
+                      ? "rgba(255,0,0,0.08)"
+                      : r.planned_status === "OFF"
+                        ? "rgba(12,95,211,0.08)"
+                        : isSpecial
+                          ? "rgba(255,0,0,0.08)"
+                          : "white",
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr 1fr 1fr",
                   gap: 12,
@@ -896,8 +1018,8 @@ export function EmployeePage() {
                   placeholder={timeFieldPlaceholder()}
                   value={r.arrival_time ?? ""}
                   plannedValue={viewMode === "attendance" ? r.planned_arrival_time : undefined}
-                  plannedStatus={viewMode === "attendance" ? r.planned_status : undefined}
-                  readOnly={viewMode === "plan" || arrivalReadOnlyReason !== null}
+                  plannedStatus={r.planned_status}
+                  readOnly={viewMode === "plan" || arrivalReadOnlyReason !== null || Boolean(r.planned_status)}
                   readOnlyReason={viewMode === "plan" ? null : arrivalReadOnlyReason}
                   onChange={(v) => onChangeTime(r.date, "arrival_time", v)}
                 />
@@ -907,8 +1029,8 @@ export function EmployeePage() {
                   placeholder={timeFieldPlaceholder()}
                   value={r.departure_time ?? ""}
                   plannedValue={viewMode === "attendance" ? r.planned_departure_time : undefined}
-                  plannedStatus={viewMode === "attendance" ? r.planned_status : undefined}
-                  readOnly={viewMode === "plan" || departureReadOnlyReason !== null}
+                  plannedStatus={r.planned_status}
+                  readOnly={viewMode === "plan" || departureReadOnlyReason !== null || Boolean(r.planned_status)}
                   readOnlyReason={viewMode === "plan" ? null : departureReadOnlyReason}
                   onChange={(v) => onChangeTime(r.date, "departure_time", v)}
                 />
@@ -927,6 +1049,44 @@ export function EmployeePage() {
         ) : null}
       </main>
 
+      {contextMenu ? (
+        <div className="plan-context-menu" style={{ top: contextMenu.y, left: contextMenu.x, position: "fixed" }}>
+          <button type="button" onClick={() => void handlePlanDayStatusChange(contextMenu.date, "HOLIDAY")}>
+            Označit jako DOVOLENÁ
+          </button>
+          <button type="button" onClick={() => void handlePlanDayStatusChange(contextMenu.date, "OFF")}>
+            Označit jako VOLNO
+          </button>
+          <button type="button" onClick={() => void handlePlanDayStatusChange(contextMenu.date, null)}>
+            Zrušit označení dne
+          </button>
+        </div>
+      ) : null}
+
+      <ConfirmDialog
+        open={dayStatusDialog !== null}
+        title="Smazat kolidující údaje?"
+        description="V tomto dni už existuje plán směny nebo docházka. Potvrzením budou stávající údaje pro tento den smazány a den se označí vybraným stavem."
+        confirmLabel="Potvrdit a smazat údaje"
+        cancelLabel="Zrušit"
+        tone="danger"
+        details={
+          dayStatusDialog
+            ? [
+                { label: "Datum", value: dayStatusDialog.date },
+                { label: "Nový stav", value: dayStatusDialog.status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO" },
+                { label: "Docházka", value: dayStatusDialog.attendanceExists ? "Ano" : "Ne" },
+                { label: "Plán směny", value: dayStatusDialog.shiftPlanExists ? "Ano" : "Ne" },
+              ]
+            : []
+        }
+        onConfirm={() => void confirmPlanDayStatusChange()}
+        onClose={() => {
+          setDayStatusDialog(null);
+          setRefreshTick((tick) => tick + 1);
+        }}
+      />
+
       <footer style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px" }}>
         <div
           style={{
@@ -941,6 +1101,7 @@ export function EmployeePage() {
             label={`Součet hodin (${monthLabel(month)})`}
             value={`${formatHours(monthTotalMins)} h (z toho ${formatHours(monthHolidayMins)} h dovolená)`}
           />
+          <FooterStat label="Počet dní dovolené" value={String(monthStats.vacationDays)} />
           <FooterStat label="Víkend + svátky" value={`${formatHours(monthStats.weekendHolidayMins)} h`} />
           <FooterStat label={`Odpolední (${afternoonCutoff})`} value={`${formatHours(monthStats.afternoonMins)} h`} />
           <FooterStat label="Pracovní fond" value={`${workingFundHours} h`} />

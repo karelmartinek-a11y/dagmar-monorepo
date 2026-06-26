@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import PortalUserAuth, require_portal_user_auth
 from app.db.models import Attendance, AttendanceLock, Employment, ShiftPlan
 from app.db.session import get_db
+from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
 from app.services.prague_time import prague_minutes_since_midnight, prague_today
 from app.utils.timeparse import parse_hhmm_or_none
@@ -33,6 +34,7 @@ class AttendanceDayOut(BaseModel):
 class AttendanceMonthOut(BaseModel):
     employment_id: int
     employment_label: str
+    locked: bool = False
     days: list[AttendanceDayOut]
 
 
@@ -99,6 +101,17 @@ def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Sess
         )
 
 
+def _month_is_locked(employment_id: int, year: int, month: int, db: Session) -> bool:
+    lock = db.execute(
+        select(AttendanceLock).where(
+            AttendanceLock.employment_id == employment_id,
+            AttendanceLock.year == year,
+            AttendanceLock.month == month,
+        )
+    ).scalar_one_or_none()
+    return lock is not None
+
+
 def _enforce_user_forensic_rules(
     *,
     day: dt.date,
@@ -146,7 +159,7 @@ def get_month_attendance(
 ) -> AttendanceMonthOut:
     start, end = _month_range(year, month)
     employment = _require_accessible_employment(employment_id, auth, db)
-    _ensure_month_not_locked(employment.id, year, month, db)
+    locked = _month_is_locked(employment.id, year, month, db)
 
     rows = db.execute(
         select(Attendance)
@@ -191,6 +204,7 @@ def get_month_attendance(
     return AttendanceMonthOut(
         employment_id=employment.id,
         employment_label=employment_label(employment, auth.user.name),
+        locked=locked,
         days=days,
     )
 
@@ -212,6 +226,12 @@ def upsert_attendance(
     employment = _require_accessible_employment(body.employment_id, auth, db)
     _ensure_day_in_employment_period(employment, day)
     _ensure_month_not_locked(employment.id, day.year, day.month, db)
+    blocked_status = get_day_status(db, employment_id=employment.id, day=day)
+    if blocked_status is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
+        )
 
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)

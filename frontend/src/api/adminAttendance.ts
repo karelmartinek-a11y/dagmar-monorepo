@@ -1,5 +1,5 @@
 import { apiFetch, ApiError } from "./client";
-import type { ShiftPlanDayStatus } from "./adminShiftPlan";
+import { adminUpsertDayStatus, type ShiftPlanDayStatus } from "./adminShiftPlan";
 import { ensureCsrfToken } from "./csrf";
 
 export type AdminAttendanceDay = {
@@ -77,3 +77,5 @@ export async function adminUnlockAttendance(body: { employment_id: number; year:
     csrfToken: csrf,
   });
 }
+
+export { adminUpsertDayStatus };

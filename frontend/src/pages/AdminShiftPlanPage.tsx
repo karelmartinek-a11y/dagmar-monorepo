@@ -3,11 +3,14 @@ import { createPortal } from "react-dom";
 import {
   adminGetShiftPlanMonth,
   adminSetShiftPlanSelection,
+  adminUpsertDayStatus,
   adminUpsertShiftPlan,
   type ShiftPlanMonth,
   type ShiftPlanRow,
   type ShiftPlanDayStatus,
 } from "../api/adminShiftPlan";
+import { ApiError } from "../api/client";
+import { ConfirmDialog } from "../components/admin/AdminUI";
 import { getCzechHolidayName, isWeekendDate, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { isValidTimeOrEmpty, normalizeTime } from "../utils/timeInput";
 import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
@@ -53,6 +56,7 @@ function plannedMinutesWithHoliday(row: ShiftPlanRow) {
     (acc, day) => {
       if (day.status === "HOLIDAY") {
         acc.holidayMins += 8 * 60;
+        acc.holidayDays += 1;
         acc.totalMins += 8 * 60;
         return acc;
       }
@@ -64,7 +68,7 @@ function plannedMinutesWithHoliday(row: ShiftPlanRow) {
       }
       return acc;
     },
-    { totalMins: 0, holidayMins: 0 },
+    { totalMins: 0, holidayMins: 0, holidayDays: 0 },
   );
 }
 
@@ -73,6 +77,13 @@ function formatHours(mins: number) {
 }
 
 type ContextMenuState = { x: number; y: number; employmentId: number; date: string };
+type DayStatusDialogState = {
+  employmentId: number;
+  date: string;
+  status: ShiftPlanDayStatus;
+  attendanceExists: boolean;
+  shiftPlanExists: boolean;
+};
 
 export default function AdminShiftPlanPage() {
   const [month, setMonth] = useState(() => {
@@ -91,6 +102,7 @@ export default function AdminShiftPlanPage() {
   const [instanceQuery, setInstanceQuery] = useState("");
   const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
   const [sidebarBottomTarget, setSidebarBottomTarget] = useState<HTMLElement | null>(null);
+  const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
   const successTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tableWrapperRef = useRef<HTMLDivElement | null>(null);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
@@ -414,6 +426,10 @@ export default function AdminShiftPlanPage() {
     const row = plan.rows.find((item) => item.employment_id === employmentId);
     const day = row?.days.find((item) => item.date === date);
     if (!row || !day) return;
+    if (day.status) {
+      setSaveError(`Do dne označeného jako ${day.status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO"} nelze zapisovat plán směny.`);
+      return;
+    }
 
     const rawValue = day[field] ?? "";
     const normalized = normalizeTime(rawValue);
@@ -475,8 +491,6 @@ export default function AdminShiftPlanPage() {
     if (!row || !day) return;
 
     const nextStatus = status ?? null;
-    const nextArrival = nextStatus ? null : day.arrival_time ?? null;
-    const nextDeparture = nextStatus ? null : day.departure_time ?? null;
 
     setPlan((prev) => {
       if (!prev) return prev;
@@ -503,18 +517,51 @@ export default function AdminShiftPlanPage() {
     setSavingForDay(employmentId, date, true);
 
     try {
-      await adminUpsertShiftPlan({
+      await adminUpsertDayStatus({
         employment_id: employmentId,
         date,
-        arrival_time: nextArrival,
-        departure_time: nextDeparture,
         status: nextStatus,
       });
       setSuccessForDay(employmentId, date);
+      setDayStatusDialog(null);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409 && err.body?.detail && typeof err.body.detail !== "string" && nextStatus) {
+        const detail = err.body.detail as {
+          attendance_exists?: boolean;
+          shift_plan_exists?: boolean;
+        };
+        setDayStatusDialog({
+          employmentId,
+          date,
+          status: nextStatus,
+          attendanceExists: Boolean(detail.attendance_exists),
+          shiftPlanExists: Boolean(detail.shift_plan_exists),
+        });
+        setRefreshTick((tick) => tick + 1);
+        return;
+      }
       setSaveError(err instanceof Error ? err.message : "Nelze uložit změnu.");
     } finally {
       setSavingForDay(employmentId, date, false);
+    }
+  };
+
+  const confirmDayStatusChange = async () => {
+    if (!dayStatusDialog) return;
+    setSavingForDay(dayStatusDialog.employmentId, dayStatusDialog.date, true);
+    try {
+      await adminUpsertDayStatus({
+        employment_id: dayStatusDialog.employmentId,
+        date: dayStatusDialog.date,
+        status: dayStatusDialog.status,
+        confirm_delete_conflicts: true,
+      });
+      setDayStatusDialog(null);
+      setRefreshTick((tick) => tick + 1);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Nelze uložit změnu.");
+    } finally {
+      setSavingForDay(dayStatusDialog.employmentId, dayStatusDialog.date, false);
     }
   };
 
@@ -721,7 +768,7 @@ export default function AdminShiftPlanPage() {
                         },
                         {} as Record<string, (typeof row.days)[number]>,
                       );
-                      const { totalMins, holidayMins } = plannedMinutesWithHoliday(row);
+                      const { totalMins, holidayMins, holidayDays } = plannedMinutesWithHoliday(row);
                       const totalHours = formatHours(totalMins);
                       const holidayHours = formatHours(holidayMins);
                       const fundHours = formatHours(workingFundHours * 60);
@@ -793,6 +840,7 @@ export default function AdminShiftPlanPage() {
                               {holidayMins > 0 ? (
                                 <div className="plan-sum-meta">z toho {holidayHours} h dovolená</div>
                               ) : null}
+                              <div className="plan-sum-meta">Počet dní dovolené: {holidayDays}</div>
                               <div className="plan-sum-meta">Fond {fundHours} h</div>
                             </td>
                           </tr>
@@ -861,16 +909,39 @@ export default function AdminShiftPlanPage() {
               {contextMenu ? (
                 <div className="plan-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
                   <button type="button" onClick={() => handleDayStatusChange(contextMenu.employmentId, contextMenu.date, "HOLIDAY")}>
-                    Dovolená
+                    Označit jako DOVOLENÁ
                   </button>
                   <button type="button" onClick={() => handleDayStatusChange(contextMenu.employmentId, contextMenu.date, "OFF")}>
-                    Volno
+                    Označit jako VOLNO
                   </button>
                   <button type="button" onClick={() => handleDayStatusChange(contextMenu.employmentId, contextMenu.date, null)}>
-                    Vymazat
+                    Zrušit označení dne
                   </button>
                 </div>
               ) : null}
+              <ConfirmDialog
+                open={dayStatusDialog !== null}
+                title="Smazat kolidující údaje?"
+                description="V tomto dni už existuje plán směny nebo docházka. Potvrzením budou stávající údaje pro tento den smazány a den se označí vybraným stavem."
+                confirmLabel="Potvrdit a smazat údaje"
+                cancelLabel="Zrušit"
+                tone="danger"
+                details={
+                  dayStatusDialog
+                    ? [
+                        { label: "Datum", value: dayStatusDialog.date },
+                        { label: "Nový stav", value: dayStatusDialog.status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO" },
+                        { label: "Docházka", value: dayStatusDialog.attendanceExists ? "Ano" : "Ne" },
+                        { label: "Plán směny", value: dayStatusDialog.shiftPlanExists ? "Ano" : "Ne" },
+                      ]
+                    : []
+                }
+                onConfirm={() => void confirmDayStatusChange()}
+                onClose={() => {
+                  setDayStatusDialog(null);
+                  setRefreshTick((tick) => tick + 1);
+                }}
+              />
             </>
           )}
         </main>

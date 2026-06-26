@@ -38,6 +38,7 @@ from app.api.v1.attendance import router as attendance_router
 from app.api.v1.integration import router as integration_router
 from app.api.v1.portal_auth import router as portal_auth_router
 from app.api.v1.public_instances import router as public_instances_router
+from app.api.v1.shift_plan import router as shift_plan_router
 from app.brand.brand import APP_NAME_LONG
 from app.config import Settings, get_settings
 from app.db.schema_bootstrap import ensure_schema_up_to_date
@@ -245,6 +246,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Routers already carry full prefixes ("/api/v1/..."), so include without extra prefixes
     # to avoid duplicate paths like "/api/v1/api/v1/...".
     app.include_router(attendance_router)
+    app.include_router(shift_plan_router)
     app.include_router(public_instances_router)
 
     app.include_router(admin_auth_router, tags=["admin"])

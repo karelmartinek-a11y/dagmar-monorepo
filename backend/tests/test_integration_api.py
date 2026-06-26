@@ -562,6 +562,65 @@ def test_write_rejects_locked_period(tmp_path: Path) -> None:
     assert response.json()["error"]["code"] == "attendance_locked"
 
 
+def test_write_rejects_day_status_block(tmp_path: Path) -> None:
+    client, session_local = _build_client(tmp_path)
+    with session_local() as db:
+        ids = _seed_domain_data(db)
+        db.add(
+            ShiftPlan(
+                employment_id=ids["employment_id"],
+                instance_id="inst-employee",
+                date=date(2026, 6, 12),
+                status="HOLIDAY",
+            )
+        )
+        db.commit()
+        token = _issue_token(
+            db,
+            name="status-blocked",
+            scopes=["integration:health", "attendance:create", "attendance:update"],
+            allowed_employment_ids=[ids["employment_id"]],
+            allowed_employee_ids=[ids["employee_id"]],
+        )
+        existing_plan = db.execute(
+            select(ShiftPlan).where(
+                ShiftPlan.employment_id == ids["employment_id"],
+                ShiftPlan.date == date(2026, 6, 10),
+            )
+        ).scalar_one()
+        existing_plan.arrival_time = None
+        existing_plan.departure_time = None
+        existing_plan.status = "OFF"
+        existing_row = db.execute(
+            select(Attendance).where(
+                Attendance.employment_id == ids["employment_id"],
+                Attendance.date == date(2026, 6, 10),
+            )
+        ).scalar_one()
+        db.commit()
+        attendance_id = existing_row.id
+
+    create_response = client.post(
+        "/api/v1/integration/attendances",
+        headers=_auth_headers(token),
+        json={
+            "employment_id": ids["employment_id"],
+            "date": "2026-06-12",
+            "arrival_time": "08:00",
+        },
+    )
+    assert create_response.status_code == 409
+    assert create_response.json()["error"]["code"] == "day_status_blocked"
+
+    patch_response = client.patch(
+        f"/api/v1/integration/attendances/{attendance_id}",
+        headers=_auth_headers(token),
+        json={"arrival_time": "09:00"},
+    )
+    assert patch_response.status_code == 409
+    assert patch_response.json()["error"]["code"] == "day_status_blocked"
+
+
 def test_delete_attendance_with_scope(tmp_path: Path) -> None:
     client, session_local = _build_client(tmp_path)
     with session_local() as db:

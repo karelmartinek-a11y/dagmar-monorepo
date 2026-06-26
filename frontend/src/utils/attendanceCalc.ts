@@ -25,6 +25,7 @@ export type MonthStats = {
   afternoonMins: number;
   weekendHolidayMins: number;
   holidayMins: number;
+  vacationDays: number;
 };
 
 function pad2(n: number) {
@@ -262,6 +263,7 @@ export function computeMonthStats(rows: AttendanceRowLike[], template: Employmen
   let afternoonMins = 0;
   let weekendHolidayMins = 0;
   let holidayMins = 0;
+  let vacationDays = 0;
 
   for (const r of rows) {
     const c = computeDayCalc(r, template, cutoffMinutes);
@@ -271,13 +273,14 @@ export function computeMonthStats(rows: AttendanceRowLike[], template: Employmen
     weekendHolidayMins += c.weekendHolidayMins;
     if (r.planned_status === "HOLIDAY") {
       holidayMins += 8 * 60;
+      vacationDays += 1;
     }
   }
 
   if (template !== "HPP") {
     totalMins += holidayMins;
-    return { totalMins, breakMins: 0, afternoonMins: 0, weekendHolidayMins: 0, holidayMins };
+    return { totalMins, breakMins: 0, afternoonMins: 0, weekendHolidayMins: 0, holidayMins, vacationDays };
   }
   totalMins += holidayMins;
-  return { totalMins, breakMins, afternoonMins, weekendHolidayMins, holidayMins };
+  return { totalMins, breakMins, afternoonMins, weekendHolidayMins, holidayMins, vacationDays };
 }

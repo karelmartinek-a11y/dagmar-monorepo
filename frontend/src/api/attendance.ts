@@ -14,6 +14,7 @@ export type AttendanceDay = {
 export type AttendanceMonthResponse = {
   employment_id: number;
   employment_label: string;
+  locked: boolean;
   days: AttendanceDay[];
 };
 
@@ -24,12 +25,31 @@ export type AttendanceUpsertBody = {
   departure_time: string | null;
 };
 
+export type DayStatusType = ShiftPlanDayStatus | null;
+export type PortalDayStatusBody = {
+  employment_id: number;
+  date: string;
+  status: DayStatusType;
+  confirm_delete_conflicts?: boolean;
+};
+
+export type DayStatusConflictDetail = {
+  code: "day_status_conflict";
+  message: string;
+  employment_id: number;
+  date: string;
+  next_status: ShiftPlanDayStatus;
+  requires_confirmation: true;
+  attendance_exists: boolean;
+  shift_plan_exists: boolean;
+};
+
 async function fetchAttendanceWithPortalFallback<T>(
   path: string,
   options: {
     method: "GET" | "PUT";
     query?: Record<string, string | number | boolean | null | undefined>;
-    body?: AttendanceUpsertBody;
+    body?: AttendanceUpsertBody | PortalDayStatusBody;
     instanceToken: string;
     signal?: AbortSignal;
   }
@@ -122,4 +142,20 @@ export function getAttendance(employmentId: number, year: number, month: number,
 
 export function putAttendance(body: AttendanceUpsertBody, instanceToken: string, signal?: AbortSignal) {
   return upsertAttendance({ body, instanceToken, signal });
+}
+
+export async function upsertPortalDayStatus(
+  body: PortalDayStatusBody,
+  instanceToken: string,
+  signal?: AbortSignal,
+) {
+  return fetchAttendanceWithPortalFallback<{ ok: true }>("/api/v1/shift-plan/day-status", {
+    method: "PUT",
+    body: {
+      ...body,
+      confirm_delete_conflicts: body.confirm_delete_conflicts ?? false,
+    },
+    instanceToken,
+    signal,
+  });
 }

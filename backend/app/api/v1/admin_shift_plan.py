@@ -15,6 +15,14 @@ from app.api.deps import require_admin
 from app.db.models import Employment, PortalUser, ShiftPlan, ShiftPlanMonthInstance
 from app.db.session import get_db
 from app.security.csrf import require_csrf
+from app.services.day_status import (
+    DAY_STATUS_HOLIDAY,
+    DAY_STATUS_OFF,
+    day_status_label,
+    get_day_status,
+    normalize_day_status,
+    set_day_status,
+)
 from app.services.employment_access import employment_label, employment_overlaps_month
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
@@ -74,6 +82,15 @@ class ShiftPlanUpsertIn(BaseModel):
     status: str | None = Field(
         None, description="HOLIDAY | OFF | null", pattern="^(HOLIDAY|OFF)?$", examples=["HOLIDAY", "OFF"]
     )
+
+
+class DayStatusUpsertIn(BaseModel):
+    employment_id: int = Field(..., ge=1)
+    date: str = Field(..., description="YYYY-MM-DD")
+    status: str | None = Field(
+        None, description="HOLIDAY | OFF | null", pattern="^(HOLIDAY|OFF)?$", examples=["HOLIDAY", "OFF"]
+    )
+    confirm_delete_conflicts: bool = False
 
 
 class OkOut(BaseModel):
@@ -291,8 +308,11 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
         departure = parse_hhmm_or_none(body.departure_time)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if body.status not in (None, "HOLIDAY", "OFF"):
+    if body.status not in (None, DAY_STATUS_HOLIDAY, DAY_STATUS_OFF):
         raise HTTPException(status_code=400, detail="Invalid status, expected HOLIDAY or OFF or null")
+    blocked_status = get_day_status(db, employment_id=employment.id, day=day)
+    if blocked_status is not None and body.status is None and (arrival is not None or departure is not None):
+        raise HTTPException(status_code=409, detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat plán směny.")
     if body.status is not None:
         arrival = None
         departure = None
@@ -324,6 +344,43 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
         existing.arrival_time = arrival
         existing.departure_time = departure
         existing.status = body.status
+
+    db.commit()
+    return OkOut(ok=True)
+
+
+@router.put("/api/v1/admin/day-status", response_model=OkOut)
+def admin_upsert_day_status(
+    body: DayStatusUpsertIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> OkOut:
+    employment = _get_employment(body.employment_id, db)
+
+    try:
+        day = parse_yyyy_mm_dd(body.date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
+        raise HTTPException(status_code=409, detail="Datum nelezi v obdobi platnosti vybraneho uvazku.")
+
+    try:
+        status = normalize_day_status(body.status)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    conflicts = set_day_status(
+        db,
+        employment=employment,
+        day=day,
+        status=status,
+        confirm_delete_conflicts=body.confirm_delete_conflicts,
+        instance_id=employment.user.instance_id if employment.user else None,
+    )
+    if status is not None and conflicts.has_conflicts and not body.confirm_delete_conflicts:
+        raise HTTPException(status_code=409, detail=conflicts.to_detail(employment_id=employment.id, day=day, next_status=status))
 
     db.commit()
     return OkOut(ok=True)

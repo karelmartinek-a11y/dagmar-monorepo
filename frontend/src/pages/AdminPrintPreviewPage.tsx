@@ -290,14 +290,18 @@ export default function AdminPrintPreviewPage() {
                     <div className="print-summary-label">Zaměstnanec</div>
                     <div className="print-summary-value">{doc.employment.user_name}</div>
                   </div>
-                  <div className="print-summary-box">
-                    <div className="print-summary-label">Odpracováno</div>
-                    <div className="print-summary-value">{formatHours(stats.totalMins)} h</div>
-                  </div>
-                  <div className="print-summary-box">
-                    <div className="print-summary-label">Odpolední cutoff</div>
-                    <div className="print-summary-value">{String(doc.cutoffMinutes / 60).replace(".", ":")}</div>
-                  </div>
+                <div className="print-summary-box">
+                  <div className="print-summary-label">Odpracováno</div>
+                  <div className="print-summary-value">{formatHours(stats.totalMins)} h</div>
+                </div>
+                <div className="print-summary-box">
+                  <div className="print-summary-label">Počet dní dovolené</div>
+                  <div className="print-summary-value">{stats.vacationDays}</div>
+                </div>
+                <div className="print-summary-box">
+                  <div className="print-summary-label">Odpolední cutoff</div>
+                  <div className="print-summary-value">{String(doc.cutoffMinutes / 60).replace(".", ":")}</div>
+                </div>
                 </div>
                 <table>
                   <thead>
@@ -335,10 +339,26 @@ export default function AdminPrintPreviewPage() {
                       return (
                         <tr key={day.date} className={rowClass}>
                           <td>{formatDateLong(day.date)}</td>
-                          <td>{isOutsideEmployment ? "Mimo období úvazku" : getCzechHolidayName(day.date) ?? ""}</td>
-                          <td>{isOutsideEmployment ? "—" : attendanceDay?.arrival_time ?? ""}</td>
-                          <td>{isOutsideEmployment ? "—" : attendanceDay?.departure_time ?? ""}</td>
-                          <td>{isOutsideEmployment ? "—" : calc.workedMins !== null ? `${formatHours(calc.workedMins)} h` : ""}</td>
+                          <td>
+                            {isOutsideEmployment
+                              ? "Mimo období úvazku"
+                              : attendanceDay?.planned_status === "HOLIDAY"
+                                ? "DOVOLENÁ"
+                                : attendanceDay?.planned_status === "OFF"
+                                  ? "VOLNO"
+                                  : getCzechHolidayName(day.date) ?? ""}
+                          </td>
+                          <td>{isOutsideEmployment ? "—" : attendanceDay?.planned_status ? "—" : attendanceDay?.arrival_time ?? ""}</td>
+                          <td>{isOutsideEmployment ? "—" : attendanceDay?.planned_status ? "—" : attendanceDay?.departure_time ?? ""}</td>
+                          <td>
+                            {isOutsideEmployment
+                              ? "—"
+                              : attendanceDay?.planned_status === "HOLIDAY"
+                                ? "8,0 h"
+                                : calc.workedMins !== null
+                                  ? `${formatHours(calc.workedMins)} h`
+                                  : ""}
+                          </td>
                         </tr>
                       );
                     })}
@@ -370,11 +390,15 @@ export default function AdminPrintPreviewPage() {
                     {formatHours(workingDaysInMonthCs(parsedMonth.year, parsedMonth.month) * 8 * 60)} h
                   </div>
                 </div>
-                <div className="print-summary-box">
-                  <div className="print-summary-label">Typ úvazku</div>
-                  <div className="print-summary-value">{doc.employment.employment_type}</div>
+                  <div className="print-summary-box">
+                    <div className="print-summary-label">Typ úvazku</div>
+                    <div className="print-summary-value">{doc.employment.employment_type}</div>
+                  </div>
+                  <div className="print-summary-box">
+                    <div className="print-summary-label">Počet dní dovolené</div>
+                    <div className="print-summary-value">{doc.row.days.filter((day) => day.status === "HOLIDAY").length}</div>
+                  </div>
                 </div>
-              </div>
               <table>
                 <thead>
                   <tr>
