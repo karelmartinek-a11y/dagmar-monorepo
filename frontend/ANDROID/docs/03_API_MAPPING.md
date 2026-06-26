@@ -1,1 +1,0 @@
-﻿- Employee: /api/v1/portal/login, /api/v1/portal/reset, /api/v1/attendance\n- Admin: /api/v1/admin/* as documented

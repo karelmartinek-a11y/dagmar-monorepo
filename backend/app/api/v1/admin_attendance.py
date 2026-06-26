@@ -75,6 +75,18 @@ def _get_employment(employment_id: int, db: Session) -> Employment:
     return employment
 
 
+def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
+    lock = db.execute(
+        select(AttendanceLock).where(
+            AttendanceLock.employment_id == employment_id,
+            AttendanceLock.year == year,
+            AttendanceLock.month == month,
+        )
+    ).scalar_one_or_none()
+    if lock is not None:
+        raise HTTPException(status_code=423, detail="Dochazka za zvolene obdobi je uzamcena.")
+
+
 @router.get("/api/v1/admin/attendance", response_model=AttendanceMonthOut)
 def admin_get_month_attendance(
     employment_id: int = Query(..., ge=1),
@@ -156,6 +168,7 @@ def admin_upsert_attendance(
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise HTTPException(status_code=409, detail="Datum nelezi v obdobi platnosti vybraneho uvazku.")
+    _ensure_month_not_locked(employment.id, day.year, day.month, db)
     blocked_status = get_day_status(db, employment_id=employment.id, day=day)
     if blocked_status is not None:
         raise HTTPException(status_code=409, detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.")

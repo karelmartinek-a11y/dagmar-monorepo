@@ -6,7 +6,6 @@ import { getPragueTimeSnapshot, type PragueTimeSource } from "../api/time";
 import type { EmploymentTemplate } from "../types/employment";
 import { portalLogin, type PortalLoginEmployment } from "../api/portal";
 import { BRAND_ASSETS, APP_NAME_SHORT } from "../brand/brand";
-import { AndroidDownloadBanner } from "../components/AndroidDownloadBanner";
 import { ConfirmDialog } from "../components/admin/AdminUI";
 import { clearPortalAuthState, getPortalAuthState, setPortalAuthState } from "../state/portalAuthStore";
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
@@ -284,8 +283,6 @@ export function EmployeePage() {
     if (!Number.isFinite(y) || !Number.isFinite(m)) return 0;
     return workingDaysInMonthCs(y, m) * 8;
   }, [month]);
-
-  const androidDownloadUrl = "/download/dochazka.apk";
 
   useEffect(() => {
     const onUp = () => setOnline(true);
@@ -719,9 +716,6 @@ export function EmployeePage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--kb-bg)" }}>
-      <div style={{ maxWidth: 980, margin: "0 auto", padding: "12px 16px" }}>
-        <AndroidDownloadBanner downloadUrl={androidDownloadUrl} appName={APP_NAME_SHORT} />
-      </div>
       <header
         style={
           {

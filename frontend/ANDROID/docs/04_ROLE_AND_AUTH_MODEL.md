@@ -1,1 +1,0 @@
-﻿- Employees keep instance token in DataStore and flush offline queue\n- Admin has cookie + CSRF stored by DataStore-backed interceptors

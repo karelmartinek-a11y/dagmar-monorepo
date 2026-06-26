@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_admin
-from app.db.models import Employment, PortalUser, ShiftPlan, ShiftPlanMonthInstance
+from app.db.models import AttendanceLock, Employment, PortalUser, ShiftPlan, ShiftPlanMonthInstance
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.day_status import (
@@ -139,6 +139,18 @@ def _get_employment(employment_id: int, db: Session) -> Employment:
     if employment is None:
         raise HTTPException(status_code=404, detail="Uvazek nenalezen.")
     return employment
+
+
+def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
+    lock = db.execute(
+        select(AttendanceLock).where(
+            AttendanceLock.employment_id == employment_id,
+            AttendanceLock.year == year,
+            AttendanceLock.month == month,
+        )
+    ).scalar_one_or_none()
+    if lock is not None:
+        raise HTTPException(status_code=423, detail="Dochazka za zvolene obdobi je uzamcena.")
 
 
 def _load_available_employment_rows(db: Session) -> list[SimpleNamespace]:
@@ -365,6 +377,7 @@ def admin_upsert_day_status(
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise HTTPException(status_code=409, detail="Datum nelezi v obdobi platnosti vybraneho uvazku.")
+    _ensure_month_not_locked(employment.id, day.year, day.month, db)
 
     try:
         status = normalize_day_status(body.status)

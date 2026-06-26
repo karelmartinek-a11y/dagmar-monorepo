@@ -1,1 +1,0 @@
-﻿- frontend repo at current state\n- backend repo audited as required

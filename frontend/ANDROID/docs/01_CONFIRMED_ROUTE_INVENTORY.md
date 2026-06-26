@@ -1,1 +1,0 @@
-﻿- \/app\ -> Employee login/attendance\n- \/reset\ -> Password reset\n- Admin routes mirrored via /admin paths
