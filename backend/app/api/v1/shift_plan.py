@@ -7,12 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..deps import PortalUserAuth, require_portal_user_auth
 from ...db.models import Employment
 from ...db.session import get_db
 from ...services.day_status import normalize_day_status, set_day_status
 from ...utils.timeparse import parse_yyyy_mm_dd
-
+from ..deps import PortalUserAuth, require_portal_user_auth
 from .attendance import _ensure_month_not_locked, _require_accessible_employment
 
 router = APIRouter(tags=["shift-plan"])

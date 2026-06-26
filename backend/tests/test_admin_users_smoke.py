@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import FastAPI
@@ -10,9 +9,15 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-shift_plan = importlib.import_module("app.api.v1.shift_plan")
 from app.api.deps import require_admin
-from app.api.v1 import admin_attendance, admin_shift_plan, admin_users, attendance, portal_auth
+from app.api.v1 import (
+    admin_attendance,
+    admin_shift_plan,
+    admin_users,
+    attendance,
+    portal_auth,
+    shift_plan,
+)
 from app.api.v1.admin_employments import router as admin_employments_router
 from app.db.models import (
     Attendance,
