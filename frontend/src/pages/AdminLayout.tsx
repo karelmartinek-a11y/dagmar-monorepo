@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { adminLogout, getAdminMe } from "../api/admin";
 import { BRAND_ASSETS } from "../brand/brand";
 import Button from "../ui/Button";
+import { Breadcrumbs } from "../components/admin/AdminUI";
 
 type MeState = { kind: "loading" } | { kind: "anon" } | { kind: "auth"; username: string };
 
@@ -11,20 +12,25 @@ function cx(...parts: Array<string | false | null | undefined>) {
 }
 
 const NAV_ITEMS = [
-  { to: "/admin/prehled", label: "Přehled" },
-  { to: "/admin/users", label: "Uživatelé" },
-  { to: "/admin/dochazka", label: "Docházka" },
-  { to: "/admin/plan-sluzeb", label: "Plán služeb" },
-  { to: "/admin/tisky", label: "Tisky" },
-  { to: "/admin/export", label: "Export" },
-  { to: "/admin/settings", label: "Nastavení" },
-  { to: "/admin/instances", label: "Zařízení" },
-  { to: "/admin/integrace", label: "Integrace" },
+  { to: "/admin/prehled", label: "Přehled", description: "Rychlý stav provozu a zkrácené metriky." },
+  { to: "/admin/users", label: "Uživatelé", description: "Účty zaměstnanců, úvazky a přístupy." },
+  { to: "/admin/dochazka", label: "Docházka", description: "Ruční evidence docházky po jednotlivých úvazcích." },
+  { to: "/admin/plan-sluzeb", label: "Plán služeb", description: "Měsíční rozpis směn a statusů dnů." },
+  { to: "/admin/tisky", label: "Tisky", description: "Preview dokumentů připravených pro tisk nebo kontrolu." },
+  { to: "/admin/export", label: "Export", description: "Stažení CSV a ZIP exportů pro další zpracování." },
+  { to: "/admin/settings", label: "Nastavení", description: "Pošta, pravidla docházky a diagnostika." },
+  { to: "/admin/instances", label: "Zařízení", description: "Správa zařízení, webových a mobilních instancí." },
+  { to: "/admin/integrace", label: "Integrace", description: "Napojení externích systémů a oprávnění klientů." },
 ];
 
 function locationLabel(pathname: string) {
   const found = NAV_ITEMS.find((item) => pathname.startsWith(item.to));
   return found?.label ?? "Administrace";
+}
+
+function locationDescription(pathname: string) {
+  const found = NAV_ITEMS.find((item) => pathname.startsWith(item.to));
+  return found?.description ?? "Správa produkčního provozu.";
 }
 
 function LoadingState() {
@@ -113,7 +119,8 @@ export default function AdminLayout() {
         <nav className="admin-sidebar-nav">
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => cx("admin-sidebar-link", isActive && "active")} end={item.to === "/admin/prehled"}>
-              {item.label}
+              <span>{item.label}</span>
+              <small>{item.description}</small>
             </NavLink>
           ))}
         </nav>
@@ -125,7 +132,7 @@ export default function AdminLayout() {
             <span>Aktuální sekce</span>
             <strong>{locationLabel(location.pathname)}</strong>
           </div>
-          <Button type="button" variant="primary" style={{ width: "100%" }} onClick={() => void onLogout()}>
+          <Button type="button" variant="danger" style={{ width: "100%" }} onClick={() => void onLogout()} aria-label="Bezpečně odhlásit administraci">
             Odhlásit
           </Button>
         </div>
@@ -138,6 +145,13 @@ export default function AdminLayout() {
           <div>
             <div className="admin-topbar-kicker">Produkční administrace</div>
             <div className="admin-topbar-title">{locationLabel(location.pathname)}</div>
+            <div className="admin-topbar-description">{locationDescription(location.pathname)}</div>
+            <Breadcrumbs
+              items={[
+                { label: "Administrace", to: "/admin/prehled" },
+                { label: locationLabel(location.pathname) },
+              ]}
+            />
           </div>
           <div className="admin-topbar-actions">
             <NavLink className="admin-mini-link" to="/admin/settings">
@@ -146,6 +160,9 @@ export default function AdminLayout() {
             <NavLink className="admin-mini-link" to="/admin/instances">
               Zařízení
             </NavLink>
+            <Button type="button" variant="danger" size="sm" onClick={() => void onLogout()}>
+              Odhlásit
+            </Button>
           </div>
         </div>
 

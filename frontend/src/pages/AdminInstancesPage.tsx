@@ -12,7 +12,7 @@ import {
   type AdminInstance,
 } from "../api/admin";
 import type { EmploymentTemplate } from "../types/employment";
-import { ConfirmDialog, EmptyState, FilterBar, InlineNotice, PageHeader, StateBadge, Toast } from "../components/admin/AdminUI";
+import { Breadcrumbs, ConfirmDialog, EmptyState, FilterBar, InlineNotice, PageHeader, StateBadge, Toast } from "../components/admin/AdminUI";
 import Button from "../ui/Button";
 
 function errorMessage(err: unknown, fallback: string) {
@@ -121,7 +121,9 @@ export default function AdminInstancesPage() {
             </Button>
           </div>
         }
-      />
+      >
+        <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Zařízení" }]} />
+      </PageHeader>
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
 

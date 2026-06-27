@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { adminExportBulkUrl, adminExportEmploymentUrl, adminListUsers } from "../api/admin";
-import { FilterBar, InlineNotice, PageHeader } from "../components/admin/AdminUI";
+import { Breadcrumbs, FilterBar, InlineNotice, PageHeader } from "../components/admin/AdminUI";
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -69,8 +69,10 @@ export default function AdminExportPage() {
       <PageHeader
         eyebrow="Exporty a podklady"
         title="Export evidence docházky"
-        description="Jednotlivý export pracuje s konkrétním employment ID. Hromadný export připraví ZIP balík všech relevantních úvazků za zvolený měsíc."
-      />
+        description="Export je určen pro stažení CSV a ZIP souborů do dalších systémů. Pro čitelný náhled dokumentů a tisk použijte sekci Tisky."
+      >
+        <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Export" }]} />
+      </PageHeader>
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
 

@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import { adminGetSettings, adminListUsers, type AdminEmployment, type PortalUser } from "../api/admin";
 import { adminGetAttendanceMonth, adminLockAttendance, adminUnlockAttendance, adminUpsertAttendance, adminUpsertDayStatus, type AdminAttendanceDay } from "../api/adminAttendance";
 import { ApiError } from "../api/client";
-import { ConfirmDialog, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
+import { Breadcrumbs, ConfirmDialog, EmptyState, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { employmentIsActiveInMonth } from "../utils/employmentActivity";
 import { normalizeTime, isValidTimeOrEmpty } from "../utils/timeInput";
@@ -11,6 +11,7 @@ import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus
 import { timeFieldPlaceholder } from "../utils/uiLabels";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 import Button from "../ui/Button";
+import { formatMonthLabelCs } from "../utils/date";
 
 type ContextMenuState = { x: number; y: number; date: string };
 type DayStatusDialogState = {
@@ -37,12 +38,6 @@ function parseYYYYMM(s: string): { year: number; month: number } | null {
   const month = Number(m[2]);
   if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
   return { year, month };
-}
-
-function monthLabel(yyyyMmStr: string) {
-  const parsed = parseYYYYMM(yyyyMmStr);
-  if (!parsed) return yyyyMmStr;
-  return new Date(parsed.year, parsed.month - 1, 1).toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
 }
 
 function toDowLabel(dateStr: string) {
@@ -328,6 +323,7 @@ export default function AdminAttendanceSheetsPage() {
             <Button type="button" variant="ghost" onClick={() => setMonth((value) => addMonths(value, -1))}>
               Předchozí měsíc
             </Button>
+            <StateBadge tone="accent">{formatMonthLabelCs(month)}</StateBadge>
             <Button type="button" variant="ghost" onClick={() => setMonth((value) => addMonths(value, 1))}>
               Další měsíc
             </Button>
@@ -336,7 +332,9 @@ export default function AdminAttendanceSheetsPage() {
             </NavLink>
           </div>
         }
-      />
+      >
+        <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Docházka" }]} />
+      </PageHeader>
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
 
@@ -349,22 +347,32 @@ export default function AdminAttendanceSheetsPage() {
             </div>
           </div>
           <FilterBar>
-            <input className="kb-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Hledat podle zaměstnance nebo úvazku" />
+            <label className="kb-field" style={{ flex: "1 1 320px" }}>
+              <span className="kb-label">Hledat úvazek</span>
+              <input className="kb-input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Např. Novák, recepce nebo ID úvazku" />
+            </label>
           </FilterBar>
           <label className="admin-checkbox-row">
             <input type="checkbox" checked={showInactiveEmployments} onChange={(e) => setShowInactiveEmployments(e.target.checked)} />
             <span>Zobrazit i neaktivní úvazky</span>
           </label>
-          <div className="admin-list" style={{ marginTop: 12 }}>
+          <div className="admin-list admin-list--sticky-section" style={{ marginTop: 12 }}>
             {loading ? <InlineNotice>Načítám…</InlineNotice> : null}
+            {!loading && filtered.length === 0 ? (
+              <EmptyState title="Žádný úvazek" description="Upravte filtr nebo zapněte zobrazení neaktivních úvazků." />
+            ) : null}
             {filtered.map((employment) => (
               <button key={employment.id} type="button" className={`admin-selection-row${selected?.id === employment.id ? " active" : ""}`} onClick={() => setSelected(employment)}>
                 <div>
-                  <div className="admin-list-title">{employment.label}</div>
+                  <div className="admin-list-title">{employment.user_name}</div>
+                  <div className="admin-list-subtitle">{employment.label}</div>
                   <div className="admin-list-subtitle">
                     {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
                   </div>
                 </div>
+                <StateBadge tone={!parsedMonth || employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month) ? "ok" : "warning"}>
+                  {employment.id}
+                </StateBadge>
               </button>
             ))}
           </div>
@@ -374,7 +382,7 @@ export default function AdminAttendanceSheetsPage() {
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">{selected ? selected.label : "Vyberte úvazek"}</div>
-              <div className="admin-surface-subtitle">Měsíc {monthLabel(month)}</div>
+              <div className="admin-surface-subtitle">Měsíc {formatMonthLabelCs(month)}</div>
             </div>
             <div className="admin-action-row">
               <StateBadge tone={locked ? "warning" : "ok"}>{locked ? "Měsíc uzavřený" : "Měsíc otevřený"}</StateBadge>
@@ -386,7 +394,13 @@ export default function AdminAttendanceSheetsPage() {
             </div>
           </div>
           {daysLoading ? <InlineNotice>Načítám vybraný měsíc…</InlineNotice> : null}
-          <div className="admin-attendance-list">
+          {!selected ? (
+            <EmptyState title="Vyberte úvazek" description="Nejprve zvolte úvazek vlevo. Potom se otevře celý měsíční list docházky." />
+          ) : null}
+          {selected && !daysLoading && !days ? (
+            <EmptyState title="Docházka není k dispozici" description="Měsíční data se nepodařilo načíst. Zkuste měsíc obnovit nebo zkontrolujte uzamčení." />
+          ) : null}
+          <div className="admin-attendance-list admin-attendance-list--scroller">
             {days?.map((day) => {
               const calc = computeDayCalc({ date: day.date, arrival_time: day.arrival_time, departure_time: day.departure_time, planned_status: day.planned_status }, template, cutoffMinutes);
               const isToday = day.date === today;
@@ -468,6 +482,11 @@ export default function AdminAttendanceSheetsPage() {
             <InlineNotice>
               Odpolední hranice je aktuálně nastavena na <strong>{afternoonCutoff}</strong>. Zamknuté měsíce a dny mimo období úvazku jsou v rozhraní read-only.
             </InlineNotice>
+            {!selected ? (
+              <InlineNotice tone="warning">
+                Bez vybraného úvazku nelze docházku upravovat. Vyberte konkrétní employment ID vlevo.
+              </InlineNotice>
+            ) : null}
           </div>
         </aside>
       </div>

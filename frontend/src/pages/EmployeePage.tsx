@@ -437,6 +437,8 @@ export function EmployeePage() {
       const defaultEmployment = res.available_employments.find((item) => item.id === res.employment_id) ?? res.available_employments[0];
       if (defaultEmployment) setEmploymentTemplate(defaultEmployment.employment_type as EmploymentTemplate);
       if (res.afternoon_cutoff) setAfternoonCutoff(res.afternoon_cutoff);
+      setLoginEmail("");
+      setLoginPassword("");
     } catch (err: unknown) {
       setLoginError(errorMessage(err, "Přihlášení se nezdařilo."));
     } finally {
@@ -469,25 +471,29 @@ export function EmployeePage() {
 
           <form onSubmit={onLoginSubmit} className="stack" style={{ gap: 12, marginTop: 12 }}>
             <div>
-              <div className="label">E-mail</div>
+              <label className="label" htmlFor="portal-login-email">E-mail</label>
               <input
+                id="portal-login-email"
                 className="input"
                 type="email"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 placeholder="name@hotelchodovasc.cz"
                 autoComplete="username"
+                name="username"
               />
             </div>
             <div>
-              <div className="label">Heslo</div>
+              <label className="label" htmlFor="portal-login-password">Heslo</label>
               <input
+                id="portal-login-password"
                 className="input"
                 type="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="Zadejte heslo"
+                placeholder="Zadejte své heslo"
                 autoComplete="current-password"
+                name="current-password"
               />
             </div>
             <button type="submit" className="btn solid" disabled={loginSubmitting}>
@@ -782,6 +788,9 @@ export function EmployeePage() {
                   setEmploymentId(null);
                   setDisplayName(null);
                   setAvailableEmployments([]);
+                  setLoginEmail("");
+                  setLoginPassword("");
+                  setLoginError(null);
                   queueRef.current = [];
                   persistQueue([]);
                   setQueuedCount(0);
@@ -812,7 +821,7 @@ export function EmployeePage() {
               aria-label="Předchozí měsíc"
               title="Předchozí měsíc"
             >
-              ←
+              ← <span style={{ fontSize: 13, fontWeight: 700 }}>Předchozí měsíc</span>
             </button>
             <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
               {viewMode === "attendance" ? (
@@ -863,7 +872,7 @@ export function EmployeePage() {
               aria-label="Další měsíc"
               title="Další měsíc"
             >
-              →
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Další měsíc</span> →
             </button>
           </div>
         </div>
@@ -892,7 +901,7 @@ export function EmployeePage() {
         {!selectedEmployment ? (
           <div style={cardStyle()}>
             <div style={{ fontWeight: 800, marginBottom: 6, color: "#b45309" }}>Není dostupný úvazek</div>
-            <div style={{ color: "var(--kb-brand-ink-600)" }}>Tento účet momentálně nemá vybraný úvazek pro zobrazení nebo zápis evidence docházky.</div>
+            <div style={{ color: "var(--kb-brand-ink-600)" }}>Tento účet momentálně nemá vybraný úvazek pro zobrazení nebo zápis evidence docházky. Pokud máte více úvazků, vyberte ho v horní liště.</div>
           </div>
         ) : null}
 
@@ -1037,8 +1046,8 @@ export function EmployeePage() {
         </div>
 
         {rows.length === 0 ? (
-          <div style={{ marginTop: 14, color: "var(--kb-brand-ink-600)", fontSize: 13 }}>
-            {online ? "Načítám…" : ""}
+          <div style={{ ...cardStyle(), marginTop: 14, color: "var(--kb-text)", fontSize: 14 }}>
+            {online ? "Pro zvolený měsíc zatím nejsou žádné záznamy. Zkuste jiný měsíc nebo použijte tlačítko Teď pro dnešní zápis." : "Bez internetu nelze historii načíst."}
           </div>
         ) : null}
       </main>
@@ -1115,9 +1124,9 @@ function headerNavButtonStyle(): React.CSSProperties {
     border: "1px solid rgba(255,255,255,0.4)",
     background: "rgba(255,255,255,0.15)",
     color: "white",
-    width: 46,
-    height: 46,
     minWidth: 46,
+    minHeight: 46,
+    padding: "0 14px",
     borderRadius: 14,
     fontSize: 18,
     fontWeight: 800,
@@ -1125,6 +1134,8 @@ function headerNavButtonStyle(): React.CSSProperties {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    whiteSpace: "nowrap",
     transition: "transform 120ms ease, box-shadow 120ms ease",
   };
 }

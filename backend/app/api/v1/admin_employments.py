@@ -7,7 +7,7 @@ from datetime import date
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import delete, or_, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
@@ -37,6 +37,14 @@ class EmploymentCreateIn(BaseModel):
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
     is_active: bool = True
 
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Název úvazku je povinný.")
+        return normalized
+
 
 class EmploymentUpdateIn(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
@@ -45,6 +53,16 @@ class EmploymentUpdateIn(BaseModel):
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
     is_active: bool | None = None
     confirm_delete_out_of_range: bool = False
+
+    @field_validator("title")
+    @classmethod
+    def validate_optional_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Název úvazku je povinný.")
+        return normalized
 
 
 class EmploymentDeleteOut(BaseModel):
@@ -83,12 +101,12 @@ def _parse_date(value: str | None, field_name: str) -> date | None:
     try:
         return date.fromisoformat(value)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Pole {field_name} musi byt ve formatu YYYY-MM-DD.") from exc
+        raise HTTPException(status_code=400, detail=f"Pole {field_name} musí být v backendovém formátu YYYY-MM-DD.") from exc
 
 
 def _validate_period(start_date: date, end_date: date | None) -> None:
     if end_date is not None and end_date < start_date:
-        raise HTTPException(status_code=400, detail="Datum ukonceni nesmi byt drive nez datum zacatku.")
+        raise HTTPException(status_code=400, detail="Datum ukončení nesmí být dříve než datum začátku.")
 
 
 def _is_date_out_of_range(day: date, start_date: date, end_date: date | None) -> bool:
@@ -382,10 +400,10 @@ def create_employment(
 ):
     user = db.get(PortalUser, user_id)
     if user is None:
-        raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
+        raise HTTPException(status_code=404, detail="Uživatel nebyl nalezen.")
 
     if not employment_type_is_valid(payload.employment_type):
-        raise HTTPException(status_code=400, detail="Neplatny typ uvazku.")
+        raise HTTPException(status_code=400, detail="Neplatný typ úvazku.")
 
     start_date = _parse_date(payload.start_date, "start_date")
     end_date = _parse_date(payload.end_date, "end_date")
@@ -416,12 +434,12 @@ def update_employment(
 ):
     employment = db.get(Employment, employment_id)
     if employment is None:
-        raise HTTPException(status_code=404, detail="Uvazek nenalezen.")
+        raise HTTPException(status_code=404, detail="Úvazek nebyl nalezen.")
 
     next_title = payload.title.strip() if payload.title is not None else employment.title
     next_type = payload.employment_type if payload.employment_type is not None else employment.employment_type
     if not employment_type_is_valid(next_type):
-        raise HTTPException(status_code=400, detail="Neplatny typ uvazku.")
+        raise HTTPException(status_code=400, detail="Neplatný typ úvazku.")
 
     next_start_date = _parse_date(payload.start_date, "start_date") if payload.start_date is not None else employment.start_date
     next_end_date = _parse_date(payload.end_date, "end_date") if payload.end_date is not None else employment.end_date
@@ -470,7 +488,7 @@ def delete_employment(
 ):
     employment = db.get(Employment, employment_id)
     if employment is None:
-        raise HTTPException(status_code=404, detail="Uvazek nenalezen.")
+        raise HTTPException(status_code=404, detail="Úvazek nebyl nalezen.")
 
     summary = _collect_related_data_summary(employment.id, db)
     related_count = (

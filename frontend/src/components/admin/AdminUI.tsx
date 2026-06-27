@@ -67,6 +67,31 @@ export function ActionLink(props: { to: string; label: string }) {
   );
 }
 
+export function Breadcrumbs(props: { items: Array<{ label: string; to?: string }> }) {
+  if (props.items.length === 0) return null;
+  return (
+    <nav className="admin-breadcrumbs" aria-label="Drobečková navigace">
+      {props.items.map((item, index) => {
+        const isLast = index === props.items.length - 1;
+        return (
+          <React.Fragment key={`${item.label}-${index}`}>
+            {item.to && !isLast ? (
+              <NavLink className="admin-breadcrumb-link" to={item.to}>
+                {item.label}
+              </NavLink>
+            ) : (
+              <span className="admin-breadcrumb-current" aria-current={isLast ? "page" : undefined}>
+                {item.label}
+              </span>
+            )}
+            {!isLast ? <span className="admin-breadcrumb-separator" aria-hidden="true">/</span> : null}
+          </React.Fragment>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function ConfirmDialog(props: {
   open: boolean;
   title: string;
@@ -76,14 +101,71 @@ export function ConfirmDialog(props: {
   tone?: "default" | "danger";
   busy?: boolean;
   details?: Array<{ label: string; value: React.ReactNode }>;
+  confirmTextLabel?: string;
+  confirmTextValue?: string;
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const [confirmText, setConfirmText] = React.useState("");
+  const dialogRef = React.useRef<HTMLDivElement | null>(null);
+  const confirmButtonRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    if (!props.open) {
+      setConfirmText("");
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const target = dialogRef.current?.querySelector<HTMLElement>(
+        props.confirmTextValue ? "input, button, [href], select, textarea, [tabindex]:not([tabindex='-1'])" : "button",
+      );
+      target?.focus();
+    }, 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        props.onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"),
+      ).filter((element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true");
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [props]);
+
   if (!props.open || typeof document === "undefined") return null;
+
+  const confirmLocked = Boolean(props.confirmTextValue) && confirmText.trim() !== props.confirmTextValue;
 
   return createPortal(
     <div className="admin-dialog-backdrop" role="presentation" onClick={props.onClose}>
-      <div className="admin-dialog" role="dialog" aria-modal="true" aria-label={props.title} onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="admin-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={props.title}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="admin-dialog-head">
           <div className="admin-dialog-title">{props.title}</div>
           {props.description ? <div className="admin-dialog-description">{props.description}</div> : null}
@@ -100,11 +182,35 @@ export function ConfirmDialog(props: {
             </div>
           </div>
         ) : null}
+        {props.confirmTextValue ? (
+          <div className="admin-dialog-body">
+            <label className="kb-field">
+              <span className="kb-label">{props.confirmTextLabel ?? `Pro potvrzení napište ${props.confirmTextValue}`}</span>
+              <input
+                className="kb-input"
+                value={confirmText}
+                onChange={(event) => setConfirmText(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                aria-describedby="admin-confirm-text-help"
+              />
+            </label>
+            <div id="admin-confirm-text-help" className="kb-help">
+              Přesně opište text <strong>{props.confirmTextValue}</strong>.
+            </div>
+          </div>
+        ) : null}
         <div className="admin-dialog-actions">
           <Button type="button" variant="ghost" onClick={props.onClose} disabled={props.busy}>
             {props.cancelLabel ?? "Zrušit"}
           </Button>
-          <Button type="button" variant={props.tone === "danger" ? "danger" : "primary"} onClick={props.onConfirm} disabled={props.busy}>
+          <Button
+            ref={confirmButtonRef}
+            type="button"
+            variant={props.tone === "danger" ? "danger" : "primary"}
+            onClick={props.onConfirm}
+            disabled={props.busy || confirmLocked}
+          >
             {props.busy ? "Provádím..." : props.confirmLabel ?? "Potvrdit"}
           </Button>
         </div>

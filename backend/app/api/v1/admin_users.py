@@ -12,7 +12,7 @@ from typing import cast as typing_cast
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -80,6 +80,35 @@ class PortalUserCreateIn(BaseModel):
     password: str | None = Field(default=None, min_length=8, max_length=256)
     is_active: bool = True
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Jméno je povinné.")
+        return normalized
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if "@" not in normalized or "." not in normalized.split("@")[-1]:
+            raise ValueError("Zadejte platný e-mail ve formátu jmeno@domena.cz.")
+        return normalized
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        compact = normalized.replace(" ", "")
+        if not compact.lstrip("+").isdigit() or len(compact.lstrip("+")) < 9:
+            raise ValueError("Telefon zadejte jako české nebo mezinárodní číslo, například +420 777 888 999.")
+        return normalized
+
 
 class PortalUserUpdateIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=160)
@@ -88,6 +117,39 @@ class PortalUserUpdateIn(BaseModel):
     role: str | None = Field(default=None, min_length=1, max_length=32)
     is_active: bool | None = None
     password: str | None = Field(default=None, min_length=8, max_length=256)
+
+    @field_validator("name")
+    @classmethod
+    def validate_optional_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Jméno je povinné.")
+        return normalized
+
+    @field_validator("email")
+    @classmethod
+    def validate_optional_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if "@" not in normalized or "." not in normalized.split("@")[-1]:
+            raise ValueError("Zadejte platný e-mail ve formátu jmeno@domena.cz.")
+        return normalized
+
+    @field_validator("phone")
+    @classmethod
+    def validate_optional_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        compact = normalized.replace(" ", "")
+        if not compact.lstrip("+").isdigit() or len(compact.lstrip("+")) < 9:
+            raise ValueError("Telefon zadejte jako české nebo mezinárodní číslo, například +420 777 888 999.")
+        return normalized
 
 
 class PortalUserPasswordIn(BaseModel):

@@ -10,11 +10,12 @@ import {
   type ShiftPlanDayStatus,
 } from "../api/adminShiftPlan";
 import { ApiError } from "../api/client";
-import { ConfirmDialog } from "../components/admin/AdminUI";
+import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice, StateBadge } from "../components/admin/AdminUI";
 import { getCzechHolidayName, isWeekendDate, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { isValidTimeOrEmpty, normalizeTime } from "../utils/timeInput";
 import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
 import { employmentTemplateLabel, timeFieldPlaceholder } from "../utils/uiLabels";
+import Button from "../ui/Button";
 
 function pad2(value: number) {
   return String(value).padStart(2, "0");
@@ -626,6 +627,7 @@ export default function AdminShiftPlanPage() {
       {sidebarBottomTarget ? createPortal(instancePicker, sidebarBottomTarget) : null}
       <div className="plan-top-row">
         <div>
+          <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Plán služeb" }]} />
           <div className="page-title">Plán služeb</div>
           <div className="plan-instruction">
             Rozvržení tabulky odpovídá listu plánu směn: vlevo zůstává jméno, vpravo měsíční celkem a posouvají se
@@ -637,7 +639,15 @@ export default function AdminShiftPlanPage() {
           <label className="label" htmlFor="plan-month-input">
             Vyberte měsíc
           </label>
-          <input id="plan-month-input" className="input" type="month" value={month} onChange={handleMonthChange} />
+          <div className="plan-month-picker-controls">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum - 2, 1).getFullYear()}-${pad2(new Date(year, monthNum - 2, 1).getMonth() + 1)}`)}>
+              Předchozí měsíc
+            </Button>
+            <input id="plan-month-input" className="input" type="month" value={month} onChange={handleMonthChange} />
+            <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum, 1).getFullYear()}-${pad2(new Date(year, monthNum, 1).getMonth() + 1)}`)}>
+              Další měsíc
+            </Button>
+          </div>
           <div className="help">{monthLabelText}</div>
         </div>
       </div>
@@ -660,6 +670,7 @@ export default function AdminShiftPlanPage() {
               </div>
             </div>
             <div className="plan-toolbar-actions">
+              <StateBadge tone="accent">{monthLabelText}</StateBadge>
               <button type="button" className="plan-jump-btn" onClick={() => scrollTableTo(0)} title="Přejít na začátek měsíce">
                 Na začátek
               </button>
@@ -703,11 +714,21 @@ export default function AdminShiftPlanPage() {
           {loading ? <div className="plan-loading">Načítám plán…</div> : null}
           {!loading && error ? <div className="plan-error">{error}</div> : null}
           {saveError ? <div className="plan-error">{saveError}</div> : null}
+          {!loading && rows.length > 0 ? (
+            <InlineNotice>
+              Hlavička a první sloupec zůstávají připnuté. Pro rychlý posun použijte horní a spodní scroll indikátor nebo tlačítka „Na začátek“, „Na střed“ a „Na konec“.
+            </InlineNotice>
+          ) : null}
 
           {rows.length === 0 ? (
-            <div className="plan-empty-state">
-              Vyberte zařízení nahoře a vytvořte plán. Každá osoba má dva řádky, horní pro příchody a spodní pro odchody.
-            </div>
+            <EmptyState
+              title="Žádné řádky plánu"
+              description={
+                filteredEmployments.length === 0
+                  ? "Vybraný měsíc nebo filtr nevrátil žádné úvazky. Zkuste změnit měsíc nebo uvolnit filtr."
+                  : "Vyberte alespoň jeden úvazek v levém panelu. Každá osoba pak dostane horní řádek pro příchod a spodní pro odchod."
+              }
+            />
           ) : (
             <>
               <div className="plan-table-top-scroll" ref={topScrollRef}>

@@ -3483,3 +3483,141 @@ button.admin-selection-row {
     padding: 18px;
   }
 }
+
+body :focus-visible {
+  outline: 3px solid rgba(178, 139, 72, 0.5);
+  outline-offset: 2px;
+}
+
+.kb-deployment {
+  display: grid;
+  gap: 6px;
+}
+
+.kb-deployment summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.admin-sidebar-link {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-sidebar-link small {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: rgba(247, 242, 232, 0.72);
+}
+
+.admin-topbar-description {
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 0.92rem;
+}
+
+.admin-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.84rem;
+  color: var(--admin-muted);
+}
+
+.admin-breadcrumb-link {
+  color: var(--admin-accent-strong);
+  font-weight: 700;
+}
+
+.admin-breadcrumb-current {
+  color: var(--admin-ink);
+  font-weight: 700;
+}
+
+.admin-breadcrumb-separator {
+  color: var(--admin-muted);
+}
+
+.admin-selection-row:hover {
+  border-color: rgba(178, 139, 72, 0.3);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.admin-selection-row--highlight,
+.admin-subsurface--highlight {
+  animation: admin-highlight-flash 2.6s ease;
+}
+
+@keyframes admin-highlight-flash {
+  0% {
+    background: rgba(178, 139, 72, 0.2);
+    box-shadow: 0 0 0 0 rgba(178, 139, 72, 0.45);
+  }
+  100% {
+    background: inherit;
+    box-shadow: none;
+  }
+}
+
+.admin-action-row--split {
+  justify-content: space-between;
+  align-items: stretch;
+}
+
+.admin-list--sticky-section,
+.admin-attendance-list--scroller {
+  max-height: 68vh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.plan-month-picker-controls {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.plan-jump-btn:focus-visible,
+.plan-table-input:focus-visible,
+.plan-instance-row:focus-within,
+.admin-selection-row:focus-visible,
+.admin-sidebar-link:focus-visible,
+.admin-action-link:focus-visible,
+.admin-mini-link:focus-visible {
+  outline: 3px solid rgba(178, 139, 72, 0.45);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1020px) {
+  .admin-triple-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-action-row--split {
+    justify-content: stretch;
+  }
+
+  .admin-action-row--split > * {
+    flex: 1 1 100%;
+  }
+
+  .plan-month-picker-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-toolbar-actions {
+    justify-content: stretch;
+  }
+
+  .plan-jump-btn,
+  .admin-action-link,
+  .admin-mini-link {
+    width: 100%;
+    min-height: 42px;
+  }
+}

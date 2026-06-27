@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { adminGetSettings, adminGetSmtpSettings, adminSaveSmtpSettings, adminSetSettings, type SmtpSettings } from "../api/admin";
-import { InlineNotice, MetricCard, PageHeader } from "../components/admin/AdminUI";
+import { Breadcrumbs, InlineNotice, MetricCard, PageHeader } from "../components/admin/AdminUI";
 import Button from "../ui/Button";
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -92,7 +92,9 @@ export default function AdminSettingsPage() {
         eyebrow="Nastavení systému"
         title="Pošta a pravidla docházky"
         description="Správa odchozího SMTP i provozní hranice pro výpočet odpoledních hodin v jednom kontrolovaném prostoru."
-      />
+      >
+        <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Nastavení" }]} />
+      </PageHeader>
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
       {info ? <InlineNotice tone="ok">{info}</InlineNotice> : null}

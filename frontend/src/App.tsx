@@ -22,6 +22,7 @@ type VersionPayload = {
 };
 
 function DeploymentBadge() {
+  const location = useLocation();
   const [frontendCommit, setFrontendCommit] = useState<string | null>(null);
   const [backendCommit, setBackendCommit] = useState<string | null>(null);
 
@@ -62,11 +63,16 @@ function DeploymentBadge() {
     return null;
   }
 
+  if (location.pathname !== "/admin/settings") {
+    return null;
+  }
+
   return (
-    <div className="kb-deployment" aria-label="Informace o nasazení">
+    <details className="kb-deployment" aria-label="Diagnostické informace o nasazení">
+      <summary>Diagnostika nasazení</summary>
       <div>Frontend: {frontendCommit || "-"}</div>
       <div>Backend: {backendCommit || "-"}</div>
-    </div>
+    </details>
   );
 }
 

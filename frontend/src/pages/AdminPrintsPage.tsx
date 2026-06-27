@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { adminListUsers, type PortalUser } from "../api/admin";
-import { ActionLink, EmptyState, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
+import { ActionLink, Breadcrumbs, EmptyState, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
 import { employmentIsActiveInMonth } from "../utils/employmentActivity";
 import Button from "../ui/Button";
 
@@ -117,7 +117,7 @@ export default function AdminPrintsPage() {
       <PageHeader
         eyebrow="Tisky a podklady"
         title="Tiskové sestavy"
-        description="Tříkrokový workflow pro výběr dokumentu, měsíce a přesné množiny úvazků bez slepých akcí."
+        description="Tisky slouží k náhledu a přípravě tisknutelných dokumentů. Pro datové soubory a stažení do dalších systémů použijte sekci Export."
         actions={
           <div className="admin-action-stack">
             <ActionLink to="/admin/export" label="Otevřít exporty" />
@@ -126,7 +126,9 @@ export default function AdminPrintsPage() {
             </Button>
           </div>
         }
-      />
+      >
+        <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Tisky" }]} />
+      </PageHeader>
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
 
