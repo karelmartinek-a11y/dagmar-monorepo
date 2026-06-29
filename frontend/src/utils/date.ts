@@ -39,3 +39,22 @@ export function formatMonthLabelCs(value: string): string {
     year: "numeric",
   });
 }
+
+export function formatIsoMonthForDisplay(value: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(value.trim());
+  if (!match) return value;
+  return `${match[2]}.${match[1]}`;
+}
+
+export function parseCzechMonthToIso(value: string): string | null {
+  const normalized = value.trim();
+  if (!normalized) return null;
+  const match = /^(\d{1,2})\.(\d{4})$/.exec(normalized);
+  if (!match) return null;
+  const month = Number(match[1]);
+  const year = Number(match[2]);
+  if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 2000 || year > 2100) {
+    return null;
+  }
+  return `${year}-${pad2(month)}`;
+}

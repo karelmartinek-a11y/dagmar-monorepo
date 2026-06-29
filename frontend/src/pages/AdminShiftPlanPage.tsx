@@ -12,6 +12,7 @@ import {
 import { ApiError } from "../api/client";
 import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice, StateBadge } from "../components/admin/AdminUI";
 import { getCzechHolidayName, isWeekendDate, workingDaysInMonthCs } from "../utils/attendanceCalc";
+import { formatIsoMonthForDisplay, parseCzechMonthToIso } from "../utils/date";
 import { isValidTimeOrEmpty, normalizeTime } from "../utils/timeInput";
 import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
 import { employmentTemplateLabel, timeFieldPlaceholder } from "../utils/uiLabels";
@@ -91,6 +92,8 @@ export default function AdminShiftPlanPage() {
     const now = new Date();
     return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
   });
+  const [monthInputValue, setMonthInputValue] = useState(() => formatIsoMonthForDisplay(month));
+  const [monthInputError, setMonthInputError] = useState<string | null>(null);
   const [plan, setPlan] = useState<ShiftPlanMonth | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +132,10 @@ export default function AdminShiftPlanPage() {
   );
 
   const workingFundHours = useMemo(() => workingDaysInMonthCs(year, monthNum) * 8, [year, monthNum]);
+
+  useEffect(() => {
+    setMonthInputValue(formatIsoMonthForDisplay(month));
+  }, [month]);
 
   const makeCellKey = (
     employmentId: number,
@@ -351,8 +358,21 @@ export default function AdminShiftPlanPage() {
   );
 
   const handleMonthChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.value) return;
-    setMonth(event.target.value);
+    setMonthInputValue(event.target.value);
+    if (monthInputError) {
+      setMonthInputError(null);
+    }
+  };
+
+  const commitMonthInput = () => {
+    const parsed = parseCzechMonthToIso(monthInputValue);
+    if (!parsed) {
+      setMonthInputError("Měsíc zadejte ve formátu mm.rrrr, například 06.2026.");
+      setMonthInputValue(formatIsoMonthForDisplay(month));
+      return;
+    }
+    setMonthInputError(null);
+    setMonth(parsed);
   };
 
   const scrollTableTo = (left: number) => {
@@ -643,12 +663,34 @@ export default function AdminShiftPlanPage() {
             <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum - 2, 1).getFullYear()}-${pad2(new Date(year, monthNum - 2, 1).getMonth() + 1)}`)}>
               Předchozí měsíc
             </Button>
-            <input id="plan-month-input" className="input" type="month" value={month} onChange={handleMonthChange} />
+            <input
+              id="plan-month-input"
+              className="input"
+              type="text"
+              inputMode="numeric"
+              value={monthInputValue}
+              onChange={handleMonthChange}
+              onBlur={commitMonthInput}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitMonthInput();
+                }
+              }}
+              placeholder="např. 06.2026"
+              aria-invalid={monthInputError ? "true" : "false"}
+              aria-describedby={monthInputError ? "plan-month-input-error" : undefined}
+            />
             <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum, 1).getFullYear()}-${pad2(new Date(year, monthNum, 1).getMonth() + 1)}`)}>
               Další měsíc
             </Button>
           </div>
           <div className="help">{monthLabelText}</div>
+          {monthInputError ? (
+            <div id="plan-month-input-error" className="admin-field-error">
+              {monthInputError}
+            </div>
+          ) : null}
         </div>
       </div>
 
