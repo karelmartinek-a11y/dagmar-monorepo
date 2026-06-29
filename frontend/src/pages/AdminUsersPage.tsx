@@ -128,6 +128,11 @@ export default function AdminUsersPage() {
   const [editingEmploymentId, setEditingEmploymentId] = useState<number | null>(null);
   const [employmentDrafts, setEmploymentDrafts] = useState<Record<number, EmploymentFormState>>({});
 
+  const createNameErrorId = createErrors.name ? "admin-user-create-name-error" : undefined;
+  const createEmailErrorId = createErrors.email ? "admin-user-create-email-error" : undefined;
+  const createPhoneErrorId = createErrors.phone ? "admin-user-create-phone-error" : undefined;
+  const createPasswordErrorId = createErrors.password ? "admin-user-create-password-error" : undefined;
+
   async function load() {
     setLoading(true);
     setError(null);
@@ -471,27 +476,35 @@ export default function AdminUsersPage() {
           <form onSubmit={onCreate} className="admin-form-section">
             <div className="admin-form-section-title">Nový uživatel</div>
             <div className="admin-form-grid">
-                  <div>
-                    <div className="kb-label">Jméno</div>
-                    <input className="kb-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Např. Jan Novák" aria-invalid={createErrors.name ? "true" : "false"} />
-                    {createErrors.name ? <div className="admin-field-error">{createErrors.name}</div> : null}
-                  </div>
-                  <div>
-                    <div className="kb-label">E-mail</div>
-                    <input className="kb-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jan.novak@firma.cz" aria-invalid={createErrors.email ? "true" : "false"} autoComplete="email" />
-                    {createErrors.email ? <div className="admin-field-error">{createErrors.email}</div> : null}
-                  </div>
-                  <div>
-                    <div className="kb-label">Telefon</div>
-                    <input className="kb-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Např. +420 777 888 999" aria-invalid={createErrors.phone ? "true" : "false"} autoComplete="tel" />
-                    {createErrors.phone ? <div className="admin-field-error">{createErrors.phone}</div> : null}
-                  </div>
-                  <div>
-                    <div className="kb-label">Počáteční heslo</div>
-                    <input className="kb-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Volitelné, min. 8 znaků" aria-invalid={createErrors.password ? "true" : "false"} autoComplete="new-password" />
-                    {createErrors.password ? <div className="admin-field-error">{createErrors.password}</div> : null}
-                  </div>
-                </div>
+              <div>
+                <label className="kb-field" htmlFor="admin-user-create-name">
+                  <span className="kb-label">Jméno</span>
+                  <input id="admin-user-create-name" className="kb-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Např. Jan Novák" aria-invalid={createErrors.name ? "true" : "false"} aria-describedby={createNameErrorId} />
+                </label>
+                {createErrors.name ? <div id={createNameErrorId} className="admin-field-error">{createErrors.name}</div> : null}
+              </div>
+              <div>
+                <label className="kb-field" htmlFor="admin-user-create-email">
+                  <span className="kb-label">E-mail</span>
+                  <input id="admin-user-create-email" className="kb-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jan.novak@firma.cz" aria-invalid={createErrors.email ? "true" : "false"} aria-describedby={createEmailErrorId} autoComplete="email" />
+                </label>
+                {createErrors.email ? <div id={createEmailErrorId} className="admin-field-error">{createErrors.email}</div> : null}
+              </div>
+              <div>
+                <label className="kb-field" htmlFor="admin-user-create-phone">
+                  <span className="kb-label">Telefon</span>
+                  <input id="admin-user-create-phone" className="kb-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Např. +420 777 888 999" aria-invalid={createErrors.phone ? "true" : "false"} aria-describedby={createPhoneErrorId} autoComplete="tel" />
+                </label>
+                {createErrors.phone ? <div id={createPhoneErrorId} className="admin-field-error">{createErrors.phone}</div> : null}
+              </div>
+              <div>
+                <label className="kb-field" htmlFor="admin-user-create-password">
+                  <span className="kb-label">Počáteční heslo</span>
+                  <input id="admin-user-create-password" className="kb-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Volitelné, min. 8 znaků" aria-invalid={createErrors.password ? "true" : "false"} aria-describedby={createPasswordErrorId} autoComplete="new-password" />
+                </label>
+                {createErrors.password ? <div id={createPasswordErrorId} className="admin-field-error">{createErrors.password}</div> : null}
+              </div>
+            </div>
             <div className="admin-action-row">
               <Button type="button" variant="ghost" onClick={() => setIsActive((value) => !value)}>
                 {isActive ? "Ruční aktivace zapnutá" : "Ruční aktivace vypnutá"}
@@ -567,24 +580,32 @@ export default function AdminUsersPage() {
                   <div className="admin-form-section-title">Úprava profilu</div>
                   <div className="admin-form-grid">
                     <div>
-                      <div className="kb-label">Jméno</div>
-                      <input className="kb-input" value={editName} onChange={(e) => setEditName(e.target.value)} aria-invalid={editErrors.name ? "true" : "false"} />
-                      {editErrors.name ? <div className="admin-field-error">{editErrors.name}</div> : null}
+                      <label className="kb-field" htmlFor="admin-user-edit-name">
+                        <span className="kb-label">Jméno</span>
+                        <input id="admin-user-edit-name" className="kb-input" value={editName} onChange={(e) => setEditName(e.target.value)} aria-invalid={editErrors.name ? "true" : "false"} aria-describedby={editErrors.name ? "admin-user-edit-name-error" : undefined} />
+                      </label>
+                      {editErrors.name ? <div id="admin-user-edit-name-error" className="admin-field-error">{editErrors.name}</div> : null}
                     </div>
                     <div>
-                      <div className="kb-label">E-mail</div>
-                      <input className="kb-input" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} aria-invalid={editErrors.email ? "true" : "false"} />
-                      {editErrors.email ? <div className="admin-field-error">{editErrors.email}</div> : null}
+                      <label className="kb-field" htmlFor="admin-user-edit-email">
+                        <span className="kb-label">E-mail</span>
+                        <input id="admin-user-edit-email" className="kb-input" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} aria-invalid={editErrors.email ? "true" : "false"} aria-describedby={editErrors.email ? "admin-user-edit-email-error" : undefined} />
+                      </label>
+                      {editErrors.email ? <div id="admin-user-edit-email-error" className="admin-field-error">{editErrors.email}</div> : null}
                     </div>
                     <div>
-                      <div className="kb-label">Telefon</div>
-                      <input className="kb-input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} aria-invalid={editErrors.phone ? "true" : "false"} />
-                      {editErrors.phone ? <div className="admin-field-error">{editErrors.phone}</div> : null}
+                      <label className="kb-field" htmlFor="admin-user-edit-phone">
+                        <span className="kb-label">Telefon</span>
+                        <input id="admin-user-edit-phone" className="kb-input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} aria-invalid={editErrors.phone ? "true" : "false"} aria-describedby={editErrors.phone ? "admin-user-edit-phone-error" : undefined} />
+                      </label>
+                      {editErrors.phone ? <div id="admin-user-edit-phone-error" className="admin-field-error">{editErrors.phone}</div> : null}
                     </div>
                     <div>
-                      <div className="kb-label">Nové heslo</div>
-                      <input className="kb-input" type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Ponechte prázdné pro zachování stávajícího hesla" aria-invalid={editErrors.password ? "true" : "false"} autoComplete="new-password" />
-                      {editErrors.password ? <div className="admin-field-error">{editErrors.password}</div> : null}
+                      <label className="kb-field" htmlFor="admin-user-edit-password">
+                        <span className="kb-label">Nové heslo</span>
+                        <input id="admin-user-edit-password" className="kb-input" type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Ponechte prázdné pro zachování stávajícího hesla" aria-invalid={editErrors.password ? "true" : "false"} aria-describedby={editErrors.password ? "admin-user-edit-password-error" : undefined} autoComplete="new-password" />
+                      </label>
+                      {editErrors.password ? <div id="admin-user-edit-password-error" className="admin-field-error">{editErrors.password}</div> : null}
                     </div>
                   </div>
                   <div className="admin-action-row">
@@ -626,25 +647,33 @@ export default function AdminUsersPage() {
                         {isEditing ? (
                           <div className="admin-form-grid">
                             <div>
-                              <div className="kb-label">Název úvazku</div>
-                              <input className="kb-input" value={draft.title} onChange={(e) => updateExistingEmploymentForm(employment.id, { title: e.target.value }, employment)} />
+                              <label className="kb-field" htmlFor={`employment-${employment.id}-title`}>
+                                <span className="kb-label">Název úvazku</span>
+                                <input id={`employment-${employment.id}-title`} className="kb-input" value={draft.title} onChange={(e) => updateExistingEmploymentForm(employment.id, { title: e.target.value }, employment)} />
+                              </label>
                             </div>
                             <div>
-                              <div className="kb-label">Typ</div>
-                              <select className="kb-select" value={draft.employment_type} onChange={(e) => updateExistingEmploymentForm(employment.id, { employment_type: e.target.value as EmploymentTemplate }, employment)}>
-                                <option value="DPP_DPC">DPP / DPČ</option>
-                                <option value="HPP">HPP</option>
-                              </select>
+                              <label className="kb-field" htmlFor={`employment-${employment.id}-type`}>
+                                <span className="kb-label">Typ</span>
+                                <select id={`employment-${employment.id}-type`} className="kb-select" value={draft.employment_type} onChange={(e) => updateExistingEmploymentForm(employment.id, { employment_type: e.target.value as EmploymentTemplate }, employment)}>
+                                  <option value="DPP_DPC">DPP / DPČ</option>
+                                  <option value="HPP">HPP</option>
+                                </select>
+                              </label>
                             </div>
                             <div>
-                              <div className="kb-label">Začátek</div>
-                              <input className="kb-input" value={draft.start_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { start_date: e.target.value }, employment)} placeholder="např. 01.06.2026" aria-invalid={editEmploymentErrors[employment.id]?.start_date ? "true" : "false"} inputMode="numeric" />
-                              {editEmploymentErrors[employment.id]?.start_date ? <div className="admin-field-error">{editEmploymentErrors[employment.id]?.start_date}</div> : null}
+                              <label className="kb-field" htmlFor={`employment-${employment.id}-start`}>
+                                <span className="kb-label">Začátek</span>
+                                <input id={`employment-${employment.id}-start`} className="kb-input" value={draft.start_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { start_date: e.target.value }, employment)} placeholder="např. 01.06.2026" aria-invalid={editEmploymentErrors[employment.id]?.start_date ? "true" : "false"} aria-describedby={editEmploymentErrors[employment.id]?.start_date ? `employment-${employment.id}-start-error` : undefined} inputMode="numeric" />
+                              </label>
+                              {editEmploymentErrors[employment.id]?.start_date ? <div id={`employment-${employment.id}-start-error`} className="admin-field-error">{editEmploymentErrors[employment.id]?.start_date}</div> : null}
                             </div>
                             <div>
-                              <div className="kb-label">Konec</div>
-                              <input className="kb-input" disabled={draft.is_indefinite} value={draft.end_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { end_date: e.target.value }, employment)} placeholder="např. 30.06.2026" aria-invalid={editEmploymentErrors[employment.id]?.end_date ? "true" : "false"} inputMode="numeric" />
-                              {editEmploymentErrors[employment.id]?.end_date ? <div className="admin-field-error">{editEmploymentErrors[employment.id]?.end_date}</div> : null}
+                              <label className="kb-field" htmlFor={`employment-${employment.id}-end`}>
+                                <span className="kb-label">Konec</span>
+                                <input id={`employment-${employment.id}-end`} className="kb-input" disabled={draft.is_indefinite} value={draft.end_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { end_date: e.target.value }, employment)} placeholder="např. 30.06.2026" aria-invalid={editEmploymentErrors[employment.id]?.end_date ? "true" : "false"} aria-describedby={editEmploymentErrors[employment.id]?.end_date ? `employment-${employment.id}-end-error` : undefined} inputMode="numeric" />
+                              </label>
+                              {editEmploymentErrors[employment.id]?.end_date ? <div id={`employment-${employment.id}-end-error`} className="admin-field-error">{editEmploymentErrors[employment.id]?.end_date}</div> : null}
                             </div>
                             <label className="admin-checkbox-row">
                               <input type="checkbox" checked={draft.is_indefinite} onChange={(e) => updateExistingEmploymentForm(employment.id, { is_indefinite: e.target.checked }, employment)} />
@@ -667,26 +696,34 @@ export default function AdminUsersPage() {
                 <div className="admin-form-section-title">Přidat úvazek</div>
                 <div className="admin-form-grid">
                   <div>
-                    <div className="kb-label">Název úvazku</div>
-                    <input className="kb-input" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).title} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { title: e.target.value })} placeholder="Např. Recepce" aria-invalid={newEmploymentErrors[selectedUser.id]?.title ? "true" : "false"} />
-                    {newEmploymentErrors[selectedUser.id]?.title ? <div className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.title}</div> : null}
+                    <label className="kb-field" htmlFor={`employment-create-${selectedUser.id}-title`}>
+                      <span className="kb-label">Název úvazku</span>
+                      <input id={`employment-create-${selectedUser.id}-title`} className="kb-input" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).title} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { title: e.target.value })} placeholder="Např. Recepce" aria-invalid={newEmploymentErrors[selectedUser.id]?.title ? "true" : "false"} aria-describedby={newEmploymentErrors[selectedUser.id]?.title ? `employment-create-${selectedUser.id}-title-error` : undefined} />
+                    </label>
+                    {newEmploymentErrors[selectedUser.id]?.title ? <div id={`employment-create-${selectedUser.id}-title-error`} className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.title}</div> : null}
                   </div>
                   <div>
-                    <div className="kb-label">Typ</div>
-                    <select className="kb-select" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).employment_type} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { employment_type: e.target.value as EmploymentTemplate })}>
-                      <option value="DPP_DPC">DPP / DPČ</option>
-                      <option value="HPP">HPP</option>
-                    </select>
+                    <label className="kb-field" htmlFor={`employment-create-${selectedUser.id}-type`}>
+                      <span className="kb-label">Typ</span>
+                      <select id={`employment-create-${selectedUser.id}-type`} className="kb-select" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).employment_type} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { employment_type: e.target.value as EmploymentTemplate })}>
+                        <option value="DPP_DPC">DPP / DPČ</option>
+                        <option value="HPP">HPP</option>
+                      </select>
+                    </label>
                   </div>
                   <div>
-                    <div className="kb-label">Začátek</div>
-                    <input className="kb-input" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).start_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { start_date: e.target.value })} placeholder="např. 01.06.2026" aria-invalid={newEmploymentErrors[selectedUser.id]?.start_date ? "true" : "false"} inputMode="numeric" />
-                    {newEmploymentErrors[selectedUser.id]?.start_date ? <div className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.start_date}</div> : null}
+                    <label className="kb-field" htmlFor={`employment-create-${selectedUser.id}-start`}>
+                      <span className="kb-label">Začátek</span>
+                      <input id={`employment-create-${selectedUser.id}-start`} className="kb-input" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).start_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { start_date: e.target.value })} placeholder="např. 01.06.2026" aria-invalid={newEmploymentErrors[selectedUser.id]?.start_date ? "true" : "false"} aria-describedby={newEmploymentErrors[selectedUser.id]?.start_date ? `employment-create-${selectedUser.id}-start-error` : undefined} inputMode="numeric" />
+                    </label>
+                    {newEmploymentErrors[selectedUser.id]?.start_date ? <div id={`employment-create-${selectedUser.id}-start-error`} className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.start_date}</div> : null}
                   </div>
                   <div>
-                    <div className="kb-label">Konec</div>
-                    <input className="kb-input" disabled={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).is_indefinite} value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).end_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { end_date: e.target.value })} placeholder="např. 30.06.2026" aria-invalid={newEmploymentErrors[selectedUser.id]?.end_date ? "true" : "false"} inputMode="numeric" />
-                    {newEmploymentErrors[selectedUser.id]?.end_date ? <div className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.end_date}</div> : null}
+                    <label className="kb-field" htmlFor={`employment-create-${selectedUser.id}-end`}>
+                      <span className="kb-label">Konec</span>
+                      <input id={`employment-create-${selectedUser.id}-end`} className="kb-input" disabled={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).is_indefinite} value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).end_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { end_date: e.target.value })} placeholder="např. 30.06.2026" aria-invalid={newEmploymentErrors[selectedUser.id]?.end_date ? "true" : "false"} aria-describedby={newEmploymentErrors[selectedUser.id]?.end_date ? `employment-create-${selectedUser.id}-end-error` : undefined} inputMode="numeric" />
+                    </label>
+                    {newEmploymentErrors[selectedUser.id]?.end_date ? <div id={`employment-create-${selectedUser.id}-end-error`} className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.end_date}</div> : null}
                   </div>
                   <label className="admin-checkbox-row">
                     <input type="checkbox" checked={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).is_indefinite} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { is_indefinite: e.target.checked })} />

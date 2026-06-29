@@ -99,14 +99,14 @@ export default function AdminLoginPage() {
           {info ? <InlineNotice tone="ok">{info}</InlineNotice> : null}
 
           <form onSubmit={onSubmit} className="kb-stack" style={{ marginTop: 14 }}>
-            <div className="kb-field">
-              <div className="kb-label">E-mail správce</div>
-              <input className="kb-input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jmeno@domena.cz" disabled={submitting} />
-            </div>
-            <div className="kb-field">
-              <div className="kb-label">Heslo správce</div>
-              <input className="kb-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={submitting} />
-            </div>
+            <label className="kb-field" htmlFor="admin-login-email">
+              <span className="kb-label">E-mail správce</span>
+              <input id="admin-login-email" className="kb-input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jmeno@domena.cz" disabled={submitting} />
+            </label>
+            <label className="kb-field" htmlFor="admin-login-password">
+              <span className="kb-label">Heslo správce</span>
+              <input id="admin-login-password" className="kb-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={submitting} />
+            </label>
 
             <Button type="submit" disabled={submitting} variant="primary" style={{ width: "100%", justifyContent: "center" }}>
               {submitting ? "Přihlašuji…" : "Přihlásit"}
