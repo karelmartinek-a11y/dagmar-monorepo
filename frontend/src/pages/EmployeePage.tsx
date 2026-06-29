@@ -231,6 +231,9 @@ function buildEmptyMonthRows(year: number, month: number): DayRow[] {
 }
 
 export function EmployeePage() {
+  const [viewportWidth, setViewportWidth] = useState<number>(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [online, setOnline] = useState<boolean>(navigator.onLine);
   const [token, setToken] = useState<string | null>(() => getPortalAuthState().accessToken);
   const [employmentId, setEmploymentId] = useState<number | null>(() => getPortalAuthState().employmentId);
@@ -278,11 +281,22 @@ export function EmployeePage() {
   );
 
   const queueRef = useRef<QueueItem[]>([]);
+  const isNarrowPhone = viewportWidth <= 430;
+  const isMobile = viewportWidth <= 640;
+  const isTablet = viewportWidth <= 860;
   const workingFundHours = useMemo(() => {
     const [y, m] = month.split("-").map((x) => parseInt(x, 10));
     if (!Number.isFinite(y) || !Number.isFinite(m)) return 0;
     return workingDaysInMonthCs(y, m) * 8;
   }, [month]);
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const onUp = () => setOnline(true);
@@ -739,19 +753,32 @@ export function EmployeePage() {
           style={{
             maxWidth: 980,
             margin: "0 auto",
-            padding: "14px 16px",
+            padding: isMobile ? "12px 14px 14px" : "14px 16px",
             display: "flex",
             flexDirection: "column",
-            gap: 12,
+            gap: isMobile ? 10 : 12,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ fontWeight: 700, fontSize: 20, textTransform: "uppercase" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isTablet ? "1fr" : "minmax(0, 1fr) auto",
+              alignItems: "start",
+              gap: isMobile ? 10 : 12,
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: isNarrowPhone ? 14 : isMobile ? 15 : 20,
+                  textTransform: "uppercase",
+                  lineHeight: 1.1,
+                  wordBreak: "break-word",
+                }}
+              >
                 {monthHead} - {(selectedEmployment?.label ?? displayName) || "—"}
               </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               {availableEmployments.length > 1 ? (
                 <select
                   className="input"
@@ -770,7 +797,8 @@ export function EmployeePage() {
                       });
                     }
                   }}
-                  style={{ minWidth: 280 }}
+                  style={{ minWidth: 0, width: "100%", fontSize: isMobile ? 14 : undefined }}
+                  aria-label="Vybraný úvazek"
                 >
                   {availableEmployments.map((employment) => (
                     <option key={employment.id} value={employment.id}>
@@ -779,7 +807,22 @@ export function EmployeePage() {
                   ))}
                 </select>
               ) : null}
-              <img src={BRAND_ASSETS.logoHorizontal} alt={APP_NAME_SHORT} style={{ height: 32, width: "auto", objectFit: "contain" }} />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: isTablet ? "space-between" : "flex-end",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <img
+                src={BRAND_ASSETS.logoHorizontal}
+                alt={APP_NAME_SHORT}
+                style={{ height: isNarrowPhone ? 24 : 32, width: "auto", maxWidth: isMobile ? 140 : "none", objectFit: "contain" }}
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -798,42 +841,70 @@ export function EmployeePage() {
                 className="btn"
                 aria-label="Odhlásit"
                 title="Odhlásit"
+                style={isMobile ? { padding: "10px 14px", minHeight: 42 } : undefined}
               >
                 Odhlásit
               </button>
             </div>
-            <div style={{ fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", fontSize: 28 }}>
+            <div
+              style={{
+                fontWeight: 800,
+                letterSpacing: isMobile ? 0.3 : 0.6,
+                textTransform: "uppercase",
+                fontSize: isNarrowPhone ? 16 : isMobile ? 18 : 28,
+                lineHeight: 1,
+              }}
+            >
               {viewMode === "plan" ? "Plán směn" : "Docházkový list"}
             </div>
           </div>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "auto 1fr auto",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, auto) minmax(0, 1fr) minmax(0, auto)",
               alignItems: "center",
-              gap: 12,
+              gap: isMobile ? 10 : 12,
             }}
           >
-            <button
-              type="button"
-              onClick={() => setMonth((m) => addMonths(m, -1))}
-              style={headerNavButtonStyle()}
-              aria-label="Předchozí měsíc"
-              title="Předchozí měsíc"
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr",
+                gap: 10,
+              }}
             >
-              ← <span style={{ fontSize: 13, fontWeight: 700 }}>Předchozí měsíc</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setMonth((m) => addMonths(m, -1))}
+                style={headerNavButtonStyle(isMobile)}
+                aria-label="Předchozí měsíc"
+                title="Předchozí měsíc"
+              >
+                ← <span style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700 }}>{isNarrowPhone ? "Předchozí" : "Předchozí měsíc"}</span>
+              </button>
+              {isMobile ? (
+                <button
+                  type="button"
+                  onClick={() => setMonth((m) => addMonths(m, +1))}
+                  style={headerNavButtonStyle(true)}
+                  aria-label="Další měsíc"
+                  title="Další měsíc"
+                >
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>{isNarrowPhone ? "Další" : "Další měsíc"}</span> →
+                </button>
+              ) : null}
+            </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
               {viewMode === "attendance" ? (
                 <>
-                  <button type="button" onClick={() => setViewMode("plan")} style={headerActionButtonStyle()} aria-label="Přepnout na plán směn">
+                  <button type="button" onClick={() => setViewMode("plan")} style={headerActionButtonStyle(isMobile)} aria-label="Přepnout na plán směn">
                     Plán směn
                   </button>
                   <button
                     type="button"
                     onClick={handlePunchNow}
                     style={{
-                      ...headerActionButtonStyle(),
+                      ...headerActionButtonStyle(isMobile),
                       background: "linear-gradient(135deg, var(--kb-brand-red), var(--kb-red))",
                       border: "1px solid rgba(255,0,0,0.45)",
                       boxShadow: "0 8px 18px rgba(255,0,0,0.18)",
@@ -848,7 +919,7 @@ export function EmployeePage() {
                 <button
                   type="button"
                   onClick={() => setViewMode("attendance")}
-                  style={headerActionButtonStyle()}
+                  style={headerActionButtonStyle(isMobile)}
                   aria-label="Přepnout na docházkový list"
                   title="Přepnout na docházkový list"
                 >
@@ -858,22 +929,24 @@ export function EmployeePage() {
               <button
                 type="button"
                 onClick={() => setRefreshTick((t) => t + 1)}
-                style={headerActionButtonStyle()}
+                style={headerActionButtonStyle(isMobile)}
                 aria-label="Obnovit"
                 title="Obnovit"
               >
                 Obnovit
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setMonth((m) => addMonths(m, +1))}
-              style={headerNavButtonStyle()}
-              aria-label="Další měsíc"
-              title="Další měsíc"
-            >
-              <span style={{ fontSize: 13, fontWeight: 700 }}>Další měsíc</span> →
-            </button>
+            {!isMobile ? (
+              <button
+                type="button"
+                onClick={() => setMonth((m) => addMonths(m, +1))}
+                style={headerNavButtonStyle(false)}
+                aria-label="Další měsíc"
+                title="Další měsíc"
+              >
+                <span style={{ fontSize: 13, fontWeight: 700 }}>Další měsíc</span> →
+              </button>
+            ) : null}
           </div>
         </div>
       </header>
@@ -1118,34 +1191,36 @@ export function EmployeePage() {
   );
 }
 
-function headerNavButtonStyle(): React.CSSProperties {
+function headerNavButtonStyle(compact = false): React.CSSProperties {
   return {
     appearance: "none",
     border: "1px solid rgba(255,255,255,0.4)",
     background: "rgba(255,255,255,0.15)",
     color: "white",
-    minWidth: 46,
-    minHeight: 46,
-    padding: "0 14px",
-    borderRadius: 14,
-    fontSize: 18,
+    minWidth: compact ? 0 : 46,
+    minHeight: compact ? 42 : 46,
+    width: compact ? "100%" : undefined,
+    padding: compact ? "0 12px" : "0 14px",
+    borderRadius: compact ? 12 : 14,
+    fontSize: compact ? 15 : 18,
     fontWeight: 800,
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    whiteSpace: "nowrap",
+    gap: compact ? 6 : 8,
+    whiteSpace: compact ? "normal" : "nowrap",
+    textAlign: "center",
     transition: "transform 120ms ease, box-shadow 120ms ease",
   };
 }
 
-function headerActionButtonStyle(): React.CSSProperties {
+function headerActionButtonStyle(compact = false): React.CSSProperties {
   return {
-    ...headerNavButtonStyle(),
-    minWidth: 160,
-    width: "auto",
-    padding: "0 16px",
+    ...headerNavButtonStyle(compact),
+    minWidth: compact ? 0 : 160,
+    width: compact ? "100%" : "auto",
+    padding: compact ? "0 14px" : "0 16px",
     letterSpacing: 0.5,
     textTransform: "uppercase",
   };
