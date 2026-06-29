@@ -184,14 +184,20 @@ def _send_reset_email(*, settings: Settings, cfg: AppSettings, to_email: str, re
     if not from_email:
         raise ValueError("Chybi odesilaci e-mail.")
 
+    base_url = settings.public_base_url.rstrip("/")
+    login_url = f"{base_url}/app"
+
     msg = EmailMessage()
     msg["Subject"] = "Nastaveni nebo zmena hesla"
     msg["From"] = f"{cfg.smtp_from_name} <{from_email}>" if cfg.smtp_from_name else from_email
     msg["To"] = to_email
     msg.set_content(
         "Dobry den,\n\n"
-        "pro nastaveni nebo zmenu hesla pouzijte tento odkaz (platnost 24 hodin):\n\n"
+        "pres tento odkaz si nastavite nebo zmenite heslo do systemu DAGMAR (platnost 24 hodin):\n\n"
         f"{reset_url}\n\n"
+        "Po ulozeni hesla se prihlasite zde:\n"
+        f"{login_url}\n\n"
+        "Prihlaseni do systemu probiha pres vyse uvedenou adresu.\n\n"
         "Pokud jste o zmenu nezadali, ignorujte tento e-mail."
     )
 

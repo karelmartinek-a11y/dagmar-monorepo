@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { portalResetPassword } from "../api/portal";
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -15,11 +15,19 @@ function getToken(search: string): string {
 
 export default function PortalResetPage() {
   const loc = useLocation();
+  const navigate = useNavigate();
   const token = getToken(loc.search);
+  const loginPath = "/app";
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => navigate(loginPath), 2500);
+    return () => window.clearTimeout(timer);
+  }, [navigate, success]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +68,7 @@ export default function PortalResetPage() {
           </div>
           <h1 className="reset-aside-title">Nastavení nebo změna hesla</h1>
           <div className="reset-aside-text">
-            Odkaz pro obnovu je platný 24 hodin. Po úspěšném uložení se můžete přihlásit novým heslem ve stejném zařízení i v administraci.
+            Odkaz pro obnovu je platný 24 hodin. Po úspěšném uložení se přihlásíte novým heslem v systému DAGMAR na adrese {window.location.origin}{loginPath}.
           </div>
           <div className="admin-note-box" style={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.14)" }}>
             <div className="admin-note-title" style={{ color: "white" }}>Doporučení</div>
@@ -73,7 +81,7 @@ export default function PortalResetPage() {
         <div className="card pad" style={{ width: "100%", boxShadow: "var(--shadow-2)", alignSelf: "center", maxWidth: 560, justifySelf: "center" }}>
           <div style={{ fontSize: 22, fontWeight: 850 }}>Zadejte nové heslo</div>
           <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4, lineHeight: 1.6 }}>
-            Platnost odkazu je 24 hodin. Po uložení můžete pokračovat novým heslem.
+            Platnost odkazu je 24 hodin. Po uložení budete přesměrováni na přihlášení do systému.
           </div>
 
           {error ? (
@@ -104,7 +112,12 @@ export default function PortalResetPage() {
                 fontSize: 13,
               }}
             >
-              Heslo bylo nastaveno. Můžete se přihlásit.
+              Heslo bylo nastaveno. Pokračujte na přihlášení do systému DAGMAR na adrese {window.location.origin}{loginPath}.
+              <div style={{ marginTop: 10 }}>
+                <a href={loginPath} className="btn solid" style={{ display: "inline-flex", textDecoration: "none" }}>
+                  Přejít na přihlášení
+                </a>
+              </div>
             </div>
           ) : (
             <form onSubmit={onSubmit} className="stack" style={{ gap: 12, marginTop: 12 }}>
@@ -124,7 +137,7 @@ export default function PortalResetPage() {
               <div className="admin-note-box">
                 <div className="admin-note-title">Požadovaný výsledek</div>
                 <div style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
-                  Po úspěšném uložení se tato obrazovka potvrdí zprávou a přihlášení pak probíhá novým heslem.
+                  Po úspěšném uložení se zobrazí potvrzení a tato stránka vás přesměruje na přihlášení do systému DAGMAR.
                 </div>
               </div>
               <button type="submit" className="btn solid" disabled={saving}>
