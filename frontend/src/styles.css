@@ -111,6 +111,12 @@ textarea {
   display: block;
 }
 
+@media (max-width: 640px) {
+  .kb-app-logo {
+    display: none;
+  }
+}
+
 .kb-signage {
   display: inline-flex;
   align-items: center;

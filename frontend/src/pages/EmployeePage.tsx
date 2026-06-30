@@ -740,12 +740,13 @@ export function EmployeePage() {
         style={
           {
             position: "sticky",
-            top: 0,
+            top: "var(--kb-systembar-h)",
             zIndex: 20,
-            backgroundImage: "linear-gradient(90deg, #ffffff 0%, rgba(35,41,44,0.08) 100%)",
-            backgroundColor: "var(--kb-brand-ink-900)",
+            background:
+              "linear-gradient(135deg, rgba(26,31,35,0.98) 0%, rgba(38,43,49,0.97) 56%, rgba(58,64,70,0.94) 100%)",
             color: "white",
-            borderBottom: "1px solid rgba(255,255,255,0.24)",
+            borderBottom: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 16px 32px rgba(18,22,25,0.22)",
           }
         }
       >
@@ -753,10 +754,10 @@ export function EmployeePage() {
           style={{
             maxWidth: 980,
             margin: "0 auto",
-            padding: isMobile ? "12px 14px 14px" : "14px 16px",
+            padding: isMobile ? "14px 14px 16px" : "18px 16px 20px",
             display: "flex",
             flexDirection: "column",
-            gap: isMobile ? 10 : 12,
+            gap: isMobile ? 12 : 16,
           }}
         >
           <div
@@ -764,17 +765,30 @@ export function EmployeePage() {
               display: "grid",
               gridTemplateColumns: isTablet ? "1fr" : "minmax(0, 1fr) auto",
               alignItems: "start",
-              gap: isMobile ? 10 : 12,
+              gap: isMobile ? 10 : 16,
             }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
               <div
                 style={{
-                  fontWeight: 700,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.66)",
+                }}
+              >
+                Vybraný úvazek
+              </div>
+              <div
+                style={{
+                  fontWeight: 800,
                   fontSize: isNarrowPhone ? 14 : isMobile ? 15 : 20,
                   textTransform: "uppercase",
-                  lineHeight: 1.1,
+                  lineHeight: 1.2,
                   wordBreak: "break-word",
+                  color: "rgba(255,255,255,0.96)",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.2)",
                 }}
               >
                 {monthHead} - {(selectedEmployment?.label ?? displayName) || "—"}
@@ -814,15 +828,17 @@ export function EmployeePage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: isTablet ? "space-between" : "flex-end",
-                gap: 10,
+                gap: 12,
                 flexWrap: "wrap",
               }}
             >
-              <img
-                src={BRAND_ASSETS.logoHorizontal}
-                alt={APP_NAME_SHORT}
-                style={{ height: isNarrowPhone ? 24 : 32, width: "auto", maxWidth: isMobile ? 140 : "none", objectFit: "contain" }}
-              />
+              {!isMobile ? (
+                <img
+                  src={BRAND_ASSETS.logoHorizontal}
+                  alt={APP_NAME_SHORT}
+                  style={{ height: 32, width: "auto", objectFit: "contain", opacity: 0.94 }}
+                />
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -841,22 +857,31 @@ export function EmployeePage() {
                 className="btn"
                 aria-label="Odhlásit"
                 title="Odhlásit"
-                style={isMobile ? { padding: "10px 14px", minHeight: 42 } : undefined}
+                style={{
+                  padding: isMobile ? "10px 14px" : "10px 16px",
+                  minHeight: 42,
+                  background: "rgba(255,255,255,0.96)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "var(--kb-text)",
+                  boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
+                }}
               >
                 Odhlásit
               </button>
             </div>
-            <div
-              style={{
-                fontWeight: 800,
-                letterSpacing: isMobile ? 0.3 : 0.6,
-                textTransform: "uppercase",
-                fontSize: isNarrowPhone ? 16 : isMobile ? 18 : 28,
-                lineHeight: 1,
-              }}
-            >
-              {viewMode === "plan" ? "Plán směn" : "Docházkový list"}
-            </div>
+          </div>
+          <div
+            style={{
+              fontWeight: 900,
+              letterSpacing: isMobile ? 0.4 : 0.8,
+              textTransform: "uppercase",
+              fontSize: isNarrowPhone ? 18 : isMobile ? 20 : 30,
+              lineHeight: 1.05,
+              color: "rgba(255,255,255,0.98)",
+              textShadow: "0 1px 2px rgba(0,0,0,0.24)",
+            }}
+          >
+            {viewMode === "plan" ? "Plán směn" : "Docházkový list"}
           </div>
           <div
             style={{
@@ -905,9 +930,9 @@ export function EmployeePage() {
                     onClick={handlePunchNow}
                     style={{
                       ...headerActionButtonStyle(isMobile),
-                      background: "linear-gradient(135deg, var(--kb-brand-red), var(--kb-red))",
-                      border: "1px solid rgba(255,0,0,0.45)",
-                      boxShadow: "0 8px 18px rgba(255,0,0,0.18)",
+                      background: "linear-gradient(135deg, #ff1a1a, var(--kb-red))",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: "0 10px 22px rgba(255,0,0,0.3)",
                     }}
                     aria-label="Zapsat aktuální čas"
                     title="Zapsat aktuální čas"
@@ -1194,13 +1219,13 @@ export function EmployeePage() {
 function headerNavButtonStyle(compact = false): React.CSSProperties {
   return {
     appearance: "none",
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "rgba(255,255,255,0.15)",
-    color: "white",
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(255,255,255,0.08)",
+    color: "rgba(255,255,255,0.96)",
     minWidth: compact ? 0 : 46,
-    minHeight: compact ? 42 : 46,
+    minHeight: compact ? 46 : 48,
     width: compact ? "100%" : undefined,
-    padding: compact ? "0 12px" : "0 14px",
+    padding: compact ? "0 14px" : "0 16px",
     borderRadius: compact ? 12 : 14,
     fontSize: compact ? 15 : 18,
     fontWeight: 800,
@@ -1211,7 +1236,8 @@ function headerNavButtonStyle(compact = false): React.CSSProperties {
     gap: compact ? 6 : 8,
     whiteSpace: compact ? "normal" : "nowrap",
     textAlign: "center",
-    transition: "transform 120ms ease, box-shadow 120ms ease",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.16)",
+    transition: "transform 120ms ease, box-shadow 120ms ease, background 120ms ease",
   };
 }
 
