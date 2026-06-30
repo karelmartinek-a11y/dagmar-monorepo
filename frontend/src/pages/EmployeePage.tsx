@@ -461,10 +461,24 @@ export function EmployeePage() {
 
   if (!token) {
     return (
-      <div className="container" style={{ padding: "18px 0 30px" }}>
-        <div className="card pad" style={{ maxWidth: 520, margin: "0 auto" }}>
-          <div style={{ fontSize: 18, fontWeight: 850 }}>Přihlášení</div>
-          <div style={{ color: "var(--muted)", marginTop: 4 }}>Přihlaste se e-mailem a heslem.</div>
+      <div className="kb-container" style={{ padding: "20px 0 32px" }}>
+        <div
+          className="kb-card kb-card-pad"
+          style={{
+            maxWidth: 560,
+            margin: "0 auto",
+            padding: 22,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,249,250,0.96) 100%)",
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kb-brand-ink-600)" }}>
+            Zaměstnanecký portál
+          </div>
+          <div style={{ fontSize: 28, lineHeight: 1, fontWeight: 850, marginTop: 8 }}>Přihlášení</div>
+          <div style={{ color: "var(--kb-brand-ink-600)", marginTop: 8, lineHeight: 1.55 }}>
+            Přihlaste se e-mailem a heslem. Po prvním pozvání nebo po zapomenutém hesle použijte obnovu hesla.
+          </div>
 
           {loginError ? (
             <div
@@ -482,12 +496,12 @@ export function EmployeePage() {
             </div>
           ) : null}
 
-          <form onSubmit={onLoginSubmit} className="stack" style={{ gap: 12, marginTop: 12 }}>
-            <div>
-              <label className="label" htmlFor="portal-login-email">E-mail</label>
+          <form onSubmit={onLoginSubmit} className="kb-stack" style={{ gap: 14, marginTop: 18 }}>
+            <label className="kb-field" htmlFor="portal-login-email">
+              <span className="kb-label">E-mail</span>
               <input
                 id="portal-login-email"
-                className="input"
+                className="kb-input"
                 type="email"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
@@ -495,12 +509,12 @@ export function EmployeePage() {
                 autoComplete="username"
                 name="username"
               />
-            </div>
-            <div>
-              <label className="label" htmlFor="portal-login-password">Heslo</label>
+            </label>
+            <label className="kb-field" htmlFor="portal-login-password">
+              <span className="kb-label">Heslo</span>
               <input
                 id="portal-login-password"
-                className="input"
+                className="kb-input"
                 type="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
@@ -508,13 +522,19 @@ export function EmployeePage() {
                 autoComplete="current-password"
                 name="current-password"
               />
+            </label>
+            <div className="kb-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <button type="submit" className="kb-btn kb-btn-primary" disabled={loginSubmitting} style={{ minWidth: 160 }}>
+                {loginSubmitting ? "Přihlašuji…" : "Přihlásit"}
+              </button>
+              <a
+                href="/reset"
+                className="kb-btn kb-btn-secondary"
+                style={{ textDecoration: "none", minWidth: 210 }}
+              >
+                Nastavit nebo změnit heslo
+              </a>
             </div>
-            <button type="submit" className="btn solid" disabled={loginSubmitting}>
-              {loginSubmitting ? "Přihlašuji…" : "Přihlásit"}
-            </button>
-            <a href="/reset" style={{ fontSize: 12, color: "var(--muted)" }}>
-              Nastavit nebo změnit heslo
-            </a>
           </form>
         </div>
       </div>
