@@ -3797,4 +3797,14 @@ body :focus-visible {
   .admin-selection-row > :first-child {
     flex-basis: 100%;
   }
+
+  .admin-action-row--split {
+    flex-direction: column;
+    justify-content: stretch;
+  }
+
+  .admin-action-row--split > * {
+    width: 100%;
+    flex: 1 1 auto;
+  }
 }
