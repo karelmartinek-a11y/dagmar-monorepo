@@ -5,7 +5,6 @@ import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 import { getPragueTimeSnapshot, type PragueTimeSource } from "../api/time";
 import type { EmploymentTemplate } from "../types/employment";
 import { portalLogin, type PortalLoginEmployment } from "../api/portal";
-import { BRAND_ASSETS, APP_NAME_SHORT } from "../brand/brand";
 import { ConfirmDialog } from "../components/admin/AdminUI";
 import { clearPortalAuthState, getPortalAuthState, setPortalAuthState } from "../state/portalAuthStore";
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
@@ -832,13 +831,6 @@ export function EmployeePage() {
                 flexWrap: "wrap",
               }}
             >
-              {!isMobile ? (
-                <img
-                  src={BRAND_ASSETS.logoHorizontal}
-                  alt={APP_NAME_SHORT}
-                  style={{ height: 32, width: "auto", objectFit: "contain", opacity: 0.94 }}
-                />
-              ) : null}
               <button
                 type="button"
                 onClick={() => {
