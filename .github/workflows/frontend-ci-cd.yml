@@ -77,6 +77,7 @@ jobs:
               git clone "$REPO_URL" /srv/hcasc/_repos/dagmar-monorepo
             fi
             cd /srv/hcasc/_repos/dagmar-monorepo
+            git remote set-url origin "$REPO_URL"
             git fetch origin main
             git checkout main
             git reset --hard origin/main
