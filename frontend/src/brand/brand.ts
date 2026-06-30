@@ -1,5 +1,5 @@
-export const APP_NAME_LONG = "KájovoDagmar docházkový systém";
-export const APP_NAME_SHORT = "KájovoDagmar";
+export const APP_NAME_LONG = "DAGMAR docházkový systém";
+export const APP_NAME_SHORT = "DAGMAR";
 
 export const BRAND_ASSETS = {
   logoHorizontal: "/LOGO/assets/svg/logo-horizontal-dark.svg",

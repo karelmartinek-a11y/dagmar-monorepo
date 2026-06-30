@@ -106,7 +106,7 @@ export default function AdminLayout() {
         <div className="admin-sidebar-brand">
           <img src={BRAND_ASSETS.logoHorizontal} alt="" className="admin-sidebar-logo" />
           <div>
-            <div className="admin-sidebar-title">KájovoDagmar</div>
+            <div className="admin-sidebar-title">DAGMAR</div>
             <div className="admin-sidebar-subtitle">Operační cockpit hotelu</div>
           </div>
         </div>
