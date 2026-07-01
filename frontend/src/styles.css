@@ -4098,7 +4098,7 @@ body :focus-visible {
 }
 
 .admin-metric-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
   gap: 16px;
 }
 
@@ -4148,7 +4148,9 @@ body :focus-visible {
 
 .admin-metric-value {
   margin-top: 16px;
-  font-size: 38px;
+  font-size: clamp(28px, 3.1vw, 38px);
+  line-height: 0.96;
+  overflow-wrap: anywhere;
 }
 
 .admin-overview-grid,
