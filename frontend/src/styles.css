@@ -2318,7 +2318,7 @@ body:has(.admin-login-page) {
   min-width: 70px;
   padding: 6px 5px;
   vertical-align: middle;
-  background: #ffffff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 240, 232, 0.96));
   position: relative;
 }
 
@@ -2333,7 +2333,7 @@ body:has(.admin-login-page) {
 }
 
 .plan-table-cell--weekend {
-  background: #f2f2f0;
+  background: linear-gradient(180deg, rgba(239, 240, 241, 0.98), rgba(228, 230, 233, 0.96));
 }
 
 .plan-table-cell--success {
@@ -2367,15 +2367,21 @@ body:has(.admin-login-page) {
 
 .plan-table-input {
   width: 100%;
-  height: 34px;
-  border: 1px solid rgba(35, 41, 44, 0.18);
-  border-radius: 8px;
-  padding: 0 6px;
-  background: #ffffff;
+  height: 40px;
+  border: 1.5px solid rgba(35, 41, 44, 0.22);
+  border-radius: 12px;
+  padding: 0 8px;
+  background: #fffdfa;
   text-align: center;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
   color: #111111;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.plan-table-input::placeholder {
+  color: rgba(65, 72, 77, 0.72);
+  font-weight: 700;
 }
 
 .plan-table-cell--outside .plan-table-input {
@@ -2723,6 +2729,22 @@ body:has(.admin-login-page) {
 .admin-surface,
 .admin-subsurface {
   padding: 22px;
+}
+
+.admin-surface--sidebar {
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(246, 239, 226, 0.98));
+}
+
+.admin-surface--focus {
+  background:
+    linear-gradient(180deg, rgba(255, 252, 248, 0.99), rgba(248, 242, 231, 0.99)),
+    radial-gradient(circle at top right, rgba(155, 106, 33, 0.09), transparent 28%);
+}
+
+.admin-surface--summary {
+  background:
+    linear-gradient(180deg, rgba(251, 247, 239, 0.99), rgba(244, 237, 226, 0.99)),
+    radial-gradient(circle at top right, rgba(155, 106, 33, 0.11), transparent 26%);
 }
 
 .admin-subsurface {
@@ -4256,7 +4278,28 @@ body :focus-visible {
   gap: 14px;
   padding: 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(39, 34, 29, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 239, 229, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.admin-attendance-row.is-today {
+  border-color: rgba(155, 106, 33, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 0 0 3px rgba(155, 106, 33, 0.08);
+}
+
+.admin-attendance-row.is-outside {
+  background: linear-gradient(180deg, rgba(255, 244, 224, 0.98), rgba(245, 229, 201, 0.94));
+}
+
+.admin-attendance-row.is-holiday {
+  background: linear-gradient(180deg, rgba(255, 233, 228, 0.98), rgba(251, 221, 214, 0.95));
+}
+
+.admin-attendance-row.is-off {
+  background: linear-gradient(180deg, rgba(230, 240, 255, 0.98), rgba(214, 228, 248, 0.95));
 }
 
 .admin-attendance-date {
@@ -4290,8 +4333,63 @@ body :focus-visible {
   color: var(--admin-muted);
 }
 
+.admin-time-input-wrap {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(39, 34, 29, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
 .admin-time-field small {
   color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.admin-time-field .kb-input {
+  min-height: 56px;
+  border-width: 1.5px;
+  border-color: rgba(39, 34, 29, 0.18);
+  background: #fffdfa;
+  color: #181512;
+  padding: 0 16px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.admin-time-field .kb-input::placeholder {
+  color: rgba(72, 62, 52, 0.68);
+  font-weight: 700;
+}
+
+.admin-time-field.has-value .kb-input {
+  border-color: rgba(41, 102, 74, 0.32);
+  background: linear-gradient(180deg, rgba(245, 252, 248, 1), rgba(238, 247, 241, 1));
+}
+
+.admin-time-field.has-plan .admin-time-input-wrap {
+  border-color: rgba(155, 106, 33, 0.18);
+  background: linear-gradient(180deg, rgba(255, 251, 243, 0.98), rgba(247, 239, 223, 0.96));
+}
+
+.admin-time-field.is-readonly .admin-time-input-wrap {
+  border-style: dashed;
+  border-color: rgba(93, 83, 73, 0.24);
+  background: rgba(242, 236, 227, 0.9);
+}
+
+.admin-time-field.is-readonly .kb-input {
+  background: rgba(255, 251, 245, 0.78);
+  color: rgba(32, 28, 24, 0.82);
+}
+
+.admin-time-field.is-empty:not(.is-readonly) .kb-input {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(249, 245, 237, 1));
 }
 
 .admin-field-error {
@@ -4301,11 +4399,30 @@ body :focus-visible {
 }
 
 .admin-attendance-hours {
-  align-self: center;
-  justify-self: end;
-  font-size: 16px;
-  font-weight: 800;
+  align-self: stretch;
+  justify-self: stretch;
+  display: grid;
+  gap: 6px;
+  align-content: center;
+  padding: 12px 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(39, 34, 29, 0.1);
+  background: rgba(255, 250, 242, 0.9);
+  text-align: center;
   color: var(--admin-ink);
+}
+
+.admin-attendance-hours span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.admin-attendance-hours strong {
+  font-size: 22px;
+  line-height: 1;
 }
 
 .kb-input,

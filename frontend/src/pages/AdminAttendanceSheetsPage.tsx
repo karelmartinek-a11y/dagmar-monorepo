@@ -339,7 +339,7 @@ export default function AdminAttendanceSheetsPage() {
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
 
       <div className="admin-triple-layout">
-        <section className="admin-surface">
+        <section className="admin-surface admin-surface--sidebar">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Výběr úvazku</div>
@@ -378,7 +378,7 @@ export default function AdminAttendanceSheetsPage() {
           </div>
         </section>
 
-        <section className="admin-surface">
+        <section className="admin-surface admin-surface--focus">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">{selected ? selected.label : "Vyberte úvazek"}</div>
@@ -407,18 +407,13 @@ export default function AdminAttendanceSheetsPage() {
               return (
                 <div
                   key={day.date}
-                  className={`admin-attendance-row${isToday ? " is-today" : ""}${!day.is_within_employment_period ? " is-outside" : ""}`}
+                  className={`admin-attendance-row${isToday ? " is-today" : ""}${!day.is_within_employment_period ? " is-outside" : ""}${
+                    day.planned_status === "HOLIDAY" ? " is-holiday" : ""
+                  }${day.planned_status === "OFF" ? " is-off" : ""}`}
                   onContextMenu={(event) => {
                     event.preventDefault();
                     setContextMenu({ x: event.clientX, y: event.clientY, date: day.date });
                   }}
-                  style={
-                    day.planned_status === "HOLIDAY"
-                      ? { background: "rgba(255, 0, 0, 0.08)", borderRadius: 14 }
-                      : day.planned_status === "OFF"
-                        ? { background: "rgba(12, 95, 211, 0.08)", borderRadius: 14 }
-                        : undefined
-                  }
                 >
                   <div className="admin-attendance-date">
                     <strong>{day.date.slice(8, 10)}.</strong>
@@ -445,7 +440,10 @@ export default function AdminAttendanceSheetsPage() {
                     readOnly={locked || !day.is_within_employment_period || Boolean(day.planned_status)}
                     onCommit={(value) => void commitTime(day.date, "departure_time", value)}
                   />
-                  <div className="admin-attendance-hours">{calc.workedMins !== null ? `${formatHours(calc.workedMins)} h` : "—"}</div>
+                  <div className="admin-attendance-hours">
+                    <span>Odpracováno</span>
+                    <strong>{calc.workedMins !== null ? `${formatHours(calc.workedMins)} h` : "—"}</strong>
+                  </div>
                 </div>
               );
             })}
@@ -465,7 +463,7 @@ export default function AdminAttendanceSheetsPage() {
           ) : null}
         </section>
 
-        <aside className="admin-surface">
+        <aside className="admin-surface admin-surface--summary">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Souhrn měsíce</div>
@@ -535,26 +533,30 @@ function TimeInput(props: {
   const plannedLabel = plannedStatus ? planStatusLabel(plannedStatus) : plannedValue;
   const statusPlaceholder = planStatusInputPlaceholder(plannedStatus);
   const effectivePlaceholder = !local && statusPlaceholder ? statusPlaceholder : placeholder;
+  const toneClass = readOnly ? "is-readonly" : local ? "has-value" : "is-empty";
+  const plannedClass = plannedLabel ? "has-plan" : "";
 
   return (
-    <label className="admin-time-field">
+    <label className={`admin-time-field ${toneClass} ${plannedClass}`.trim()}>
       <span>{label}</span>
-      {plannedLabel ? <small>Plán: {plannedLabel}</small> : null}
-      <input
-        className="kb-input"
-        inputMode="numeric"
-        value={local}
-        disabled={readOnly}
-        readOnly={readOnly}
-        placeholder={effectivePlaceholder}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => {
-          if (readOnly || !ok) return;
-          const norm = normalizeTime(local);
-          setLocal(norm);
-          onCommit(norm);
-        }}
-      />
+      <div className="admin-time-input-wrap">
+        {plannedLabel ? <small>Plán: {plannedLabel}</small> : <small>{readOnly ? "Zápis nepovolen" : "Ruční zápis času"}</small>}
+        <input
+          className="kb-input"
+          inputMode="numeric"
+          value={local}
+          disabled={readOnly}
+          readOnly={readOnly}
+          placeholder={effectivePlaceholder}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={() => {
+            if (readOnly || !ok) return;
+            const norm = normalizeTime(local);
+            setLocal(norm);
+            onCommit(norm);
+          }}
+        />
+      </div>
       {!ok ? <small className="admin-field-error">Zadejte čas ve formátu 08:30 nebo pole nechte prázdné.</small> : null}
       {ok && error ? <small className="admin-field-error">{error}</small> : null}
     </label>
