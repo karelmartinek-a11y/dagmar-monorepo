@@ -5507,6 +5507,8 @@ body:has(.plan-page) .admin-sidebar {
 body:has(.ops-page) .admin-shell,
 body:has(.plan-page) .admin-shell {
   grid-template-columns: minmax(0, 1fr);
+  min-height: calc(100vh - var(--kb-systembar-h));
+  background: #07131d;
 }
 
 body:has(.ops-page) .admin-sidebar,
@@ -5519,11 +5521,45 @@ body:has(.plan-page) .admin-topbar {
 body:has(.ops-page) .admin-content,
 body:has(.plan-page) .admin-content {
   min-width: 0;
+  background: #07131d;
 }
 
 body:has(.ops-page) .admin-main,
 body:has(.plan-page) .admin-main {
   padding: 0;
+  gap: 8px;
+  background: #07131d;
+}
+
+body:has(.ops-page) .ops-page,
+body:has(.plan-page) .plan-page {
+  width: 100%;
+}
+
+body:has(.ops-page) .ops-header,
+body:has(.plan-page) .ops-header {
+  padding: 4px 6px 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body:has(.ops-page) .ops-header p,
+body:has(.plan-page) .ops-header p {
+  margin: 6px 0 0;
+}
+
+body:has(.ops-page) .ops-stat-strip > div,
+body:has(.plan-page) .ops-stat-strip > div {
+  min-height: 46px;
+  padding: 8px 10px;
+}
+
+body:has(.ops-page) .ops-toolbar,
+body:has(.plan-page) .ops-toolbar,
+body:has(.ops-page) .ops-legend,
+body:has(.plan-page) .ops-legend {
+  padding: 8px 10px;
 }
 
 @media (max-width: 1180px) {
