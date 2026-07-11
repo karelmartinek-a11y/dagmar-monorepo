@@ -11,7 +11,7 @@ import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus
 import { timeFieldPlaceholder } from "../utils/uiLabels";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 import Button from "../ui/Button";
-import { formatMonthLabelCs } from "../utils/date";
+import { formatIsoDateForDisplay, formatMonthLabelCs } from "../utils/date";
 
 type ContextMenuState = { x: number; y: number; date: string };
 type DayStatusDialogState = {
@@ -367,7 +367,7 @@ export default function AdminAttendanceSheetsPage() {
                   <div className="admin-list-title">{employment.user_name}</div>
                   <div className="admin-list-subtitle">{employment.label}</div>
                   <div className="admin-list-subtitle">
-                    {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
+                    {formatIsoDateForDisplay(employment.start_date)} až {formatIsoDateForDisplay(employment.end_date) || "na dobu neurčitou"}
                   </div>
                 </div>
                 <StateBadge tone={!parsedMonth || employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month) ? "ok" : "warning"}>

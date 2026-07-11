@@ -63,6 +63,10 @@ function fromEmployment(employment: AdminEmployment): EmploymentFormState {
   };
 }
 
+function employmentPeriodLabel(employment: AdminEmployment): string {
+  return `${formatIsoDateForDisplay(employment.start_date)} až ${formatIsoDateForDisplay(employment.end_date) || "na dobu neurčitou"}`;
+}
+
 function userTone(user: PortalUser): "ok" | "danger" | "warning" {
   if (user.login_status === "ACTIVE") return "ok";
   if (user.login_status === "DEACTIVATED") return "danger";
@@ -566,13 +570,21 @@ export default function AdminUsersPage() {
                 <Button type="button" variant="ghost" onClick={() => void sendReset(selectedUser.id)} disabled={saving}>Poslat reset hesla</Button>
                 <Button type="button" variant="ghost" onClick={() => void unlockUser(selectedUser.id)} disabled={saving || !selectedUser.is_locked}>Odblokovat</Button>
               </div>
-              <div className="admin-action-row admin-action-row--split">
-                <Button type="button" variant="secondary" onClick={() => void toggleActive(selectedUser)} disabled={saving}>
-                  {selectedUser.is_active ? "Deaktivovat" : "Aktivovat"}
-                </Button>
-                <Button type="button" variant="danger" onClick={() => setDialog({ kind: "deleteUser", user: selectedUser })} disabled={saving} aria-label={`Smazat uživatele ${selectedUser.name}`}>
-                  Smazat uživatele
-                </Button>
+              <div className="admin-account-action-grid">
+                <div className="admin-account-action-box">
+                  <div className="admin-account-action-title">Aktivace účtu</div>
+                  <div className="admin-account-action-copy">Dočasně vypne nebo znovu povolí přihlášení bez smazání evidence.</div>
+                  <Button type="button" variant="secondary" onClick={() => void toggleActive(selectedUser)} disabled={saving}>
+                    {selectedUser.is_active ? "Deaktivovat účet" : "Aktivovat účet"}
+                  </Button>
+                </div>
+                <div className="admin-account-action-box admin-account-action-box--danger">
+                  <div className="admin-account-action-title">Nebezpečná zóna</div>
+                  <div className="admin-account-action-copy">Smazání odstraní účet, úvazky i navázanou evidenci. Vyžaduje opsání potvrzovacího textu.</div>
+                  <Button type="button" variant="danger" onClick={() => setDialog({ kind: "deleteUser", user: selectedUser })} disabled={saving} aria-label={`Smazat uživatele ${selectedUser.name}`}>
+                    Smazat uživatele
+                  </Button>
+                </div>
               </div>
 
               {editingUserId === selectedUser.id ? (
@@ -631,7 +643,7 @@ export default function AdminUsersPage() {
                           <div>
                             <div className="admin-surface-title">{employment.label}</div>
                             <div className="admin-surface-subtitle">
-                              {employment.start_date} až {employment.end_date ?? "na dobu neurčitou"}
+                              {employmentPeriodLabel(employment)}
                             </div>
                           </div>
                           <div className="admin-action-row">
@@ -666,6 +678,7 @@ export default function AdminUsersPage() {
                                 <span className="kb-label">Začátek</span>
                                 <input id={`employment-${employment.id}-start`} className="kb-input" value={draft.start_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { start_date: e.target.value }, employment)} placeholder="např. 01.06.2026" aria-invalid={editEmploymentErrors[employment.id]?.start_date ? "true" : "false"} aria-describedby={editEmploymentErrors[employment.id]?.start_date ? `employment-${employment.id}-start-error` : undefined} inputMode="numeric" />
                               </label>
+                              {!editEmploymentErrors[employment.id]?.start_date ? <div className="kb-help">Český formát dd.mm.rrrr, např. 01.06.2026.</div> : null}
                               {editEmploymentErrors[employment.id]?.start_date ? <div id={`employment-${employment.id}-start-error`} className="admin-field-error">{editEmploymentErrors[employment.id]?.start_date}</div> : null}
                             </div>
                             <div>
@@ -673,6 +686,7 @@ export default function AdminUsersPage() {
                                 <span className="kb-label">Konec</span>
                                 <input id={`employment-${employment.id}-end`} className="kb-input" disabled={draft.is_indefinite} value={draft.end_date} onChange={(e) => updateExistingEmploymentForm(employment.id, { end_date: e.target.value }, employment)} placeholder="např. 30.06.2026" aria-invalid={editEmploymentErrors[employment.id]?.end_date ? "true" : "false"} aria-describedby={editEmploymentErrors[employment.id]?.end_date ? `employment-${employment.id}-end-error` : undefined} inputMode="numeric" />
                               </label>
+                              {!editEmploymentErrors[employment.id]?.end_date ? <div className="kb-help">Prázdné pole použijte jen při době neurčité.</div> : null}
                               {editEmploymentErrors[employment.id]?.end_date ? <div id={`employment-${employment.id}-end-error`} className="admin-field-error">{editEmploymentErrors[employment.id]?.end_date}</div> : null}
                             </div>
                             <label className="admin-checkbox-row">
@@ -716,6 +730,7 @@ export default function AdminUsersPage() {
                       <span className="kb-label">Začátek</span>
                       <input id={`employment-create-${selectedUser.id}-start`} className="kb-input" value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).start_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { start_date: e.target.value })} placeholder="např. 01.06.2026" aria-invalid={newEmploymentErrors[selectedUser.id]?.start_date ? "true" : "false"} aria-describedby={newEmploymentErrors[selectedUser.id]?.start_date ? `employment-create-${selectedUser.id}-start-error` : undefined} inputMode="numeric" />
                     </label>
+                    {!newEmploymentErrors[selectedUser.id]?.start_date ? <div className="kb-help">Český formát dd.mm.rrrr, např. 01.06.2026.</div> : null}
                     {newEmploymentErrors[selectedUser.id]?.start_date ? <div id={`employment-create-${selectedUser.id}-start-error`} className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.start_date}</div> : null}
                   </div>
                   <div>
@@ -723,6 +738,7 @@ export default function AdminUsersPage() {
                       <span className="kb-label">Konec</span>
                       <input id={`employment-create-${selectedUser.id}-end`} className="kb-input" disabled={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).is_indefinite} value={(employmentForms[selectedUser.id] ?? emptyEmploymentForm()).end_date} onChange={(e) => updateNewEmploymentForm(selectedUser.id, { end_date: e.target.value })} placeholder="např. 30.06.2026" aria-invalid={newEmploymentErrors[selectedUser.id]?.end_date ? "true" : "false"} aria-describedby={newEmploymentErrors[selectedUser.id]?.end_date ? `employment-create-${selectedUser.id}-end-error` : undefined} inputMode="numeric" />
                     </label>
+                    {!newEmploymentErrors[selectedUser.id]?.end_date ? <div className="kb-help">Při době určité zadejte datum ve formátu dd.mm.rrrr.</div> : null}
                     {newEmploymentErrors[selectedUser.id]?.end_date ? <div id={`employment-create-${selectedUser.id}-end-error`} className="admin-field-error">{newEmploymentErrors[selectedUser.id]?.end_date}</div> : null}
                   </div>
                   <label className="admin-checkbox-row">

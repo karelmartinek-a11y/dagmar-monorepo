@@ -496,7 +496,7 @@ export function EmployeePage() {
             </div>
           ) : null}
 
-          <form onSubmit={onLoginSubmit} className="kb-stack" style={{ gap: 14, marginTop: 18 }}>
+          <form onSubmit={onLoginSubmit} className="kb-stack" style={{ gap: 14, marginTop: 18 }} autoComplete="off">
             <label className="kb-field" htmlFor="portal-login-email">
               <span className="kb-label">E-mail</span>
               <input
@@ -506,8 +506,8 @@ export function EmployeePage() {
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 placeholder="name@hotelchodovasc.cz"
-                autoComplete="username"
-                name="username"
+                autoComplete="email"
+                name="portal-email"
               />
             </label>
             <label className="kb-field" htmlFor="portal-login-password">
@@ -520,7 +520,7 @@ export function EmployeePage() {
                 onChange={(e) => setLoginPassword(e.target.value)}
                 placeholder="Zadejte své heslo"
                 autoComplete="current-password"
-                name="current-password"
+                name="portal-password"
               />
             </label>
             <div className="kb-row" style={{ justifyContent: "space-between", alignItems: "center" }}>

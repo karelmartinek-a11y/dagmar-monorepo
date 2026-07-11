@@ -3600,6 +3600,38 @@ body :focus-visible {
   align-items: stretch;
 }
 
+.admin-account-action-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.admin-account-action-box {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid rgba(54, 45, 34, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.admin-account-action-box--danger {
+  border-color: rgba(166, 62, 47, 0.28);
+  background: rgba(166, 62, 47, 0.07);
+}
+
+.admin-account-action-title {
+  font-weight: 850;
+}
+
+.admin-account-action-copy {
+  color: var(--admin-muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 .admin-list--sticky-section,
 .admin-attendance-list--scroller {
   max-height: 68vh;
@@ -3638,6 +3670,10 @@ body :focus-visible {
 
   .admin-action-row--split > * {
     flex: 1 1 100%;
+  }
+
+  .admin-account-action-grid {
+    grid-template-columns: 1fr;
   }
 
   .plan-month-picker-controls {

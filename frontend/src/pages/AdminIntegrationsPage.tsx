@@ -24,6 +24,7 @@ import {
 } from "../utils/adminIntegrations";
 import Button from "../ui/Button";
 import { employmentTemplateLabel } from "../utils/uiLabels";
+import { formatIsoDateForDisplay, parseCzechDateToIso } from "../utils/date";
 
 function errorMessage(err: unknown, fallback: string) {
   if (err instanceof Error && err.message) return err.message;
@@ -56,6 +57,15 @@ function matchesKnownProfile(draft: IntegrationDraft, options: IntegrationClient
 function dateTimeLabel(value: string | null): string {
   if (!value) return "Nikdy";
   return new Date(value).toLocaleString("cs-CZ");
+}
+
+function integrationExpirationDateForInput(value: string | null): string {
+  return formatIsoDateForDisplay(value);
+}
+
+function integrationExpirationDateForApi(value: string | null): string | null {
+  if (!value) return null;
+  return parseCzechDateToIso(value) ?? value;
 }
 
 function initialOptionsState(): IntegrationClientOptions {
@@ -153,7 +163,7 @@ export default function AdminIntegrationsPage() {
         include_inactive_employments: createDraft.include_inactive_employments,
         ip_restriction_mode: createDraft.ip_restriction_mode,
         expiration_choice: createDraft.expiration_choice,
-        custom_expiration_date: createDraft.custom_expiration_date,
+        custom_expiration_date: integrationExpirationDateForApi(createDraft.custom_expiration_date),
       });
       setSecretState({
         kind: "open",
@@ -188,7 +198,7 @@ export default function AdminIntegrationsPage() {
         include_inactive_employments: editDraft.include_inactive_employments,
         ip_restriction_mode: editDraft.ip_restriction_mode,
         expiration_choice: editDraft.expiration_choice,
-        custom_expiration_date: editDraft.custom_expiration_date,
+        custom_expiration_date: integrationExpirationDateForApi(editDraft.custom_expiration_date),
       });
       setSelectedClient(result);
       setEditDraft(buildDraftFromClient(result));
@@ -717,10 +727,13 @@ function IntegrationForm(props: {
               <input
                 id={`${titlePrefix}-custom-expiration`}
                 className="kb-input"
-                type="date"
-                value={draft.custom_expiration_date ?? ""}
+                type="text"
+                inputMode="numeric"
+                placeholder="např. 31.12.2026"
+                value={integrationExpirationDateForInput(draft.custom_expiration_date)}
                 onChange={(event) => onChange((current) => current ? { ...current, custom_expiration_date: event.target.value || null } : current)}
               />
+              <div className="kb-help">Datum zadejte česky ve formátu dd.mm.rrrr.</div>
             </div>
           ) : null}
         </div>
