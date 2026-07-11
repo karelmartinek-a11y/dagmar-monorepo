@@ -36,6 +36,28 @@ class AttendanceMonthOut(BaseModel):
     days: list[AttendanceDayOut]
 
 
+class AttendanceMatrixRowOut(BaseModel):
+    employment_id: int
+    user_id: int
+    user_name: str
+    employment_label: str
+    employment_title: str
+    employment_type: str
+    user_is_active: bool
+    employment_is_active: bool
+    start_date: str
+    end_date: str | None = None
+    is_active_in_month: bool
+    locked: bool = False
+    days: list[AttendanceDayOut]
+
+
+class AttendanceMatrixMonthOut(BaseModel):
+    year: int
+    month: int
+    rows: list[AttendanceMatrixRowOut]
+
+
 class AttendanceUpsertIn(BaseModel):
     employment_id: int = Field(..., ge=1)
     date: str = Field(..., description="YYYY-MM-DD")
@@ -75,6 +97,13 @@ def _get_employment(employment_id: int, db: Session) -> Employment:
     return employment
 
 
+def _employment_active_in_month(employment: Employment, start: dt.date, end: dt.date) -> bool:
+    if not employment.is_active:
+        return False
+    month_end = end - dt.timedelta(days=1)
+    return employment.start_date <= month_end and (employment.end_date is None or employment.end_date >= start)
+
+
 def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
     lock = db.execute(
         select(AttendanceLock).where(
@@ -85,6 +114,94 @@ def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Sess
     ).scalar_one_or_none()
     if lock is not None:
         raise HTTPException(status_code=423, detail="Dochazka za zvolene obdobi je uzamcena.")
+
+
+@router.get("/api/v1/admin/attendance/month", response_model=AttendanceMatrixMonthOut)
+def admin_get_attendance_matrix_month(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    _admin=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AttendanceMatrixMonthOut:
+    start, end = _month_range(year, month)
+
+    employments = (
+        db.execute(select(Employment).options(joinedload(Employment.user)).order_by(Employment.id.asc()))
+        .unique()
+        .scalars()
+        .all()
+    )
+    employment_ids = [employment.id for employment in employments]
+
+    attendance_rows = db.execute(
+        select(Attendance)
+        .where(Attendance.employment_id.in_(employment_ids))
+        .where(Attendance.date >= start)
+        .where(Attendance.date < end)
+        .order_by(Attendance.employment_id.asc(), Attendance.date.asc())
+    ).scalars().all()
+    attendance_by_key = {(row.employment_id, row.date): row for row in attendance_rows}
+
+    plan_rows = db.execute(
+        select(ShiftPlan)
+        .where(ShiftPlan.employment_id.in_(employment_ids))
+        .where(ShiftPlan.date >= start)
+        .where(ShiftPlan.date < end)
+        .order_by(ShiftPlan.employment_id.asc(), ShiftPlan.date.asc())
+    ).scalars().all()
+    plan_by_key = {(row.employment_id, row.date): row for row in plan_rows}
+
+    lock_rows = db.execute(
+        select(AttendanceLock).where(
+            AttendanceLock.employment_id.in_(employment_ids),
+            AttendanceLock.year == year,
+            AttendanceLock.month == month,
+        )
+    ).scalars().all()
+    locked_employment_ids = {row.employment_id for row in lock_rows}
+
+    rows: list[AttendanceMatrixRowOut] = []
+    for employment in employments:
+        user = employment.user
+        days: list[AttendanceDayOut] = []
+        cur = start
+        while cur < end:
+            attendance = attendance_by_key.get((employment.id, cur))
+            plan = plan_by_key.get((employment.id, cur))
+            days.append(
+                AttendanceDayOut(
+                    date=cur.isoformat(),
+                    arrival_time=attendance.arrival_time if attendance else None,
+                    departure_time=attendance.departure_time if attendance else None,
+                    planned_arrival_time=plan.arrival_time if plan else None,
+                    planned_departure_time=plan.departure_time if plan else None,
+                    planned_status=plan.status if plan else None,
+                    is_within_employment_period=employment.start_date <= cur
+                    and (employment.end_date is None or cur <= employment.end_date),
+                )
+            )
+            cur = cur + dt.timedelta(days=1)
+
+        rows.append(
+            AttendanceMatrixRowOut(
+                employment_id=employment.id,
+                user_id=employment.user_id,
+                user_name=user.name if user else "Neznámý zaměstnanec",
+                employment_label=employment_label(employment, user.name if user else None),
+                employment_title=employment.title,
+                employment_type=employment.employment_type,
+                user_is_active=bool(user.is_active) if user else False,
+                employment_is_active=employment.is_active,
+                start_date=employment.start_date.isoformat(),
+                end_date=employment.end_date.isoformat() if employment.end_date else None,
+                is_active_in_month=_employment_active_in_month(employment, start, end)
+                and (bool(user.is_active) if user else False),
+                locked=employment.id in locked_employment_ids,
+                days=days,
+            )
+        )
+
+    return AttendanceMatrixMonthOut(year=year, month=month, rows=rows)
 
 
 @router.get("/api/v1/admin/attendance", response_model=AttendanceMonthOut)

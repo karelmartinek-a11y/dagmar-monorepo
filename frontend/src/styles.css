@@ -38,6 +38,626 @@
   --kb-focus: 0 0 0 3px rgba(35, 41, 44, 0.22);
 }
 
+/* --- Dense dark operations UI for shift planning and attendance matrices --- */
+
+body:has(.ops-page),
+body:has(.plan-page),
+body:has(.portal-ops-page) {
+  --kb-bg: #07131d;
+  --kb-surface: #101c27;
+  --kb-surface-2: #162636;
+  --kb-text: #e8f1f8;
+  --kb-muted: #9fb1c2;
+  --kb-border: rgba(148, 163, 184, 0.22);
+  --kb-primary: #0d9488;
+  --kb-primary-2: #0f766e;
+  --kb-focus: 0 0 0 3px rgba(45, 212, 191, 0.28);
+  background: radial-gradient(circle at top left, rgba(20, 184, 166, 0.15), transparent 28%), #07131d;
+  color: var(--kb-text);
+}
+
+body:has(.ops-page) .kb-systembar,
+body:has(.plan-page) .kb-systembar,
+body:has(.portal-ops-page) .kb-systembar {
+  background: rgba(5, 13, 20, 0.94);
+  color: var(--kb-text);
+  border-bottom-color: rgba(148, 163, 184, 0.18);
+}
+
+body:has(.ops-page) .admin-shell,
+body:has(.plan-page) .admin-shell {
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 10px;
+  padding: calc(var(--kb-systembar-h) + 10px) 10px 10px;
+}
+
+body:has(.ops-page) .admin-sidebar,
+body:has(.plan-page) .admin-sidebar {
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(13, 25, 36, 0.98), rgba(8, 19, 29, 0.98));
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+body:has(.ops-page) .admin-sidebar-link.active,
+body:has(.plan-page) .admin-sidebar-link.active {
+  background: rgba(20, 184, 166, 0.14);
+  border-color: rgba(45, 212, 191, 0.3);
+}
+
+.ops-page,
+.plan-page {
+  width: min(100%, 1880px);
+  display: grid;
+  gap: 10px;
+  color: var(--kb-text);
+}
+
+.ops-header,
+.ops-toolbar,
+.ops-legend,
+.ops-employee-panel,
+.ops-main-matrix,
+.ops-detail-card,
+.plan-toolbar,
+.plan-instance-picker,
+.plan-table-wrapper,
+.admin-inline-notice {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(17, 32, 45, 0.96), rgba(10, 24, 35, 0.96));
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.ops-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+}
+
+.ops-header h1,
+.ops-detail-card h2,
+.page-title {
+  margin: 0;
+  color: #f8fbff;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ops-header p,
+.ops-detail-card p,
+.plan-instruction,
+.plan-toolbar-filter,
+.plan-instance-subtitle,
+.plan-instance-meta,
+.plan-month-picker .help,
+.admin-inline-notice {
+  color: var(--kb-muted);
+}
+
+.ops-actions,
+.ops-toolbar,
+.ops-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ops-toolbar,
+.ops-legend {
+  padding: 10px;
+}
+
+.ops-btn,
+.ops-input,
+.ops-check,
+.plan-jump-btn,
+.plan-month-picker .input,
+.plan-instance-filter input,
+.kb-input,
+.kb-select,
+.kb-textarea {
+  min-height: 34px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(15, 28, 40, 0.95);
+  color: var(--kb-text);
+  box-shadow: none;
+}
+
+.ops-btn,
+.ops-check,
+.plan-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.ops-input {
+  height: 36px;
+  padding: 0 10px;
+}
+
+.ops-input--month {
+  width: 150px;
+}
+
+.ops-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.ops-dot--present { background: #22c55e; }
+.ops-dot--planned { background: #3b82f6; }
+.ops-dot--holiday { background: #06b6d4; }
+.ops-dot--off { background: #64748b; }
+.ops-dot--warning { background: #f59e0b; }
+.ops-dot--locked { background: repeating-linear-gradient(135deg, #64748b 0 3px, #334155 3px 6px); }
+
+.ops-workspace {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.ops-employee-panel {
+  position: sticky;
+  top: calc(var(--kb-systembar-h) + 10px);
+  padding: 8px;
+  max-height: calc(100vh - var(--kb-systembar-h) - 20px);
+  overflow: auto;
+}
+
+.ops-panel-title {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 6px 10px;
+  font-weight: 800;
+}
+
+.ops-employee-list {
+  display: grid;
+  gap: 3px;
+}
+
+.ops-employee-row {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 22px 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kb-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ops-employee-row:hover,
+.ops-employee-row.is-selected {
+  background: rgba(45, 212, 191, 0.1);
+  border-color: rgba(45, 212, 191, 0.24);
+}
+
+.ops-index {
+  color: var(--kb-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.ops-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: linear-gradient(135deg, #14b8a6, #2563eb);
+  color: white;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ops-employee-row strong,
+.ops-employee-row small {
+  display: block;
+  min-width: 0;
+}
+
+.ops-employee-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.ops-employee-row small {
+  color: var(--kb-muted);
+  font-size: 11px;
+}
+
+.ops-main-matrix {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ops-table-wrap {
+  overflow: auto;
+  border-radius: 8px;
+  max-height: min(68vh, 760px);
+}
+
+.ops-matrix {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: var(--kb-text);
+}
+
+.ops-matrix th,
+.ops-matrix td {
+  min-width: 58px;
+  height: 48px;
+  padding: 0;
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(11, 24, 35, 0.88);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.ops-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 46px;
+  background: #172637;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ops-matrix thead th span,
+.ops-matrix thead th small {
+  display: block;
+}
+
+.ops-matrix thead th small {
+  color: var(--kb-muted);
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.ops-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 24;
+  min-width: 250px !important;
+  max-width: 250px;
+  text-align: left !important;
+  padding: 8px 10px !important;
+  background: #132333 !important;
+  box-shadow: 1px 0 0 rgba(148, 163, 184, 0.18);
+}
+
+thead .ops-sticky-col {
+  z-index: 30;
+}
+
+.ops-summary-col {
+  position: sticky;
+  right: 0;
+  min-width: 86px !important;
+  background: #122130 !important;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ops-summary-col + .ops-summary-col {
+  right: auto;
+  position: static;
+}
+
+.ops-name-head strong,
+.ops-name-head small,
+.ops-lock {
+  display: block;
+}
+
+.ops-name-head strong {
+  font-size: 13px;
+}
+
+.ops-name-head small {
+  margin-top: 3px;
+  color: var(--kb-muted);
+  font-size: 11px;
+}
+
+.ops-lock {
+  width: fit-content;
+  margin-top: 5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  font-size: 10px;
+}
+
+.ops-cell-btn {
+  appearance: none;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.ops-shift {
+  width: min(34px, 100%);
+  min-height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.ops-times {
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  line-height: 1.05;
+}
+
+.ops-cell-lock {
+  font-size: 9px;
+  color: #cbd5e1;
+}
+
+.ops-matrix td.is-present .ops-shift,
+.ops-dot--present { background: #16a34a; color: white; }
+.ops-matrix td.is-planned .ops-shift,
+.ops-dot--planned { background: #2563eb; color: white; }
+.ops-matrix td.is-holiday .ops-shift,
+.ops-dot--holiday { background: #0891b2; color: white; }
+.ops-matrix td.is-off .ops-shift,
+.ops-dot--off { background: #475569; color: white; }
+.ops-matrix td.is-warning .ops-shift,
+.ops-dot--warning { background: #d97706; color: white; }
+
+.ops-matrix td.is-holiday { background: rgba(8, 145, 178, 0.2); }
+.ops-matrix td.is-off,
+.ops-matrix th.is-weekend,
+.ops-matrix td.is-outside { background: rgba(51, 65, 85, 0.55); }
+.ops-matrix td.is-warning { background: rgba(217, 119, 6, 0.16); }
+.ops-matrix td.is-selected { outline: 2px solid #2dd4bf; outline-offset: -2px; }
+.ops-matrix th.is-today,
+.ops-matrix td.is-today { box-shadow: inset 0 0 0 2px rgba(248, 113, 113, 0.75); }
+.ops-summary-col.is-positive { color: #22c55e; }
+.ops-summary-col.is-negative { color: #f87171; }
+
+.ops-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) 320px;
+  gap: 8px;
+}
+
+.ops-detail-card {
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.ops-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-detail-form {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) 150px 150px auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.ops-detail-meta,
+.ops-summary-list {
+  display: grid;
+  gap: 5px;
+}
+
+.ops-detail-meta {
+  grid-template-columns: auto 1fr;
+  font-size: 12px;
+}
+
+.ops-detail-meta span,
+.ops-summary-list span {
+  color: var(--kb-muted);
+}
+
+.ops-summary-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+/* Darken existing admin plan matrix while preserving its real inputs and CSRF-backed actions. */
+.plan-top-row,
+.plan-toolbar {
+  padding: 12px;
+}
+
+.plan-month-picker {
+  background: linear-gradient(180deg, rgba(17, 32, 45, 0.96), rgba(10, 24, 35, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.plan-table-wrapper {
+  border-radius: 8px;
+  background: #0b1823;
+}
+
+.plan-table {
+  background: #0b1823;
+  color: var(--kb-text);
+}
+
+.plan-table-th,
+.plan-table thead tr:first-child th,
+.plan-table-head--meta .plan-table-th {
+  background: #172637;
+  color: #e8f1f8;
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.plan-table-th--weekend {
+  background: #223246;
+  color: #f87171;
+}
+
+.plan-name-cell,
+.plan-sum-cell {
+  background: #132333;
+  color: var(--kb-text);
+}
+
+.plan-name-meta,
+.plan-sum-label,
+.plan-sum-meta,
+.plan-day-head-note {
+  color: var(--kb-muted);
+}
+
+.plan-table-cell {
+  background: rgba(11, 24, 35, 0.9);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.plan-table-cell--weekend {
+  background: rgba(51, 65, 85, 0.55);
+}
+
+.plan-table-cell--holiday {
+  background: rgba(8, 145, 178, 0.2);
+}
+
+.plan-table-cell--off {
+  background: rgba(71, 85, 105, 0.66);
+}
+
+.plan-table-cell--outside {
+  background: rgba(217, 119, 6, 0.16);
+}
+
+.plan-table-input {
+  height: 28px;
+  border-radius: 5px;
+  border-color: rgba(148, 163, 184, 0.2);
+  background: rgba(15, 28, 40, 0.96);
+  color: #d9f99d;
+  font-size: 12px;
+}
+
+.plan-table-input::placeholder {
+  color: #94a3b8;
+}
+
+.plan-context-menu,
+.admin-dialog,
+.admin-sidepanel {
+  background: #101c27;
+  color: var(--kb-text);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.plan-context-menu button {
+  color: var(--kb-text);
+}
+
+.portal-ops-page {
+  --kb-brand-ink-600: #9fb1c2;
+  --kb-brand-ink-800: #dbeafe;
+  --kb-text: #e8f1f8;
+  --kb-bg: #07131d;
+}
+
+.portal-ops-page .attendance-grid-row {
+  color: var(--kb-text);
+}
+
+.portal-ops-page .portal-time-input {
+  background: rgba(15, 28, 40, 0.96) !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #d9f99d !important;
+  border-radius: 6px !important;
+}
+
+@media (max-width: 1180px) {
+  body:has(.ops-page) .admin-shell,
+  body:has(.plan-page) .admin-shell,
+  .ops-workspace,
+  .ops-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-employee-panel {
+    position: static;
+    max-height: 260px;
+  }
+
+  .ops-detail-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .ops-header,
+  .ops-detail-head,
+  .plan-top-row {
+    flex-direction: column;
+  }
+
+  .ops-detail-form {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-sticky-col {
+    min-width: 190px !important;
+    max-width: 190px;
+  }
+
+  .ops-matrix th,
+  .ops-matrix td {
+    min-width: 54px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -4635,4 +5255,119 @@ body :focus-visible {
   .admin-attendance-hours {
     justify-self: start;
   }
+}
+
+/* Final operations overrides kept at file end so legacy page rules cannot soften the reference-driven dark matrix. */
+body:has(.ops-page),
+body:has(.plan-page),
+body:has(.portal-ops-page) {
+  background: radial-gradient(circle at top left, rgba(20, 184, 166, 0.15), transparent 28%), #07131d;
+  color: #e8f1f8;
+}
+
+body:has(.ops-page) .admin-shell,
+body:has(.plan-page) .admin-shell {
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 10px;
+  padding: calc(var(--kb-systembar-h) + 10px) 10px 10px;
+}
+
+body:has(.ops-page) .admin-sidebar,
+body:has(.plan-page) .admin-sidebar {
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(13, 25, 36, 0.98), rgba(8, 19, 29, 0.98));
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.plan-page .plan-table-wrapper,
+.plan-page .plan-toolbar,
+.plan-page .plan-instance-picker,
+.ops-header,
+.ops-toolbar,
+.ops-legend,
+.ops-employee-panel,
+.ops-main-matrix,
+.ops-detail-card {
+  border-radius: 8px;
+  border-color: rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(17, 32, 45, 0.97), rgba(10, 24, 35, 0.97));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.plan-page .plan-table {
+  background: #0b1823;
+  color: #e8f1f8;
+}
+
+.plan-page .plan-table-th,
+.plan-page .plan-table-head--meta .plan-table-th,
+.plan-page .plan-table thead tr:first-child th {
+  background: #172637;
+  color: #e8f1f8;
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.plan-page .plan-table-th--weekend {
+  background: #223246;
+  color: #f87171;
+}
+
+.plan-page .plan-name-cell,
+.plan-page .plan-sum-cell {
+  background: #132333;
+  color: #e8f1f8;
+}
+
+.plan-page .plan-table-cell {
+  background: rgba(11, 24, 35, 0.92);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.plan-page .plan-table-cell--weekend {
+  background: rgba(51, 65, 85, 0.55);
+}
+
+.plan-page .plan-table-cell--holiday {
+  background: rgba(8, 145, 178, 0.22);
+}
+
+.plan-page .plan-table-cell--off {
+  background: rgba(71, 85, 105, 0.68);
+}
+
+.plan-page .plan-table-input {
+  height: 28px;
+  border-radius: 5px;
+  background: rgba(15, 28, 40, 0.96);
+  border-color: rgba(148, 163, 184, 0.22);
+  color: #d9f99d;
+  font-size: 12px;
+}
+
+.plan-page .plan-table-input::placeholder {
+  color: #94a3b8;
+}
+
+.plan-page .page-title,
+.ops-header h1,
+.ops-detail-card h2 {
+  color: #f8fbff;
+  letter-spacing: 0;
+}
+
+.plan-page .plan-instruction,
+.plan-page .plan-toolbar-filter,
+.plan-page .plan-name-meta,
+.plan-page .plan-sum-label,
+.plan-page .plan-sum-meta {
+  color: #9fb1c2;
+}
+
+.portal-ops-page {
+  color: #e8f1f8;
+}
+
+.portal-ops-page main,
+.portal-ops-page footer {
+  max-width: 1760px !important;
 }

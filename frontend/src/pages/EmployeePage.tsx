@@ -754,7 +754,7 @@ export function EmployeePage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--kb-bg)" }}>
+    <div className="portal-ops-page" style={{ minHeight: "100vh", background: "var(--kb-bg)" }}>
       <header
         style={
           {
@@ -1266,11 +1266,11 @@ function headerActionButtonStyle(compact = false): React.CSSProperties {
 
 function cardStyle(): React.CSSProperties {
   return {
-    background: "white",
-    borderRadius: 16,
+    background: "linear-gradient(180deg, rgba(24,38,51,0.96), rgba(16,28,39,0.98))",
+    borderRadius: 8,
     padding: 14,
-    border: "1px solid rgba(35,41,44,0.12)",
-    boxShadow: "0 6px 18px rgba(35, 41, 44, 0.06)",
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+    boxShadow: "0 14px 30px rgba(0, 0, 0, 0.18)",
   };
 }
 

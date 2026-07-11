@@ -1,61 +1,75 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { adminGetSettings, adminListUsers, type AdminEmployment, type PortalUser } from "../api/admin";
-import { adminGetAttendanceMonth, adminLockAttendance, adminUnlockAttendance, adminUpsertAttendance, adminUpsertDayStatus, type AdminAttendanceDay } from "../api/adminAttendance";
+import { adminGetSettings } from "../api/admin";
+import {
+  adminGetAttendanceMatrixMonth,
+  adminGetAttendanceMonth,
+  adminLockAttendance,
+  adminUnlockAttendance,
+  adminUpsertAttendance,
+  adminUpsertDayStatus,
+  type AdminAttendanceDay,
+  type AdminAttendanceMatrixRow,
+} from "../api/adminAttendance";
 import { ApiError } from "../api/client";
-import { Breadcrumbs, ConfirmDialog, EmptyState, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
-import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
-import { employmentIsActiveInMonth } from "../utils/employmentActivity";
-import { normalizeTime, isValidTimeOrEmpty } from "../utils/timeInput";
-import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
-import { timeFieldPlaceholder } from "../utils/uiLabels";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
+import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice, StateBadge } from "../components/admin/AdminUI";
+import { computeDayCalc, computeMonthStats, getCzechHolidayName, isWeekendDate, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
+import { formatIsoDateForDisplay } from "../utils/date";
+import { employmentTemplateLabel, timeFieldPlaceholder } from "../utils/uiLabels";
+import { isValidTimeOrEmpty, normalizeTime } from "../utils/timeInput";
+import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
 import Button from "../ui/Button";
-import { formatIsoDateForDisplay, formatMonthLabelCs } from "../utils/date";
 
-type ContextMenuState = { x: number; y: number; date: string };
+type SelectedCell = { employmentId: number; date: string };
 type DayStatusDialogState = {
+  employmentId: number;
   date: string;
   status: ShiftPlanDayStatus;
   attendanceExists: boolean;
   shiftPlanExists: boolean;
 };
 
-type EmploymentOption = AdminEmployment & { user_name: string; user_is_active: boolean };
-
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
 }
 
 function yyyyMm(d: Date) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
-function parseYYYYMM(s: string): { year: number; month: number } | null {
-  const m = /^([0-9]{4})-([0-9]{2})$/.exec(s.trim());
-  if (!m) return null;
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
+function parseYYYYMM(value: string): { year: number; month: number } | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null;
   return { year, month };
-}
-
-function toDowLabel(dateStr: string) {
-  const [y, m, d] = dateStr.split("-").map((x) => parseInt(x, 10));
-  return new Date(y, m - 1, d).toLocaleDateString("cs-CZ", { weekday: "short" });
-}
-
-function isoToday() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 function addMonths(yyyyMmStr: string, delta: number) {
   const parsed = parseYYYYMM(yyyyMmStr);
   if (!parsed) return yyyyMmStr;
-  const dt = new Date(parsed.year, parsed.month - 1, 1);
-  dt.setMonth(dt.getMonth() + delta);
-  return yyyyMm(dt);
+  const next = new Date(parsed.year, parsed.month - 1, 1);
+  next.setMonth(next.getMonth() + delta);
+  return yyyyMm(next);
+}
+
+function monthDays(year: number, month: number) {
+  const days: { date: string; number: string; weekday: string; isWeekend: boolean; holidayName: string | null }[] = [];
+  const current = new Date(year, month - 1, 1);
+  while (current.getMonth() === month - 1) {
+    const date = `${current.getFullYear()}-${pad2(current.getMonth() + 1)}-${pad2(current.getDate())}`;
+    days.push({
+      date,
+      number: String(current.getDate()),
+      weekday: current.toLocaleDateString("cs-CZ", { weekday: "short" }),
+      isWeekend: isWeekendDate(date),
+      holidayName: getCzechHolidayName(date),
+    });
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
 }
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -64,430 +78,427 @@ function errorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-function formatHours(mins: number): string {
+function formatHours(mins: number) {
   return (mins / 60).toFixed(1);
 }
 
+function cellTone(day: AdminAttendanceDay) {
+  if (!day.is_within_employment_period) return "is-outside";
+  if (day.planned_status === "HOLIDAY") return "is-holiday";
+  if (day.planned_status === "OFF") return "is-off";
+  if ((day.planned_arrival_time || day.planned_departure_time) && (!day.arrival_time || !day.departure_time)) return "is-warning";
+  if (day.arrival_time || day.departure_time) return "is-present";
+  if (day.planned_arrival_time || day.planned_departure_time) return "is-planned";
+  return "is-empty";
+}
+
+function shiftAbbrev(day: AdminAttendanceDay) {
+  if (day.planned_status === "HOLIDAY") return "D";
+  if (day.planned_status === "OFF") return "V";
+  if (!day.planned_arrival_time && !day.planned_departure_time) return "—";
+  const start = day.planned_arrival_time ?? "";
+  if (start >= "22:00" || start < "06:00") return "N";
+  if (start >= "14:00") return "O";
+  return "R";
+}
+
 export default function AdminAttendanceSheetsPage() {
-  const [users, setUsers] = useState<PortalUser[]>([]);
-  const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<EmploymentOption | null>(null);
   const [month, setMonth] = useState(() => yyyyMm(new Date()));
-  const [days, setDays] = useState<AdminAttendanceDay[] | null>(null);
-  const [locked, setLocked] = useState(false);
-  const [afternoonCutoff, setAfternoonCutoff] = useState<string>("17:00");
+  const [query, setQuery] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [rows, setRows] = useState<AdminAttendanceMatrixRow[]>([]);
+  const [selected, setSelected] = useState<SelectedCell | null>(null);
   const [loading, setLoading] = useState(false);
-  const [daysLoading, setDaysLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [errorByKey, setErrorByKey] = useState<Record<string, string>>({});
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [afternoonCutoff, setAfternoonCutoff] = useState("17:00");
+  const [draftArrival, setDraftArrival] = useState("");
+  const [draftDeparture, setDraftDeparture] = useState("");
   const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
 
+  const parsedMonth = useMemo(() => parseYYYYMM(month), [month]);
+  const year = parsedMonth?.year ?? new Date().getFullYear();
+  const monthNum = parsedMonth?.month ?? new Date().getMonth() + 1;
   const cutoffMinutes = useMemo(() => parseCutoffToMinutes(afternoonCutoff), [afternoonCutoff]);
-  const template = selected?.employment_type ?? "DPP_DPC";
-  const monthStats = useMemo(() => computeMonthStats(days ?? [], template, cutoffMinutes), [days, template, cutoffMinutes]);
-  const workingFundHours = useMemo(() => {
-    const parsed = parseYYYYMM(month);
-    return parsed ? workingDaysInMonthCs(parsed.year, parsed.month) * 8 : 0;
-  }, [month]);
-  const today = isoToday();
-
-  useEffect(() => {
-    const closeMenu = () => setContextMenu(null);
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setContextMenu(null);
-    };
-
-    document.addEventListener("click", closeMenu);
-    document.addEventListener("scroll", closeMenu, true);
-    document.addEventListener("keydown", handleKey);
-
-    return () => {
-      document.removeEventListener("click", closeMenu);
-      document.removeEventListener("scroll", closeMenu, true);
-      document.removeEventListener("keydown", handleKey);
-    };
+  const days = useMemo(() => monthDays(year, monthNum), [year, monthNum]);
+  const today = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    void Promise.all([adminListUsers(), adminGetSettings()])
-      .then(([userRes, settingsRes]) => {
-        if (cancelled) return;
-        setUsers(userRes.users);
-        if (settingsRes.afternoon_cutoff) setAfternoonCutoff(settingsRes.afternoon_cutoff);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(errorMessage(err, "Nepodařilo se načíst data."));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const filteredRows = useMemo(() => {
+    const tokens = query.trim().toLocaleLowerCase("cs-CZ").split(/\s+/).filter(Boolean);
+    return rows.filter((row) => {
+      if (!showInactive && !row.is_active_in_month) return false;
+      if (tokens.length === 0) return true;
+      const hay = `${row.user_name} ${row.employment_label} ${row.employment_title} ${row.employment_id} ${row.employment_type}`.toLocaleLowerCase("cs-CZ");
+      return tokens.every((token) => hay.includes(token));
+    });
+  }, [query, rows, showInactive]);
 
-  const employments = useMemo<EmploymentOption[]>(
-    () => users.flatMap((user) => user.employments.map((employment) => ({ ...employment, user_name: user.name, user_is_active: user.is_active }))),
-    [users],
+  const selectedRow = useMemo(
+    () => rows.find((row) => row.employment_id === selected?.employmentId) ?? filteredRows[0] ?? null,
+    [filteredRows, rows, selected?.employmentId],
+  );
+  const selectedDay = useMemo(
+    () => selectedRow?.days.find((day) => day.date === selected?.date) ?? selectedRow?.days.find((day) => day.date === today) ?? selectedRow?.days[0] ?? null,
+    [selected?.date, selectedRow, today],
   );
 
-  const parsedMonth = useMemo(() => parseYYYYMM(month), [month]);
-  const filtered = useMemo(() => {
-    const visible = parsedMonth
-      ? employments.filter((employment) => showInactiveEmployments || employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month))
-      : employments;
-    const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return visible;
-    return visible.filter((employment) => tokens.every((token) => `${employment.user_name} ${employment.label} ${employment.id}`.toLowerCase().includes(token)));
-  }, [employments, parsedMonth, query, showInactiveEmployments]);
+  const monthStats = useMemo(() => {
+    return filteredRows.reduce(
+      (acc, row) => {
+        const stats = computeMonthStats(row.days, row.employment_type, cutoffMinutes);
+        acc.workedMins += stats.totalMins;
+        acc.holidayDays += stats.vacationDays;
+        acc.afternoonMins += stats.afternoonMins;
+        if (row.locked) acc.lockedRows += 1;
+        return acc;
+      },
+      { workedMins: 0, holidayDays: 0, afternoonMins: 0, lockedRows: 0 },
+    );
+  }, [cutoffMinutes, filteredRows]);
 
-  useEffect(() => {
-    if (filtered.length === 0) {
-      setSelected(null);
-      return;
-    }
-    if (!selected || !filtered.some((employment) => employment.id === selected.id)) {
-      setSelected(filtered[0]);
-    }
-  }, [filtered, selected]);
+  const dailyCoverage = useMemo(() => {
+    return days.map((day) =>
+      filteredRows.reduce((count, row) => {
+        const item = row.days.find((entry) => entry.date === day.date);
+        return count + (item && (item.arrival_time || item.departure_time || item.planned_status) ? 1 : 0);
+      }, 0),
+    );
+  }, [days, filteredRows]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!selected) {
-      setDays(null);
-      setLocked(false);
-      return;
-    }
-    const parsed = parseYYYYMM(month);
-    if (!parsed) return;
-    setDaysLoading(true);
+  async function reloadMonth() {
+    if (!parsedMonth) return;
+    setLoading(true);
     setError(null);
-    void adminGetAttendanceMonth({ employmentId: selected.id, year: parsed.year, month: parsed.month })
-      .then((res) => {
-        if (cancelled) return;
-        setDays(res.days);
-        setLocked(res.locked);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(errorMessage(err, "Evidence docházky se nepodařilo načíst."));
-      })
-      .finally(() => {
-        if (!cancelled) setDaysLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [month, selected]);
-
-  async function commitTime(date: string, field: "arrival_time" | "departure_time", rawValue: string) {
-    if (!selected) return;
-    const normalized = normalizeTime(rawValue);
-    if (!isValidTimeOrEmpty(normalized)) return;
-    const nextValue = normalized === "" ? null : normalized;
-    const row = days?.find((item) => item.date === date);
-    if (!row) return;
-    if (row.planned_status) {
-      setErrorByKey((prev) => ({
-        ...prev,
-        [`${date}:${field}`]: `Do dne označeného jako ${row.planned_status === "HOLIDAY" ? "DOVOLENÁ" : "VOLNO"} nelze zapisovat čas.`,
-      }));
-      return;
-    }
-    setDays((prev) => prev?.map((item) => (item.date === date ? { ...item, [field]: nextValue } : item)) ?? null);
     try {
-      await adminUpsertAttendance({
-        employment_id: selected.id,
-        date,
-        arrival_time: field === "arrival_time" ? nextValue : row.arrival_time,
-        departure_time: field === "departure_time" ? nextValue : row.departure_time,
+      const [matrix, settings] = await Promise.all([
+        adminGetAttendanceMatrixMonth({ year: parsedMonth.year, month: parsedMonth.month }),
+        adminGetSettings(),
+      ]);
+      setRows(matrix.rows);
+      if (settings.afternoon_cutoff) setAfternoonCutoff(settings.afternoon_cutoff);
+      setSelected((current) => {
+        if (current && matrix.rows.some((row) => row.employment_id === current.employmentId)) return current;
+        const first = matrix.rows.find((row) => row.is_active_in_month) ?? matrix.rows[0];
+        return first ? { employmentId: first.employment_id, date: `${parsedMonth.year}-${pad2(parsedMonth.month)}-01` } : null;
       });
-      setErrorByKey((prev) => {
-        const next = { ...prev };
-        delete next[`${date}:${field}`];
-        return next;
-      });
-    } catch (err: unknown) {
-      const message = err instanceof ApiError ? err.message : errorMessage(err, "Uložení se nezdařilo.");
-      setErrorByKey((prev) => ({ ...prev, [`${date}:${field}`]: message }));
+    } catch (err) {
+      setError(errorMessage(err, "Evidence docházky se nepodařilo načíst."));
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function handleDayStatusChange(date: string, status: ShiftPlanDayStatus | null) {
-    if (!selected) return;
-    setContextMenu(null);
-    setError(null);
-    const row = days?.find((item) => item.date === date);
-    if (!row) return;
+  useEffect(() => {
+    void reloadMonth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month]);
 
-    setDays((prev) =>
-      prev?.map((item) =>
-        item.date === date
+  useEffect(() => {
+    setDraftArrival(selectedDay?.arrival_time ?? "");
+    setDraftDeparture(selectedDay?.departure_time ?? "");
+  }, [selectedDay]);
+
+  async function refreshOneRow(employmentId: number) {
+    if (!parsedMonth) return;
+    const response = await adminGetAttendanceMonth({ employmentId, year: parsedMonth.year, month: parsedMonth.month });
+    setRows((prev) =>
+      prev.map((row) =>
+        row.employment_id === employmentId
           ? {
-              ...item,
-              planned_status: status,
-              planned_arrival_time: status ? null : item.planned_arrival_time,
-              planned_departure_time: status ? null : item.planned_departure_time,
-              arrival_time: status ? null : item.arrival_time,
-              departure_time: status ? null : item.departure_time,
+              ...row,
+              locked: response.locked,
+              days: response.days,
             }
-          : item,
-      ) ?? null,
+          : row,
+      ),
     );
+  }
 
+  async function saveSelectedDay() {
+    if (!selectedRow || !selectedDay) return;
+    const arrival = normalizeTime(draftArrival);
+    const departure = normalizeTime(draftDeparture);
+    if (!isValidTimeOrEmpty(arrival) || !isValidTimeOrEmpty(departure)) {
+      setError("Čas zadejte například jako 08:30 nebo pole nechte prázdné.");
+      return;
+    }
+    if (selectedRow.locked) {
+      setError("Měsíc je uzamčený. Docházku pro tento úvazek nelze upravit.");
+      return;
+    }
+    if (selectedDay.planned_status) {
+      setError(`Do dne označeného jako ${planStatusLabel(selectedDay.planned_status)?.toLocaleUpperCase("cs-CZ")} nelze zapisovat docházku.`);
+      return;
+    }
+    setSaving(true);
+    setError(null);
     try {
-      await adminUpsertDayStatus({
-        employment_id: selected.id,
-        date,
-        status,
+      await adminUpsertAttendance({
+        employment_id: selectedRow.employment_id,
+        date: selectedDay.date,
+        arrival_time: arrival ? arrival : null,
+        departure_time: departure ? departure : null,
       });
+      await refreshOneRow(selectedRow.employment_id);
+      setSuccess("Docházka byla uložena.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : errorMessage(err, "Uložení se nezdařilo."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleLock(nextLocked: boolean) {
+    if (!selectedRow || !parsedMonth) return;
+    setSaving(true);
+    setError(null);
+    try {
+      if (nextLocked) {
+        await adminLockAttendance({ employment_id: selectedRow.employment_id, year: parsedMonth.year, month: parsedMonth.month });
+      } else {
+        await adminUnlockAttendance({ employment_id: selectedRow.employment_id, year: parsedMonth.year, month: parsedMonth.month });
+      }
+      await refreshOneRow(selectedRow.employment_id);
+    } catch (err) {
+      setError(errorMessage(err, "Změna zámku se nezdařila."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function setDayStatus(status: ShiftPlanDayStatus | null) {
+    if (!selectedRow || !selectedDay) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await adminUpsertDayStatus({ employment_id: selectedRow.employment_id, date: selectedDay.date, status });
+      await refreshOneRow(selectedRow.employment_id);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409 && err.body?.detail && typeof err.body.detail !== "string" && status) {
-        const detail = err.body.detail as {
-          attendance_exists?: boolean;
-          shift_plan_exists?: boolean;
-        };
+        const detail = err.body.detail as { attendance_exists?: boolean; shift_plan_exists?: boolean };
         setDayStatusDialog({
-          date,
+          employmentId: selectedRow.employment_id,
+          date: selectedDay.date,
           status,
           attendanceExists: Boolean(detail.attendance_exists),
           shiftPlanExists: Boolean(detail.shift_plan_exists),
         });
-        await reloadMonth();
         return;
       }
-      setError(errorMessage(err, "Uložení se nezdařilo."));
-      await reloadMonth();
+      setError(errorMessage(err, "Změna stavu dne se nezdařila."));
+    } finally {
+      setSaving(false);
     }
   }
 
   async function confirmDayStatusChange() {
-    if (!selected || !dayStatusDialog) return;
+    if (!dayStatusDialog) return;
     try {
       await adminUpsertDayStatus({
-        employment_id: selected.id,
+        employment_id: dayStatusDialog.employmentId,
         date: dayStatusDialog.date,
         status: dayStatusDialog.status,
         confirm_delete_conflicts: true,
       });
       setDayStatusDialog(null);
-      await reloadMonth();
+      await refreshOneRow(dayStatusDialog.employmentId);
     } catch (err) {
-      setError(errorMessage(err, "Uložení se nezdařilo."));
-    }
-  }
-
-  async function reloadMonth() {
-    if (!selected || !parsedMonth) return;
-    const res = await adminGetAttendanceMonth({ employmentId: selected.id, year: parsedMonth.year, month: parsedMonth.month });
-    setDays(res.days);
-    setLocked(res.locked);
-  }
-
-  async function toggleLock(nextLocked: boolean) {
-    if (!selected) return;
-    const parsed = parseYYYYMM(month);
-    if (!parsed) return;
-    setDaysLoading(true);
-    setError(null);
-    try {
-      if (nextLocked) {
-        await adminLockAttendance({ employment_id: selected.id, year: parsed.year, month: parsed.month });
-      } else {
-        await adminUnlockAttendance({ employment_id: selected.id, year: parsed.year, month: parsed.month });
-      }
-      const res = await adminGetAttendanceMonth({ employmentId: selected.id, year: parsed.year, month: parsed.month });
-      setDays(res.days);
-      setLocked(res.locked);
-    } catch (err: unknown) {
-      setError(errorMessage(err, "Operace se nezdařila."));
-    } finally {
-      setDaysLoading(false);
+      setError(errorMessage(err, "Potvrzená změna stavu dne se nezdařila."));
     }
   }
 
   return (
-    <div className="admin-page-grid">
-      <PageHeader
-        eyebrow="Docházka po úvazcích"
-        title="Evidence docházky"
-        description="Třípanelové rozhraní pro výběr úvazku, editaci dne a průběžný provozní souhrn."
-        actions={
-          <div className="admin-action-stack">
-            <Button type="button" variant="ghost" onClick={() => setMonth((value) => addMonths(value, -1))}>
-              Předchozí měsíc
-            </Button>
-            <StateBadge tone="accent">{formatMonthLabelCs(month)}</StateBadge>
-            <Button type="button" variant="ghost" onClick={() => setMonth((value) => addMonths(value, 1))}>
-              Další měsíc
-            </Button>
-            <NavLink to="/admin/settings" className="admin-action-link">
-              Správa odpolední hranice
-            </NavLink>
-          </div>
-        }
-      >
-        <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Docházka" }]} />
-      </PageHeader>
+    <div className="ops-page">
+      <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Docházka" }]} />
+      <header className="ops-header">
+        <div>
+          <h1>Měsíční přehled docházky</h1>
+          <p>Matice zobrazuje skutečný plán, docházku, absence a zámky podle employment_id.</p>
+        </div>
+        <div className="ops-actions">
+          <NavLink className="ops-btn" to="/admin/export">Export</NavLink>
+          <NavLink className="ops-btn" to="/admin/tisky">Tisk</NavLink>
+          <NavLink className="ops-btn" to="/admin/settings">Nastavení</NavLink>
+        </div>
+      </header>
+
+      <section className="ops-toolbar" aria-label="Filtry měsíčního přehledu">
+        <Button type="button" variant="ghost" size="sm" onClick={() => setMonth((value) => addMonths(value, -1))}>Předchozí</Button>
+        <input className="ops-input ops-input--month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Měsíc docházky" />
+        <Button type="button" variant="ghost" size="sm" onClick={() => setMonth((value) => addMonths(value, 1))}>Další</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(yyyyMm(new Date()))}>Dnes</Button>
+        <input className="ops-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hledat zaměstnance, úvazek nebo ID" aria-label="Hledat zaměstnance" />
+        <label className="ops-check">
+          <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
+          <span>Včetně neaktivních</span>
+        </label>
+      </section>
+
+      <div className="ops-legend" aria-label="Legenda">
+        <span><i className="ops-dot ops-dot--present" />Přítomen</span>
+        <span><i className="ops-dot ops-dot--planned" />Jen plán</span>
+        <span><i className="ops-dot ops-dot--holiday" />Dovolená</span>
+        <span><i className="ops-dot ops-dot--off" />Volno</span>
+        <span><i className="ops-dot ops-dot--warning" />Chybí průchod</span>
+        <span><i className="ops-dot ops-dot--locked" />Uzamčeno</span>
+      </div>
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
+      {success ? <InlineNotice tone="ok">{success}</InlineNotice> : null}
+      {loading ? <InlineNotice>Načítám měsíční přehled…</InlineNotice> : null}
 
-      <div className="admin-triple-layout">
-        <section className="admin-surface admin-surface--sidebar">
-          <div className="admin-surface-head">
-            <div>
-              <div className="admin-surface-title">Výběr úvazku</div>
-              <div className="admin-surface-subtitle">{filtered.length} z {employments.length} úvazků odpovídá filtru.</div>
-            </div>
-          </div>
-          <FilterBar>
-            <label className="kb-field" style={{ flex: "1 1 320px" }}>
-              <span className="kb-label">Hledat úvazek</span>
-              <input className="kb-input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Např. Novák, recepce nebo ID úvazku" />
-            </label>
-          </FilterBar>
-          <label className="admin-checkbox-row">
-            <input type="checkbox" checked={showInactiveEmployments} onChange={(e) => setShowInactiveEmployments(e.target.checked)} />
-            <span>Zobrazit i neaktivní úvazky</span>
-          </label>
-          <div className="admin-list admin-list--sticky-section" style={{ marginTop: 12 }}>
-            {loading ? <InlineNotice>Načítám…</InlineNotice> : null}
-            {!loading && filtered.length === 0 ? (
-              <EmptyState title="Žádný úvazek" description="Upravte filtr nebo zapněte zobrazení neaktivních úvazků." />
-            ) : null}
-            {filtered.map((employment) => (
-              <button key={employment.id} type="button" className={`admin-selection-row${selected?.id === employment.id ? " active" : ""}`} onClick={() => setSelected(employment)}>
-                <div>
-                  <div className="admin-list-title">{employment.user_name}</div>
-                  <div className="admin-list-subtitle">{employment.label}</div>
-                  <div className="admin-list-subtitle">
-                    {formatIsoDateForDisplay(employment.start_date)} až {formatIsoDateForDisplay(employment.end_date) || "na dobu neurčitou"}
-                  </div>
-                </div>
-                <StateBadge tone={!parsedMonth || employmentIsActiveInMonth(employment, employment.user_is_active, parsedMonth.year, parsedMonth.month) ? "ok" : "warning"}>
-                  {employment.id}
-                </StateBadge>
+      <div className="ops-workspace">
+        <aside className="ops-employee-panel" aria-label="Zaměstnanci">
+          <div className="ops-panel-title">Zaměstnanci <span>{filteredRows.length}</span></div>
+          <div className="ops-employee-list">
+            {filteredRows.map((row, index) => (
+              <button
+                key={row.employment_id}
+                type="button"
+                className={`ops-employee-row${selectedRow?.employment_id === row.employment_id ? " is-selected" : ""}`}
+                onClick={() => setSelected({ employmentId: row.employment_id, date: selectedDay?.date ?? days[0]?.date ?? "" })}
+              >
+                <span className="ops-index">{index + 1}</span>
+                <span className="ops-avatar" aria-hidden="true">{row.user_name.slice(0, 2).toLocaleUpperCase("cs-CZ")}</span>
+                <span>
+                  <strong>{row.user_name}</strong>
+                  <small>{row.employment_title} · ID {row.employment_id}</small>
+                </span>
               </button>
             ))}
-          </div>
-        </section>
-
-        <section className="admin-surface admin-surface--focus">
-          <div className="admin-surface-head">
-            <div>
-              <div className="admin-surface-title">{selected ? selected.label : "Vyberte úvazek"}</div>
-              <div className="admin-surface-subtitle">Měsíc {formatMonthLabelCs(month)}</div>
-            </div>
-            <div className="admin-action-row">
-              <StateBadge tone={locked ? "warning" : "ok"}>{locked ? "Měsíc uzavřený" : "Měsíc otevřený"}</StateBadge>
-              {selected ? (
-                <Button type="button" variant={locked ? "ghost" : "primary"} onClick={() => void toggleLock(!locked)} disabled={daysLoading}>
-                  {locked ? "Odemknout měsíc" : "Uzavřít měsíc"}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          {daysLoading ? <InlineNotice>Načítám vybraný měsíc…</InlineNotice> : null}
-          {!selected ? (
-            <EmptyState title="Vyberte úvazek" description="Nejprve zvolte úvazek vlevo. Potom se otevře celý měsíční list docházky." />
-          ) : null}
-          {selected && !daysLoading && !days ? (
-            <EmptyState title="Docházka není k dispozici" description="Měsíční data se nepodařilo načíst. Zkuste měsíc obnovit nebo zkontrolujte uzamčení." />
-          ) : null}
-          <div className="admin-attendance-list admin-attendance-list--scroller">
-            {days?.map((day) => {
-              const calc = computeDayCalc({ date: day.date, arrival_time: day.arrival_time, departure_time: day.departure_time, planned_status: day.planned_status }, template, cutoffMinutes);
-              const isToday = day.date === today;
-              return (
-                <div
-                  key={day.date}
-                  className={`admin-attendance-row${isToday ? " is-today" : ""}${!day.is_within_employment_period ? " is-outside" : ""}${
-                    day.planned_status === "HOLIDAY" ? " is-holiday" : ""
-                  }${day.planned_status === "OFF" ? " is-off" : ""}`}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    setContextMenu({ x: event.clientX, y: event.clientY, date: day.date });
-                  }}
-                >
-                  <div className="admin-attendance-date">
-                    <strong>{day.date.slice(8, 10)}.</strong>
-                    <span>{toDowLabel(day.date)}</span>
-                    {!day.is_within_employment_period ? <StateBadge tone="warning">Mimo období</StateBadge> : null}
-                  </div>
-                  <TimeInput
-                    label="Příchod"
-                    placeholder={timeFieldPlaceholder()}
-                    value={day.arrival_time ?? ""}
-                    plannedValue={day.planned_arrival_time}
-                    plannedStatus={day.planned_status}
-                    error={errorByKey[`${day.date}:arrival_time`] ?? null}
-                    readOnly={locked || !day.is_within_employment_period || Boolean(day.planned_status)}
-                    onCommit={(value) => void commitTime(day.date, "arrival_time", value)}
-                  />
-                  <TimeInput
-                    label="Odchod"
-                    placeholder={timeFieldPlaceholder()}
-                    value={day.departure_time ?? ""}
-                    plannedValue={day.planned_departure_time}
-                    plannedStatus={day.planned_status}
-                    error={errorByKey[`${day.date}:departure_time`] ?? null}
-                    readOnly={locked || !day.is_within_employment_period || Boolean(day.planned_status)}
-                    onCommit={(value) => void commitTime(day.date, "departure_time", value)}
-                  />
-                  <div className="admin-attendance-hours">
-                    <span>Odpracováno</span>
-                    <strong>{calc.workedMins !== null ? `${formatHours(calc.workedMins)} h` : "—"}</strong>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {contextMenu ? (
-            <div className="plan-context-menu" style={{ top: contextMenu.y, left: contextMenu.x, position: "fixed" }}>
-              <button type="button" onClick={() => void handleDayStatusChange(contextMenu.date, "HOLIDAY")}>
-                Označit jako DOVOLENÁ
-              </button>
-              <button type="button" onClick={() => void handleDayStatusChange(contextMenu.date, "OFF")}>
-                Označit jako VOLNO
-              </button>
-              <button type="button" onClick={() => void handleDayStatusChange(contextMenu.date, null)}>
-                Zrušit označení dne
-              </button>
-            </div>
-          ) : null}
-        </section>
-
-        <aside className="admin-surface admin-surface--summary">
-          <div className="admin-surface-head">
-            <div>
-              <div className="admin-surface-title">Souhrn měsíce</div>
-              <div className="admin-surface-subtitle">Včetně odpoledních hodin a pracovního fondu.</div>
-            </div>
-          </div>
-          <div className="admin-stack">
-            <MetricCard label="Součet hodin" value={`${formatHours(monthStats.totalMins)} h`} tone="accent" />
-            <MetricCard label="Dovolená" value={`${formatHours(monthStats.holidayMins)} h`} />
-            <MetricCard label="Počet dní dovolené" value={String(monthStats.vacationDays)} />
-            <MetricCard label="Odpolední" value={`${formatHours(monthStats.afternoonMins)} h`} />
-            <MetricCard label="Víkendy a svátky" value={`${formatHours(monthStats.weekendHolidayMins)} h`} />
-            <MetricCard label="Pracovní fond" value={`${workingFundHours} h`} />
-            <InlineNotice>
-              Odpolední hranice je aktuálně nastavena na <strong>{afternoonCutoff}</strong>. Zamknuté měsíce a dny mimo období úvazku jsou v rozhraní read-only.
-            </InlineNotice>
-            {!selected ? (
-              <InlineNotice tone="warning">
-                Bez vybraného úvazku nelze docházku upravovat. Vyberte konkrétní employment ID vlevo.
-              </InlineNotice>
-            ) : null}
+            {!loading && filteredRows.length === 0 ? <EmptyState title="Žádní zaměstnanci" description="Filtr neodpovídá žádnému úvazku v měsíci." /> : null}
           </div>
         </aside>
+
+        <main className="ops-main-matrix">
+          <div className="ops-table-wrap" tabIndex={0} aria-label="Měsíční matice docházky s horizontálním posunem">
+            <table className="ops-matrix">
+              <thead>
+                <tr>
+                  <th className="ops-sticky-col">Zaměstnanec</th>
+                  {days.map((day) => (
+                    <th key={day.date} className={`${day.isWeekend || day.holidayName ? "is-weekend" : ""}${day.date === today ? " is-today" : ""}`}>
+                      <span>{day.number}</span>
+                      <small>{day.weekday}</small>
+                    </th>
+                  ))}
+                  <th className="ops-summary-col">Odpracováno</th>
+                  <th className="ops-summary-col">Plán</th>
+                  <th className="ops-summary-col">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => {
+                  const stats = computeMonthStats(row.days, row.employment_type, cutoffMinutes);
+                  const plannedMins = row.days.reduce((acc, day) => {
+                    const calc = computeDayCalc({ date: day.date, arrival_time: day.planned_arrival_time ?? null, departure_time: day.planned_departure_time ?? null, planned_status: day.planned_status }, row.employment_type, cutoffMinutes);
+                    return acc + (calc.workedMins ?? 0) + (day.planned_status === "HOLIDAY" ? 8 * 60 : 0);
+                  }, 0);
+                  const saldo = stats.totalMins - plannedMins;
+                  return (
+                    <tr key={row.employment_id}>
+                      <th className="ops-sticky-col ops-name-head" scope="row">
+                        <strong>{row.user_name}</strong>
+                        <small>{employmentTemplateLabel(row.employment_type)} · {row.employment_title}</small>
+                        {row.locked ? <span className="ops-lock">Zámek</span> : null}
+                      </th>
+                      {days.map((day) => {
+                        const item = row.days.find((entry) => entry.date === day.date);
+                        if (!item) return <td key={day.date} />;
+                        const selectedCell = selected?.employmentId === row.employment_id && selected.date === day.date;
+                        return (
+                          <td key={day.date} className={`${cellTone(item)}${day.date === today ? " is-today" : ""}${selectedCell ? " is-selected" : ""}`}>
+                            <button
+                              type="button"
+                              className="ops-cell-btn"
+                              onClick={() => setSelected({ employmentId: row.employment_id, date: day.date })}
+                              aria-label={`${row.user_name}, ${formatIsoDateForDisplay(day.date)}, plán ${shiftAbbrev(item)}, skutečnost ${item.arrival_time ?? "bez příchodu"} až ${item.departure_time ?? "bez odchodu"}`}
+                            >
+                              <span className="ops-shift">{shiftAbbrev(item)}</span>
+                              <span className="ops-times">
+                                {item.planned_status ? planStatusInputPlaceholder(item.planned_status) : item.arrival_time || item.departure_time ? `${item.arrival_time ?? "—"} ${item.departure_time ?? "—"}` : item.planned_arrival_time || item.planned_departure_time ? `${item.planned_arrival_time ?? "—"} ${item.planned_departure_time ?? "—"}` : "—"}
+                              </span>
+                              {row.locked ? <span className="ops-cell-lock" aria-label="Uzamčeno">▣</span> : null}
+                            </button>
+                          </td>
+                        );
+                      })}
+                      <td className="ops-summary-col">{formatHours(stats.totalMins)} h</td>
+                      <td className="ops-summary-col">{formatHours(plannedMins)} h</td>
+                      <td className={`ops-summary-col${saldo < 0 ? " is-negative" : saldo > 0 ? " is-positive" : ""}`}>{saldo === 0 ? "0.0 h" : `${saldo > 0 ? "+" : ""}${formatHours(saldo)} h`}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th className="ops-sticky-col">Denní souhrn</th>
+                  {dailyCoverage.map((count, index) => <td key={days[index]?.date ?? index}>{count}</td>)}
+                  <td className="ops-summary-col">{formatHours(monthStats.workedMins)} h</td>
+                  <td className="ops-summary-col">{workingDaysInMonthCs(year, monthNum) * 8} h</td>
+                  <td className="ops-summary-col">{monthStats.lockedRows} zámků</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </main>
       </div>
+
+      <section className="ops-detail-grid" aria-label="Detail vybraného dne">
+        <div className="ops-detail-card">
+          <div className="ops-detail-head">
+            <div>
+              <h2>Detail / úprava</h2>
+              <p>{selectedRow && selectedDay ? `${selectedRow.user_name} · ${formatIsoDateForDisplay(selectedDay.date)}` : "Vyberte buňku v matici."}</p>
+            </div>
+            {selectedRow ? <StateBadge tone={selectedRow.locked ? "warning" : "ok"}>{selectedRow.locked ? "Uzamčeno" : "Otevřeno"}</StateBadge> : null}
+          </div>
+          {selectedRow && selectedDay ? (
+            <div className="ops-detail-form">
+              <div className="ops-detail-meta">
+                <span>Úvazek</span><strong>{selectedRow.employment_label}</strong>
+                <span>Období</span><strong>{formatIsoDateForDisplay(selectedRow.start_date)} až {formatIsoDateForDisplay(selectedRow.end_date) || "bez konce"}</strong>
+                <span>Plán směny</span><strong>{selectedDay.planned_status ? planStatusLabel(selectedDay.planned_status) : `${selectedDay.planned_arrival_time ?? "—"} až ${selectedDay.planned_departure_time ?? "—"}`}</strong>
+              </div>
+              <label className="kb-field">
+                <span className="kb-label">Příchod</span>
+                <input className="ops-input" value={draftArrival} inputMode="numeric" placeholder={timeFieldPlaceholder()} disabled={selectedRow.locked || Boolean(selectedDay.planned_status)} onChange={(event) => setDraftArrival(event.target.value)} />
+              </label>
+              <label className="kb-field">
+                <span className="kb-label">Odchod</span>
+                <input className="ops-input" value={draftDeparture} inputMode="numeric" placeholder={timeFieldPlaceholder()} disabled={selectedRow.locked || Boolean(selectedDay.planned_status)} onChange={(event) => setDraftDeparture(event.target.value)} />
+              </label>
+              <div className="ops-actions">
+                <Button type="button" variant="primary" disabled={saving || selectedRow.locked || Boolean(selectedDay.planned_status)} onClick={() => void saveSelectedDay()}>
+                  {saving ? "Ukládám..." : "Uložit den"}
+                </Button>
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => void toggleLock(!selectedRow.locked)}>
+                  {selectedRow.locked ? "Odemknout měsíc" : "Uzamknout měsíc"}
+                </Button>
+                <Button type="button" variant="ghost" disabled={saving || selectedRow.locked} onClick={() => void setDayStatus("HOLIDAY")}>Dovolená</Button>
+                <Button type="button" variant="ghost" disabled={saving || selectedRow.locked} onClick={() => void setDayStatus("OFF")}>Volno</Button>
+                <Button type="button" variant="ghost" disabled={saving || selectedRow.locked} onClick={() => void setDayStatus(null)}>Zrušit stav</Button>
+              </div>
+            </div>
+          ) : <EmptyState title="Není vybraný den" description="Vyberte zaměstnance a den v měsíční matici." />}
+        </div>
+
+        <aside className="ops-detail-card">
+          <h2>Souhrn měsíce</h2>
+          <div className="ops-summary-list">
+            <div><span>Odpracováno</span><strong>{formatHours(monthStats.workedMins)} h</strong></div>
+            <div><span>Dovolená</span><strong>{monthStats.holidayDays} dní</strong></div>
+            <div><span>Odpolední</span><strong>{formatHours(monthStats.afternoonMins)} h</strong></div>
+            <div><span>Zamčené úvazky</span><strong>{monthStats.lockedRows}</strong></div>
+          </div>
+          <InlineNotice>Backend podporuje jeden příchod a jeden odchod za den. Druhý průchod proto není v rozhraní předstírán.</InlineNotice>
+        </aside>
+      </section>
+
       <ConfirmDialog
         open={dayStatusDialog !== null}
         title="Smazat kolidující údaje?"
@@ -508,57 +519,9 @@ export default function AdminAttendanceSheetsPage() {
         onConfirm={() => void confirmDayStatusChange()}
         onClose={() => {
           setDayStatusDialog(null);
-          void reloadMonth();
+          if (selectedRow) void refreshOneRow(selectedRow.employment_id);
         }}
       />
     </div>
-  );
-}
-
-function TimeInput(props: {
-  label: string;
-  placeholder: string;
-  value: string;
-  plannedValue?: string | null;
-  plannedStatus?: ShiftPlanDayStatus | null;
-  error: string | null;
-  readOnly: boolean;
-  onCommit: (v: string) => void;
-}) {
-  const { label, placeholder, value, plannedValue, plannedStatus, error, readOnly, onCommit } = props;
-  const [local, setLocal] = useState(value);
-  useEffect(() => setLocal(value), [value]);
-
-  const ok = isValidTimeOrEmpty(local);
-  const plannedLabel = plannedStatus ? planStatusLabel(plannedStatus) : plannedValue;
-  const statusPlaceholder = planStatusInputPlaceholder(plannedStatus);
-  const effectivePlaceholder = !local && statusPlaceholder ? statusPlaceholder : placeholder;
-  const toneClass = readOnly ? "is-readonly" : local ? "has-value" : "is-empty";
-  const plannedClass = plannedLabel ? "has-plan" : "";
-
-  return (
-    <label className={`admin-time-field ${toneClass} ${plannedClass}`.trim()}>
-      <span>{label}</span>
-      <div className="admin-time-input-wrap">
-        {plannedLabel ? <small>Plán: {plannedLabel}</small> : <small>{readOnly ? "Zápis nepovolen" : "Ruční zápis času"}</small>}
-        <input
-          className="kb-input"
-          inputMode="numeric"
-          value={local}
-          disabled={readOnly}
-          readOnly={readOnly}
-          placeholder={effectivePlaceholder}
-          onChange={(e) => setLocal(e.target.value)}
-          onBlur={() => {
-            if (readOnly || !ok) return;
-            const norm = normalizeTime(local);
-            setLocal(norm);
-            onCommit(norm);
-          }}
-        />
-      </div>
-      {!ok ? <small className="admin-field-error">Zadejte čas ve formátu 08:30 nebo pole nechte prázdné.</small> : null}
-      {ok && error ? <small className="admin-field-error">{error}</small> : null}
-    </label>
   );
 }

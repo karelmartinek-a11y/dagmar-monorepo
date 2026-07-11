@@ -582,6 +582,69 @@ def test_shift_plan_defaults_to_active_employments_and_keeps_inactive_available_
     assert payload["rows"][1]["days"][9]["arrival_time"] is None
 
 
+def test_admin_attendance_matrix_month_returns_all_employments_without_cell_requests() -> None:
+    client, session_local = _build_client()
+    with session_local() as db:
+        first_user = _create_user(db, email="attendance-matrix-first@example.com", name="První Docházka")
+        second_user = _create_user(db, email="attendance-matrix-second@example.com", name="Druhý Docházka")
+        first_employment = _add_employment(db, first_user, start_date=date(2026, 5, 1), title="Recepce")
+        second_employment = _add_employment(db, second_user, start_date=date(2026, 5, 1), title="Úklid", employment_type="HPP")
+        db.add(
+            Attendance(
+                employment_id=first_employment.id,
+                instance_id=first_user.instance_id,
+                date=date(2026, 5, 10),
+                arrival_time="08:00",
+                departure_time="16:00",
+            )
+        )
+        db.add(
+            ShiftPlan(
+                employment_id=first_employment.id,
+                instance_id=first_user.instance_id,
+                date=date(2026, 5, 10),
+                arrival_time="08:00",
+                departure_time="16:00",
+            )
+        )
+        db.add(
+            ShiftPlan(
+                employment_id=second_employment.id,
+                instance_id=second_user.instance_id,
+                date=date(2026, 5, 11),
+                status="HOLIDAY",
+            )
+        )
+        db.add(
+            AttendanceLock(
+                employment_id=second_employment.id,
+                instance_id=second_user.instance_id,
+                year=2026,
+                month=5,
+                locked_by="admin",
+            )
+        )
+        db.commit()
+        first_id = first_employment.id
+        second_id = second_employment.id
+
+    response = client.get("/api/v1/admin/attendance/month?year=2026&month=5")
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["year"] == 2026
+    assert payload["month"] == 5
+    assert [row["employment_id"] for row in payload["rows"]] == [first_id, second_id]
+
+    first_row = payload["rows"][0]
+    second_row = payload["rows"][1]
+    assert first_row["days"][9]["arrival_time"] == "08:00"
+    assert first_row["days"][9]["planned_arrival_time"] == "08:00"
+    assert first_row["locked"] is False
+    assert second_row["days"][10]["planned_status"] == "HOLIDAY"
+    assert second_row["locked"] is True
+
+
 def test_employment_delete_with_related_data_returns_409_until_confirmed() -> None:
     client, session_local = _build_client()
     with session_local() as db:

@@ -19,6 +19,28 @@ export type AdminAttendanceMonthResponse = {
   locked: boolean;
 };
 
+export type AdminAttendanceMatrixRow = {
+  employment_id: number;
+  user_id: number;
+  user_name: string;
+  employment_label: string;
+  employment_title: string;
+  employment_type: "DPP_DPC" | "HPP";
+  user_is_active: boolean;
+  employment_is_active: boolean;
+  start_date: string;
+  end_date: string | null;
+  is_active_in_month: boolean;
+  locked: boolean;
+  days: AdminAttendanceDay[];
+};
+
+export type AdminAttendanceMatrixMonthResponse = {
+  year: number;
+  month: number;
+  rows: AdminAttendanceMatrixRow[];
+};
+
 export type AdminAttendanceUpsertBody = {
   employment_id: number;
   date: string;
@@ -44,6 +66,27 @@ export async function adminGetAttendanceMonth(params: {
     path: "/api/v1/admin/attendance",
     method: "GET",
     query: { employment_id: employmentId, year, month },
+    signal,
+  });
+}
+
+export async function adminGetAttendanceMatrixMonth(params: {
+  year: number;
+  month: number;
+  signal?: AbortSignal;
+}): Promise<AdminAttendanceMatrixMonthResponse> {
+  const { year, month, signal } = params;
+  if (!Number.isInteger(year) || year < 1970 || year > 2100) {
+    throw new ApiError(400, "Invalid year");
+  }
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw new ApiError(400, "Invalid month");
+  }
+
+  return apiFetch<AdminAttendanceMatrixMonthResponse>({
+    path: "/api/v1/admin/attendance/month",
+    method: "GET",
+    query: { year, month },
     signal,
   });
 }
