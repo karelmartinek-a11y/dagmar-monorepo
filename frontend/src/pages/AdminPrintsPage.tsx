@@ -166,16 +166,19 @@ export default function AdminPrintsPage() {
           </div>
           <div className="admin-form-grid">
             <div>
-              <div className="kb-label">Měsíc</div>
-              <input className="kb-input" type="month" value={month} onChange={(event) => setMonth(event.target.value)} required />
+              <label className="kb-field" htmlFor="admin-prints-month">
+                <span className="kb-label">Měsíc</span>
+                <input id="admin-prints-month" className="kb-input" type="month" value={month} onChange={(event) => setMonth(event.target.value)} required />
+              </label>
             </div>
             <div>
-              <div className="kb-label">Aktivita úvazků</div>
+              <div className="kb-label" id="admin-prints-activity-label">Aktivita úvazků</div>
               <label className="admin-checkbox-row">
                 <input
                   type="checkbox"
                   checked={showInactiveEmployments}
                   onChange={(event) => setShowInactiveEmployments(event.target.checked)}
+                  aria-describedby="admin-prints-activity-label"
                 />
                 <span>Zobrazit i neaktivní úvazky pro zvolený měsíc</span>
               </label>
@@ -200,13 +203,17 @@ export default function AdminPrintsPage() {
           </div>
 
           <FilterBar>
-            <input
-              className="kb-input"
-              type="search"
-              placeholder="Hledat podle zaměstnance nebo názvu úvazku"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
+            <label className="kb-field" htmlFor="admin-prints-employment-search" style={{ flex: "1 1 320px" }}>
+              <span className="kb-label">Hledat úvazek</span>
+              <input
+                id="admin-prints-employment-search"
+                className="kb-input"
+                type="search"
+                placeholder="Hledat podle zaměstnance nebo názvu úvazku"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
             <StateBadge tone="accent">
               {filtered.length} nalezeno / {selectedIds.length} vybráno
             </StateBadge>

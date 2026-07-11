@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { getAttendance, putAttendance, upsertPortalDayStatus } from "../api/attendance";
 import { ApiError } from "../api/client";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
@@ -1285,6 +1285,9 @@ function TimeInput(props: {
   onChange: (v: string) => void;
 }) {
   const { label, placeholder, value, plannedValue, plannedStatus, readOnly, readOnlyReason, onChange } = props;
+  const inputId = useId();
+  const helpId = `${inputId}-help`;
+  const errorId = `${inputId}-error`;
   const [local, setLocal] = useState(value);
 
   useEffect(() => {
@@ -1301,16 +1304,26 @@ function TimeInput(props: {
 
   return (
     <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
-      <div style={{ fontSize: 12, color: "var(--kb-brand-ink-600)", fontWeight: 700 }}>{label}</div>
+      <label htmlFor={inputId} style={{ fontSize: 12, color: "var(--kb-brand-ink-600)", fontWeight: 700 }}>
+        {label}
+      </label>
       {plannedLabel ? (
-        <div style={{ fontSize: 11, color: plannedTone, fontWeight: 700 }}>Plán: {plannedLabel}</div>
+        <div id={helpId} style={{ fontSize: 11, color: plannedTone, fontWeight: 700 }}>
+          Plán: {plannedLabel}
+        </div>
       ) : null}
       <input
+        id={inputId}
+        className="portal-time-input"
         inputMode="numeric"
         placeholder={effectivePlaceholder}
         value={local}
         readOnly={readOnly}
         disabled={readOnly}
+        aria-invalid={!ok ? "true" : "false"}
+        aria-describedby={[plannedLabel ? helpId : null, readOnly && readOnlyReason ? helpId : null, !ok && !readOnly ? errorId : null]
+          .filter(Boolean)
+          .join(" ") || undefined}
         onChange={(e) => {
           if (readOnly) return;
           setLocal(e.target.value);
@@ -1329,7 +1342,6 @@ function TimeInput(props: {
               ? `1px solid ${plannedTone}`
               : "1px solid rgba(35, 41, 44, 0.18)"
             : "1px solid rgba(255,0,0,0.6)",
-          outline: "none",
           padding: "0 12px",
           fontSize: 16,
           fontWeight: 700,
@@ -1345,8 +1357,8 @@ function TimeInput(props: {
           cursor: readOnly ? "not-allowed" : "text",
         }}
       />
-      {readOnly && readOnlyReason ? <div style={{ fontSize: 11, color: "var(--kb-brand-ink-600)" }}>{readOnlyReason}</div> : null}
-      {!ok && !readOnly ? <div style={{ fontSize: 11, color: "var(--kb-red)" }}>Zadejte čas například jako 08:30, nebo pole nechte prázdné.</div> : null}
+      {readOnly && readOnlyReason ? <div id={helpId} style={{ fontSize: 11, color: "var(--kb-brand-ink-600)" }}>{readOnlyReason}</div> : null}
+      {!ok && !readOnly ? <div id={errorId} style={{ fontSize: 11, color: "var(--kb-red)" }}>Zadejte čas například jako 08:30, nebo pole nechte prázdné.</div> : null}
     </div>
   );
 }

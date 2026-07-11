@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
     [location.search],
   );
 
-  const [email, setEmail] = useState("provoz@hotelchodovasc.cz");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sendingHelp, setSendingHelp] = useState(false);

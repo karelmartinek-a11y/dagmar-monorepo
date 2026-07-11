@@ -875,6 +875,14 @@ export default function AdminShiftPlanPage() {
                                     inputMode="numeric"
                                     pattern="[0-9:]*"
                                     className="plan-table-input"
+                                    aria-label={`${row.display_label}, ${day.number}. ${monthLabelText}, příchod`}
+                                    title={
+                                      isOutsideEmployment
+                                        ? "Tento den je mimo období úvazku."
+                                        : isBlocked
+                                          ? `Den je označen jako ${statusLabel}.`
+                                          : `Příchod pro ${row.display_label}, ${day.number}. ${monthLabelText}`
+                                    }
                                     value={isBlocked ? "" : value}
                                     onChange={(event) =>
                                       handleInputChange(rowId, day.date, "arrival_time", event.target.value)
@@ -936,6 +944,14 @@ export default function AdminShiftPlanPage() {
                                     inputMode="numeric"
                                     pattern="[0-9:]*"
                                     className="plan-table-input"
+                                    aria-label={`${row.display_label}, ${day.number}. ${monthLabelText}, odchod`}
+                                    title={
+                                      isOutsideEmployment
+                                        ? "Tento den je mimo období úvazku."
+                                        : isBlocked
+                                          ? `Den je označen jako ${statusLabel}.`
+                                          : `Odchod pro ${row.display_label}, ${day.number}. ${monthLabelText}`
+                                    }
                                     value={isBlocked ? "" : value}
                                     onChange={(event) =>
                                       handleInputChange(rowId, day.date, "departure_time", event.target.value)

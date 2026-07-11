@@ -362,6 +362,12 @@ textarea {
   box-shadow: var(--kb-focus);
 }
 
+.portal-time-input:focus-visible {
+  outline: 3px solid rgba(35, 41, 44, 0.35);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(35, 41, 44, 0.08);
+}
+
 .kb-input[aria-invalid="true"],
 .kb-select[aria-invalid="true"],
 .kb-textarea[aria-invalid="true"] {
