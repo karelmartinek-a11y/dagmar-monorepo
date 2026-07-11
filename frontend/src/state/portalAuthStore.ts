@@ -33,6 +33,14 @@ function write(state: PortalAuthState) {
   }
 }
 
+function remove() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export function getPortalAuthState(): PortalAuthState {
   return read();
 }
@@ -42,5 +50,5 @@ export function setPortalAuthState(next: PortalAuthState) {
 }
 
 export function clearPortalAuthState() {
-  write({ accessToken: null, employmentId: null, displayName: null, employments: [] });
+  remove();
 }
