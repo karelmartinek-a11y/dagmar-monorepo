@@ -1,4 +1,4 @@
-import { ChangeEvent, Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   adminGetShiftPlanMonth,
   adminSetShiftPlanSelection,
@@ -9,7 +9,7 @@ import {
   type ShiftPlanDayStatus,
 } from "../api/adminShiftPlan";
 import { ApiError } from "../api/client";
-import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice, StateBadge } from "../components/admin/AdminUI";
+import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice } from "../components/admin/AdminUI";
 import { getCzechHolidayName, isWeekendDate, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { formatIsoMonthForDisplay, parseCzechMonthToIso } from "../utils/date";
 import { isValidTimeOrEmpty, normalizeTime } from "../utils/timeInput";
@@ -118,7 +118,6 @@ export default function AdminShiftPlanPage() {
   const [savingCells, setSavingCells] = useState<Record<string, boolean>>({});
   const [successCells, setSuccessCells] = useState<Record<string, boolean>>({});
   const [refreshTick, setRefreshTick] = useState(0);
-  const [tableScrollWidth, setTableScrollWidth] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [instanceQuery, setInstanceQuery] = useState("");
   const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
@@ -126,8 +125,6 @@ export default function AdminShiftPlanPage() {
   const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
   const successTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tableWrapperRef = useRef<HTMLDivElement | null>(null);
-  const topScrollRef = useRef<HTMLDivElement | null>(null);
-  const bottomScrollRef = useRef<HTMLDivElement | null>(null);
 
   const year = Number(month.slice(0, 4)) || new Date().getFullYear();
   const monthNum = Number(month.slice(5, 7)) || new Date().getMonth() + 1;
@@ -273,74 +270,6 @@ export default function AdminShiftPlanPage() {
     };
   }, []);
 
-  useLayoutEffect(() => {
-    const wrapper = tableWrapperRef.current;
-    if (!wrapper) return;
-
-    const updateWidth = () => setTableScrollWidth(wrapper.scrollWidth);
-    updateWidth();
-
-    const observer =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => {
-            updateWidth();
-          })
-        : null;
-
-    if (observer) {
-      observer.observe(wrapper);
-    }
-
-    const handleResize = () => updateWidth();
-    if (typeof window !== "undefined") {
-      window.addEventListener("resize", handleResize);
-    }
-
-    return () => {
-      observer?.disconnect();
-      if (typeof window !== "undefined") {
-        window.removeEventListener("resize", handleResize);
-      }
-    };
-  }, [days.length, plan?.rows.length]);
-
-  useEffect(() => {
-    const wrapper = tableWrapperRef.current;
-    const top = topScrollRef.current;
-    const bottom = bottomScrollRef.current;
-    if (!wrapper) return;
-
-    const syncScroller = (source: HTMLDivElement) => {
-      const scrollLeft = source.scrollLeft;
-
-      wrapper.scrollLeft = scrollLeft;
-      if (top && source !== top) {
-        top.scrollLeft = scrollLeft;
-      }
-      if (bottom && source !== bottom) {
-        bottom.scrollLeft = scrollLeft;
-      }
-    };
-
-    const onWrapperScroll = () => syncScroller(wrapper);
-    const onTopScroll = () => {
-      if (top) syncScroller(top);
-    };
-    const onBottomScroll = () => {
-      if (bottom) syncScroller(bottom);
-    };
-
-    wrapper.addEventListener("scroll", onWrapperScroll);
-    top?.addEventListener("scroll", onTopScroll);
-    bottom?.addEventListener("scroll", onBottomScroll);
-
-    return () => {
-      wrapper.removeEventListener("scroll", onWrapperScroll);
-      top?.removeEventListener("scroll", onTopScroll);
-      bottom?.removeEventListener("scroll", onBottomScroll);
-    };
-  }, [plan?.rows.length]);
-
   const selectedIds = plan?.selected_employment_ids ?? [];
   const activeEmployments = useMemo(() => plan?.available_employments ?? [], [plan?.available_employments]);
   const visibleEmployments = useMemo(
@@ -430,19 +359,6 @@ export default function AdminShiftPlanPage() {
     }
     setMonthInputError(null);
     setMonth(parsed);
-  };
-
-  const scrollTableTo = (left: number) => {
-    const wrapper = tableWrapperRef.current;
-    if (!wrapper) return;
-    const maxLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
-    wrapper.scrollTo({ left: Math.max(0, Math.min(left, maxLeft)), behavior: "smooth" });
-  };
-
-  const scrollTableBy = (delta: number) => {
-    const wrapper = tableWrapperRef.current;
-    if (!wrapper) return;
-    scrollTableTo(wrapper.scrollLeft + delta);
   };
 
   const handleToggleInstance = async (employmentId: number) => {
@@ -795,63 +711,6 @@ export default function AdminShiftPlanPage() {
           {instancePicker}
         </aside>
         <main className="plan-main">
-          <div className="plan-toolbar">
-            <div className="plan-toolbar-summary">
-              <div className="plan-toolbar-count">
-                {filteredEmployments.length} / {activeEmployments.length} úvazků
-              </div>
-              <div className="plan-toolbar-filter">
-                {instanceQuery.trim() ? (
-                  <>
-                    Filtr: <strong>{instanceQuery.trim()}</strong>
-                  </>
-                ) : (
-                  `${showInactiveEmployments ? "Včetně neaktivních úvazků" : "Jen aktivní úvazky"} · ${monthLabelText}`
-                )}
-              </div>
-            </div>
-            <div className="plan-toolbar-actions">
-              <StateBadge tone="accent">{monthLabelText}</StateBadge>
-              <button type="button" className="plan-jump-btn" onClick={() => scrollTableTo(0)} title="Přejít na začátek měsíce">
-                Na začátek
-              </button>
-              <button
-                type="button"
-                className="plan-jump-btn"
-                onClick={() => scrollTableBy(-(tableWrapperRef.current?.clientWidth ?? 0))}
-                title="Posunout tabulku o jednu obrazovku vlevo"
-              >
-                O stránku vlevo
-              </button>
-              <button
-                type="button"
-                className="plan-jump-btn"
-                onClick={() => scrollTableBy(tableWrapperRef.current?.clientWidth ?? 0)}
-                title="Posunout tabulku o jednu obrazovku vpravo"
-              >
-                O stránku vpravo
-              </button>
-              <button
-                type="button"
-                className="plan-jump-btn"
-                onClick={() => scrollTableTo((tableWrapperRef.current?.scrollWidth ?? 0) / 2)}
-                title="Přejít do středu měsíce"
-              >
-                Na střed
-              </button>
-              <button
-                type="button"
-                className="plan-jump-btn"
-                onClick={() =>
-                  scrollTableTo((tableWrapperRef.current?.scrollWidth ?? 0) - (tableWrapperRef.current?.clientWidth ?? 0))
-                }
-                title="Přejít na konec měsíce"
-              >
-                Na konec
-              </button>
-            </div>
-          </div>
-
           {loading ? <div className="plan-loading">Načítám plán…</div> : null}
           {!loading && error ? <div className="plan-error">{error}</div> : null}
           {saveError ? <div className="plan-error">{saveError}</div> : null}
@@ -872,10 +731,6 @@ export default function AdminShiftPlanPage() {
             />
           ) : (
             <>
-              <div className="plan-table-top-scroll" ref={topScrollRef}>
-                <div style={{ width: tableScrollWidth }} />
-              </div>
-
               <div className="plan-table-wrapper" ref={tableWrapperRef}>
                 <table className="plan-table">
                   <colgroup>
@@ -1102,10 +957,6 @@ export default function AdminShiftPlanPage() {
                     </tr>
                   </tfoot>
                 </table>
-              </div>
-
-              <div className="plan-table-bottom-scroll" ref={bottomScrollRef}>
-                <div style={{ width: tableScrollWidth }} />
               </div>
 
               {contextMenu ? (

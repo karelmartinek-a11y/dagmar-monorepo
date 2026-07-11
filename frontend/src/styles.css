@@ -5504,6 +5504,28 @@ body:has(.plan-page) .admin-sidebar {
   font-size: 10px;
 }
 
+body:has(.ops-page) .admin-shell,
+body:has(.plan-page) .admin-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body:has(.ops-page) .admin-sidebar,
+body:has(.plan-page) .admin-sidebar,
+body:has(.ops-page) .admin-topbar,
+body:has(.plan-page) .admin-topbar {
+  display: none;
+}
+
+body:has(.ops-page) .admin-content,
+body:has(.plan-page) .admin-content {
+  min-width: 0;
+}
+
+body:has(.ops-page) .admin-main,
+body:has(.plan-page) .admin-main {
+  padding: 0;
+}
+
 @media (max-width: 1180px) {
   body:has(.ops-page) .admin-shell,
   body:has(.plan-page) .admin-shell {
