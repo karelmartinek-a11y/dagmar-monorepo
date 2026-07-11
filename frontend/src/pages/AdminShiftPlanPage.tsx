@@ -9,7 +9,7 @@ import {
   type ShiftPlanDayStatus,
 } from "../api/adminShiftPlan";
 import { ApiError } from "../api/client";
-import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice } from "../components/admin/AdminUI";
+import { Breadcrumbs, ConfirmDialog, EmptyState } from "../components/admin/AdminUI";
 import { getCzechHolidayName, isWeekendDate, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { formatIsoMonthForDisplay, parseCzechMonthToIso } from "../utils/date";
 import { isValidTimeOrEmpty, normalizeTime } from "../utils/timeInput";
@@ -714,11 +714,6 @@ export default function AdminShiftPlanPage() {
           {loading ? <div className="plan-loading">Načítám plán…</div> : null}
           {!loading && error ? <div className="plan-error">{error}</div> : null}
           {saveError ? <div className="plan-error">{saveError}</div> : null}
-          {!loading && rows.length > 0 ? (
-            <InlineNotice>
-              Hlavička a první sloupec zůstávají připnuté. Pro rychlý posun použijte horní a spodní scroll indikátor nebo tlačítka „Na začátek“, „Na střed“ a „Na konec“.
-            </InlineNotice>
-          ) : null}
 
           {rows.length === 0 ? (
             <EmptyState
