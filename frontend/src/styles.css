@@ -5598,3 +5598,198 @@ body:has(.plan-page) .ops-legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.ops-page .ops-sticky-col--compact {
+  min-width: 82px !important;
+  max-width: 82px;
+  width: 82px;
+  text-align: center !important;
+  padding: 6px 5px !important;
+}
+
+.ops-page .ops-name-head--compact {
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+.ops-page .ops-name-head--compact strong {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.3), rgba(14, 116, 144, 0.22));
+  color: #d7fff4;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.16);
+}
+
+.ops-page .ops-name-head--compact small {
+  display: block;
+  max-width: 72px;
+  margin: 4px auto 0;
+  overflow: hidden;
+  color: #9fb1c2;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ops-page .ops-name-head--compact .ops-lock {
+  margin: 4px auto 0;
+}
+
+.ops-inline-editor {
+  display: grid;
+  grid-template-columns: minmax(28px, 1fr) minmax(44px, 1fr) minmax(44px, 1fr);
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  min-width: 142px;
+  height: 100%;
+  padding: 3px;
+  background: rgba(3, 10, 18, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(94, 234, 212, 0.36);
+}
+
+.ops-cell-input {
+  width: 100%;
+  height: 24px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 4px;
+  background: rgba(8, 19, 29, 0.95);
+  color: #d9f99d;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+}
+
+.ops-cell-input:focus {
+  outline: 2px solid rgba(94, 234, 212, 0.76);
+  outline-offset: 1px;
+  border-color: rgba(94, 234, 212, 0.74);
+}
+
+.ops-cell-input:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.ops-cell-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 26px;
+  gap: 3px;
+}
+
+.ops-cell-actions button {
+  min-height: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 4px;
+  background: rgba(20, 184, 166, 0.18);
+  color: #e8f1f8;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ops-cell-actions button:hover:not(:disabled),
+.ops-cell-actions button:focus-visible {
+  border-color: rgba(94, 234, 212, 0.6);
+  background: rgba(20, 184, 166, 0.28);
+}
+
+.ops-cell-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.ops-context-menu {
+  position: fixed;
+  z-index: 9999;
+  display: grid;
+  gap: 4px;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #101c27;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
+  color: #e8f1f8;
+}
+
+.ops-context-menu button {
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #e8f1f8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.ops-context-menu button:hover:not(:disabled),
+.ops-context-menu button:focus-visible {
+  outline: none;
+  background: rgba(20, 184, 166, 0.18);
+}
+
+.ops-context-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.plan-page .plan-table col:first-child {
+  width: 92px !important;
+}
+
+.plan-page .plan-table-th--name,
+.plan-page .plan-name-cell--compact {
+  min-width: 92px !important;
+  width: 92px !important;
+  max-width: 92px;
+  text-align: center;
+}
+
+.plan-page .plan-name-cell--compact {
+  padding: 8px 6px;
+  vertical-align: middle;
+}
+
+.plan-page .plan-row-index {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.3), rgba(14, 116, 144, 0.22));
+  color: #d7fff4;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.16);
+}
+
+.plan-page .plan-name-cell--compact .plan-name-kindstack {
+  justify-content: center;
+  margin-top: 0;
+}
+
+.plan-page .plan-name-cell--compact .plan-name-kind {
+  min-height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  font-size: 8px;
+  letter-spacing: 0;
+}

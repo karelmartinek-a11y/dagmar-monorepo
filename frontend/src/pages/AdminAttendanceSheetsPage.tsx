@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { adminGetSettings } from "../api/admin";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../api/adminAttendance";
 import { ApiError } from "../api/client";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
-import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice, StateBadge } from "../components/admin/AdminUI";
+import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice } from "../components/admin/AdminUI";
 import { computeDayCalc, computeMonthStats, getCzechHolidayName, isWeekendDate, parseCutoffToMinutes } from "../utils/attendanceCalc";
 import { formatIsoDateForDisplay } from "../utils/date";
 import { employmentTemplateLabel, timeFieldPlaceholder } from "../utils/uiLabels";
@@ -22,6 +22,7 @@ import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus
 import Button from "../ui/Button";
 
 type SelectedCell = { employmentId: number; date: string };
+type AttendanceContextMenu = { x: number; y: number; employmentId: number; date: string };
 type DayStatusDialogState = {
   employmentId: number;
   date: string;
@@ -126,6 +127,8 @@ export default function AdminAttendanceSheetsPage() {
   const [stateFilter, setStateFilter] = useState<AttendanceStateFilter>("all");
   const [rows, setRows] = useState<AdminAttendanceMatrixRow[]>([]);
   const [selected, setSelected] = useState<SelectedCell | null>(null);
+  const [editingCell, setEditingCell] = useState<SelectedCell | null>(null);
+  const [contextMenu, setContextMenu] = useState<AttendanceContextMenu | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,10 +164,7 @@ export default function AdminAttendanceSheetsPage() {
     () => rows.find((row) => row.employment_id === selected?.employmentId) ?? filteredRows[0] ?? null,
     [filteredRows, rows, selected?.employmentId],
   );
-  const selectedDay = useMemo(
-    () => selectedRow?.days.find((day) => day.date === selected?.date) ?? selectedRow?.days.find((day) => day.date === today) ?? selectedRow?.days[0] ?? null,
-    [selected?.date, selectedRow, today],
-  );
+  const selectedDay = useMemo(() => selectedRow?.days.find((day) => day.date === selected?.date) ?? null, [selected?.date, selectedRow]);
 
   const monthStats = useMemo(() => {
     return filteredRows.reduce(
@@ -220,6 +220,8 @@ export default function AdminAttendanceSheetsPage() {
         const first = matrix.rows.find((row) => row.is_active_in_month) ?? matrix.rows[0];
         return first ? { employmentId: first.employment_id, date: `${parsedMonth.year}-${pad2(parsedMonth.month)}-01` } : null;
       });
+      setEditingCell(null);
+      setContextMenu(null);
     } catch (err) {
       setError(errorMessage(err, "Evidence docházky se nepodařilo načíst."));
     } finally {
@@ -236,6 +238,24 @@ export default function AdminAttendanceSheetsPage() {
     setDraftArrival(selectedDay?.arrival_time ?? "");
     setDraftDeparture(selectedDay?.departure_time ?? "");
   }, [selectedDay]);
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setContextMenu(null);
+        setEditingCell(null);
+      }
+    };
+    document.addEventListener("click", closeMenu);
+    document.addEventListener("scroll", closeMenu, true);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("click", closeMenu);
+      document.removeEventListener("scroll", closeMenu, true);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, []);
 
   async function refreshOneRow(employmentId: number) {
     if (!parsedMonth) return;
@@ -280,6 +300,7 @@ export default function AdminAttendanceSheetsPage() {
       });
       await refreshOneRow(selectedRow.employment_id);
       setSuccess("Docházka byla uložena.");
+      setEditingCell(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : errorMessage(err, "Uložení se nezdařilo."));
     } finally {
@@ -287,37 +308,25 @@ export default function AdminAttendanceSheetsPage() {
     }
   }
 
-  async function toggleLock(nextLocked: boolean) {
-    if (!selectedRow || !parsedMonth) return;
+  async function setDayStatus(status: ShiftPlanDayStatus | null, cell: SelectedCell | null = selected) {
+    if (!cell) return;
+    const row = rows.find((item) => item.employment_id === cell.employmentId);
+    const day = row?.days.find((item) => item.date === cell.date);
+    if (!row || !day) return;
     setSaving(true);
     setError(null);
+    setContextMenu(null);
+    setSelected(cell);
     try {
-      if (nextLocked) {
-        await adminLockAttendance({ employment_id: selectedRow.employment_id, year: parsedMonth.year, month: parsedMonth.month });
-      } else {
-        await adminUnlockAttendance({ employment_id: selectedRow.employment_id, year: parsedMonth.year, month: parsedMonth.month });
-      }
-      await refreshOneRow(selectedRow.employment_id);
-    } catch (err) {
-      setError(errorMessage(err, "Změna zámku se nezdařila."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function setDayStatus(status: ShiftPlanDayStatus | null) {
-    if (!selectedRow || !selectedDay) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await adminUpsertDayStatus({ employment_id: selectedRow.employment_id, date: selectedDay.date, status });
-      await refreshOneRow(selectedRow.employment_id);
+      await adminUpsertDayStatus({ employment_id: row.employment_id, date: day.date, status });
+      await refreshOneRow(row.employment_id);
+      setEditingCell(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409 && err.body?.detail && typeof err.body.detail !== "string" && status) {
         const detail = err.body.detail as { attendance_exists?: boolean; shift_plan_exists?: boolean };
         setDayStatusDialog({
-          employmentId: selectedRow.employment_id,
-          date: selectedDay.date,
+          employmentId: row.employment_id,
+          date: day.date,
           status,
           attendanceExists: Boolean(detail.attendance_exists),
           shiftPlanExists: Boolean(detail.shift_plan_exists),
@@ -328,6 +337,46 @@ export default function AdminAttendanceSheetsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function setMonthLock(cell: SelectedCell | null, nextLocked: boolean) {
+    if (!cell || !parsedMonth) return;
+    const row = rows.find((item) => item.employment_id === cell.employmentId);
+    if (!row) return;
+    setSaving(true);
+    setError(null);
+    setContextMenu(null);
+    setSelected(cell);
+    try {
+      if (nextLocked) {
+        await adminLockAttendance({ employment_id: row.employment_id, year: parsedMonth.year, month: parsedMonth.month });
+      } else {
+        await adminUnlockAttendance({ employment_id: row.employment_id, year: parsedMonth.year, month: parsedMonth.month });
+      }
+      await refreshOneRow(row.employment_id);
+      setEditingCell(null);
+      setSuccess(nextLocked ? "Měsíc byl uzamčen." : "Měsíc byl odemčen.");
+    } catch (err) {
+      setError(errorMessage(err, "Změna zámku se nezdařila."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openInlineEditor(row: AdminAttendanceMatrixRow, day: AdminAttendanceDay) {
+    const cell = { employmentId: row.employment_id, date: day.date };
+    setSelected(cell);
+    setEditingCell(cell);
+    setDraftArrival(day.arrival_time ?? "");
+    setDraftDeparture(day.departure_time ?? "");
+  }
+
+  function openCellMenu(event: MouseEvent, row: AdminAttendanceMatrixRow, day: AdminAttendanceDay) {
+    event.preventDefault();
+    const cell = { employmentId: row.employment_id, date: day.date };
+    setSelected(cell);
+    setEditingCell(null);
+    setContextMenu({ x: event.clientX, y: event.clientY, ...cell });
   }
 
   async function confirmDayStatusChange() {
@@ -443,7 +492,7 @@ export default function AdminAttendanceSheetsPage() {
             <table className="ops-matrix">
               <thead>
                 <tr>
-                  <th className="ops-sticky-col">Zaměstnanec</th>
+                  <th className="ops-sticky-col ops-sticky-col--compact">Řádek</th>
                   {days.map((day) => (
                     <th key={day.date} className={`${day.isWeekend || day.holidayName ? "is-weekend" : ""}${day.date === today ? " is-today" : ""}`}>
                       <span>{day.number}</span>
@@ -456,7 +505,7 @@ export default function AdminAttendanceSheetsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row) => {
+                {filteredRows.map((row, rowIndex) => {
                   const stats = computeMonthStats(row.days, row.employment_type, cutoffMinutes);
                   const plannedMins = row.days.reduce((acc, day) => {
                     const calc = computeDayCalc({ date: day.date, arrival_time: day.planned_arrival_time ?? null, departure_time: day.planned_departure_time ?? null, planned_status: day.planned_status }, row.employment_type, cutoffMinutes);
@@ -465,29 +514,70 @@ export default function AdminAttendanceSheetsPage() {
                   const saldo = stats.totalMins - plannedMins;
                   return (
                     <tr key={row.employment_id}>
-                      <th className="ops-sticky-col ops-name-head" scope="row">
-                        <strong>{row.user_name}</strong>
-                        <small>{employmentTemplateLabel(row.employment_type)} · {row.employment_title}</small>
+                      <th className="ops-sticky-col ops-name-head ops-name-head--compact" scope="row" aria-label={`${row.user_name}, ${employmentTemplateLabel(row.employment_type)}, ${row.employment_title}`}>
+                        <strong>{rowIndex + 1}</strong>
+                        <small>{row.locked ? "Zámek" : employmentTemplateLabel(row.employment_type)}</small>
                         {row.locked ? <span className="ops-lock">Zámek</span> : null}
                       </th>
                       {days.map((day) => {
                         const item = row.days.find((entry) => entry.date === day.date);
                         if (!item) return <td key={day.date} />;
                         const selectedCell = selected?.employmentId === row.employment_id && selected.date === day.date;
+                        const isEditing = editingCell?.employmentId === row.employment_id && editingCell.date === day.date;
                         return (
                           <td key={day.date} className={`${cellTone(item)}${day.date === today ? " is-today" : ""}${selectedCell ? " is-selected" : ""}`}>
-                            <button
-                              type="button"
-                              className="ops-cell-btn"
-                              onClick={() => setSelected({ employmentId: row.employment_id, date: day.date })}
-                              aria-label={`${row.user_name}, ${formatIsoDateForDisplay(day.date)}, plán ${shiftAbbrev(item)}, skutečnost ${item.arrival_time ?? "bez příchodu"} až ${item.departure_time ?? "bez odchodu"}`}
-                            >
-                              <span className="ops-shift">{shiftAbbrev(item)}</span>
-                              <span className="ops-times">
-                                {item.planned_status ? planStatusInputPlaceholder(item.planned_status) : item.arrival_time || item.departure_time ? `${item.arrival_time ?? "—"} ${item.departure_time ?? "—"}` : item.planned_arrival_time || item.planned_departure_time ? `${item.planned_arrival_time ?? "—"} ${item.planned_departure_time ?? "—"}` : "—"}
-                              </span>
-                              {row.locked ? <span className="ops-cell-lock" aria-label="Uzamčeno">▣</span> : null}
-                            </button>
+                            {isEditing ? (
+                              <form
+                                className="ops-inline-editor"
+                                onSubmit={(event) => {
+                                  event.preventDefault();
+                                  void saveSelectedDay();
+                                }}
+                                onContextMenu={(event) => openCellMenu(event, row, item)}
+                              >
+                                <span className="ops-shift">{shiftAbbrev(item)}</span>
+                                <input
+                                  className="ops-cell-input"
+                                  value={draftArrival}
+                                  inputMode="numeric"
+                                  placeholder={timeFieldPlaceholder()}
+                                  aria-label={`${row.user_name}, ${formatIsoDateForDisplay(day.date)}, příchod`}
+                                  disabled={saving || row.locked || Boolean(item.planned_status)}
+                                  onChange={(event) => setDraftArrival(event.target.value)}
+                                />
+                                <input
+                                  className="ops-cell-input"
+                                  value={draftDeparture}
+                                  inputMode="numeric"
+                                  placeholder={timeFieldPlaceholder()}
+                                  aria-label={`${row.user_name}, ${formatIsoDateForDisplay(day.date)}, odchod`}
+                                  disabled={saving || row.locked || Boolean(item.planned_status)}
+                                  onChange={(event) => setDraftDeparture(event.target.value)}
+                                />
+                                <div className="ops-cell-actions">
+                                  <button type="submit" disabled={saving || row.locked || Boolean(item.planned_status)} aria-label="Uložit docházku v buňce">
+                                    Uložit
+                                  </button>
+                                  <button type="button" onClick={() => setEditingCell(null)} aria-label="Zavřít editaci buňky">
+                                    ×
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <button
+                                type="button"
+                                className="ops-cell-btn"
+                                onClick={() => openInlineEditor(row, item)}
+                                onContextMenu={(event) => openCellMenu(event, row, item)}
+                                aria-label={`${row.user_name}, ${formatIsoDateForDisplay(day.date)}, plán ${shiftAbbrev(item)}, skutečnost ${item.arrival_time ?? "bez příchodu"} až ${item.departure_time ?? "bez odchodu"}`}
+                              >
+                                <span className="ops-shift">{shiftAbbrev(item)}</span>
+                                <span className="ops-times">
+                                  {item.planned_status ? planStatusInputPlaceholder(item.planned_status) : item.arrival_time || item.departure_time ? `${item.arrival_time ?? "—"} ${item.departure_time ?? "—"}` : item.planned_arrival_time || item.planned_departure_time ? `${item.planned_arrival_time ?? "—"} ${item.planned_departure_time ?? "—"}` : "—"}
+                                </span>
+                                {row.locked ? <span className="ops-cell-lock" aria-label="Uzamčeno">▣</span> : null}
+                              </button>
+                            )}
                           </td>
                         );
                       })}
@@ -500,14 +590,14 @@ export default function AdminAttendanceSheetsPage() {
               </tbody>
               <tfoot>
                 <tr>
-                  <th className="ops-sticky-col">Přítomno</th>
+                  <th className="ops-sticky-col ops-sticky-col--compact">Přítomno</th>
                   {dailyCoverage.map((count, index) => <td key={days[index]?.date ?? index}>{count.present}</td>)}
                   <td className="ops-summary-col">{formatHours(monthStats.workedMins)} h</td>
                   <td className="ops-summary-col">{formatHours(monthStats.plannedMins)} h</td>
                   <td className="ops-summary-col">{formatHours(monthStats.workedMins - monthStats.plannedMins)} h</td>
                 </tr>
                 <tr>
-                  <th className="ops-sticky-col">Plán / varování</th>
+                  <th className="ops-sticky-col ops-sticky-col--compact">Plán / var.</th>
                   {dailyCoverage.map((count, index) => <td key={`warn-${days[index]?.date ?? index}`}>{count.planned}/{count.warning}</td>)}
                   <td className="ops-summary-col">{monthStats.presentDays} dnů</td>
                   <td className="ops-summary-col">{monthStats.plannedDays} dnů</td>
@@ -519,56 +609,27 @@ export default function AdminAttendanceSheetsPage() {
         </main>
       </div>
 
-      <section className="ops-detail-grid" aria-label="Detail vybraného dne">
-        <div className="ops-detail-card">
-          <div className="ops-detail-head">
-            <div>
-              <h2>Detail / úprava</h2>
-              <p>{selectedRow && selectedDay ? `${selectedRow.user_name} · ${formatIsoDateForDisplay(selectedDay.date)}` : "Vyberte buňku v matici."}</p>
-            </div>
-            {selectedRow ? <StateBadge tone={selectedRow.locked ? "warning" : "ok"}>{selectedRow.locked ? "Uzamčeno" : "Otevřeno"}</StateBadge> : null}
-          </div>
-          {selectedRow && selectedDay ? (
-            <div className="ops-detail-form">
-              <div className="ops-detail-meta">
-                <span>Úvazek</span><strong>{selectedRow.employment_label}</strong>
-                <span>Období</span><strong>{formatIsoDateForDisplay(selectedRow.start_date)} až {formatIsoDateForDisplay(selectedRow.end_date) || "bez konce"}</strong>
-                <span>Plán směny</span><strong>{selectedDay.planned_status ? planStatusLabel(selectedDay.planned_status) : `${selectedDay.planned_arrival_time ?? "—"} až ${selectedDay.planned_departure_time ?? "—"}`}</strong>
-              </div>
-              <label className="kb-field">
-                <span className="kb-label">Příchod</span>
-                <input className="ops-input" value={draftArrival} inputMode="numeric" placeholder={timeFieldPlaceholder()} disabled={selectedRow.locked || Boolean(selectedDay.planned_status)} onChange={(event) => setDraftArrival(event.target.value)} />
-              </label>
-              <label className="kb-field">
-                <span className="kb-label">Odchod</span>
-                <input className="ops-input" value={draftDeparture} inputMode="numeric" placeholder={timeFieldPlaceholder()} disabled={selectedRow.locked || Boolean(selectedDay.planned_status)} onChange={(event) => setDraftDeparture(event.target.value)} />
-              </label>
-              <div className="ops-actions">
-                <Button type="button" variant="primary" disabled={saving || selectedRow.locked || Boolean(selectedDay.planned_status)} onClick={() => void saveSelectedDay()}>
-                  {saving ? "Ukládám..." : "Uložit den"}
-                </Button>
-                <Button type="button" variant="ghost" disabled={saving} onClick={() => void toggleLock(!selectedRow.locked)}>
-                  {selectedRow.locked ? "Odemknout měsíc" : "Uzamknout měsíc"}
-                </Button>
-                <Button type="button" variant="ghost" disabled={saving || selectedRow.locked} onClick={() => void setDayStatus("HOLIDAY")}>Dovolená</Button>
-                <Button type="button" variant="ghost" disabled={saving || selectedRow.locked} onClick={() => void setDayStatus("OFF")}>Volno</Button>
-                <Button type="button" variant="ghost" disabled={saving || selectedRow.locked} onClick={() => void setDayStatus(null)}>Zrušit stav</Button>
-              </div>
-            </div>
-          ) : <EmptyState title="Není vybraný den" description="Vyberte zaměstnance a den v měsíční matici." />}
+      {contextMenu ? (
+        <div className="ops-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }} role="menu" aria-label="Celodenní nepřítomnost">
+          <button type="button" role="menuitem" disabled={saving} onClick={() => void setDayStatus("HOLIDAY", contextMenu)}>
+            Označit DOVOLENÁ
+          </button>
+          <button type="button" role="menuitem" disabled={saving} onClick={() => void setDayStatus("OFF", contextMenu)}>
+            Označit VOLNO
+          </button>
+          <button type="button" role="menuitem" disabled={saving} onClick={() => void setDayStatus(null, contextMenu)}>
+            Zrušit stav dne
+          </button>
+          {(() => {
+            const row = rows.find((item) => item.employment_id === contextMenu.employmentId);
+            return row ? (
+              <button type="button" role="menuitem" disabled={saving} onClick={() => void setMonthLock(contextMenu, !row.locked)}>
+                {row.locked ? "Odemknout měsíc" : "Uzamknout měsíc"}
+              </button>
+            ) : null;
+          })()}
         </div>
-
-        <aside className="ops-detail-card">
-          <h2>Souhrn měsíce</h2>
-          <div className="ops-summary-list">
-            <div><span>Odpracováno</span><strong>{formatHours(monthStats.workedMins)} h</strong></div>
-            <div><span>Dovolená</span><strong>{monthStats.holidayDays} dní</strong></div>
-            <div><span>Odpolední</span><strong>{formatHours(monthStats.afternoonMins)} h</strong></div>
-            <div><span>Zamčené úvazky</span><strong>{monthStats.lockedRows}</strong></div>
-          </div>
-          <InlineNotice>Backend podporuje jeden příchod a jeden odchod za den. Druhý průchod proto není v rozhraní předstírán.</InlineNotice>
-        </aside>
-      </section>
+      ) : null}
 
       <ConfirmDialog
         open={dayStatusDialog !== null}

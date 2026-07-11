@@ -729,7 +729,7 @@ export default function AdminShiftPlanPage() {
               <div className="plan-table-wrapper" ref={tableWrapperRef}>
                 <table className="plan-table">
                   <colgroup>
-                    <col style={{ width: 280 }} />
+                    <col style={{ width: 92 }} />
                     {days.map((day) => (
                       <col key={`col-${day.date}`} style={{ width: 70 }} />
                     ))}
@@ -739,7 +739,7 @@ export default function AdminShiftPlanPage() {
                   <thead>
                     <tr className="plan-table-head plan-table-head--numbers">
                       <th className="plan-table-th plan-table-th--name" rowSpan={2}>
-                        Jméno
+                        Řádek
                       </th>
                       {days.map((day) => (
                         <th
@@ -771,7 +771,7 @@ export default function AdminShiftPlanPage() {
                   </thead>
 
                   <tbody>
-                    {rows.map((row) => {
+                    {rows.map((row, rowIndex) => {
                       const rowId = row.employment_id;
                       const dayMap = row.days.reduce(
                         (acc, day) => {
@@ -788,9 +788,8 @@ export default function AdminShiftPlanPage() {
                       return (
                         <Fragment key={rowId}>
                           <tr className="plan-table-row plan-table-row-arrival">
-                            <td className="plan-name-cell" rowSpan={2}>
-                              <div className="plan-name">{row.display_label}</div>
-                              <div className="plan-name-meta">{employmentTemplateLabel(row.employment_type)}</div>
+                            <td className="plan-name-cell plan-name-cell--compact" rowSpan={2} aria-label={`${row.display_label}, ${employmentTemplateLabel(row.employment_type)}`}>
+                              <div className="plan-row-index">{rowIndex + 1}</div>
                               <div className="plan-name-kindstack">
                                 <span className="plan-name-kind">Příchod</span>
                                 <span className="plan-name-kind plan-name-kind--muted">Odchod</span>
@@ -937,7 +936,7 @@ export default function AdminShiftPlanPage() {
                   </tbody>
                   <tfoot>
                     <tr>
-                      <th className="plan-table-th plan-table-th--name">Obsazení směn</th>
+                      <th className="plan-table-th plan-table-th--name">Obsazení</th>
                       {dailyPlanCoverage.map((coverage, index) => (
                         <td key={`coverage-${days[index]?.date ?? index}`} className="plan-table-foot-cell">
                           <strong>{coverage.planned}</strong>
