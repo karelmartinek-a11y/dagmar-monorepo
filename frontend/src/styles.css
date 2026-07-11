@@ -5371,3 +5371,23 @@ body:has(.plan-page) .admin-sidebar {
 .portal-ops-page footer {
   max-width: 1760px !important;
 }
+
+@media (max-width: 1180px) {
+  body:has(.ops-page) .admin-shell,
+  body:has(.plan-page) .admin-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  body:has(.ops-page),
+  body:has(.plan-page) {
+    overflow-x: hidden;
+  }
+
+  .ops-page,
+  .plan-page {
+    width: 100%;
+    min-width: 0;
+  }
+}
