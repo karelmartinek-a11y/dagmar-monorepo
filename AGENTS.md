@@ -152,7 +152,7 @@ Nikdy netvrď, že testy proběhly, pokud nebyly skutečně spuštěny. Do výst
 
 ## GitHub a práce s větvemi
 
-GitHub je pro Codex dostupný přes autorizované prostředí.
+GitHub je pro Codex dostupný přes autorizované prostředí. Přístup k repozitáři a operacím GitHubu používej pouze prostřednictvím již autorizovaného prostředí; nevyžaduj ani nevypisuj osobní access token.
 
 - Nepracuj přímo na chráněné produkční větvi, pokud zadání výslovně nepožaduje přímý commit.
 - Preferuj samostatnou větev a pull request.
@@ -163,7 +163,13 @@ GitHub je pro Codex dostupný přes autorizované prostředí.
 
 ## Produkční server a SSH
 
-Produkční server DAGMAR je dostupný na hostname `dagmar.hcasc.cz`. Pro Codex je dostupný v autorizovaném SSH prostředí. Před prvním příkazem ověř aktivní SSH konfiguraci a identitu cílového serveru, ale vždy používej pouze správný hostname `dagmar.hcasc.cz`.
+Produkční server DAGMAR má IP adresu `89.221.222.92` a obsluhuje doménu `dagmar.hcasc.cz`. GitHub i produkční server jsou pro Codex dostupné přes autorizované prostředí SSH. Použij existující autorizovanou SSH identitu; nevyžaduj, nevypisuj ani nekopíruj soukromý SSH klíč.
+
+Před prvním zásahem ověř identitu cíle:
+
+```bash
+ssh 89.221.222.92 'hostname; id; pwd'
+```
 
 Na serveru postupuj nejprve read-only:
 
@@ -195,11 +201,15 @@ Bez výslovného souhlasu:
 
 Před každým produkčním zásahem popiš rollback. Po nasazení ověř health endpoint, verzi backendu, frontendovou verzi a relevantní uživatelský tok.
 
-## Přihlašovací údaje a tajemství
+## Přihlašovací údaje a `.env`
 
-Do repozitáře, issue, pull requestu, commitu, logu ani výstupu nikdy nevkládej hesla, session cookies, tokeny, SSH klíče, obsah env souborů nebo jiné tajné hodnoty.
+Přístupové údaje pro testování přihlášení do portálu `https://dagmar.hcasc.cz` jsou Codexu dostupné v souboru `.env` v autorizovaném pracovním prostředí.
 
-Pro Codex ukládej testovací přihlašovací údaje do zabezpečených proměnných prostředí konkrétního Codex prostředí, ve kterém se úloha spouští. Nejde o soubor v repozitáři. V nastavení Codex prostředí vytvoř následující secrets:
+Soubor `.env` je lokální tajný konfigurační soubor. Nesmí být přidán do Gitu, commitnut, vložen do issue nebo pull requestu ani zahrnut do logu, screenshotu, trace, videa či výsledného artefaktu. Před prací ověř, že je ignorován přes `.gitignore`.
+
+Codex smí načíst přihlašovací údaje z `.env` pro automatizovaný webový test, ale nesmí jejich hodnoty vypsat. Ověřuj pouze existenci potřebných proměnných.
+
+Očekávané názvy proměnných:
 
 ```text
 DAGMAR_E2E_BASE_URL=https://dagmar.hcasc.cz
@@ -209,19 +219,27 @@ DAGMAR_E2E_ADMIN_EMAIL
 DAGMAR_E2E_ADMIN_PASSWORD
 ```
 
-Pokud se produkční E2E test spouští přes GitHub Actions, stejné hodnoty ulož jako GitHub Actions repository secrets v nastavení repozitáře `Settings → Secrets and variables → Actions`. Workflow je následně předá procesu jako proměnné prostředí. Tajné hodnoty nikdy neukládej do GitHub Actions variables, protože variables nejsou určeny pro hesla.
+Příklad bezpečného načtení pro lokální proces:
 
-Pokud se test spouští přímo na produkčním serveru, použij rootem chráněný konfigurační soubor mimo repozitář, například samostatný soubor s oprávněním `0600` pod `/etc/dagmar/`, a načti jej do prostředí testovacího procesu. Neměň kvůli E2E testům aplikační `/etc/dagmar/backend.env`, pokud to není výslovně požadováno.
+```bash
+set -a
+. ./.env
+set +a
+```
 
-Před webovým testem ověř pouze přítomnost proměnných, nikdy nevypisuj jejich hodnoty. Heslo neposílej v CLI argumentu, který může být viditelný v historii procesů. Nepovoluj ukládání hesla do screenshotů, trace, videa nebo Playwright artefaktů.
+Před načtením ověř oprávnění souboru. Doporučené oprávnění je `0600`:
 
-Pokud tajemství chybí, test přihlášení přeskoč s jasným hlášením. Nevytvářej náhradní účet a neměň produkční heslo.
+```bash
+chmod 600 .env
+```
+
+Heslo neposílej v CLI argumentu, který může být viditelný v historii procesů. Pokud proměnné chybí, test přihlášení přeskoč s jasným hlášením. Nevytvářej náhradní účet a neměň produkční heslo.
 
 ## Bezpečné webové testování
 
 Při testování produkčního webu:
 
-- používej pouze účty a tajemství z autorizovaného prostředí;
+- používej pouze účty a tajemství načtené z autorizovaného `.env`;
 - nejprve proveď read-only smoke test;
 - nevytvářej, neupravuj ani nemaž produkční záznamy bez výslovného zadání;
 - neodesílej e-maily, nerotuj integrační tokeny a nespouštěj bulk export bez potřeby;
@@ -233,7 +251,7 @@ Minimální bezpečný smoke test:
 1. načíst `/app` a `/admin/login`;
 2. ověřit stavové kódy statických zdrojů;
 3. ověřit `/api/v1/health` a `/api/version`;
-4. přihlásit se jen pokud jsou tajemství dostupná v autorizovaném prostředí;
+4. přihlásit se pouze pomocí hodnot z autorizovaného `.env`;
 5. po přihlášení ověřit pouze očekávanou landing page a následně se odhlásit.
 
 ## Definice hotové změny
