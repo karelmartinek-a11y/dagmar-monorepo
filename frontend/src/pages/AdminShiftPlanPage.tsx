@@ -1,5 +1,4 @@
 import { ChangeEvent, Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   adminGetShiftPlanMonth,
   adminSetShiftPlanSelection,
@@ -86,6 +85,24 @@ type DayStatusDialogState = {
   attendanceExists: boolean;
   shiftPlanExists: boolean;
 };
+type PlanShiftFilter = "all" | "morning" | "afternoon" | "night" | "holiday" | "off" | "empty";
+
+function planShiftTone(arrival: string | null | undefined) {
+  if (!arrival) return "empty";
+  if (arrival >= "22:00" || arrival < "06:00") return "night";
+  if (arrival >= "14:00") return "afternoon";
+  return "morning";
+}
+
+function rowMatchesShiftFilter(row: ShiftPlanRow, filter: PlanShiftFilter) {
+  if (filter === "all") return true;
+  return row.days.some((day) => {
+    if (filter === "holiday") return day.status === "HOLIDAY";
+    if (filter === "off") return day.status === "OFF";
+    if (filter === "empty") return !day.status && !day.arrival_time && !day.departure_time && day.is_within_employment_period;
+    return !day.status && planShiftTone(day.arrival_time) === filter;
+  });
+}
 
 export default function AdminShiftPlanPage() {
   const [month, setMonth] = useState(() => {
@@ -105,7 +122,7 @@ export default function AdminShiftPlanPage() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [instanceQuery, setInstanceQuery] = useState("");
   const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
-  const [sidebarBottomTarget, setSidebarBottomTarget] = useState<HTMLElement | null>(null);
+  const [planShiftFilter, setPlanShiftFilter] = useState<PlanShiftFilter>("all");
   const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
   const successTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tableWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -256,11 +273,6 @@ export default function AdminShiftPlanPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    setSidebarBottomTarget(document.getElementById("admin-sidebar-bottom-extra"));
-  }, []);
-
   useLayoutEffect(() => {
     const wrapper = tableWrapperRef.current;
     if (!wrapper) return;
@@ -352,9 +364,54 @@ export default function AdminShiftPlanPage() {
       (plan?.rows ?? []).filter((row) => {
         const meta = activeEmployments.find((item) => item.id === row.employment_id);
         if (!meta) return showInactiveEmployments;
-        return showInactiveEmployments || meta.is_active_in_month;
+        if (!showInactiveEmployments && !meta.is_active_in_month) return false;
+        return rowMatchesShiftFilter(row, planShiftFilter);
       }),
-    [activeEmployments, plan?.rows, showInactiveEmployments],
+    [activeEmployments, plan?.rows, planShiftFilter, showInactiveEmployments],
+  );
+
+  const planOverview = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        const totals = plannedMinutesWithHoliday(row);
+        acc.totalMins += totals.totalMins;
+        acc.holidayDays += totals.holidayDays;
+        row.days.forEach((day) => {
+          if (!day.is_within_employment_period) return;
+          if (day.status === "HOLIDAY") acc.holiday += 1;
+          else if (day.status === "OFF") acc.off += 1;
+          else if (day.arrival_time || day.departure_time) {
+            acc.planned += 1;
+            const tone = planShiftTone(day.arrival_time);
+            if (tone === "morning") acc.morning += 1;
+            if (tone === "afternoon") acc.afternoon += 1;
+            if (tone === "night") acc.night += 1;
+          } else {
+            acc.empty += 1;
+          }
+        });
+        return acc;
+      },
+      { totalMins: 0, planned: 0, morning: 0, afternoon: 0, night: 0, holiday: 0, off: 0, empty: 0, holidayDays: 0 },
+    );
+  }, [rows]);
+
+  const dailyPlanCoverage = useMemo(
+    () =>
+      days.map((day) =>
+        rows.reduce(
+          (acc, row) => {
+            const item = row.days.find((entry) => entry.date === day.date);
+            if (!item || !item.is_within_employment_period) return acc;
+            if (item.status === "HOLIDAY") acc.holiday += 1;
+            else if (item.status === "OFF") acc.off += 1;
+            else if (item.arrival_time || item.departure_time) acc.planned += 1;
+            return acc;
+          },
+          { planned: 0, holiday: 0, off: 0 },
+        ),
+      ),
+    [days, rows],
   );
 
   const handleMonthChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -644,28 +701,42 @@ export default function AdminShiftPlanPage() {
 
   return (
     <div className="plan-page">
-      {sidebarBottomTarget ? createPortal(instancePicker, sidebarBottomTarget) : null}
-      <div className="plan-top-row">
+      <header className="ops-header plan-ops-header">
         <div>
           <Breadcrumbs items={[{ label: "Administrace", to: "/admin/prehled" }, { label: "Plán služeb" }]} />
-          <div className="page-title">Plán služeb</div>
-          <div className="plan-instruction">
+          <h1>Plán služeb</h1>
+          <p>
             Rozvržení tabulky odpovídá listu plánu směn: vlevo zůstává jméno, vpravo měsíční celkem a posouvají se
             pouze dny uprostřed.
-          </div>
+          </p>
         </div>
+        <div className="ops-actions">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshTick((tick) => tick + 1)}>Obnovit</Button>
+          <a className="ops-btn" href="/admin/tisky">Tisk</a>
+          <a className="ops-btn" href="/admin/export">Export</a>
+          <a className="ops-btn" href="/admin/settings">Nastavení</a>
+        </div>
+      </header>
 
-        <div className="plan-month-picker">
-          <label className="label" htmlFor="plan-month-input">
-            Vyberte měsíc
-          </label>
+      <section className="ops-stat-strip" aria-label="Souhrn plánu podle aktuálního filtru">
+        <div><span>Úvazky</span><strong>{rows.length}</strong></div>
+        <div><span>Plán hodin</span><strong>{formatHours(planOverview.totalMins)} h</strong></div>
+        <div><span>Ranní</span><strong>{planOverview.morning}</strong></div>
+        <div><span>Odpolední</span><strong>{planOverview.afternoon}</strong></div>
+        <div><span>Noční</span><strong>{planOverview.night}</strong></div>
+        <div><span>Dovolená / volno</span><strong>{planOverview.holiday}/{planOverview.off}</strong></div>
+      </section>
+
+      <section className="ops-toolbar" aria-label="Filtry plánu služeb">
+        <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum - 2, 1).getFullYear()}-${pad2(new Date(year, monthNum - 2, 1).getMonth() + 1)}`)}>
+          Předchozí
+        </Button>
+        <label className="ops-select-field" htmlFor="plan-month-input">
+          <span>Měsíc</span>
           <div className="plan-month-picker-controls">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum - 2, 1).getFullYear()}-${pad2(new Date(year, monthNum - 2, 1).getMonth() + 1)}`)}>
-              Předchozí měsíc
-            </Button>
             <input
               id="plan-month-input"
-              className="input"
+              className="ops-input ops-input--month"
               type="text"
               inputMode="numeric"
               value={monthInputValue}
@@ -681,20 +752,48 @@ export default function AdminShiftPlanPage() {
               aria-invalid={monthInputError ? "true" : "false"}
               aria-describedby={monthInputError ? "plan-month-input-error" : undefined}
             />
-            <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum, 1).getFullYear()}-${pad2(new Date(year, monthNum, 1).getMonth() + 1)}`)}>
-              Další měsíc
-            </Button>
           </div>
-          <div className="help">{monthLabelText}</div>
-          {monthInputError ? (
-            <div id="plan-month-input-error" className="admin-field-error">
-              {monthInputError}
-            </div>
-          ) : null}
-        </div>
+        </label>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(`${new Date(year, monthNum, 1).getFullYear()}-${pad2(new Date(year, monthNum, 1).getMonth() + 1)}`)}>
+          Další
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => {
+          const now = new Date();
+          setMonth(`${now.getFullYear()}-${pad2(now.getMonth() + 1)}`);
+        }}>Dnes</Button>
+        <label className="ops-select-field">
+          <span>Směna</span>
+          <select className="ops-input" value={planShiftFilter} onChange={(event) => setPlanShiftFilter(event.target.value as PlanShiftFilter)}>
+            <option value="all">Všechny směny</option>
+            <option value="morning">Ranní</option>
+            <option value="afternoon">Odpolední</option>
+            <option value="night">Noční</option>
+            <option value="holiday">Dovolená</option>
+            <option value="off">Volno</option>
+            <option value="empty">Nevyplněno</option>
+          </select>
+        </label>
+        <input className="ops-input" type="search" value={instanceQuery} onChange={(event) => setInstanceQuery(event.target.value)} placeholder="Hledat zaměstnance, úvazek nebo ID" aria-label="Hledat v plánu služeb" />
+        <label className="ops-check">
+          <input type="checkbox" checked={showInactiveEmployments} onChange={(event) => setShowInactiveEmployments(event.target.checked)} />
+          <span>Včetně neaktivních</span>
+        </label>
+        {monthInputError ? <div id="plan-month-input-error" className="admin-field-error">{monthInputError}</div> : null}
+      </section>
+
+      <div className="ops-legend" aria-label="Legenda plánu služeb">
+        <span><i className="ops-dot ops-dot--morning" />R ranní</span>
+        <span><i className="ops-dot ops-dot--planned" />O odpolední</span>
+        <span><i className="ops-dot ops-dot--night" />N noční</span>
+        <span><i className="ops-dot ops-dot--holiday" />D dovolená</span>
+        <span><i className="ops-dot ops-dot--off" />V volno</span>
+        <span><i className="ops-dot ops-dot--warning" />Mimo úvazek / nevyplněno</span>
       </div>
 
       <div className="plan-layout">
+        <aside className="plan-local-sidebar" aria-label="Zaměstnanci v plánu služeb">
+          {instancePicker}
+        </aside>
         <main className="plan-main">
           <div className="plan-toolbar">
             <div className="plan-toolbar-summary">
@@ -707,7 +806,7 @@ export default function AdminShiftPlanPage() {
                     Filtr: <strong>{instanceQuery.trim()}</strong>
                   </>
                 ) : (
-                  showInactiveEmployments ? "Včetně neaktivních úvazků" : "Jen aktivní úvazky pro zvolený měsíc"
+                  `${showInactiveEmployments ? "Včetně neaktivních úvazků" : "Jen aktivní úvazky"} · ${monthLabelText}`
                 )}
               </div>
             </div>
@@ -861,12 +960,16 @@ export default function AdminShiftPlanPage() {
                                   : planDay?.status === "OFF"
                                     ? " plan-table-cell--off"
                                     : "";
+                              const shiftClass =
+                                !planDay?.status && !isOutsideEmployment && value
+                                  ? ` plan-table-cell--${planShiftTone(value)}`
+                                  : "";
 
                               return (
                                 <td
                                   className={`plan-table-cell${day.isWeekendOrHoliday ? " plan-table-cell--weekend" : ""}${
                                     successCells[cellKey] ? " plan-table-cell--success" : ""
-                                  }${statusClass}${isOutsideEmployment ? " plan-table-cell--outside" : ""}`}
+                                  }${statusClass}${shiftClass}${isOutsideEmployment ? " plan-table-cell--outside" : ""}`}
                                   key={cellKey}
                                   onContextMenu={(event) => handleCellContextMenu(event, rowId, day.date)}
                                 >
@@ -930,12 +1033,16 @@ export default function AdminShiftPlanPage() {
                                   : planDay?.status === "OFF"
                                     ? " plan-table-cell--off"
                                     : "";
+                              const shiftClass =
+                                !planDay?.status && !isOutsideEmployment && planDay?.arrival_time
+                                  ? ` plan-table-cell--${planShiftTone(planDay.arrival_time)}`
+                                  : "";
 
                               return (
                                 <td
                                   className={`plan-table-cell${day.isWeekendOrHoliday ? " plan-table-cell--weekend" : ""}${
                                     successCells[cellKey] ? " plan-table-cell--success" : ""
-                                  }${statusClass}${isOutsideEmployment ? " plan-table-cell--outside" : ""}`}
+                                  }${statusClass}${shiftClass}${isOutsideEmployment ? " plan-table-cell--outside" : ""}`}
                                   key={cellKey}
                                   onContextMenu={(event) => handleCellContextMenu(event, rowId, day.date)}
                                 >
@@ -978,6 +1085,22 @@ export default function AdminShiftPlanPage() {
                       );
                     })}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <th className="plan-table-th plan-table-th--name">Obsazení směn</th>
+                      {dailyPlanCoverage.map((coverage, index) => (
+                        <td key={`coverage-${days[index]?.date ?? index}`} className="plan-table-foot-cell">
+                          <strong>{coverage.planned}</strong>
+                          <small>D {coverage.holiday} · V {coverage.off}</small>
+                        </td>
+                      ))}
+                      <td className="plan-sum-cell">
+                        <div className="plan-sum-label">Celkem</div>
+                        <div className="plan-sum-value">{planOverview.planned}</div>
+                        <div className="plan-sum-meta">D {planOverview.holiday} · V {planOverview.off}</div>
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
 

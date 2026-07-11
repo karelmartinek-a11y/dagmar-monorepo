@@ -14,7 +14,7 @@ import {
 import { ApiError } from "../api/client";
 import type { ShiftPlanDayStatus } from "../api/adminShiftPlan";
 import { Breadcrumbs, ConfirmDialog, EmptyState, InlineNotice, StateBadge } from "../components/admin/AdminUI";
-import { computeDayCalc, computeMonthStats, getCzechHolidayName, isWeekendDate, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
+import { computeDayCalc, computeMonthStats, getCzechHolidayName, isWeekendDate, parseCutoffToMinutes } from "../utils/attendanceCalc";
 import { formatIsoDateForDisplay } from "../utils/date";
 import { employmentTemplateLabel, timeFieldPlaceholder } from "../utils/uiLabels";
 import { isValidTimeOrEmpty, normalizeTime } from "../utils/timeInput";
@@ -102,10 +102,28 @@ function shiftAbbrev(day: AdminAttendanceDay) {
   return "R";
 }
 
+type EmploymentTypeFilter = "all" | "HPP" | "DPP_DPC";
+type AttendanceStateFilter = "all" | "present" | "planned" | "warning" | "holiday" | "off" | "locked";
+
+function hasAttendanceState(row: AdminAttendanceMatrixRow, state: AttendanceStateFilter) {
+  if (state === "all") return true;
+  if (state === "locked") return row.locked;
+  return row.days.some((day) => {
+    if (state === "present") return Boolean(day.arrival_time || day.departure_time);
+    if (state === "planned") return Boolean(day.planned_arrival_time || day.planned_departure_time);
+    if (state === "warning") return Boolean((day.planned_arrival_time || day.planned_departure_time) && (!day.arrival_time || !day.departure_time));
+    if (state === "holiday") return day.planned_status === "HOLIDAY";
+    if (state === "off") return day.planned_status === "OFF";
+    return true;
+  });
+}
+
 export default function AdminAttendanceSheetsPage() {
   const [month, setMonth] = useState(() => yyyyMm(new Date()));
   const [query, setQuery] = useState("");
   const [showInactive, setShowInactive] = useState(false);
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState<EmploymentTypeFilter>("all");
+  const [stateFilter, setStateFilter] = useState<AttendanceStateFilter>("all");
   const [rows, setRows] = useState<AdminAttendanceMatrixRow[]>([]);
   const [selected, setSelected] = useState<SelectedCell | null>(null);
   const [loading, setLoading] = useState(false);
@@ -131,11 +149,13 @@ export default function AdminAttendanceSheetsPage() {
     const tokens = query.trim().toLocaleLowerCase("cs-CZ").split(/\s+/).filter(Boolean);
     return rows.filter((row) => {
       if (!showInactive && !row.is_active_in_month) return false;
+      if (employmentTypeFilter !== "all" && row.employment_type !== employmentTypeFilter) return false;
+      if (!hasAttendanceState(row, stateFilter)) return false;
       if (tokens.length === 0) return true;
       const hay = `${row.user_name} ${row.employment_label} ${row.employment_title} ${row.employment_id} ${row.employment_type}`.toLocaleLowerCase("cs-CZ");
       return tokens.every((token) => hay.includes(token));
     });
-  }, [query, rows, showInactive]);
+  }, [employmentTypeFilter, query, rows, showInactive, stateFilter]);
 
   const selectedRow = useMemo(
     () => rows.find((row) => row.employment_id === selected?.employmentId) ?? filteredRows[0] ?? null,
@@ -153,19 +173,34 @@ export default function AdminAttendanceSheetsPage() {
         acc.workedMins += stats.totalMins;
         acc.holidayDays += stats.vacationDays;
         acc.afternoonMins += stats.afternoonMins;
+        row.days.forEach((day) => {
+          const plannedCalc = computeDayCalc({ date: day.date, arrival_time: day.planned_arrival_time ?? null, departure_time: day.planned_departure_time ?? null, planned_status: day.planned_status }, row.employment_type, cutoffMinutes);
+          acc.plannedMins += (plannedCalc.workedMins ?? 0) + (day.planned_status === "HOLIDAY" ? 8 * 60 : 0);
+          if (day.arrival_time || day.departure_time) acc.presentDays += 1;
+          if (day.planned_arrival_time || day.planned_departure_time || day.planned_status) acc.plannedDays += 1;
+          if ((day.planned_arrival_time || day.planned_departure_time) && (!day.arrival_time || !day.departure_time)) acc.warningDays += 1;
+          if (day.planned_status === "OFF") acc.offDays += 1;
+        });
         if (row.locked) acc.lockedRows += 1;
         return acc;
       },
-      { workedMins: 0, holidayDays: 0, afternoonMins: 0, lockedRows: 0 },
+      { workedMins: 0, plannedMins: 0, presentDays: 0, plannedDays: 0, warningDays: 0, holidayDays: 0, offDays: 0, afternoonMins: 0, lockedRows: 0 },
     );
   }, [cutoffMinutes, filteredRows]);
 
   const dailyCoverage = useMemo(() => {
     return days.map((day) =>
-      filteredRows.reduce((count, row) => {
+      filteredRows.reduce(
+        (acc, row) => {
         const item = row.days.find((entry) => entry.date === day.date);
-        return count + (item && (item.arrival_time || item.departure_time || item.planned_status) ? 1 : 0);
-      }, 0),
+          if (!item) return acc;
+          if (item.arrival_time || item.departure_time) acc.present += 1;
+          if (item.planned_arrival_time || item.planned_departure_time || item.planned_status) acc.planned += 1;
+          if ((item.planned_arrival_time || item.planned_departure_time) && (!item.arrival_time || !item.departure_time)) acc.warning += 1;
+          return acc;
+        },
+        { present: 0, planned: 0, warning: 0 },
+      ),
     );
   }, [days, filteredRows]);
 
@@ -326,11 +361,40 @@ export default function AdminAttendanceSheetsPage() {
         </div>
       </header>
 
+      <section className="ops-stat-strip" aria-label="Souhrn aktuálního filtru">
+        <div><span>Zaměstnanci</span><strong>{filteredRows.length}</strong></div>
+        <div><span>Odpracováno</span><strong>{formatHours(monthStats.workedMins)} h</strong></div>
+        <div><span>Plán</span><strong>{formatHours(monthStats.plannedMins)} h</strong></div>
+        <div><span>Saldo</span><strong>{formatHours(monthStats.workedMins - monthStats.plannedMins)} h</strong></div>
+        <div><span>Upozornění</span><strong>{monthStats.warningDays}</strong></div>
+        <div><span>Zámky</span><strong>{monthStats.lockedRows}</strong></div>
+      </section>
+
       <section className="ops-toolbar" aria-label="Filtry měsíčního přehledu">
         <Button type="button" variant="ghost" size="sm" onClick={() => setMonth((value) => addMonths(value, -1))}>Předchozí</Button>
         <input className="ops-input ops-input--month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Měsíc docházky" />
         <Button type="button" variant="ghost" size="sm" onClick={() => setMonth((value) => addMonths(value, 1))}>Další</Button>
         <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(yyyyMm(new Date()))}>Dnes</Button>
+        <label className="ops-select-field">
+          <span>Typ úvazku</span>
+          <select className="ops-input" value={employmentTypeFilter} onChange={(event) => setEmploymentTypeFilter(event.target.value as EmploymentTypeFilter)}>
+            <option value="all">Všechny úvazky</option>
+            <option value="HPP">HPP</option>
+            <option value="DPP_DPC">DPP / DPČ</option>
+          </select>
+        </label>
+        <label className="ops-select-field">
+          <span>Stav</span>
+          <select className="ops-input" value={stateFilter} onChange={(event) => setStateFilter(event.target.value as AttendanceStateFilter)}>
+            <option value="all">Všechny stavy</option>
+            <option value="present">Přítomnost</option>
+            <option value="planned">Plán směny</option>
+            <option value="warning">Chyba / upozornění</option>
+            <option value="holiday">Dovolená</option>
+            <option value="off">Volno</option>
+            <option value="locked">Uzamčeno</option>
+          </select>
+        </label>
         <input className="ops-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hledat zaměstnance, úvazek nebo ID" aria-label="Hledat zaměstnance" />
         <label className="ops-check">
           <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
@@ -436,11 +500,18 @@ export default function AdminAttendanceSheetsPage() {
               </tbody>
               <tfoot>
                 <tr>
-                  <th className="ops-sticky-col">Denní souhrn</th>
-                  {dailyCoverage.map((count, index) => <td key={days[index]?.date ?? index}>{count}</td>)}
+                  <th className="ops-sticky-col">Přítomno</th>
+                  {dailyCoverage.map((count, index) => <td key={days[index]?.date ?? index}>{count.present}</td>)}
                   <td className="ops-summary-col">{formatHours(monthStats.workedMins)} h</td>
-                  <td className="ops-summary-col">{workingDaysInMonthCs(year, monthNum) * 8} h</td>
-                  <td className="ops-summary-col">{monthStats.lockedRows} zámků</td>
+                  <td className="ops-summary-col">{formatHours(monthStats.plannedMins)} h</td>
+                  <td className="ops-summary-col">{formatHours(monthStats.workedMins - monthStats.plannedMins)} h</td>
+                </tr>
+                <tr>
+                  <th className="ops-sticky-col">Plán / varování</th>
+                  {dailyCoverage.map((count, index) => <td key={`warn-${days[index]?.date ?? index}`}>{count.planned}/{count.warning}</td>)}
+                  <td className="ops-summary-col">{monthStats.presentDays} dnů</td>
+                  <td className="ops-summary-col">{monthStats.plannedDays} dnů</td>
+                  <td className="ops-summary-col">{monthStats.warningDays} chyb</td>
                 </tr>
               </tfoot>
             </table>
