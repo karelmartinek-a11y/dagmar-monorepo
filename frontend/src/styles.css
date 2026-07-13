@@ -7936,14 +7936,15 @@ body:has(.print-preview-page) .kb-app {
 }
 
 .plan-page .ops-toolbar {
-  display: grid;
-  grid-template-columns: auto minmax(180px, 220px) auto auto minmax(180px, 230px) minmax(180px, 210px) minmax(220px, 1fr) auto auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: end;
   gap: 10px;
 }
 
 .plan-page .ops-toolbar > * {
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .plan-page .ops-select-field,
@@ -7975,8 +7976,22 @@ body:has(.print-preview-page) .kb-app {
 }
 
 .plan-page .ops-input--month {
-  width: 100%;
-  min-width: 0;
+  width: 168px;
+  min-width: 168px;
+}
+
+.plan-page .ops-toolbar > .ops-input[type="search"] {
+  flex: 1 1 240px;
+  min-width: 220px;
+}
+
+.plan-page .ops-toolbar > .ops-select-field {
+  min-width: 170px;
+}
+
+.plan-page .ops-toolbar > .ops-check {
+  min-height: 42px;
+  padding: 0 14px;
 }
 
 .plan-page .plan-layout {
@@ -8196,8 +8211,8 @@ body:has(.print-preview-page) .kb-app {
 }
 
 @media (max-width: 1480px) {
-  .plan-page .ops-toolbar {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .plan-page .ops-toolbar > .ops-input[type="search"] {
+    flex-basis: 180px;
   }
 }
 
@@ -8207,8 +8222,9 @@ body:has(.print-preview-page) .kb-app {
     font-size: 32px;
   }
 
-  .plan-page .ops-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .plan-page .ops-toolbar > .ops-select-field,
+  .plan-page .ops-toolbar > .ops-input[type="search"] {
+    min-width: 0;
   }
 
   .plan-page .plan-layout {
@@ -8233,6 +8249,7 @@ body:has(.print-preview-page) .kb-app {
   }
 
   .plan-page .ops-toolbar {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
