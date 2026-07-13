@@ -28,6 +28,45 @@ type ActionState =
   | { kind: "deactivate"; instance: AdminInstance }
   | { kind: "deletePending" };
 
+function formatInstanceDate(value: string | null | undefined, fallback = "Neuvedeno") {
+  if (!value) return fallback;
+  return new Date(value).toLocaleString("cs-CZ");
+}
+
+function statusLabel(status: AdminInstance["status"]) {
+  switch (status) {
+    case "ACTIVE":
+      return "Aktivní";
+    case "PENDING":
+      return "Čeká na aktivaci";
+    case "REVOKED":
+      return "Revokováno";
+    case "DEACTIVATED":
+      return "Deaktivováno";
+  }
+}
+
+function statusTone(status: AdminInstance["status"]): "ok" | "accent" | "danger" | "warning" {
+  switch (status) {
+    case "ACTIVE":
+      return "ok";
+    case "PENDING":
+      return "accent";
+    case "REVOKED":
+      return "danger";
+    case "DEACTIVATED":
+      return "warning";
+  }
+}
+
+function clientTypeLabel(type: AdminInstance["client_type"]) {
+  return type === "ANDROID" ? "Android zařízení" : "Webový klient";
+}
+
+function templateLabel(template: EmploymentTemplate) {
+  return template === "HPP" ? "HPP" : "DPP / DPČ";
+}
+
 export default function AdminInstancesPage() {
   const [instances, setInstances] = useState<AdminInstance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +89,7 @@ export default function AdminInstancesPage() {
     try {
       const res = await adminListInstances();
       setInstances(res.instances);
-      setSelected((current) => res.instances.find((item) => item.id === current?.id) ?? current);
+      setSelected((current) => res.instances.find((item) => item.id === current?.id) ?? res.instances[0] ?? null);
     } catch (err) {
       setError(errorMessage(err, "Nepodařilo se načíst zařízení."));
     } finally {
@@ -88,7 +127,16 @@ export default function AdminInstancesPage() {
   }, [instances, query, statusFilter, typeFilter]);
 
   const pendingCount = instances.filter((item) => item.status === "PENDING").length;
+  const activeCount = instances.filter((item) => item.status === "ACTIVE").length;
+  const revokedCount = instances.filter((item) => item.status === "REVOKED").length;
+  const deactivatedCount = instances.filter((item) => item.status === "DEACTIVATED").length;
   const mergeCandidates = useMemo(() => instances.filter((item) => item.status === "ACTIVE"), [instances]);
+  const mergeSources = useMemo(
+    () => mergeCandidates.filter((candidate) => candidate.id !== mergeTargetId),
+    [mergeCandidates, mergeTargetId],
+  );
+  const mergeSelectionInvalid = mergeSourceIds.some((id) => id === mergeTargetId);
+  const canRunMerge = !busy && !!mergeTargetId && mergeSourceIds.length > 0 && !mergeSelectionInvalid;
 
   async function runAction(work: () => Promise<unknown>, success: string) {
     setBusy(true);
@@ -106,7 +154,7 @@ export default function AdminInstancesPage() {
   }
 
   return (
-    <div className="admin-page-grid">
+    <div className="admin-page-grid admin-instances-page">
       <PageHeader
         eyebrow="Zařízení a instance"
         title="Správa zařízení"
@@ -143,12 +191,31 @@ export default function AdminInstancesPage() {
         </select>
       </FilterBar>
 
+      <div className="admin-metric-grid admin-instances-metrics">
+        <div className="admin-metric-card">
+          <span>Celkem instancí</span>
+          <strong>{instances.length}</strong>
+        </div>
+        <div className="admin-metric-card">
+          <span>Aktivní</span>
+          <strong>{activeCount}</strong>
+        </div>
+        <div className="admin-metric-card">
+          <span>Čeká na aktivaci</span>
+          <strong>{pendingCount}</strong>
+        </div>
+        <div className="admin-metric-card">
+          <span>Revokováno / deaktivováno</span>
+          <strong>{revokedCount + deactivatedCount}</strong>
+        </div>
+      </div>
+
       <div className="admin-split-layout">
-        <section className="admin-surface">
+        <section className="admin-surface admin-instances-surface">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Seznam instancí</div>
-              <div className="admin-surface-subtitle">{filtered.length} z {instances.length} zařízení odpovídá filtru.</div>
+              <div className="admin-surface-subtitle">{filtered.length} z {instances.length} zařízení odpovídá filtru. Vlevo vybíráte zdroj, vpravo řešíte detail a akce.</div>
             </div>
           </div>
           {loading ? (
@@ -159,49 +226,56 @@ export default function AdminInstancesPage() {
             <div className="admin-list">
               {filtered.map((item) => (
                 <button key={item.id} type="button" className={`admin-selection-row${selected?.id === item.id ? " active" : ""}`} onClick={() => setSelected(item)}>
-                  <div>
+                  <div className="admin-instances-row-copy">
                     <div className="admin-list-title">{item.display_name || item.id}</div>
-                    <div className="admin-list-subtitle">{item.client_type} · vytvořeno {new Date(item.created_at).toLocaleDateString("cs-CZ")}</div>
+                    <div className="admin-list-subtitle">{clientTypeLabel(item.client_type)} · vytvořeno {new Date(item.created_at).toLocaleDateString("cs-CZ")}</div>
+                    <div className="admin-instances-row-meta">
+                      <span>ID {item.id}</span>
+                      <span>Poslední kontakt {formatInstanceDate(item.last_seen_at, "nikdy")}</span>
+                    </div>
                   </div>
-                  <StateBadge
-                    tone={
-                      item.status === "ACTIVE"
-                        ? "ok"
-                        : item.status === "PENDING"
-                          ? "accent"
-                          : item.status === "REVOKED"
-                            ? "danger"
-                            : "warning"
-                    }
-                  >
-                    {item.status}
-                  </StateBadge>
+                  <div className="admin-instances-row-badges">
+                    <StateBadge tone={statusTone(item.status)}>{statusLabel(item.status)}</StateBadge>
+                    <StateBadge tone="default">{templateLabel(item.employment_template)}</StateBadge>
+                  </div>
                 </button>
               ))}
             </div>
           )}
         </section>
 
-        <section className="admin-surface">
+        <section className="admin-surface admin-instances-surface">
           <div className="admin-surface-head">
             <div>
-              <div className="admin-surface-title">Detail a akce</div>
-              <div className="admin-surface-subtitle">Vyberte instanci vlevo pro kompletní operace nad backendem.</div>
+              <div className="admin-surface-title">Detail instance a forenzní akce</div>
+              <div className="admin-surface-subtitle">Pravý panel drží technickou identitu, auditní časy, pracovní šablonu i nevratné zásahy.</div>
             </div>
           </div>
           {!selected ? (
             <EmptyState title="Není vybraná instance" description="Pro pokračování zvolte zařízení ze seznamu." />
           ) : (
             <div className="admin-stack">
+              <div className="admin-badge-row">
+                <StateBadge tone={statusTone(selected.status)}>{statusLabel(selected.status)}</StateBadge>
+                <StateBadge tone="default">{clientTypeLabel(selected.client_type)}</StateBadge>
+                <StateBadge tone="default">{templateLabel(selected.employment_template)}</StateBadge>
+              </div>
+
               <div className="admin-definition-list">
-                <div><span>ID</span><strong>{selected.id}</strong></div>
-                <div><span>Typ klienta</span><strong>{selected.client_type}</strong></div>
-                <div><span>Stav</span><strong>{selected.status}</strong></div>
-                <div><span>Poslední aktivita</span><strong>{selected.last_seen_at ? new Date(selected.last_seen_at).toLocaleString("cs-CZ") : "neuvedeno"}</strong></div>
+                <div><span>Zobrazovaný název</span><strong>{selected.display_name || "Nepojmenovaná instance"}</strong></div>
+                <div><span>Interní ID</span><strong>{selected.id}</strong></div>
+                <div><span>Fingerprint zařízení</span><strong>{selected.device_fingerprint}</strong></div>
+                <div><span>Typ klienta</span><strong>{clientTypeLabel(selected.client_type)}</strong></div>
+                <div><span>Vytvořeno</span><strong>{formatInstanceDate(selected.created_at)}</strong></div>
+                <div><span>Poslední aktivita</span><strong>{formatInstanceDate(selected.last_seen_at, "Nikdy nezaznamenána")}</strong></div>
+                <div><span>Aktivováno</span><strong>{formatInstanceDate(selected.activated_at)}</strong></div>
+                <div><span>Revokováno</span><strong>{formatInstanceDate(selected.revoked_at)}</strong></div>
+                <div><span>Deaktivováno</span><strong>{formatInstanceDate(selected.deactivated_at)}</strong></div>
               </div>
 
               <div className="admin-form-section">
                 <div className="admin-form-section-title">Základní úpravy</div>
+                <div className="kb-help">Název a pracovní šablona musí zůstat čitelné i pro návazné administrativní obrazovky a exporty.</div>
                 <div className="admin-form-grid">
                   <div>
                     <div className="kb-label">Zobrazovaný název</div>
@@ -237,6 +311,7 @@ export default function AdminInstancesPage() {
               {selected.status === "ACTIVE" ? (
                 <div className="admin-form-section">
                   <div className="admin-form-section-title">Sloučení instancí</div>
+                  <div className="kb-help">Cílem je ponechat jednu aktivní instanci a bezpečně přesunout docházku, plány, výběry i zámky ze zdrojových zařízení.</div>
                   <div className="admin-form-grid">
                     <div>
                       <div className="kb-label">Cílová instance</div>
@@ -251,7 +326,7 @@ export default function AdminInstancesPage() {
                     <div>
                       <div className="kb-label">Zdrojové instance</div>
                       <div className="admin-checkbox-list">
-                        {mergeCandidates.filter((candidate) => candidate.id !== mergeTargetId).map((candidate) => {
+                        {mergeSources.map((candidate) => {
                           const checked = mergeSourceIds.includes(candidate.id);
                           return (
                             <label key={candidate.id} className="admin-checkbox-row">
@@ -271,12 +346,14 @@ export default function AdminInstancesPage() {
                       </div>
                     </div>
                   </div>
+                  {mergeSelectionInvalid ? <InlineNotice tone="danger">Zdrojová instance nesmí být zároveň cílem sloučení.</InlineNotice> : null}
+                  {mergeSources.length === 0 ? <InlineNotice tone="warning">K dispozici není další aktivní instance, kterou by šlo bezpečně sloučit.</InlineNotice> : null}
                   <InlineNotice tone="warning">Sloučení přesune docházku, plán, měsíční výběry i zámky na cílovou instanci podle backend pravidel.</InlineNotice>
                   <div className="admin-action-row">
                     <Button
                       type="button"
                       variant="primary"
-                      disabled={busy || !mergeTargetId || mergeSourceIds.length === 0}
+                      disabled={!canRunMerge}
                       onClick={() => void runAction(() => adminMergeInstances(mergeTargetId, mergeSourceIds), "Instance byly sloučeny.")}
                     >
                       Sloučit vybrané instance
@@ -285,20 +362,24 @@ export default function AdminInstancesPage() {
                 </div>
               ) : null}
 
-              <div className="admin-action-row">
-                {selected.status !== "REVOKED" ? (
-                  <Button type="button" variant="danger" disabled={busy} onClick={() => setActionState({ kind: "revoke", instance: selected })}>
-                    Revokovat
+              <div className="admin-form-section admin-instances-danger-zone">
+                <div className="admin-form-section-title">Nebezpečné operace</div>
+                <div className="kb-help">Tyto zásahy zneplatňují tokeny, odpojují zařízení nebo maží registraci. Backend je provádí nevratně podle produkčních pravidel.</div>
+                <div className="admin-action-row">
+                  {selected.status !== "REVOKED" ? (
+                    <Button type="button" variant="danger" disabled={busy} onClick={() => setActionState({ kind: "revoke", instance: selected })}>
+                      Revokovat
+                    </Button>
+                  ) : null}
+                  {selected.status !== "DEACTIVATED" ? (
+                    <Button type="button" variant="danger" disabled={busy} onClick={() => setActionState({ kind: "deactivate", instance: selected })}>
+                      Deaktivovat
+                    </Button>
+                  ) : null}
+                  <Button type="button" variant="danger" disabled={busy} onClick={() => setActionState({ kind: "delete", instance: selected })}>
+                    Smazat instanci
                   </Button>
-                ) : null}
-                {selected.status !== "DEACTIVATED" ? (
-                  <Button type="button" variant="danger" disabled={busy} onClick={() => setActionState({ kind: "deactivate", instance: selected })}>
-                    Deaktivovat
-                  </Button>
-                ) : null}
-                <Button type="button" variant="danger" disabled={busy} onClick={() => setActionState({ kind: "delete", instance: selected })}>
-                  Smazat instanci
-                </Button>
+                </div>
               </div>
             </div>
           )}

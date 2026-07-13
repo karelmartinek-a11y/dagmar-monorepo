@@ -13,6 +13,7 @@ export type ClientType = "ANDROID" | "WEB";
 export type AdminInstance = {
   id: string;
   client_type: ClientType;
+  device_fingerprint: string;
   status: InstanceStatus;
   display_name: string | null;
   created_at: string;

@@ -8930,3 +8930,159 @@ body:has(.print-preview-page) .kb-app {
     min-width: 76px;
   }
 }
+
+/* Final July 2026 forensic stabilization for admin instances and device registry. */
+
+.admin-instances-page .admin-instances-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-instances-page .admin-split-layout {
+  grid-template-columns: minmax(360px, 0.96fr) minmax(0, 1.34fr);
+  gap: 14px;
+}
+
+.admin-instances-page .admin-instances-surface {
+  padding: 18px;
+  border-radius: 8px;
+  border: 1px solid var(--kd-stroke);
+  background: var(--kd-ink-850);
+}
+
+.admin-instances-page .admin-surface-head {
+  margin-bottom: 16px;
+}
+
+.admin-instances-page .admin-surface-title,
+.admin-instances-page .admin-form-section-title {
+  font-size: 22px;
+  line-height: 1.08;
+  color: var(--kd-text-primary);
+}
+
+.admin-instances-page .admin-surface-subtitle,
+.admin-instances-page .admin-list-subtitle,
+.admin-instances-page .admin-instances-row-meta,
+.admin-instances-page .kb-help {
+  color: var(--kd-text-secondary);
+}
+
+.admin-instances-page .admin-selection-row,
+.admin-instances-page .admin-form-section,
+.admin-instances-page .admin-definition-list > div,
+.admin-instances-page .admin-inline-notice,
+.admin-instances-page .admin-empty-state,
+.admin-instances-page .admin-checkbox-row {
+  border: 1px solid var(--kd-stroke) !important;
+  background: var(--kd-ink-900) !important;
+  border-radius: 8px !important;
+  box-shadow: none;
+  color: var(--kd-text-primary);
+}
+
+.admin-instances-page .admin-selection-row {
+  align-items: stretch;
+  gap: 12px;
+  padding: 16px;
+}
+
+.admin-instances-page .admin-selection-row.active {
+  border-color: var(--kd-action-500) !important;
+  background: linear-gradient(180deg, rgba(43, 157, 143, 0.16), rgba(14, 27, 39, 0.96)) !important;
+}
+
+.admin-instances-page .admin-selection-row:hover {
+  border-color: rgba(159, 177, 194, 0.36) !important;
+  background: rgba(20, 36, 50, 0.98) !important;
+}
+
+.admin-instances-page .admin-instances-row-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.admin-instances-page .admin-instances-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.admin-instances-page .admin-instances-row-badges,
+.admin-instances-page .admin-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.admin-instances-page .admin-list-title {
+  font-size: 18px;
+  line-height: 1.15;
+  color: #f8fbff;
+}
+
+.admin-instances-page .admin-definition-list,
+.admin-instances-page .admin-form-grid {
+  gap: 14px;
+}
+
+.admin-instances-page .admin-definition-list > div,
+.admin-instances-page .admin-form-section {
+  padding: 16px;
+}
+
+.admin-instances-page .admin-form-section {
+  gap: 14px;
+}
+
+.admin-instances-page .admin-checkbox-row {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.admin-instances-page .admin-action-row {
+  gap: 10px;
+}
+
+.admin-instances-page .kb-input,
+.admin-instances-page .kb-select {
+  min-height: 44px;
+}
+
+.admin-instances-page .admin-instances-danger-zone {
+  border-color: rgba(248, 113, 113, 0.26) !important;
+  background: rgba(63, 36, 39, 0.92) !important;
+}
+
+@media (max-width: 1180px) {
+  .admin-instances-page .admin-instances-metrics,
+  .admin-instances-page .admin-split-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-instances-page .admin-instances-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-instances-page .admin-selection-row {
+    flex-direction: column;
+  }
+
+  .admin-instances-page .admin-instances-row-badges,
+  .admin-instances-page .admin-badge-row {
+    justify-content: flex-start;
+  }
+
+  .admin-instances-page .admin-definition-list,
+  .admin-instances-page .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
