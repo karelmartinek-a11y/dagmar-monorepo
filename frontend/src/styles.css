@@ -9086,3 +9086,341 @@ body:has(.print-preview-page) .kb-app {
     grid-template-columns: 1fr;
   }
 }
+
+/* Final July 2026 forensic stabilization for admin login. */
+
+.admin-login-page--forensic {
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(43, 157, 143, 0.08), transparent 34rem),
+    var(--kd-ink-950);
+}
+
+.admin-login-page--forensic .admin-login-shell {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.admin-login-page--forensic .admin-login-shell-head,
+.admin-login-page--forensic .admin-login-context-card,
+.admin-login-page--forensic .admin-login-state-card,
+.admin-login-page--forensic .admin-login-summary-strip > div,
+.admin-login-page--forensic .admin-login-return-box,
+.admin-login-page--forensic .admin-login-card {
+  border: 1px solid var(--kd-stroke) !important;
+  border-radius: 8px !important;
+  background: var(--kd-ink-850) !important;
+  box-shadow: none;
+}
+
+.admin-login-page--forensic .admin-login-shell-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px 20px;
+  padding: 16px 18px;
+}
+
+.admin-login-page--forensic .admin-login-shell-head strong {
+  display: block;
+  color: var(--kd-text-primary);
+  font-size: 24px;
+  line-height: 1.08;
+}
+
+.admin-login-page--forensic .admin-login-shell-head > div > span {
+  display: block;
+  margin-top: 6px;
+  color: var(--kd-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.admin-login-page--forensic .admin-login-shell-meta {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  justify-items: end;
+  text-align: right;
+  color: var(--kd-text-secondary);
+  font-size: 12px;
+}
+
+.admin-login-page--forensic .admin-login-shell-meta strong {
+  display: inline;
+  font-size: inherit;
+  color: var(--kd-text-primary);
+}
+
+.admin-login-page--forensic .admin-login-board {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(420px, 1.14fr) minmax(260px, 0.82fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.admin-login-page--forensic .admin-login-context,
+.admin-login-page--forensic .admin-login-stateboard {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.admin-login-page--forensic .admin-login-context-card,
+.admin-login-page--forensic .admin-login-state-card {
+  padding: 18px;
+}
+
+.admin-login-page--forensic .admin-login-context-card {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-login-page--forensic .admin-login-context-card--accent {
+  background: linear-gradient(180deg, rgba(24, 39, 55, 0.98), rgba(13, 23, 34, 0.98)) !important;
+}
+
+.admin-login-page--forensic .admin-login-context-kicker {
+  color: var(--kd-action-500);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-login-page--forensic .admin-login-context-title {
+  margin: 0;
+  color: var(--kd-text-primary);
+  font-size: 28px;
+  line-height: 1.16;
+}
+
+.admin-login-page--forensic .admin-login-context-copy,
+.admin-login-page--forensic .admin-login-context-row span,
+.admin-login-page--forensic .admin-login-state-card span,
+.admin-login-page--forensic .admin-login-support {
+  color: var(--kd-text-secondary);
+}
+
+.admin-login-page--forensic .admin-login-context-copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.admin-login-page--forensic .admin-login-context-copy code {
+  color: var(--kd-text-primary);
+}
+
+.admin-login-page--forensic .admin-login-context-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.admin-login-page--forensic .admin-login-context-icon,
+.admin-login-page--forensic .admin-login-state-card-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--kd-stroke);
+  background: var(--kd-ink-900);
+  color: #b8eeea;
+}
+
+.admin-login-page--forensic .admin-login-context-row strong,
+.admin-login-page--forensic .admin-login-state-card strong {
+  display: block;
+  color: var(--kd-text-primary);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.admin-login-page--forensic .admin-login-context-row span,
+.admin-login-page--forensic .admin-login-state-card span {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.admin-login-page--forensic .admin-login-card {
+  padding: 28px 32px !important;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.admin-login-page--forensic .auth-card-logo {
+  width: min(220px, 58%);
+  margin-bottom: 4px;
+}
+
+.admin-login-page--forensic .auth-card-title {
+  font-size: 40px;
+  line-height: 1.04;
+}
+
+.admin-login-page--forensic .auth-card-description {
+  margin-top: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--kd-text-secondary);
+}
+
+.admin-login-page--forensic .admin-login-return-box {
+  padding: 14px 16px;
+  display: grid;
+  gap: 4px;
+  background: var(--kd-ink-900) !important;
+}
+
+.admin-login-page--forensic .admin-login-return-box span {
+  color: var(--kd-text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-login-page--forensic .admin-login-return-box strong {
+  color: var(--kd-text-primary);
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.admin-login-page--forensic .admin-login-form {
+  margin-top: 0 !important;
+  gap: 12px;
+}
+
+.admin-login-page--forensic .kb-label {
+  margin-bottom: 6px;
+}
+
+.admin-login-page--forensic .kb-input {
+  min-height: 46px;
+}
+
+.admin-login-page--forensic .admin-login-support {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.admin-login-page--forensic .admin-login-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-login-page--forensic .admin-login-actions .kb-btn,
+.admin-login-page--forensic .admin-login-actions .admin-mini-link {
+  min-height: 44px;
+}
+
+.admin-login-page--forensic .admin-login-stateboard {
+  grid-template-columns: 1fr;
+}
+
+.admin-login-page--forensic .admin-login-state-card {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  background: var(--kd-ink-900) !important;
+}
+
+.admin-login-page--forensic .admin-login-state-card.is-active {
+  border-color: var(--kd-action-500) !important;
+  background: linear-gradient(180deg, rgba(43, 157, 143, 0.16), rgba(14, 27, 39, 0.96)) !important;
+}
+
+.admin-login-page--forensic .admin-login-state-card.is-error {
+  border-color: rgba(248, 113, 113, 0.34) !important;
+  background: rgba(63, 36, 39, 0.92) !important;
+}
+
+.admin-login-page--forensic .admin-login-state-card.is-success {
+  border-color: rgba(43, 157, 143, 0.34) !important;
+  background: rgba(18, 52, 48, 0.94) !important;
+}
+
+.admin-login-page--forensic .admin-login-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-login-page--forensic .admin-login-summary-strip > div {
+  min-width: 0;
+  padding: 14px 16px;
+  display: grid;
+  gap: 6px;
+}
+
+.admin-login-page--forensic .admin-login-summary-strip span {
+  color: var(--kd-text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-login-page--forensic .admin-login-summary-strip strong {
+  color: var(--kd-text-primary);
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1180px) {
+  .admin-login-page--forensic .admin-login-board {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-login-page--forensic .admin-login-shell-head {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-login-page--forensic .admin-login-shell-meta {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .admin-login-page--forensic .admin-login-summary-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-login-page--forensic {
+    padding: 14px;
+  }
+
+  .admin-login-page--forensic .admin-login-shell {
+    gap: 10px;
+  }
+
+  .admin-login-page--forensic .admin-login-shell-head,
+  .admin-login-page--forensic .admin-login-context-card,
+  .admin-login-page--forensic .admin-login-state-card,
+  .admin-login-page--forensic .admin-login-summary-strip > div,
+  .admin-login-page--forensic .admin-login-card {
+    padding: 14px !important;
+  }
+
+  .admin-login-page--forensic .admin-login-context-title {
+    font-size: 22px;
+  }
+
+  .admin-login-page--forensic .auth-card-logo {
+    width: min(180px, 72%);
+  }
+
+  .admin-login-page--forensic .auth-card-title {
+    font-size: 30px;
+  }
+}

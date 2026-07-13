@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { adminForgotPassword, adminLogin, getAdminMe } from "../api/admin";
+import { ApiError } from "../api/client";
 import Button from "../ui/Button";
 import { Card } from "../ui/Card";
 import { APP_NAME_LONG, BRAND_ASSETS } from "../brand/brand";
@@ -12,6 +13,23 @@ function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) return err.message;
   if (typeof err === "string") return err;
   return fallback;
+}
+
+function loginErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return "Neplatné přihlašovací údaje. Zkontrolujte e-mail a heslo správce.";
+    if (err.status === 429) return "Byl překročen limit 10 pokusů za minutu. Chvíli vyčkejte a přihlášení opakujte.";
+    if (err.status === 503) return "Admin účet není inicializován. Dokončete interní seed administrace a zkuste to znovu.";
+    if (err.status === 400) return err.message || "Vyplňte e-mail správce a heslo.";
+  }
+  return errorMessage(err, "Přihlášení se nezdařilo.");
+}
+
+function helpErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status >= 500) {
+    return "Instrukci se teď nepodařilo potvrdit. Použijte přímý kontakt na provozní podporu.";
+  }
+  return errorMessage(err, "Instrukce se nepodařilo odeslat.");
 }
 
 export default function AdminLoginPage() {
@@ -66,7 +84,7 @@ export default function AdminLoginPage() {
       await adminLogin({ username: email, password });
       navigate(nextPath, { replace: true });
     } catch (err: unknown) {
-      setError(errorMessage(err, "Přihlášení se nezdařilo."));
+      setError(loginErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +98,7 @@ export default function AdminLoginPage() {
       await adminForgotPassword("provoz@hotelchodovasc.cz");
       setInfo("Instrukce k přístupu byly odeslány na provozní adresu administrace.");
     } catch (err) {
-      setError(errorMessage(err, "Instrukce se nepodařilo odeslat."));
+      setError(helpErrorMessage(err));
     } finally {
       setSendingHelp(false);
     }
@@ -96,103 +114,172 @@ export default function AdminLoginPage() {
           ? "Instrukce odeslány"
           : "Připraven k přihlášení";
 
+  const stateCards = [
+    {
+      key: "session",
+      icon: "shield" as const,
+      title: "Kontrola existující session",
+      detail: checkingSession ? "Ověřuji, zda už není administrace přihlášená." : "Session je zkontrolovaná a formulář může pokračovat.",
+      tone: checkingSession ? "is-active" : "",
+    },
+    {
+      key: "invalid",
+      icon: "lock" as const,
+      title: "Neplatné údaje",
+      detail: "Při chybě zůstává zachovaný e-mail správce i bezpečný návrat na interní cestu.",
+      tone: error && !error.includes("limit 10") && !error.includes("není inicializován") ? "is-error" : "",
+    },
+    {
+      key: "limit",
+      icon: "keyboard" as const,
+      title: "Rate limit 10 / minuta",
+      detail: "Opakované pokusy se po překročení limitu zastaví a uživateli vrátí jasné vysvětlení dalšího postupu.",
+      tone: error?.includes("limit 10") ? "is-error" : "",
+    },
+    {
+      key: "setup",
+      icon: "info" as const,
+      title: "Neinicializovaný admin účet 503",
+      detail: "Pokud není seed administrace dokončený, obrazovka musí vrátit servisní stav, ne předstírat úspěch.",
+      tone: error?.includes("není inicializován") ? "is-error" : "",
+    },
+    {
+      key: "help",
+      icon: "key" as const,
+      title: "Pomoc s přístupem",
+      detail: info
+        ? "Instrukce byly potvrzeny stejnou odpovědí bez prozrazení stavu účtu."
+        : "Tlačítko neposílá reset token, pouze bezpečnou interní instrukci a kontakt.",
+      tone: info ? "is-success" : "",
+    },
+  ];
+
   return (
-    <div className="admin-login-page">
-      <section className="admin-auth-cockpit" aria-labelledby="admin-login-workspace-title">
-        <header className="admin-auth-cockpit-header">
+    <div className="admin-login-page admin-login-page--forensic">
+      <section className="admin-login-shell" aria-labelledby="admin-login-workspace-title">
+        <header className="admin-login-shell-head">
           <div>
             <strong id="admin-login-workspace-title">ADM-01 / Přihlášení administrátora</strong>
-            <span>Vytvořit admin session a bezpečně vrátit uživatele na požadovanou admin stránku.</span>
+            <span>Samostatná vstupní obrazovka pro vytvoření admin session a bezpečný návrat na požadovanou interní routu.</span>
           </div>
-          <dl>
-            <div><dt>Route</dt><dd>/admin/login</dd></div>
-            <div><dt>Role</dt><dd>Administrátor</dd></div>
-          </dl>
+          <div className="admin-login-shell-meta">
+            <span>Route <strong>/admin/login</strong></span>
+            <span>Role <strong>Administrátor</strong></span>
+            <span>Návrat po přihlášení <strong>{nextPath}</strong></span>
+          </div>
         </header>
 
-        <div className="auth-workspace auth-workspace--admin admin-login-panel">
-        <aside className="auth-rail auth-rail--focus" aria-label="Pokyny pro administrátora">
-          <div className="auth-rail-title">Fokus a přístupnost</div>
-          <ol className="auth-rail-list">
-            <li>E-mail správce</li>
-            <li>Heslo správce</li>
-            <li>Přihlásit</li>
-            <li>Pomoc s přístupem</li>
-          </ol>
-          <div className="auth-rail-note">Každé pole má programový popisek. Chyba zachová vyplněný e-mail.</div>
-        </aside>
+        <div className="admin-login-board">
+          <aside className="admin-login-context" aria-label="Provozní kontext administrace">
+            <div className="admin-login-context-card">
+              <div className="admin-login-context-kicker">Bezpečný vstup do administrace</div>
+              <h2 className="admin-login-context-title">Přihlášení je oddělené od zaměstnaneckého portálu a pracuje jen s interní admin cestou.</h2>
+              <p className="admin-login-context-copy">
+                Po úspěchu se uživatel vrací pouze na sanitizovanou <code>{nextPath}</code> nebo na výchozí <code>/admin/prehled</code>.
+              </p>
+            </div>
 
-        <Card className="admin-login-card auth-primary-card">
-          <img src={BRAND_ASSETS.logoHorizontal} alt={APP_NAME_LONG} className="auth-card-logo" />
-          <h1 className="auth-card-title">Přihlášení administrátora</h1>
-          <p className="auth-card-description">Po úspěšném přihlášení se bezpečně vrátíte na požadovanou admin stránku.</p>
+            <div className="admin-login-context-card admin-login-context-card--accent">
+              <div className="admin-login-context-row">
+                <span className="admin-login-context-icon"><AuthStatusIcon name="shield" /></span>
+                <div>
+                  <strong>Admin session + CSRF</strong>
+                  <span>Mutace zůstávají chráněné session cookie a CSRF kontrolou. Frontend nesmí předstírat úspěch bez potvrzení backendu.</span>
+                </div>
+              </div>
+              <div className="admin-login-context-row">
+                <span className="admin-login-context-icon"><AuthStatusIcon name="keyboard" /></span>
+                <div>
+                  <strong>Jediný povolený účet</strong>
+                  <span>Aktuální web přijímá jako admin identitu pouze <strong>provoz@hotelchodovasc.cz</strong>.</span>
+                </div>
+              </div>
+            </div>
+          </aside>
 
-          {checkingSession ? <div className="auth-state" role="status"><strong>Kontrola existující session</strong>Ověřuji, zda už není administrace přihlášená.</div> : null}
-          {error ? <div className="auth-state auth-state--error" role="alert"><strong>Přihlášení se nezdařilo</strong>{error}</div> : null}
-          {info ? <InlineNotice tone="ok">{info}</InlineNotice> : null}
+          <Card className="admin-login-card auth-primary-card">
+            <img src={BRAND_ASSETS.logoHorizontal} alt={APP_NAME_LONG} className="auth-card-logo" />
+            <h1 className="auth-card-title">Přihlášení administrátora</h1>
+            <p className="auth-card-description">Vstup je určen pouze pro interní správu hotelového provozu. Hlavní tok musí být čitelný na desktopu i mobilu bez zbytečných odboček.</p>
 
-          <form onSubmit={onSubmit} className="kb-stack" style={{ marginTop: 14 }}>
-            <label className="kb-field" htmlFor="admin-login-email">
-              <span className="kb-label">E-mail správce</span>
-              <input id="admin-login-email" className="kb-input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jmeno@domena.cz" disabled={submitting || checkingSession} />
-            </label>
-            <label className="kb-field" htmlFor="admin-login-password">
-              <span className="kb-label">Heslo správce</span>
-              <input id="admin-login-password" className="kb-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={submitting || checkingSession} />
-            </label>
+            <div className="admin-login-return-box">
+              <span>Po přihlášení návrat na</span>
+              <strong>{nextPath}</strong>
+            </div>
 
-            <Button type="submit" disabled={submitting || checkingSession} variant="primary" style={{ width: "100%", justifyContent: "center" }}>
-              {checkingSession ? "Kontroluji session…" : submitting ? "Přihlašuji…" : "Přihlásit"}
-            </Button>
-          </form>
+            {checkingSession ? <div className="auth-state" role="status"><strong>Kontrola existující session</strong>Ověřuji, zda už není administrace přihlášená.</div> : null}
+            {error ? <div className="auth-state auth-state--error" role="alert"><strong>Přihlášení se nezdařilo</strong>{error}</div> : null}
+            {info ? <InlineNotice tone="ok">{info}</InlineNotice> : null}
 
-          <div className="admin-login-support">
-            <div>Přístup je určen pouze administrátorům na adrese <strong>provoz@hotelchodovasc.cz</strong>.</div>
-            <div>Pokud heslo není dostupné, můžete poslat interní instrukce k přístupu bez reset tokenu.</div>
-          </div>
+            <form onSubmit={onSubmit} className="kb-stack admin-login-form">
+              <label className="kb-field" htmlFor="admin-login-email">
+                <span className="kb-label">E-mail správce</span>
+                <input
+                  id="admin-login-email"
+                  className="kb-input"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="provoz@hotelchodovasc.cz"
+                  disabled={submitting || checkingSession}
+                  aria-invalid={Boolean(error && (!email || email.trim().toLowerCase() !== "provoz@hotelchodovasc.cz"))}
+                />
+                <small className="auth-field-help">Frontend předem hlídá, že administrace používá právě tuto provozní adresu.</small>
+              </label>
+              <label className="kb-field" htmlFor="admin-login-password">
+                <span className="kb-label">Heslo správce</span>
+                <input
+                  id="admin-login-password"
+                  className="kb-input"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={submitting || checkingSession}
+                  aria-invalid={Boolean(error && !password)}
+                />
+              </label>
 
-          <div className="admin-login-actions auth-form-actions">
-            <Button type="button" variant="ghost" onClick={() => void onSendHelp()} disabled={sendingHelp}>
-              {sendingHelp ? "Odesílám…" : "Poslat instrukce k přístupu"}
-            </Button>
-            <a href="mailto:provoz@hotelchodovasc.cz" className="admin-mini-link">
-              Kontaktovat podporu
-            </a>
-          </div>
-        </Card>
+              <Button type="submit" disabled={submitting || checkingSession} variant="primary" style={{ width: "100%", justifyContent: "center" }}>
+                {checkingSession ? "Kontroluji session…" : submitting ? "Přihlašuji…" : "Přihlásit"}
+              </Button>
+            </form>
 
-        <aside className="auth-rail auth-rail--security" aria-label="Bezpečnost administrace">
-          <div className="auth-assurance">
-            <span className="auth-assurance-icon"><AuthStatusIcon name="shield" /></span>
-            <div><strong>Admin session + CSRF</strong><span>Mutace jsou chráněné session cookie a CSRF kontrolou.</span></div>
-          </div>
-          <div className="auth-assurance">
-            <span className="auth-assurance-icon"><AuthStatusIcon name="lock" /></span>
-            <div><strong>Bez reset tokenu</strong><span>Pomoc s heslem posílá pouze bezpečnou interní instrukci.</span></div>
-          </div>
-          <div className="auth-assurance">
-            <span className="auth-assurance-icon"><AuthStatusIcon name="info" /></span>
-            <div><strong>Bezpečný návrat</strong><span>Parametr next je omezený na interní admin routy.</span></div>
-          </div>
-        </aside>
+            <div className="admin-login-support">
+              <div>Přístup je určen pouze administrátorům na adrese <strong>provoz@hotelchodovasc.cz</strong>.</div>
+              <div>Pokud heslo není dostupné, můžete poslat interní instrukce k přístupu bez reset tokenu a bez prozrazení stavu účtu.</div>
+            </div>
+
+            <div className="admin-login-actions auth-form-actions">
+              <Button type="button" variant="ghost" onClick={() => void onSendHelp()} disabled={sendingHelp || checkingSession}>
+                {sendingHelp ? "Odesílám…" : "Poslat instrukce k přístupu"}
+              </Button>
+              <a href="mailto:provoz@hotelchodovasc.cz" className="admin-mini-link">
+                Kontaktovat podporu
+              </a>
+            </div>
+          </Card>
+
+          <aside className="admin-login-stateboard" aria-label="Stavové výřezy administrátorského loginu">
+            {stateCards.map((card) => (
+              <div key={card.key} className={`admin-login-state-card ${card.tone}`.trim()}>
+                <span className="admin-login-state-card-icon"><AuthStatusIcon name={card.icon} /></span>
+                <div>
+                  <strong>{card.title}</strong>
+                  <span>{card.detail}</span>
+                </div>
+              </div>
+            ))}
+          </aside>
         </div>
 
-        <section className="admin-auth-live-states" aria-label="Aktuální bezpečnostní a validační stav">
-          <div><span>1</span><strong>Session</strong><small>{checkingSession ? "Ověřuji existující přihlášení" : "Kontrola dokončena"}</small></div>
-          <div><span>2</span><strong>Formulář</strong><small>{formState}</small></div>
-          <div><span>3</span><strong>Bezpečný návrat</strong><small>{nextPath}</small></div>
-          <div><span>4</span><strong>Ochrana</strong><small>Session cookie + CSRF</small></div>
+        <section className="admin-login-summary-strip" aria-label="Souhrn aktuálního stavu přihlášení">
+          <div><span>Stav formuláře</span><strong>{formState}</strong></div>
+          <div><span>Bezpečný návrat</span><strong>{nextPath}</strong></div>
+          <div><span>Ochrana</span><strong>Session cookie + CSRF</strong></div>
         </section>
-
-        <footer className="admin-auth-flow" aria-label="Tok přihlášení">
-          <div className="is-complete"><span>1</span><strong>Příchozí vstup</strong></div>
-          <i aria-hidden="true" />
-          <div className={error ? "is-error" : "is-active"}><span>2</span><strong>ADM-01 validace</strong></div>
-          <i aria-hidden="true" />
-          <div className={submitting ? "is-active" : ""}><span>3</span><strong>Session + CSRF</strong></div>
-          <i aria-hidden="true" />
-          <div><span>4</span><strong>Validní next</strong></div>
-        </footer>
       </section>
     </div>
   );
