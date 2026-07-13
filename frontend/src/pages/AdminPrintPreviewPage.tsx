@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -14,6 +14,7 @@ import {
   workingDaysInMonthCs,
 } from "../utils/attendanceCalc";
 import { employmentIncludesDay } from "../utils/employmentActivity";
+import { BRAND_ASSETS } from "../brand/brand";
 
 type EmploymentInfo = PortalUser["employments"][number] & { user_name: string; user_is_active: boolean };
 type AttendanceDoc = {
@@ -35,7 +36,8 @@ const A4_HEIGHT_PX = (297 / 25.4) * 96;
 function getPreviewScale() {
   if (typeof window === "undefined") return 1;
   const viewportWidth = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
-  return Math.min(1, Math.max(0.2, (viewportWidth - 16) / A4_WIDTH_PX));
+  const availableWidth = viewportWidth <= 760 ? viewportWidth - 32 : Math.min(640, viewportWidth - 410);
+  return Math.min(0.72, Math.max(0.2, availableWidth / A4_WIDTH_PX));
 }
 
 function pad2(n: number) {
@@ -220,30 +222,306 @@ export default function AdminPrintPreviewPage() {
 
   const dayCache = useMemo(() => dayList(parsedMonth.year, parsedMonth.month), [parsedMonth]);
   const label = monthLabel(parsedMonth.year, parsedMonth.month);
-
-  if (!parsed) {
-    return <div className="print-preview-status">Neplatný údaj měsíce.</div>;
-  }
+  const generationStep = error ? 0 : loading ? 1 : docs.length === 0 ? 0 : pdfGenerated ? 4 : 3;
+  const generationStatus = !parsed
+    ? "Neplatný údaj měsíce"
+    : error
+    ? "Generování zastaveno"
+    : loading
+      ? "Načítám data úvazků"
+      : pdfGenerated
+        ? "PDF bylo vygenerováno"
+        : docs.length > 0
+          ? "Vykresluji A4 listy"
+          : "Čekám na platné parametry";
+  const steps = ["Načtení dat", "Render A4 listů", "Generování PDF", "Automatické stažení"];
 
   return (
     <div className="print-preview-page">
       <style>{`
-        body { margin: 0; background: #f3efe7; color: #202225; font-family: "Segoe UI", sans-serif; }
-        .print-preview-page { min-height: 100vh; padding: 24px 0 40px; }
+        body { margin: 0; background: #020a15; color: #f4f7f9; font-family: "Montserrat", "Segoe UI", sans-serif; }
+        .print-preview-page {
+          min-height: 100vh;
+          padding: 14px;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(43, 151, 144, 0.08), transparent 28%),
+            #020a15;
+        }
+        .print-cockpit {
+          width: min(1480px, 100%);
+          margin: 0 auto;
+          border: 1px solid #2c3746;
+          border-radius: 8px;
+          overflow: hidden;
+          background: rgba(5, 15, 24, 0.96);
+          box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+        }
+        .print-cockpit-header {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 18px;
+          align-items: center;
+          padding: 11px 14px;
+          border-bottom: 1px solid #2c3746;
+          background: #0d1922;
+        }
+        .print-cockpit-brand {
+          display: flex;
+          min-width: 0;
+          align-items: center;
+          gap: 13px;
+        }
+        .print-cockpit-brand img { width: 106px; height: auto; }
+        .print-cockpit-brand strong {
+          min-width: 0;
+          padding-left: 13px;
+          border-left: 1px solid #2c3746;
+          font-size: 14px;
+          letter-spacing: 0.01em;
+        }
+        .print-cockpit-route {
+          display: grid;
+          grid-template-columns: auto auto;
+          gap: 3px 16px;
+          color: #a3adca;
+          font-size: 9px;
+        }
+        .print-cockpit-route b { color: #f4f7f9; }
+        .print-input-summary {
+          display: grid;
+          grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+          gap: 1px;
+          border-bottom: 1px solid #2c3746;
+          background: #2c3746;
+        }
+        .print-input-block {
+          min-width: 0;
+          padding: 10px 14px;
+          background: #07131d;
+        }
+        .print-input-block strong,
+        .print-section-heading strong {
+          display: block;
+          margin-bottom: 7px;
+          color: #f4f7f9;
+          font-size: 10px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .print-input-lines {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 18px;
+          color: #a3adca;
+          font-size: 9px;
+          line-height: 1.45;
+        }
+        .print-input-lines span { overflow-wrap: anywhere; }
+        .print-input-lines b { color: #f4f7f9; }
+        .print-progress-region {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 250px;
+          gap: 8px;
+          padding: 8px;
+          border-bottom: 1px solid #2c3746;
+        }
+        .print-progress-panel,
+        .print-diagnostics,
+        .print-preview-panel,
+        .print-state-panel {
+          border: 1px solid #2c3746;
+          border-radius: 6px;
+          background: #091722;
+        }
+        .print-progress-panel { padding: 11px; }
+        .print-progress-steps {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .print-progress-step {
+          position: relative;
+          display: grid;
+          grid-template-columns: 26px minmax(0, 1fr);
+          gap: 7px;
+          align-items: center;
+          min-width: 0;
+          color: #707788;
+          font-size: 9px;
+        }
+        .print-progress-step::after {
+          content: "";
+          position: absolute;
+          left: 31px;
+          right: -4px;
+          bottom: -10px;
+          height: 2px;
+          background: #27343a;
+        }
+        .print-progress-step:last-child::after { display: none; }
+        .print-progress-number {
+          width: 24px;
+          height: 24px;
+          display: grid;
+          place-items: center;
+          border: 1px solid #2c3746;
+          border-radius: 50%;
+          color: #a3adca;
+          background: #0d1922;
+          font-size: 10px;
+          font-weight: 800;
+        }
+        .print-progress-step.is-active { color: #f4f7f9; }
+        .print-progress-step.is-active .print-progress-number {
+          border-color: #2b9790;
+          color: #b8eeea;
+          background: #143c3a;
+        }
+        .print-progress-step.is-active::after { background: #2b9790; }
+        .print-progress-bar {
+          height: 5px;
+          margin-top: 17px;
+          overflow: hidden;
+          border: 1px solid #2c3746;
+          border-radius: 999px;
+          background: #020a15;
+        }
+        .print-progress-bar span {
+          display: block;
+          width: var(--print-progress);
+          height: 100%;
+          background: #2b9790;
+          transition: width 180ms ease;
+        }
+        .print-progress-caption {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 7px;
+          color: #a3adca;
+          font-size: 9px;
+        }
+        .print-diagnostics { padding: 10px 11px; }
+        .print-diagnostics h2,
+        .print-state-panel h2 {
+          margin: 0 0 8px;
+          font-size: 11px;
+        }
+        .print-diagnostics dl,
+        .print-state-panel dl { margin: 0; }
+        .print-diagnostics dl > div,
+        .print-state-panel dl > div {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 5px 0;
+          border-bottom: 1px solid rgba(163, 173, 202, 0.13);
+        }
+        .print-diagnostics dt,
+        .print-diagnostics dd,
+        .print-state-panel dt,
+        .print-state-panel dd { margin: 0; font-size: 9px; }
+        .print-diagnostics dt,
+        .print-state-panel dt { color: #a3adca; }
+        .print-diagnostics dd,
+        .print-state-panel dd {
+          min-width: 0;
+          color: #f4f7f9;
+          font-weight: 750;
+          text-align: right;
+          overflow-wrap: anywhere;
+        }
+        .print-preview-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 250px;
+          gap: 8px;
+          padding: 8px;
+          align-items: start;
+        }
+        .print-preview-panel { min-width: 0; overflow: hidden; }
+        .print-section-heading {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: center;
+          padding: 9px 11px;
+          border-bottom: 1px solid #2c3746;
+          color: #a3adca;
+          font-size: 9px;
+        }
+        .print-section-heading strong { margin: 0; }
+        .print-preview-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+          gap: 10px;
+          padding: 10px;
+          justify-items: center;
+        }
+        .print-preview-empty {
+          min-height: 220px;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          color: #a3adca;
+          text-align: center;
+          font-size: 11px;
+        }
+        .print-state-panel { padding: 11px; }
+        .print-state-banner {
+          display: grid;
+          gap: 4px;
+          margin-top: 10px;
+          padding: 9px;
+          border: 1px solid #2c3746;
+          border-radius: 5px;
+          color: #b8eeea;
+          background: #143c3a;
+        }
+        .print-state-banner.is-error {
+          color: #ffb1aa;
+          background: #3f2427;
+          border-color: #8f4b50;
+        }
+        .print-state-banner strong { font-size: 10px; }
+        .print-state-banner span { color: inherit; font-size: 8px; line-height: 1.45; }
+        .print-cockpit-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          align-items: center;
+          padding: 9px;
+          border-top: 1px solid #2c3746;
+          color: #a3adca;
+          font-size: 8px;
+        }
+        .print-close-button {
+          min-height: 32px;
+          padding: 7px 13px;
+          border: 1px solid #2c3746;
+          border-radius: 5px;
+          color: #f4f7f9;
+          background: #1c2835;
+          font: inherit;
+          font-size: 9px;
+          font-weight: 800;
+          cursor: pointer;
+        }
         .print-preview-status {
-          width: min(760px, calc(100vw - 32px));
-          margin: 24px auto;
-          padding: 20px 24px;
-          border-radius: 20px;
-          background: #fffdf8;
-          border: 1px solid rgba(32, 34, 37, 0.12);
-          box-shadow: 0 18px 44px rgba(32, 34, 37, 0.08);
+          margin: 10px;
+          padding: 13px 14px;
+          border: 1px solid #2c3746;
+          border-radius: 6px;
+          color: #a3adca;
+          background: #0d1922;
+          font-size: 11px;
         }
         .print-sheet-frame {
-          width: 210mm;
-          min-height: 297mm;
-          margin: 0 auto 14px;
+          margin: 0;
           overflow: visible;
+          border: 1px solid #2c3746;
+          border-radius: 6px;
+          background: #020a15;
+          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
         }
         .print-sheet {
           width: 210mm;
@@ -303,7 +581,20 @@ export default function AdminPrintPreviewPage() {
           color: #6b7280;
         }
         @media screen and (max-width: 820px) {
-          .print-preview-page { padding: 12px 0 24px; overflow-x: hidden; }
+          .print-preview-page { padding: 6px; overflow-x: hidden; }
+          .print-cockpit-header,
+          .print-input-summary,
+          .print-progress-region,
+          .print-preview-layout { grid-template-columns: 1fr; }
+          .print-cockpit-header { align-items: start; }
+          .print-cockpit-route { grid-template-columns: 1fr; }
+          .print-progress-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; }
+          .print-progress-step:nth-child(2)::after { display: none; }
+          .print-preview-list { display: block; padding: 6px; }
+          .print-sheet-frame { margin: 0 auto 8px; }
+          .print-section-heading { align-items: flex-start; flex-direction: column; }
+          .print-cockpit-actions { justify-content: stretch; flex-direction: column; align-items: stretch; }
+          .print-close-button { width: 100%; }
           .print-sheet-frame { overflow: hidden; }
           .print-pdf-rendering .print-sheet-frame {
             width: 210mm !important;
@@ -313,11 +604,73 @@ export default function AdminPrintPreviewPage() {
           .print-pdf-rendering .print-sheet { transform: none !important; }
         }
       `}</style>
+      <div className="print-cockpit">
+        <header className="print-cockpit-header">
+          <div className="print-cockpit-brand">
+            <img src={BRAND_ASSETS.logoHorizontal} alt="KájovoDagmar DOCHÁZKOVÝ SYSTÉM" />
+            <strong>ADM-08 / Generování a stažení PDF</strong>
+          </div>
+          <div className="print-cockpit-route" aria-label="Kontext obrazovky">
+            <span>Route</span><b>/admin/tisky/preview</b>
+            <span>Role</span><b>Administrátor</b>
+          </div>
+        </header>
 
-      {loading ? <div className="print-preview-status">Načítám podklady pro tisk…</div> : null}
-      {error ? <div className="print-preview-status">{error}</div> : null}
+        <section className="print-input-summary" aria-label="Souhrn vstupních parametrů">
+          <div className="print-input-block">
+            <strong>Parametry (query)</strong>
+            <div className="print-input-lines">
+              <span>?type=<b>{docType}</b></span>
+              <span>?month=<b>{month || "—"}</b></span>
+              <span>?ids=<b>{idList.length > 0 ? idList.join(", ") : "—"}</b></span>
+            </div>
+          </div>
+          <div className="print-input-block">
+            <strong>Souhrn vstupu</strong>
+            <div className="print-input-lines">
+              <span>Typ dokumentu: <b>{docType === "attendance" ? "Docházka" : "Plán služeb"}</b></span>
+              <span>Vybrané úvazky: <b>{idList.length}</b></span>
+              <span>Měsíc: <b>{month || "—"}</b></span>
+              <span>Načtené listy: <b>{docs.length}</b></span>
+            </div>
+          </div>
+        </section>
 
-      <div ref={containerRef}>
+        <section className="print-progress-region" aria-label="Průběh generování PDF">
+          <div className="print-progress-panel">
+            <div className="print-progress-steps">
+              {steps.map((step, index) => (
+                <div key={step} className={`print-progress-step ${generationStep >= index + 1 ? "is-active" : ""}`}>
+                  <span className="print-progress-number">{index + 1}</span>
+                  <span>{step}</span>
+                </div>
+              ))}
+            </div>
+            <div className="print-progress-bar" style={{ "--print-progress": `${Math.max(4, generationStep * 25)}%` } as CSSProperties}>
+              <span />
+            </div>
+            <div className="print-progress-caption"><span>{generationStatus}</span><span>{docs.length} / {idList.length} listů</span></div>
+          </div>
+          <aside className="print-diagnostics" aria-label="Diagnostika aktuálního stavu">
+            <h2>Diagnostika</h2>
+            <dl>
+              <div><dt>Výběr</dt><dd>{idList.length} úvazků</dd></div>
+              <div><dt>Načteno</dt><dd>{docs.length} listů</dd></div>
+              <div><dt>Typ</dt><dd>{docType === "attendance" ? "Docházka" : "Plán"}</dd></div>
+              <div><dt>Stav</dt><dd>{!parsed ? "Neplatný měsíc" : error ? "Chyba" : loading ? "Načítání" : pdfGenerated ? "Staženo" : docs.length > 0 ? "Generování" : "Čeká"}</dd></div>
+            </dl>
+          </aside>
+        </section>
+
+        <section className="print-preview-layout">
+          <main className="print-preview-panel">
+            <div className="print-section-heading"><strong>Náhled tiskových listů</strong><span>Každý list = 1 úvazek · světlý A4 výstup</span></div>
+            {loading ? <div className="print-preview-status">Načítám podklady pro tisk…</div> : null}
+            {!parsed ? <div className="print-preview-status">Neplatný údaj měsíce. Použijte formát RRRR-MM.</div> : null}
+            {error ? <div className="print-preview-status">{error}</div> : null}
+            {parsed && !loading && !error && docs.length === 0 ? <div className="print-preview-empty">Čekám na platné parametry a vybrané úvazky.</div> : null}
+
+            <div ref={containerRef} className="print-preview-list">
         {docs.map((doc) => {
           if (doc.type === "attendance") {
             const stats = computeMonthStats(doc.days, doc.employment.employment_type, doc.cutoffMinutes);
@@ -497,6 +850,28 @@ export default function AdminPrintPreviewPage() {
             </div>
           );
         })}
+            </div>
+          </main>
+
+          <aside className="print-state-panel" aria-label="Stav generování">
+            <h2>Aktuální stav</h2>
+            <dl>
+              <div><dt>Dokument</dt><dd>{docType === "attendance" ? "Docházka" : "Plán služeb"}</dd></div>
+              <div><dt>Měsíc</dt><dd>{month || "—"}</dd></div>
+              <div><dt>Soubor</dt><dd>tisky-{docType}-{month || "mesic"}.pdf</dd></div>
+              <div><dt>Stažení</dt><dd>{pdfGenerated ? "Dokončeno" : "Automatické"}</dd></div>
+            </dl>
+            <div className={`print-state-banner ${error || !parsed ? "is-error" : ""}`} role="status">
+              <strong>{!parsed ? "Neplatný měsíc" : error ? "Generování selhalo" : generationStatus}</strong>
+              <span>{!parsed ? "Měsíc musí být ve formátu RRRR-MM." : error || (pdfGenerated ? "PDF je připravené a okno se může bezpečně zavřít." : "PDF se po vykreslení všech listů stáhne automaticky.")}</span>
+            </div>
+          </aside>
+        </section>
+
+        <footer className="print-cockpit-actions">
+          <span>Po úspěšném stažení se okno automaticky zavře. Při chybě zůstává otevřené pro diagnostiku.</span>
+          <button type="button" className="print-close-button" onClick={() => window.close()}>Zavřít okno</button>
+        </footer>
       </div>
     </div>
   );

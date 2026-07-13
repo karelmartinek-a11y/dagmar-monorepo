@@ -7346,14 +7346,14 @@ pre {
   border-color: var(--kd-stroke);
 }
 
-/* Printed output intentionally remains light, per the manual's report exception. */
+/* The preview cockpit stays dark; the A4 sheets remain light inside it. */
 
 body:has(.print-preview-page),
 body:has(.print-preview-page) #root,
 body:has(.print-preview-page) .kb-app {
-  color-scheme: light;
-  background: #fff;
-  color: #111;
+  color-scheme: dark;
+  background: var(--kd-ink-950);
+  color: var(--kd-text-primary);
 }
 
 @media (max-width: 1100px) {
