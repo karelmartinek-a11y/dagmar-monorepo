@@ -10,6 +10,7 @@ import { clearPortalAuthState, getPortalAuthState, setPortalAuthState } from "..
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
 import { timeFieldPlaceholder } from "../utils/uiLabels";
+import { upsertOfflineQueueItem, type QueueItem } from "../utils/offlineQueue";
 import { BRAND_ASSETS } from "../brand/brand";
 import AuthStatusIcon from "../components/AuthStatusIcon";
 
@@ -21,13 +22,6 @@ type DayRow = {
   planned_departure_time: string | null;
   planned_status?: ShiftPlanDayStatus | null;
   is_within_employment_period?: boolean;
-};
-
-type QueueItem = {
-  date: string;
-  arrival_time: string | null;
-  departure_time: string | null;
-  enqueuedAt: number;
 };
 
 const OFFLINE_QUEUE_STORAGE_KEY = "dagmar.portal.offlineQueue";
@@ -271,7 +265,10 @@ export function EmployeePage() {
   const monthHolidayMins = monthStats.holidayMins;
 
   const [queuedCount, setQueuedCount] = useState<number>(0);
+  const [queuedItems, setQueuedItems] = useState<QueueItem[]>([]);
   const [sending, setSending] = useState<boolean>(false);
+  const [lastSyncAttemptAt, setLastSyncAttemptAt] = useState<number | null>(null);
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
@@ -331,6 +328,7 @@ export function EmployeePage() {
     const initialQueue = loadStoredQueue();
     queueRef.current = initialQueue;
     setQueuedCount(initialQueue.length);
+    setQueuedItems(initialQueue);
   }, []);
 
   useEffect(() => {
@@ -562,12 +560,12 @@ export function EmployeePage() {
 
   function enqueue(item: QueueItem) {
     // Replace any existing item for same date (latest wins)
-    const q = queueRef.current;
-    const idx = q.findIndex((x) => x.date === item.date);
-    if (idx >= 0) q.splice(idx, 1);
-    q.push(item);
-    persistQueue(q);
-    setQueuedCount(q.length);
+    const nextQueue = upsertOfflineQueueItem(queueRef.current, item);
+    queueRef.current = nextQueue;
+    persistQueue(nextQueue);
+    setQueuedItems(nextQueue);
+    setQueuedCount(nextQueue.length);
+    setLastSyncError(null);
   }
 
   async function flushQueueIfPossible() {
@@ -580,6 +578,8 @@ export function EmployeePage() {
     if (q.length === 0) return;
 
     setSending(true);
+    setLastSyncAttemptAt(Date.now());
+    setLastSyncError(null);
     try {
       // Send in enqueue order
       while (q.length > 0) {
@@ -596,10 +596,13 @@ export function EmployeePage() {
         );
         q.shift();
         persistQueue(q);
+        setQueuedItems([...q]);
         setQueuedCount(q.length);
       }
     } catch {
       // keep remaining in queue
+      setQueuedItems([...q]);
+      setLastSyncError("Změnu se nepodařilo odeslat. Zůstává bezpečně uložená v zařízení.");
     } finally {
       setSending(false);
     }
@@ -884,6 +887,9 @@ export function EmployeePage() {
                   queueRef.current = [];
                   persistQueue([]);
                   setQueuedCount(0);
+                  setQueuedItems([]);
+                  setLastSyncAttemptAt(null);
+                  setLastSyncError(null);
                 }}
                 className="btn"
                 aria-label="Odhlásit"
@@ -1017,14 +1023,99 @@ export function EmployeePage() {
           </div>
         ) : null}
 
-        {!online ? (
-          <div style={cardStyle()}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>Offline</div>
-            <div style={{ color: "var(--kb-brand-ink-600)" }}>
-              Bez internetu nelze načíst historii ze serveru. Můžete zadávat změny; uloží se do zařízení a odešlou se po obnovení připojení.
-              {queuedCount > 0 ? ` Ve frontě čeká ${queuedCount} změn.` : ""}
+        {!online || queuedCount > 0 || lastSyncError ? (
+          <section className="portal-sync-workspace" aria-labelledby="portal-sync-title">
+            <div className="portal-sync-alert" role="status">
+              <div className="portal-sync-alert-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M3.5 8.7a13.1 13.1 0 0 1 3.08-1.86M9.82 5.9A13.3 13.3 0 0 1 20.5 8.7M6.65 12.05a8 8 0 0 1 2.44-1.36M12.42 10.17a8 8 0 0 1 4.93 1.88M9.8 15.42a3.15 3.15 0 0 1 4.4 0M12 19h.01M3 3l18 18" />
+                </svg>
+              </div>
+              <div>
+                <strong id="portal-sync-title">
+                  {online ? "Fronta synchronizace" : "Jste offline — změny ukládáme pouze lokálně."}
+                </strong>
+                <span>
+                  {online
+                    ? queuedCount > 0
+                      ? `Čekající změny: ${queuedCount}. Po obnovení se odešlou v pořadí, v jakém vznikly.`
+                      : "Všechny lokální změny byly odeslány na server."
+                    : `Bez internetu nelze načíst historii ze serveru. Ve frontě čeká ${queuedCount} změn.`}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="portal-sync-refresh"
+                onClick={() => {
+                  if (online) void flushQueueIfPossible();
+                  setRefreshTick((tick) => tick + 1);
+                }}
+                disabled={sending}
+              >
+                {sending ? "Odesílám…" : "Obnovit stav"}
+              </button>
             </div>
-          </div>
+
+            <div className="portal-sync-layout">
+              <div className="portal-sync-table-panel">
+                <div className="portal-sync-table-wrap">
+                  <table className="portal-sync-table">
+                    <thead>
+                      <tr>
+                        <th>Datum</th>
+                        <th>Den</th>
+                        <th>Příchod</th>
+                        <th>Odchod</th>
+                        <th>Stav synchronizace</th>
+                        <th>Uloženo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {queuedItems.length > 0 ? (
+                        queuedItems.map((item) => (
+                          <tr key={`${item.date}-${item.enqueuedAt}`}>
+                            <td data-label="Datum"><strong>{item.date.slice(8, 10)}.</strong></td>
+                            <td data-label="Den">{toDowLabel(item.date)}</td>
+                            <td data-label="Příchod">{item.arrival_time || "—"}</td>
+                            <td data-label="Odchod">{item.departure_time || "—"}</td>
+                            <td data-label="Stav synchronizace">
+                              <span className={`portal-sync-status ${sending ? "is-sending" : "is-local"}`}>
+                                {sending ? "Odesílání" : "Lokálně pozastaveno"}
+                              </span>
+                            </td>
+                            <td data-label="Uloženo">
+                              {new Date(item.enqueuedAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr className="portal-sync-empty-row">
+                          <td colSpan={6}>Fronta je prázdná. V zařízení nejsou žádné neodeslané změny.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <aside className="portal-sync-summary" aria-label="Stav fronty synchronizace">
+                <h2>Fronta synchronizace</h2>
+                <dl>
+                  <div><dt>Připojení</dt><dd>{online ? "Online" : "Offline"}</dd></div>
+                  <div><dt>Čekající změny</dt><dd>{queuedCount}</dd></div>
+                  <div><dt>Odesílání</dt><dd>{sending ? "Probíhá" : "—"}</dd></div>
+                  <div>
+                    <dt>Poslední pokus</dt>
+                    <dd>{lastSyncAttemptAt ? new Date(lastSyncAttemptAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }) : "—"}</dd>
+                  </div>
+                </dl>
+                <div className={`portal-sync-message ${lastSyncError ? "is-error" : ""}`}>
+                  <strong>{lastSyncError ? "Chyba odeslání" : online ? "Server dostupný" : "Bez připojení"}</strong>
+                  <span>{lastSyncError || (online ? "Lokální fronta se odešle automaticky." : "Změny zůstávají bezpečně uložené v tomto zařízení.")}</span>
+                </div>
+              </aside>
+            </div>
+          </section>
         ) : null}
 
         {!selectedEmployment ? (
