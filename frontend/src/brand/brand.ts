@@ -1,5 +1,5 @@
-export const APP_NAME_LONG = "DAGMAR docházkový systém";
-export const APP_NAME_SHORT = "DAGMAR";
+export const APP_NAME_LONG = "KájovoDagmar DOCHÁZKOVÝ SYSTÉM";
+export const APP_NAME_SHORT = "KájovoDagmar";
 
 export const BRAND_ASSETS = {
   logoHorizontal: "/LOGO/assets/svg/logo-horizontal-dark.svg",
@@ -11,10 +11,15 @@ export const BRAND_ASSETS = {
 } as const;
 
 export const BRAND_PALETTE = {
-  red: "#ff0000",
-  ink900: "#23292c",
-  ink800: "#262b31",
-  ink600: "#52555d",
-  white: "#ffffff",
-  black: "#000000",
+  ink950: "#020A15",
+  ink900: "#0D1922",
+  ink850: "#14222F",
+  ink800: "#1C2835",
+  ink700: "#27343A",
+  stroke: "#2C3746",
+  action600: "#198873",
+  action500: "#2B9790",
+  textPrimary: "#F4F7F9",
+  textSecondary: "#A3ADCA",
+  textMuted: "#707788",
 } as const;

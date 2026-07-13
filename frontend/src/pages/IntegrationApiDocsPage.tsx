@@ -147,7 +147,26 @@ const deleteExample = `curl -sS \\
 export default function IntegrationApiDocsPage() {
   return (
     <main className="integration-docs">
-      <section className="integration-docs-hero">
+      <header className="integration-docs-topbar">
+        <strong>KájovoDagmar · Partnerská dokumentace integračního API</strong>
+        <div><span>Veřejná stránka</span><span>API v1</span><span>Bez přihlášení do adminu</span></div>
+      </header>
+      <div className="integration-docs-shell">
+        <nav className="integration-docs-toc" aria-label="Obsah dokumentace">
+          <div className="integration-docs-toc-title">Obsah</div>
+          <a href="#rychly-start"><span>1</span>Rychlý start</a>
+          <a href="#bezpecnost"><span>2</span>Bezpečnostní model</a>
+          <a href="#model"><span>3</span>Model docházky</a>
+          <a href="#scopes"><span>4</span>Scopes</a>
+          <a href="#endpointy"><span>5</span>Endpointy</a>
+          <a href="#chyby"><span>6</span>Chybové kódy</a>
+          <a href="#priklady"><span>7</span>Příklady curl</a>
+          <a href="#limity"><span>8</span>Limity a audit</a>
+          <div className="integration-docs-toc-note">Příklady kopírujte ručně. Veřejná stránka neukládá tokeny ani nespouští požadavky.</div>
+        </nav>
+
+        <div className="integration-docs-content">
+      <section id="rychly-start" className="integration-docs-hero">
         <div className="integration-docs-hero-copy">
           <div className="integration-docs-eyebrow">Integrační API pro docházku</div>
           <h1>Dokumentace integračního API Dagmar</h1>
@@ -179,7 +198,7 @@ export default function IntegrationApiDocsPage() {
       </section>
 
       <section className="integration-docs-grid">
-        <article className="integration-docs-card">
+        <article id="bezpecnost" className="integration-docs-card">
           <h2>Bezpečnostní model</h2>
           <ul>
             <li>Každý klient má vlastní integrační token, scopes a datový rozsah.</li>
@@ -190,7 +209,7 @@ export default function IntegrationApiDocsPage() {
           </ul>
         </article>
 
-        <article className="integration-docs-card">
+        <article id="model" className="integration-docs-card">
           <h2>Skutečný model docházky</h2>
           <ul>
             <li>Jeden docházkový záznam je svázán s <code>employment_id</code> a jedním kalendářním datem.</li>
@@ -202,7 +221,7 @@ export default function IntegrationApiDocsPage() {
         </article>
       </section>
 
-      <section className="integration-docs-card">
+      <section id="scopes" className="integration-docs-card">
         <h2>Scopes a oprávnění</h2>
         <div className="integration-docs-table-wrap">
           <table className="integration-docs-table">
@@ -228,7 +247,7 @@ export default function IntegrationApiDocsPage() {
         </p>
       </section>
 
-      <section className="integration-docs-card">
+      <section id="endpointy" className="integration-docs-card">
         <h2>Endpointy</h2>
         <div className="integration-docs-endpoints">
           {endpoints.map((endpoint) => (
@@ -268,7 +287,7 @@ export default function IntegrationApiDocsPage() {
         </article>
       </section>
 
-      <section className="integration-docs-card">
+      <section id="chyby" className="integration-docs-card">
         <h2>Chybové odpovědi</h2>
         <div className="integration-docs-table-wrap">
           <table className="integration-docs-table">
@@ -294,7 +313,7 @@ export default function IntegrationApiDocsPage() {
       </section>
 
       <section className="integration-docs-grid">
-        <article className="integration-docs-card">
+        <article id="priklady" className="integration-docs-card">
           <h2>Ukázky zápisu</h2>
           <h3>Vytvoření docházky</h3>
           <pre><code>{createExample}</code></pre>
@@ -304,7 +323,7 @@ export default function IntegrationApiDocsPage() {
           <pre><code>{deleteExample}</code></pre>
         </article>
 
-        <article className="integration-docs-card">
+        <article id="limity" className="integration-docs-card">
           <h2>Limity a audit</h2>
           <ul>
             <li><code>shift-plan</code>, <code>attendances</code> a <code>punches</code> mají maximum 31 dnů.</li>
@@ -315,6 +334,8 @@ export default function IntegrationApiDocsPage() {
           </ul>
         </article>
       </section>
+        </div>
+      </div>
     </main>
   );
 }

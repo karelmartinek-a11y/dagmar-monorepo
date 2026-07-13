@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { portalResetPassword } from "../api/portal";
+import { APP_NAME_LONG, BRAND_ASSETS } from "../brand/brand";
+import AuthStatusIcon from "../components/AuthStatusIcon";
 
 function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) return err.message;
@@ -40,6 +42,10 @@ export default function PortalResetPage() {
       setError("Zadejte nové heslo.");
       return;
     }
+    if (password.length < 8) {
+      setError("Nové heslo musí mít alespoň 8 znaků.");
+      return;
+    }
     setSaving(true);
     try {
       await portalResetPassword({ token, password });
@@ -52,100 +58,86 @@ export default function PortalResetPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: 24,
-        background: "linear-gradient(180deg, rgba(82, 85, 93, 0.1) 0%, rgba(82, 85, 93, 0.03) 40%, #ffffff 100%)",
-      }}
-    >
-      <div className="reset-shell" style={{ gridTemplateColumns: "minmax(360px, 0.95fr) minmax(420px, 1.05fr)" }}>
-        <aside className="reset-aside">
-          <div className="eyebrow" style={{ background: "rgba(255,255,255,0.14)", color: "white" }}>
-            Obnova přístupu
-          </div>
-          <h1 className="reset-aside-title">Nastavení nebo změna hesla</h1>
-          <div className="reset-aside-text">
-            Odkaz pro obnovu je platný 24 hodin. Po úspěšném uložení se přihlásíte novým heslem v systému DAGMAR na adrese {window.location.origin}{loginPath}.
-          </div>
-          <div className="admin-note-box" style={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.14)" }}>
-            <div className="admin-note-title" style={{ color: "white" }}>Doporučení</div>
-            <div style={{ color: "rgba(255,255,255,0.82)", fontSize: 13, lineHeight: 1.7 }}>
-              Zvolte heslo, které není odvoditelné z osobních údajů, názvu zařízení ani běžného slovníku. Nové heslo se projeví po uložení okamžitě.
-            </div>
-          </div>
+    <div className="reset-page">
+      <div className="auth-workspace auth-workspace--reset">
+        <aside className="auth-rail auth-rail--focus" aria-label="Postup obnovy přístupu">
+          <div className="auth-rail-title">Postup obnovy</div>
+          <ol className="auth-rail-list">
+            <li>Ověření jednorázového odkazu</li>
+            <li>Zadání nového hesla</li>
+            <li>Uložení a potvrzení</li>
+            <li>Návrat na přihlášení</li>
+          </ol>
+          <div className="auth-rail-note">Odkaz je platný 24 hodin. Token se nikdy nezobrazuje ani nepřenáší do pole formuláře.</div>
         </aside>
 
-        <div className="card pad" style={{ width: "100%", boxShadow: "var(--shadow-2)", alignSelf: "center", maxWidth: 560, justifySelf: "center" }}>
-          <div style={{ fontSize: 22, fontWeight: 850 }}>Zadejte nové heslo</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4, lineHeight: 1.6 }}>
-            Platnost odkazu je 24 hodin. Po uložení budete přesměrováni na přihlášení do systému.
-          </div>
+        <main className="auth-primary-card reset-card">
+          <img src={BRAND_ASSETS.logoHorizontal} alt={APP_NAME_LONG} className="auth-card-logo" />
+          <h1 className="auth-card-title">Nastavení nového hesla</h1>
+          <p className="auth-card-description">Zadejte nové heslo pro zaměstnanecký portál. Po uložení budete vráceni na přihlášení.</p>
 
-          {error ? (
-            <div
-              style={{
-                border: "1px solid rgba(255,0,0,0.35)",
-                background: "rgba(255,0,0,0.08)",
-                borderRadius: 12,
-                padding: 12,
-                color: "var(--kb-red)",
-                marginTop: 12,
-                fontSize: 13,
-              }}
-            >
-              {error}
+          {error || !token ? (
+            <div className="auth-state auth-state--error" role="alert">
+              <strong>Odkaz nelze použít</strong>
+              {error ?? "Odkaz není platný nebo v něm chybí jednorázový token. Požádejte správce o nový odkaz."}
             </div>
           ) : null}
 
           {success ? (
-            <div
-              style={{
-                border: "1px solid rgba(38,43,49,0.35)",
-                background: "rgba(38,43,49,0.1)",
-                borderRadius: 12,
-                padding: 12,
-                color: "var(--kb-brand-ink-800)",
-                marginTop: 12,
-                fontSize: 13,
-              }}
-            >
-              Heslo bylo nastaveno. Pokračujte na přihlášení do systému DAGMAR na adrese {window.location.origin}{loginPath}.
-              <div style={{ marginTop: 10 }}>
-                <a href={loginPath} className="btn solid" style={{ display: "inline-flex", textDecoration: "none" }}>
-                  Přejít na přihlášení
-                </a>
+            <div className="auth-state auth-state--success" role="status">
+              <strong>Heslo bylo nastaveno</strong>
+              Pokračujte na přihlášení do systému KájovoDagmar. Automatické přesměrování proběhne za okamžik.
+              <div className="auth-state-action">
+                <a href={loginPath} className="btn solid">Přejít na přihlášení</a>
               </div>
             </div>
           ) : (
-            <form onSubmit={onSubmit} className="stack" style={{ gap: 12, marginTop: 12 }}>
-              <div>
-                <div className="label">Nové heslo</div>
+            <form onSubmit={onSubmit} className="kb-stack reset-form">
+              <label className="kb-field" htmlFor="portal-reset-password">
+                <span className="kb-label">Nové heslo</span>
                 <input
-                  className="input"
+                  id="portal-reset-password"
+                  className="kb-input"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Zadejte nové heslo"
                   autoComplete="new-password"
-                  disabled={saving}
-                  style={{ minHeight: 48 }}
+                  disabled={saving || !token}
+                  aria-describedby="portal-reset-password-help"
                 />
+                <span id="portal-reset-password-help" className="auth-field-help">
+                  Minimálně 8 znaků. Odkaz ani token se v poli nezobrazují.
+                </span>
+              </label>
+
+              <div className="auth-state auth-state--info">
+                <strong>Platnost odkazu: 24 hodin</strong>
+                Nové heslo se projeví okamžitě. Nepoužívejte osobní údaje, název zařízení ani snadno odhadnutelné výrazy.
               </div>
-              <div className="admin-note-box">
-                <div className="admin-note-title">Požadovaný výsledek</div>
-                <div style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
-                  Po úspěšném uložení se zobrazí potvrzení a tato stránka vás přesměruje na přihlášení do systému DAGMAR.
-                </div>
-              </div>
-              <button type="submit" className="btn solid" disabled={saving}>
-                {saving ? "Ukládám…" : "Uložit heslo"}
+              <button type="submit" className="btn solid" disabled={saving || !token}>
+                {saving ? "Ukládám…" : "Uložit nové heslo"}
               </button>
+              <a href={loginPath} className="admin-mini-link">Zpět na přihlášení</a>
             </form>
           )}
-        </div>
+          <footer className="auth-card-footer"><span>KájovoDagmar</span><span>Europe/Prague</span></footer>
+        </main>
+
+        <aside className="auth-rail auth-rail--security" aria-label="Bezpečnost obnovy hesla">
+          <div className="auth-assurance">
+            <span className="auth-assurance-icon"><AuthStatusIcon name="key" /></span>
+            <div><strong>Jednorázový token</strong><span>Odkaz nelze znovu použít po úspěšném nastavení hesla.</span></div>
+          </div>
+          <div className="auth-assurance">
+            <span className="auth-assurance-icon"><AuthStatusIcon name="lock" /></span>
+            <div><strong>Heslo zůstává skryté</strong><span>Formulář používá zabezpečený typ pole a správný autocomplete.</span></div>
+          </div>
+          <div className="auth-assurance">
+            <span className="auth-assurance-icon"><AuthStatusIcon name="info" /></span>
+            <div><strong>Bezpečný návrat</strong><span>Po dokončení vede tok výhradně na zaměstnanecké přihlášení.</span></div>
+          </div>
+        </aside>
       </div>
     </div>
   );

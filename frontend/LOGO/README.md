@@ -1,4 +1,4 @@
-# Brand asset repo (generated)
+# KájovoDagmar brand assets
 
 Single source of truth:
 - `master/master.svg`
@@ -8,7 +8,8 @@ Exports:
 - `assets/png/{2048,1024,512}/` – PNG exports (transparent background)
 - `assets/icons/` – favicons + app icons (mark-only)
 
-Notes:
-- The master artwork includes the required signace (red strip with white “Kájovo”) and the wordmark as vector shapes.
-- Dark variants only adjust the wordmark to white for readability on dark backgrounds.
-- Monochrome variants force all shapes to a single color.
+Normativní pravidla:
+- Logo je výhradně černobílé: černé na světlém, bílé na tmavém podkladu.
+- Wordmark je vždy `KájovoDagmar`; descriptor je vždy `DOCHÁZKOVÝ SYSTÉM`.
+- Symbol kombinuje kalendář, hodiny a potvrzení.
+- Web používá lokálně přibalené řezy Montserrat Regular a Bold.

@@ -10,6 +10,8 @@ import { clearPortalAuthState, getPortalAuthState, setPortalAuthState } from "..
 import { computeDayCalc, computeMonthStats, parseCutoffToMinutes, workingDaysInMonthCs } from "../utils/attendanceCalc";
 import { planStatusInputPlaceholder, planStatusLabel } from "../utils/planStatus";
 import { timeFieldPlaceholder } from "../utils/uiLabels";
+import { BRAND_ASSETS } from "../brand/brand";
+import AuthStatusIcon from "../components/AuthStatusIcon";
 
 type DayRow = {
   date: string; // YYYY-MM-DD
@@ -461,38 +463,37 @@ export function EmployeePage() {
 
   if (!token) {
     return (
-      <div className="kb-container" style={{ padding: "20px 0 32px" }}>
-        <div
-          className="kb-card kb-card-pad"
-          style={{
-            maxWidth: 560,
-            margin: "0 auto",
-            padding: 22,
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,249,250,0.96) 100%)",
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kb-brand-ink-600)" }}>
-            Zaměstnanecký portál
-          </div>
-          <div style={{ fontSize: 28, lineHeight: 1, fontWeight: 850, marginTop: 8 }}>Přihlášení</div>
-          <div style={{ color: "var(--kb-brand-ink-600)", marginTop: 8, lineHeight: 1.55 }}>
-            Přihlaste se e-mailem a heslem. Po prvním pozvání nebo po zapomenutém hesle použijte obnovu hesla.
-          </div>
+      <div className="kb-container portal-login-page" style={{ padding: "20px 0 32px" }}>
+        <div className="auth-workspace auth-workspace--employee">
+          <aside className="auth-rail auth-rail--focus" aria-label="Pokyny pro přihlášení">
+            <div className="auth-rail-title">Fokus a klávesnice</div>
+            <ol className="auth-rail-list">
+              <li>E-mail</li>
+              <li>Heslo</li>
+              <li>Přihlásit</li>
+              <li>Nastavit heslo</li>
+            </ol>
+            <div className="auth-rail-note">Enter v poli hesla odešle formulář. Chyba zůstává u hlavního úkolu.</div>
+          </aside>
+
+          <main className="kb-card portal-login-card auth-primary-card">
+            <img src={BRAND_ASSETS.logoHorizontal} alt="KájovoDagmar DOCHÁZKOVÝ SYSTÉM" className="auth-card-logo" />
+            <h1 className="auth-card-title">Přihlášení zaměstnance</h1>
+            <p className="auth-card-description">
+              Pro první přihlášení nebo při zapomenutém hesle použijte nastavení hesla.
+            </p>
 
           {loginError ? (
-            <div
-              style={{
-                border: "1px solid rgba(255,0,0,0.35)",
-                background: "rgba(255,0,0,0.08)",
-                borderRadius: 12,
-                padding: 12,
-                color: "var(--kb-red)",
-                marginTop: 12,
-                fontSize: 13,
-              }}
-            >
+            <div className="auth-state auth-state--error" role="alert">
+              <strong>Přihlášení se nezdařilo</strong>
               {loginError}
+            </div>
+          ) : null}
+
+          {!online ? (
+            <div className="auth-state auth-state--offline" role="status">
+              <strong>Server není dostupný</strong>
+              Zkontrolujte připojení. Přihlášení bude možné po návratu online.
             </div>
           ) : null}
 
@@ -523,8 +524,8 @@ export function EmployeePage() {
                 name="portal-password"
               />
             </label>
-            <div className="kb-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <button type="submit" className="kb-btn kb-btn-primary" disabled={loginSubmitting} style={{ minWidth: 160 }}>
+            <div className="auth-form-actions">
+              <button type="submit" className="kb-btn kb-btn-primary" disabled={loginSubmitting || !online}>
                 {loginSubmitting ? "Přihlašuji…" : "Přihlásit"}
               </button>
               <a
@@ -536,6 +537,24 @@ export function EmployeePage() {
               </a>
             </div>
           </form>
+
+            <div className="auth-card-footer">Zaměstnanecký bearer token · časová zóna Europe/Prague</div>
+          </main>
+
+          <aside className="auth-rail auth-rail--security" aria-label="Bezpečnost přihlášení">
+            <div className="auth-assurance">
+              <span className="auth-assurance-icon"><AuthStatusIcon name="shield" /></span>
+              <div><strong>Šifrovaný přenos</strong><span>Vaše údaje jsou přenášeny pomocí HTTPS/TLS.</span></div>
+            </div>
+            <div className="auth-assurance">
+              <span className="auth-assurance-icon"><AuthStatusIcon name="key" /></span>
+              <div><strong>Oddělený přístup</strong><span>Zaměstnanecký token není administrátorská session.</span></div>
+            </div>
+            <div className="auth-assurance">
+              <span className="auth-assurance-icon"><AuthStatusIcon name="info" /></span>
+              <div><strong>Potíže s přihlášením?</strong><span>Použijte nastavení hesla nebo kontaktujte správce hotelu.</span></div>
+            </div>
+          </aside>
         </div>
       </div>
     );
@@ -762,10 +781,10 @@ export function EmployeePage() {
             top: "var(--kb-systembar-h)",
             zIndex: 20,
             background:
-              "linear-gradient(135deg, rgba(26,31,35,0.98) 0%, rgba(38,43,49,0.97) 56%, rgba(58,64,70,0.94) 100%)",
-            color: "white",
-            borderBottom: "1px solid rgba(255,255,255,0.12)",
-            boxShadow: "0 16px 32px rgba(18,22,25,0.22)",
+              "linear-gradient(135deg, rgba(13,25,34,0.99), rgba(20,34,47,0.99))",
+            color: "var(--kd-text-primary)",
+            borderBottom: "1px solid var(--kd-stroke)",
+            boxShadow: "0 16px 32px rgba(0,0,0,0.28)",
           }
         }
       >
@@ -872,9 +891,9 @@ export function EmployeePage() {
                 style={{
                   padding: isMobile ? "10px 14px" : "10px 16px",
                   minHeight: 42,
-                  background: "rgba(255,255,255,0.96)",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  color: "var(--kb-text)",
+                  background: "var(--kd-ink-800)",
+                  border: "1px solid var(--kd-stroke)",
+                  color: "var(--kd-text-primary)",
                   boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
                 }}
               >
@@ -942,9 +961,9 @@ export function EmployeePage() {
                     onClick={handlePunchNow}
                     style={{
                       ...headerActionButtonStyle(isMobile),
-                      background: "linear-gradient(135deg, #ff1a1a, var(--kb-red))",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      boxShadow: "0 10px 22px rgba(255,0,0,0.3)",
+                      background: "linear-gradient(135deg, var(--kd-action-600), var(--kd-action-500))",
+                      border: "1px solid var(--kd-action-500)",
+                      boxShadow: "0 10px 22px rgba(25,136,115,0.28)",
                     }}
                     aria-label="Zapsat aktuální čas"
                     title="Zapsat aktuální čas"
@@ -1010,7 +1029,7 @@ export function EmployeePage() {
 
         {!selectedEmployment ? (
           <div style={cardStyle()}>
-            <div style={{ fontWeight: 800, marginBottom: 6, color: "#b45309" }}>Není dostupný úvazek</div>
+            <div style={{ fontWeight: 800, marginBottom: 6, color: "var(--kd-warning)" }}>Není dostupný úvazek</div>
             <div style={{ color: "var(--kb-brand-ink-600)" }}>Tento účet momentálně nemá vybraný úvazek pro zobrazení nebo zápis evidence docházky. Pokud máte více úvazků, vyberte ho v horní liště.</div>
           </div>
         ) : null}
@@ -1072,12 +1091,12 @@ export function EmployeePage() {
                       : "0 6px 18px rgba(35, 41, 44, 0.06)",
                   background:
                     r.planned_status === "HOLIDAY"
-                      ? "rgba(255,0,0,0.08)"
+                      ? "#1d4b8f"
                       : r.planned_status === "OFF"
                         ? "rgba(12,95,211,0.08)"
                         : isSpecial
-                          ? "rgba(255,0,0,0.08)"
-                          : "white",
+                          ? "#604e2c"
+                          : "var(--kd-ink-800)",
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr 1fr 1fr",
                   gap: 12,
@@ -1297,7 +1316,7 @@ function TimeInput(props: {
   const ok = isValidTimeOrEmpty(local);
   const plannedLabel = plannedStatus ? planStatusLabel(plannedStatus) : plannedValue;
   const plannedTone =
-    plannedStatus === "HOLIDAY" ? "var(--kb-red)" : plannedStatus === "OFF" ? "#0c5fd3" : "rgba(82, 85, 93, 0.6)";
+    plannedStatus === "HOLIDAY" ? "#c6dcff" : plannedStatus === "OFF" ? "#c4ccd3" : "var(--kd-text-muted)";
   const statusPlaceholder = planStatusInputPlaceholder(plannedStatus);
   const effectivePlaceholder = !local && statusPlaceholder ? statusPlaceholder : placeholder;
   const hasStatusPlaceholder = Boolean(statusPlaceholder);
@@ -1341,7 +1360,7 @@ function TimeInput(props: {
             ? hasStatusPlaceholder
               ? `1px solid ${plannedTone}`
               : "1px solid rgba(35, 41, 44, 0.18)"
-            : "1px solid rgba(255,0,0,0.6)",
+            : "1px solid var(--kd-error)",
           padding: "0 12px",
           fontSize: 16,
           fontWeight: 700,
@@ -1349,10 +1368,10 @@ function TimeInput(props: {
           background: readOnly
             ? "rgba(82,85,93,0.18)"
             : hasStatusPlaceholder
-              ? "rgba(255,255,255,0.96)"
+              ? "var(--kd-ink-700)"
               : ok
-                ? "white"
-                : "rgba(255,0,0,0.05)",
+                ? "var(--kd-ink-850)"
+                : "#3f2427",
           color: readOnly ? "var(--kb-brand-ink-600)" : undefined,
           cursor: readOnly ? "not-allowed" : "text",
         }}

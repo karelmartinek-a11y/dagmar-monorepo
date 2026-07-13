@@ -1,10 +1,10 @@
 {
-  "name": "DAGMAR docházkový systém",
-  "short_name": "DAGMAR",
+  "name": "KájovoDagmar DOCHÁZKOVÝ SYSTÉM",
+  "short_name": "KájovoDagmar",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#020A15",
+  "theme_color": "#020A15",
   "icons": [
     {
       "src": "/LOGO/assets/icons/appicon-512.png",
