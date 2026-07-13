@@ -93,10 +93,15 @@ export default function AdminPrintPreviewPage() {
   const [params] = useSearchParams();
   const docType = params.get("type") === "plan" ? "plan" : "attendance";
   const month = params.get("month") ?? "";
-  const idList = (params.get("ids") ?? "")
-    .split(",")
-    .map((item) => Number(item.trim()))
-    .filter((item) => Number.isInteger(item) && item > 0);
+  const idsParam = params.get("ids") ?? "";
+  const idList = useMemo(
+    () =>
+      idsParam
+        .split(",")
+        .map((item) => Number(item.trim()))
+        .filter((item) => Number.isInteger(item) && item > 0),
+    [idsParam],
+  );
   const parsed = useMemo(() => parseMonth(month), [month]);
   const parsedMonth = useMemo(() => parsed ?? { year: 1970, month: 1 }, [parsed]);
   const [loading, setLoading] = useState(false);
@@ -114,7 +119,13 @@ export default function AdminPrintPreviewPage() {
   }, []);
 
   useEffect(() => {
-    if (!parsed || idList.length === 0) return;
+    setPdfGenerated(false);
+    setDocs([]);
+    if (!parsed || idList.length === 0) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       setLoading(true);
