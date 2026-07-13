@@ -122,6 +122,7 @@ export default function AdminShiftPlanPage() {
   const [instanceQuery, setInstanceQuery] = useState("");
   const [showInactiveEmployments, setShowInactiveEmployments] = useState(false);
   const [planShiftFilter, setPlanShiftFilter] = useState<PlanShiftFilter>("all");
+  const [showSelectionPanel, setShowSelectionPanel] = useState(true);
   const [dayStatusDialog, setDayStatusDialog] = useState<DayStatusDialogState | null>(null);
   const successTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tableWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -694,6 +695,9 @@ export default function AdminShiftPlanPage() {
           <input type="checkbox" checked={showInactiveEmployments} onChange={(event) => setShowInactiveEmployments(event.target.checked)} />
           <span>Včetně neaktivních</span>
         </label>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setShowSelectionPanel((value) => !value)}>
+          {showSelectionPanel ? "Skrýt výběr" : "Zobrazit výběr"}
+        </Button>
         {monthInputError ? <div id="plan-month-input-error" className="admin-field-error">{monthInputError}</div> : null}
       </section>
 
@@ -707,9 +711,11 @@ export default function AdminShiftPlanPage() {
       </div>
 
       <div className="plan-layout">
-        <aside className="plan-local-sidebar" aria-label="Zaměstnanci v plánu služeb">
-          {instancePicker}
-        </aside>
+        {showSelectionPanel ? (
+          <aside className="plan-local-sidebar" aria-label="Zaměstnanci v plánu služeb">
+            {instancePicker}
+          </aside>
+        ) : null}
         <main className="plan-main">
           {loading ? <div className="plan-loading">Načítám plán…</div> : null}
           {!loading && error ? <div className="plan-error">{error}</div> : null}
@@ -739,7 +745,7 @@ export default function AdminShiftPlanPage() {
                   <thead>
                     <tr className="plan-table-head plan-table-head--numbers">
                       <th className="plan-table-th plan-table-th--name" rowSpan={2}>
-                        Řádek
+                        Úvazek
                       </th>
                       {days.map((day) => (
                         <th
@@ -789,7 +795,14 @@ export default function AdminShiftPlanPage() {
                         <Fragment key={rowId}>
                           <tr className="plan-table-row plan-table-row-arrival">
                             <td className="plan-name-cell plan-name-cell--compact" rowSpan={2} aria-label={`${row.display_label}, ${employmentTemplateLabel(row.employment_type)}`}>
-                              <div className="plan-row-index">{rowIndex + 1}</div>
+                              <div className="plan-name-indexline">
+                                <div className="plan-row-index">{rowIndex + 1}</div>
+                                <div className="plan-name-identity">
+                                  <div className="plan-name-label">{row.user_name}</div>
+                                  <div className="plan-name-subline">{row.title}</div>
+                                  <div className="plan-name-subline">{employmentTemplateLabel(row.employment_type)}</div>
+                                </div>
+                              </div>
                               <div className="plan-name-kindstack">
                                 <span className="plan-name-kind">Příchod</span>
                                 <span className="plan-name-kind plan-name-kind--muted">Odchod</span>
