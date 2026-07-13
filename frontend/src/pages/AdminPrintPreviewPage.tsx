@@ -369,7 +369,7 @@ export default function AdminPrintPreviewPage() {
                     </tr>
                   </tfoot>
                 </table>
-                <div className="print-signature">Tento přehled byl vygenerován produkčním adminem DAGMAR.</div>
+                <div className="print-signature">Tento přehled byl vygenerován produkční administrací KájovoDagmar.</div>
               </div>
             );
           }
@@ -440,7 +440,7 @@ export default function AdminPrintPreviewPage() {
                   })}
                 </tbody>
               </table>
-              <div className="print-signature">Tento přehled byl vygenerován produkčním adminem DAGMAR.</div>
+              <div className="print-signature">Tento přehled byl vygenerován produkční administrací KájovoDagmar.</div>
             </div>
           );
         })}

@@ -42,7 +42,7 @@ function LoadingState() {
           </div>
         </div>
         <div>
-          <div className="kb-intro-title">Operační cockpit</div>
+          <div className="kb-intro-title">Administrace</div>
           <div className="kb-intro-sub">Připravuji administraci…</div>
         </div>
         <div className="kb-spinner" aria-hidden="true" />
@@ -55,6 +55,11 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [me, setMe] = React.useState<MeState>({ kind: "loading" });
+  const [navOpen, setNavOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setNavOpen(false);
+  }, [location.pathname, location.search]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -101,12 +106,19 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-shell">
-      <aside className="admin-sidebar" aria-label="Admin navigace">
+      <button
+        type="button"
+        className={cx("admin-mobile-backdrop", navOpen && "is-open")}
+        onClick={() => setNavOpen(false)}
+        aria-label="Zavřít navigaci"
+        tabIndex={navOpen ? 0 : -1}
+      />
+      <aside id="admin-navigation" className={cx("admin-sidebar", navOpen && "is-open")} aria-label="Admin navigace">
         <div className="admin-sidebar-brand">
           <img src={BRAND_ASSETS.logoHorizontal} alt="" className="admin-sidebar-logo" />
           <div>
-            <div className="admin-sidebar-title">DAGMAR</div>
-            <div className="admin-sidebar-subtitle">Operační cockpit hotelu</div>
+            <div className="admin-sidebar-title">Administrace</div>
+            <div className="admin-sidebar-subtitle">DOCHÁZKOVÝ SYSTÉM</div>
           </div>
         </div>
 
@@ -151,6 +163,16 @@ export default function AdminLayout() {
       <div className="admin-content">
         <div className="admin-topbar">
           <div className="admin-topbar-context">
+            <button
+              type="button"
+              className="admin-mobile-nav-toggle"
+              onClick={() => setNavOpen((current) => !current)}
+              aria-expanded={navOpen}
+              aria-controls="admin-navigation"
+            >
+              <span aria-hidden="true">☰</span>
+              <span>Menu</span>
+            </button>
             <div className="admin-topbar-kicker">Produkční administrace</div>
             <div className="admin-topbar-meta">
               <span className="admin-status-pill admin-status-pill--live">{locationLabel(location.pathname)}</span>

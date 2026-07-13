@@ -4,30 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <meta name="application-name" content="DAGMAR docházkový systém" />
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="color-scheme" content="light" />
-    <meta name="description" content="DAGMAR docházkový systém." />
+    <meta name="application-name" content="KájovoDagmar DOCHÁZKOVÝ SYSTÉM" />
+    <meta name="theme-color" content="#020A15" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="KájovoDagmar DOCHÁZKOVÝ SYSTÉM." />
 
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="icon" type="image/png" href="/LOGO/assets/icons/favicon-64.png" />
     <link rel="apple-touch-icon" href="/LOGO/assets/icons/apple-touch-180.png" />
 
-    <title>DAGMAR docházkový systém</title>
+    <title>KájovoDagmar DOCHÁZKOVÝ SYSTÉM</title>
 
     <style>
-      @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap");
+      @font-face {
+        font-family: "Montserrat";
+        src: url("/LOGO/assets/fonts/Montserrat-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Montserrat";
+        src: url("/LOGO/assets/fonts/Montserrat-Bold.otf") format("opentype");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
 
       :root {
-        --kb-bg: #ffffff;
-        --kb-surface: #ffffff;
-        --kb-border: rgba(35, 41, 44, 0.18);
-        --kb-text: #23292c;
-        --kb-muted: rgba(35, 41, 44, 0.72);
-        --kb-shadow: 0 14px 40px rgba(35, 41, 44, 0.12);
-        --kb-radius: 16px;
-        --kb-systembar-h: 44px;
-        --kb-red: #ff0000;
+        --kb-bg: #020a15;
+        --kb-surface: #14222f;
+        --kb-border: #2c3746;
+        --kb-text: #f4f7f9;
+        --kb-muted: #a3adca;
+        --kb-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
+        --kb-radius: 8px;
+        --kb-systembar-h: 52px;
       }
 
       html,
@@ -36,8 +49,8 @@
         margin: 0;
         background: var(--kb-bg);
         color: var(--kb-text);
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
-          "Segoe UI Emoji";
+        font-family: "Montserrat", sans-serif;
+        font-variant-numeric: tabular-nums;
       }
 
       #root {
@@ -54,29 +67,13 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 14px;
-        background: rgba(255, 255, 255, 0.94);
+        padding: 0 16px;
+        background: rgba(13, 25, 34, 0.96);
         border-bottom: 1px solid var(--kb-border);
         backdrop-filter: blur(10px);
       }
 
-      .kb-signage {
-        display: inline-flex;
-        align-items: center;
-        height: 24px;
-        min-width: 120px;
-        background: var(--kb-red);
-        padding: 0 10px;
-        border-radius: 8px;
-        box-shadow: 0 8px 18px rgba(35, 41, 44, 0.2);
-      }
-
-      .kb-signage span {
-        font-family: "Montserrat", ui-sans-serif, system-ui;
-        font-weight: 700;
-        color: #000000;
-        letter-spacing: 0.2px;
-      }
+      .kb-signage { display: block; width: 220px; height: 38px; object-fit: contain; object-position: left center; }
 
       .kb-boot {
         min-height: 100vh;
@@ -126,8 +123,8 @@
         width: 34px;
         height: 34px;
         border-radius: 999px;
-        border: 3px solid rgba(35, 41, 44, 0.22);
-        border-top-color: rgba(35, 41, 44, 0.7);
+        border: 3px solid rgba(163, 173, 202, 0.25);
+        border-top-color: #2b9790;
         animation: spin 1.05s linear infinite;
         justify-self: start;
       }
@@ -144,15 +141,14 @@
 
     <div id="root">
       <div class="kb-systembar" aria-label="Systémová lišta">
-        <div class="kb-signage" aria-label="Signace Kájovo"><span>Kájovo</span></div>
-        <img src="/LOGO/assets/svg/logo-mark.svg" alt="" style="height: 26px; width: auto" />
+        <img class="kb-signage" src="/LOGO/assets/svg/logo-horizontal-dark.svg" alt="KájovoDagmar DOCHÁZKOVÝ SYSTÉM" />
       </div>
 
       <div class="kb-boot" aria-label="Načítání aplikace">
         <div class="kb-boot-card" role="status">
           <div class="kb-boot-head">
             <div>
-              <div class="kb-boot-title">DAGMAR docházkový systém</div>
+              <div class="kb-boot-title">KájovoDagmar DOCHÁZKOVÝ SYSTÉM</div>
               <div class="kb-boot-sub">Načítám…</div>
             </div>
             <img class="kb-boot-logo" src="/LOGO/assets/svg/logo-mark.svg" alt="" />

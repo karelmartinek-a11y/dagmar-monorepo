@@ -48,14 +48,6 @@ export default function AdminOverviewPage() {
         eyebrow="Operační cockpit"
         title="Přehled administrace"
         description="Jedno místo pro účty, zařízení, provozní pravidla a rychlé zásahy nad produkčním provozem hotelu."
-        actions={
-          <div className="admin-action-stack">
-            <ActionLink to="/admin/users" label="Nový uživatel" />
-            <ActionLink to="/admin/dochazka" label="Otevřít docházku" />
-            <ActionLink to="/admin/plan-sluzeb" label="Otevřít plán služeb" />
-            <ActionLink to="/admin/instances" label="Správa zařízení" />
-          </div>
-        }
       />
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
@@ -64,13 +56,14 @@ export default function AdminOverviewPage() {
         <MetricCard label="Aktivní účty" value={summary.activeUsers} hint={`${users.length} celkem`} tone="accent" />
         <MetricCard label="Účty bez hesla" value={summary.withoutPassword} hint="Vyžadují reset nebo ruční nastavení" tone={summary.withoutPassword ? "danger" : "default"} />
         <MetricCard label="Blokovaná přihlášení" value={summary.blockedUsers} hint="Omezení podle úvazku" tone={summary.blockedUsers ? "danger" : "default"} />
-        <MetricCard label="Čekající zařízení" value={summary.pendingInstances.length} hint={`${summary.activeInstances} aktivních`} tone={summary.pendingInstances.length ? "accent" : "default"} />
-        <MetricCard label="Revokovaná zařízení" value={summary.revokedInstances} hint={`${summary.deactivatedInstances} deaktivovaných`} tone={summary.revokedInstances ? "danger" : "default"} />
-        <MetricCard label="Odpolední hranice" value={settings?.afternoon_cutoff ?? "—"} hint="Platí pro výpočet odpoledních hodin" />
+        <MetricCard label="Čekající zařízení" value={summary.pendingInstances.length} hint="Čekají na aktivaci" tone={summary.pendingInstances.length ? "accent" : "default"} />
+        <MetricCard label="Aktivní zařízení" value={summary.activeInstances} hint="Povolená zařízení" tone="ok" />
+        <MetricCard label="Revokovaná zařízení" value={summary.revokedInstances} hint="Zrušené přístupy" tone={summary.revokedInstances ? "danger" : "default"} />
+        <MetricCard label="Deaktivovaná zařízení" value={summary.deactivatedInstances} hint="Dočasně vypnutá" tone={summary.deactivatedInstances ? "danger" : "default"} />
       </section>
 
       <div className="admin-overview-grid">
-        <section className="admin-surface">
+        <section className="admin-surface admin-overview-alerts">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Provozní upozornění</div>
@@ -100,7 +93,7 @@ export default function AdminOverviewPage() {
           </div>
         </section>
 
-        <section className="admin-surface">
+        <section className="admin-surface admin-overview-settings">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Pošta a pravidla docházky</div>
@@ -132,7 +125,7 @@ export default function AdminOverviewPage() {
           </div>
         </section>
 
-        <section className="admin-surface">
+        <section className="admin-surface admin-overview-devices">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Poslední aktivita zařízení</div>
@@ -167,6 +160,23 @@ export default function AdminOverviewPage() {
             </div>
           )}
           {summary.lastSeen ? <div className="admin-footnote">Naposledy aktivní zařízení: {new Date(summary.lastSeen).toLocaleString("cs-CZ")}</div> : null}
+        </section>
+
+        <section className="admin-surface admin-overview-actions">
+          <div className="admin-surface-head">
+            <div>
+              <div className="admin-surface-title">Co může administrátor udělat</div>
+              <div className="admin-surface-subtitle">Přímé vstupy do nejčastějších provozních úloh.</div>
+            </div>
+          </div>
+          <div className="admin-action-stack">
+            <ActionLink to="/admin/users" label="Spravovat uživatele" />
+            <ActionLink to="/admin/instances" label="Spravovat zařízení" />
+            <ActionLink to="/admin/plan-sluzeb" label="Zobrazit plán směn" />
+            <ActionLink to="/admin/dochazka" label="Otevřít docházku" />
+            <ActionLink to="/admin/tisky" label="Tiskové sestavy" />
+            <ActionLink to="/admin/integrace" label="Integrační klienti" />
+          </div>
         </section>
       </div>
     </div>

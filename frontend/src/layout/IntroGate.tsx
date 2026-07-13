@@ -1,6 +1,4 @@
 import React from "react";
-import SignageKajovo from "../brand/SignageKajovo";
-
 import { APP_NAME_LONG, BRAND_ASSETS } from "../brand/brand";
 const KEY = "kajovo_intro_seen";
 
@@ -33,8 +31,7 @@ export default function IntroGate({ children }: { children: React.ReactNode }) {
     <div className="kb-intro" role="status" aria-label="Intro">
       <div className="kb-intro-card">
         <div className="kb-intro-top">
-          <SignageKajovo />
-          <img src={BRAND_ASSETS.logoMark} alt="" className="kb-intro-logo" />
+          <img src={BRAND_ASSETS.logoVertical} alt="KájovoDagmar DOCHÁZKOVÝ SYSTÉM" className="kb-intro-logo" />
         </div>
         <div>
           <div className="kb-intro-title">{APP_NAME_LONG}</div>
