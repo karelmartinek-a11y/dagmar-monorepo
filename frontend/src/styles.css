@@ -8621,6 +8621,80 @@ body:has(.print-preview-page) .kb-app {
   }
 }
 
+/* Final July 2026 forensic stabilization for the admin overview dashboard. */
+
+.admin-overview-page .admin-metric-grid {
+  gap: 12px;
+}
+
+.admin-overview-page .admin-overview-metrics {
+  grid-template-columns: repeat(7, minmax(132px, 1fr));
+}
+
+.admin-overview-page .admin-overview-dashboard {
+  gap: 12px;
+}
+
+.admin-overview-page .admin-surface {
+  padding: 18px;
+}
+
+.admin-overview-page .admin-surface-title {
+  font-size: 22px;
+  line-height: 1.08;
+}
+
+.admin-overview-page .admin-surface-subtitle,
+.admin-overview-page .admin-list-subtitle,
+.admin-overview-page .admin-footnote {
+  color: var(--kd-text-secondary);
+}
+
+.admin-overview-page .admin-inline-notice,
+.admin-overview-page .admin-empty-state,
+.admin-overview-page .admin-definition-list > div,
+.admin-overview-page .admin-list-row {
+  border-radius: 8px !important;
+  border-color: var(--kd-stroke) !important;
+  background: var(--kd-ink-900) !important;
+}
+
+.admin-overview-page .admin-list-row {
+  padding: 16px 18px;
+}
+
+.admin-overview-page .admin-overview-actions .admin-action-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-overview-page .admin-overview-actions .admin-action-link {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border-color: var(--kd-stroke);
+  background: var(--kd-ink-900);
+  color: var(--kd-text-primary);
+}
+
+.admin-overview-page .admin-overview-settings .admin-definition-list {
+  gap: 12px;
+}
+
+@media (max-width: 1180px) {
+  .admin-overview-page .admin-overview-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-overview-page .admin-overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .plan-page .plan-table-input {
   height: 36px;
   border-radius: 8px;

@@ -2,10 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { adminGetSettings, adminGetSmtpSettings, adminListInstances, adminListUsers, type AdminInstance, type PortalUser } from "../api/admin";
 import { ActionLink, EmptyState, FilterBar, InlineNotice, MetricCard, PageHeader, StateBadge } from "../components/admin/AdminUI";
 import { buildAdminOverviewSummary } from "../utils/adminOverview";
+import Button from "../ui/Button";
 
 function errorMessage(err: unknown, fallback: string) {
   if (err instanceof Error && err.message) return err.message;
   return fallback;
+}
+
+function instanceStatusLabel(status: AdminInstance["status"]) {
+  if (status === "ACTIVE") return "Aktivní";
+  if (status === "PENDING") return "Čeká na aktivaci";
+  if (status === "REVOKED") return "Revokováno";
+  return "Deaktivováno";
 }
 
 export default function AdminOverviewPage() {
@@ -13,44 +21,91 @@ export default function AdminOverviewPage() {
   const [instances, setInstances] = useState<AdminInstance[]>([]);
   const [smtp, setSmtp] = useState<Awaited<ReturnType<typeof adminGetSmtpSettings>> | null>(null);
   const [settings, setSettings] = useState<Awaited<ReturnType<typeof adminGetSettings>> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [instancesError, setInstancesError] = useState<string | null>(null);
+  const [smtpError, setSmtpError] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  async function loadOverview(signal?: { cancelled: boolean }) {
+    setLoading(true);
+    setUsersError(null);
+    setInstancesError(null);
+    setSmtpError(null);
+    setSettingsError(null);
+    const [userRes, instanceRes, smtpRes, settingsRes] = await Promise.allSettled([
+      adminListUsers(),
+      adminListInstances(),
+      adminGetSmtpSettings(),
+      adminGetSettings(),
+    ]);
+    if (signal?.cancelled) return;
+
+    if (userRes.status === "fulfilled") {
+      setUsers(userRes.value.users);
+    } else {
+      setUsers([]);
+      setUsersError(errorMessage(userRes.reason, "Nepodařilo se načíst uživatele."));
+    }
+
+    if (instanceRes.status === "fulfilled") {
+      setInstances(instanceRes.value.instances);
+    } else {
+      setInstances([]);
+      setInstancesError(errorMessage(instanceRes.reason, "Nepodařilo se načíst zařízení."));
+    }
+
+    if (smtpRes.status === "fulfilled") {
+      setSmtp(smtpRes.value);
+    } else {
+      setSmtp(null);
+      setSmtpError(errorMessage(smtpRes.reason, "Nepodařilo se načíst SMTP nastavení."));
+    }
+
+    if (settingsRes.status === "fulfilled") {
+      setSettings(settingsRes.value);
+    } else {
+      setSettings(null);
+      setSettingsError(errorMessage(settingsRes.reason, "Nepodařilo se načíst globální pravidla."));
+    }
+
+    setLoading(false);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    void Promise.all([adminListUsers(), adminListInstances(), adminGetSmtpSettings(), adminGetSettings()])
-      .then(([userRes, instanceRes, smtpRes, settingsRes]) => {
-        if (cancelled) return;
-        setUsers(userRes.users);
-        setInstances(instanceRes.instances);
-        setSmtp(smtpRes);
-        setSettings(settingsRes);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(errorMessage(err, "Nepodařilo se načíst přehled administrace."));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    void loadOverview({ cancelled }).catch((err) => {
+      if (cancelled) return;
+      setUsersError(errorMessage(err, "Nepodařilo se načíst přehled administrace."));
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
   }, []);
 
   const summary = useMemo(() => buildAdminOverviewSummary(users, instances), [instances, users]);
+  const anyPartialError = Boolean(usersError || instancesError || smtpError || settingsError);
 
   return (
-    <div className="admin-page-grid">
+    <div className="admin-page-grid admin-overview-page">
       <PageHeader
         eyebrow="Operační cockpit"
         title="Přehled administrace"
         description="Jedno místo pro účty, zařízení, provozní pravidla a rychlé zásahy nad produkčním provozem hotelu."
-      />
+      >
+        <FilterBar>
+          <Button type="button" variant="ghost" onClick={() => void loadOverview()} disabled={loading}>
+            {loading ? "Obnovuji…" : "Obnovit"}
+          </Button>
+        </FilterBar>
+      </PageHeader>
 
-      {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
+      {anyPartialError ? (
+        <InlineNotice tone="warning">
+          Přehled je načtený jen částečně. Některé bloky zůstávají použitelné, ale jedna nebo více datových sad se nepodařilo načíst.
+        </InlineNotice>
+      ) : null}
 
       <section className="admin-metric-grid admin-overview-metrics">
         <MetricCard label="Aktivní účty" value={summary.activeUsers} hint={`${users.length} celkem`} tone="accent" />
@@ -72,6 +127,8 @@ export default function AdminOverviewPage() {
           </div>
 
           <div className="admin-stack">
+            {usersError ? <InlineNotice tone="danger">{usersError}</InlineNotice> : null}
+            {instancesError ? <InlineNotice tone="danger">{instancesError}</InlineNotice> : null}
             {summary.pendingInstances.length > 0 ? (
               <InlineNotice tone="warning">
                 Čeká <strong>{summary.pendingInstances.length}</strong> zařízení na aktivaci. Přesuňte se do sekce <strong>Zařízení</strong> a rozhodněte o stavu.
@@ -101,6 +158,7 @@ export default function AdminOverviewPage() {
             </div>
           </div>
           <div className="admin-stack">
+            {smtpError || settingsError ? <InlineNotice tone="danger">{[smtpError, settingsError].filter(Boolean).join(" ")}</InlineNotice> : null}
             <div className="admin-definition-list">
               <div>
                 <span>SMTP server</span>
@@ -132,7 +190,9 @@ export default function AdminOverviewPage() {
               <div className="admin-surface-subtitle">Rychlá orientace bez nutnosti otevírat detail každé instance.</div>
             </div>
           </div>
-          {instances.length === 0 && !loading ? (
+          {instancesError ? (
+            <InlineNotice tone="danger">{instancesError}</InlineNotice>
+          ) : instances.length === 0 && !loading ? (
             <EmptyState title="Žádná zařízení" description="Backend momentálně nevrátil žádné registrované instance." />
           ) : (
             <div className="admin-list">
@@ -153,7 +213,7 @@ export default function AdminOverviewPage() {
                             : "warning"
                     }
                   >
-                    {instance.status}
+                    {instanceStatusLabel(instance.status)}
                   </StateBadge>
                 </div>
               ))}
