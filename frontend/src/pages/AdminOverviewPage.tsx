@@ -52,7 +52,7 @@ export default function AdminOverviewPage() {
 
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
 
-      <section className="admin-metric-grid">
+      <section className="admin-metric-grid admin-overview-metrics">
         <MetricCard label="Aktivní účty" value={summary.activeUsers} hint={`${users.length} celkem`} tone="accent" />
         <MetricCard label="Účty bez hesla" value={summary.withoutPassword} hint="Vyžadují reset nebo ruční nastavení" tone={summary.withoutPassword ? "danger" : "default"} />
         <MetricCard label="Blokovaná přihlášení" value={summary.blockedUsers} hint="Omezení podle úvazku" tone={summary.blockedUsers ? "danger" : "default"} />
@@ -62,7 +62,7 @@ export default function AdminOverviewPage() {
         <MetricCard label="Deaktivovaná zařízení" value={summary.deactivatedInstances} hint="Dočasně vypnutá" tone={summary.deactivatedInstances ? "danger" : "default"} />
       </section>
 
-      <div className="admin-overview-grid">
+      <div className="admin-overview-grid admin-overview-dashboard">
         <section className="admin-surface admin-overview-alerts">
           <div className="admin-surface-head">
             <div>
