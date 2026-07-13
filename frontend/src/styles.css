@@ -8434,6 +8434,193 @@ body:has(.print-preview-page) .kb-app {
   }
 }
 
+/* Final July 2026 forensic stabilization for users and employments workspace. */
+
+.admin-users-page .admin-metric-grid {
+  gap: 12px;
+}
+
+.admin-users-page .admin-split-layout {
+  grid-template-columns: minmax(360px, 0.94fr) minmax(0, 1.36fr);
+  gap: 14px;
+}
+
+.admin-users-page .admin-users-surface {
+  padding: 18px;
+  border-radius: 8px;
+  border: 1px solid var(--kd-stroke);
+  background: var(--kd-ink-850);
+}
+
+.admin-users-page .admin-surface-head {
+  margin-bottom: 16px;
+}
+
+.admin-users-page .admin-surface-title,
+.admin-users-page .admin-form-section-title {
+  font-size: 22px;
+  line-height: 1.08;
+  color: var(--kd-text-primary);
+}
+
+.admin-users-page .admin-surface-subtitle,
+.admin-users-page .admin-list-subtitle,
+.admin-users-page .admin-account-action-copy,
+.admin-users-page .kb-help {
+  color: var(--kd-text-secondary);
+}
+
+.admin-users-page .admin-form-section,
+.admin-users-page .admin-subsurface,
+.admin-users-page .admin-selection-row,
+.admin-users-page .admin-definition-list > div,
+.admin-users-page .admin-account-action-box,
+.admin-users-page .admin-checkbox-row,
+.admin-users-page .admin-inline-notice,
+.admin-users-page .admin-empty-state {
+  border: 1px solid var(--kd-stroke) !important;
+  background: var(--kd-ink-900) !important;
+  border-radius: 8px !important;
+  color: var(--kd-text-primary);
+  box-shadow: none;
+}
+
+.admin-users-page .admin-form-section {
+  padding: 18px;
+  gap: 14px;
+}
+
+.admin-users-page .admin-form-grid,
+.admin-users-page .admin-definition-list {
+  gap: 14px;
+}
+
+.admin-users-page .admin-selection-row {
+  align-items: stretch;
+  gap: 12px;
+  padding: 16px;
+}
+
+.admin-users-page .admin-selection-row.active {
+  border-color: var(--kd-action-500) !important;
+  background: linear-gradient(180deg, rgba(43, 157, 143, 0.16), rgba(14, 27, 39, 0.96)) !important;
+}
+
+.admin-users-page .admin-selection-row:hover {
+  border-color: rgba(159, 177, 194, 0.36) !important;
+  background: rgba(20, 36, 50, 0.98) !important;
+}
+
+.admin-users-page .admin-users-row-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.admin-users-page .admin-users-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--kd-text-secondary);
+}
+
+.admin-users-page .admin-users-row-badges,
+.admin-users-page .admin-users-employment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: start;
+  gap: 8px;
+}
+
+.admin-users-page .admin-list-title {
+  font-size: 18px;
+  line-height: 1.15;
+  color: #f8fbff;
+}
+
+.admin-users-page .admin-list-subtitle {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.admin-users-page .admin-definition-list > div {
+  padding: 16px;
+}
+
+.admin-users-page .admin-users-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-users-page .admin-badge-row {
+  gap: 10px;
+}
+
+.admin-users-page .admin-action-row {
+  gap: 10px;
+}
+
+.admin-users-page .admin-account-action-grid {
+  gap: 12px;
+}
+
+.admin-users-page .admin-account-action-box {
+  padding: 16px;
+}
+
+.admin-users-page .admin-account-action-box--danger {
+  border-color: rgba(248, 113, 113, 0.26) !important;
+  background: rgba(63, 36, 39, 0.92) !important;
+}
+
+.admin-users-page .admin-users-employment-card {
+  padding: 16px;
+}
+
+.admin-users-page .admin-users-employment-card .admin-surface-head {
+  margin-bottom: 12px;
+}
+
+.admin-users-page .admin-users-employment-card .admin-surface-title {
+  font-size: 18px;
+}
+
+.admin-users-page .admin-checkbox-row {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.admin-users-page .kb-input,
+.admin-users-page .kb-select {
+  min-height: 44px;
+}
+
+@media (max-width: 1180px) {
+  .admin-users-page .admin-split-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-users-page .admin-users-row-badges,
+  .admin-users-page .admin-users-employment-meta {
+    justify-content: flex-start;
+  }
+
+  .admin-users-page .admin-selection-row {
+    flex-direction: column;
+  }
+
+  .admin-users-page .admin-users-summary-grid,
+  .admin-users-page .admin-form-grid,
+  .admin-users-page .admin-definition-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 .plan-page .plan-table-input {
   height: 36px;
   border-radius: 8px;

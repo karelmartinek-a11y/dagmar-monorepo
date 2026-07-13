@@ -439,7 +439,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="admin-page-grid">
+    <div className="admin-page-grid admin-users-page">
       <PageHeader
         eyebrow="Účty a přístupy"
         title="Uživatelé a úvazky"
@@ -458,7 +458,7 @@ export default function AdminUsersPage() {
       </section>
 
       <div className="admin-split-layout">
-        <section className="admin-surface">
+        <section className="admin-surface admin-users-surface admin-users-surface--master">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Filtr a seznam osob</div>
@@ -527,18 +527,27 @@ export default function AdminUsersPage() {
             <div className="admin-list">
               {visibleUsers.map((user) => (
                 <button key={user.id} type="button" className={`admin-selection-row${selectedUserId === user.id ? " active" : ""}${highlightUserId === user.id ? " admin-selection-row--highlight" : ""}`} onClick={() => setSelectedUserId(user.id)}>
-                  <div>
+                  <div className="admin-users-row-copy">
                     <div className="admin-list-title">{user.name}</div>
                     <div className="admin-list-subtitle">{user.email}</div>
+                    <div className="admin-users-row-meta">
+                      <span>{user.phone || "Telefon neuveden"}</span>
+                      <span>{user.has_password ? "Heslo nastaveno" : "Bez hesla"}</span>
+                      <span>{user.is_locked ? "Účet uzamčen" : "Bez lockoutu"}</span>
+                    </div>
                   </div>
-                  <StateBadge tone={userTone(user)}>{loginStatusLabel(user)}</StateBadge>
+                  <div className="admin-users-row-badges">
+                    <StateBadge tone={userTone(user)}>{loginStatusLabel(user)}</StateBadge>
+                    <StateBadge tone={user.has_password ? "ok" : "warning"}>{user.has_password ? "Heslo OK" : "Chybí heslo"}</StateBadge>
+                    {user.is_locked ? <StateBadge tone="danger">Lockout</StateBadge> : null}
+                  </div>
                 </button>
               ))}
             </div>
           )}
         </section>
 
-        <section className="admin-surface">
+        <section className="admin-surface admin-users-surface admin-users-surface--detail">
           <div className="admin-surface-head">
             <div>
               <div className="admin-surface-title">Detail účtu a úvazků</div>
@@ -550,7 +559,7 @@ export default function AdminUsersPage() {
             <EmptyState title="Není vybraný účet" description="Vyberte uživatele ze seznamu vlevo." />
           ) : (
             <div className="admin-stack">
-              <div className="admin-definition-list">
+              <div className="admin-definition-list admin-users-summary-grid">
                 <div><span>E-mail</span><strong>{selectedUser.email}</strong></div>
                 <div><span>Telefon</span><strong>{selectedUser.phone || "neuvedeno"}</strong></div>
                 <div><span>Heslo</span><strong>{selectedUser.has_password ? "Nastaveno" : "Bez hesla"}</strong></div>
@@ -638,12 +647,21 @@ export default function AdminUsersPage() {
                     const isEditing = editingEmploymentId === employment.id;
                     const draft = employmentDrafts[employment.id] ?? fromEmployment(employment);
                     return (
-                      <section key={employment.id} className={`admin-subsurface${highlightEmploymentId === employment.id ? " admin-subsurface--highlight" : ""}`}>
+                      <section key={employment.id} className={`admin-subsurface admin-users-employment-card${highlightEmploymentId === employment.id ? " admin-subsurface--highlight" : ""}`}>
                         <div className="admin-surface-head">
                           <div>
                             <div className="admin-surface-title">{employment.label}</div>
                             <div className="admin-surface-subtitle">
                               {employmentPeriodLabel(employment)}
+                            </div>
+                            <div className="admin-users-employment-meta">
+                              <StateBadge tone="accent">ID {employment.id}</StateBadge>
+                              <StateBadge tone={employment.employment_type === "HPP" ? "ok" : "warning"}>
+                                {employment.employment_type === "HPP" ? "HPP" : "DPP / DPČ"}
+                              </StateBadge>
+                              <StateBadge tone={employment.is_active ? "ok" : "danger"}>
+                                {employment.is_active ? "Aktivní úvazek" : "Neaktivní úvazek"}
+                              </StateBadge>
                             </div>
                           </div>
                           <div className="admin-action-row">
