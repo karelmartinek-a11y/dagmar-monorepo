@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import EmployeePage from "./pages/EmployeePage";
 import AdminLayout from "./pages/AdminLayout";
@@ -16,64 +15,8 @@ import AdminIntegrationsPage from "./pages/AdminIntegrationsPage";
 import PortalResetPage from "./pages/PortalResetPage";
 import IntegrationApiDocsPage from "./pages/IntegrationApiDocsPage";
 
-type VersionPayload = {
-  frontend_commit?: string;
-  backend_deploy_tag?: string;
-};
-
 function DeploymentBadge() {
-  const location = useLocation();
-  const [frontendCommit, setFrontendCommit] = useState<string | null>(null);
-  const [backendCommit, setBackendCommit] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    const loadFrontend = async () => {
-      try {
-        const resp = await fetch("/frontend-version.json", { cache: "no-store" });
-        if (!resp.ok) return;
-        const data = (await resp.json()) as VersionPayload;
-        if (active) setFrontendCommit(data.frontend_commit || null);
-      } catch {
-        if (active) setFrontendCommit(null);
-      }
-    };
-
-    const loadBackend = async () => {
-      try {
-        const resp = await fetch("/api/version", { cache: "no-store" });
-        if (!resp.ok) return;
-        const data = (await resp.json()) as VersionPayload;
-        if (active) setBackendCommit(data.backend_deploy_tag || null);
-      } catch {
-        if (active) setBackendCommit(null);
-      }
-    };
-
-    loadFrontend();
-    loadBackend();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  if (!frontendCommit && !backendCommit) {
-    return null;
-  }
-
-  if (location.pathname !== "/admin/settings") {
-    return null;
-  }
-
-  return (
-    <details className="kb-deployment" aria-label="Diagnostické informace o nasazení">
-      <summary>Diagnostika nasazení</summary>
-      <div>Frontend: {frontendCommit || "-"}</div>
-      <div>Backend: {backendCommit || "-"}</div>
-    </details>
-  );
+  return null;
 }
 
 function AppShell() {

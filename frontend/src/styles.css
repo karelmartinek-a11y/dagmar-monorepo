@@ -8695,6 +8695,64 @@ body:has(.print-preview-page) .kb-app {
   }
 }
 
+/* Final July 2026 forensic stabilization for admin settings and deployment diagnostics. */
+
+.admin-settings-page .admin-settings-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-settings-page .admin-settings-surface {
+  padding: 18px;
+}
+
+.admin-settings-page .admin-surface-title {
+  font-size: 22px;
+  line-height: 1.08;
+}
+
+.admin-settings-page .admin-settings-password-state,
+.admin-settings-page .admin-definition-list > div,
+.admin-settings-page .admin-inline-notice {
+  border: 1px solid var(--kd-stroke) !important;
+  border-radius: 8px !important;
+  background: var(--kd-ink-900) !important;
+}
+
+.admin-settings-page .admin-settings-password-state {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+}
+
+.admin-settings-page .admin-settings-password-state strong {
+  color: var(--kd-text-primary);
+}
+
+.admin-settings-page .admin-settings-password-state span,
+.admin-settings-page .admin-surface-subtitle {
+  color: var(--kd-text-secondary);
+}
+
+.admin-settings-page .admin-form-grid {
+  gap: 14px;
+}
+
+.admin-settings-page .kb-input,
+.admin-settings-page .kb-select {
+  min-height: 44px;
+}
+
+.admin-settings-page .admin-action-row {
+  gap: 10px;
+}
+
+@media (max-width: 1180px) {
+  .admin-settings-page .admin-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .plan-page .plan-table-input {
   height: 36px;
   border-radius: 8px;
