@@ -86,9 +86,31 @@ export default function AdminLoginPage() {
     }
   }
 
+  const formState = checkingSession
+    ? "Kontrola session"
+    : submitting
+      ? "Přihlašování"
+      : error
+        ? "Vyžaduje opravu"
+        : info
+          ? "Instrukce odeslány"
+          : "Připraven k přihlášení";
+
   return (
     <div className="admin-login-page">
-      <div className="auth-workspace auth-workspace--admin admin-login-panel">
+      <section className="admin-auth-cockpit" aria-labelledby="admin-login-workspace-title">
+        <header className="admin-auth-cockpit-header">
+          <div>
+            <strong id="admin-login-workspace-title">ADM-01 / Přihlášení administrátora</strong>
+            <span>Vytvořit admin session a bezpečně vrátit uživatele na požadovanou admin stránku.</span>
+          </div>
+          <dl>
+            <div><dt>Route</dt><dd>/admin/login</dd></div>
+            <div><dt>Role</dt><dd>Administrátor</dd></div>
+          </dl>
+        </header>
+
+        <div className="auth-workspace auth-workspace--admin admin-login-panel">
         <aside className="auth-rail auth-rail--focus" aria-label="Pokyny pro administrátora">
           <div className="auth-rail-title">Fokus a přístupnost</div>
           <ol className="auth-rail-list">
@@ -153,7 +175,25 @@ export default function AdminLoginPage() {
             <div><strong>Bezpečný návrat</strong><span>Parametr next je omezený na interní admin routy.</span></div>
           </div>
         </aside>
-      </div>
+        </div>
+
+        <section className="admin-auth-live-states" aria-label="Aktuální bezpečnostní a validační stav">
+          <div><span>1</span><strong>Session</strong><small>{checkingSession ? "Ověřuji existující přihlášení" : "Kontrola dokončena"}</small></div>
+          <div><span>2</span><strong>Formulář</strong><small>{formState}</small></div>
+          <div><span>3</span><strong>Bezpečný návrat</strong><small>{nextPath}</small></div>
+          <div><span>4</span><strong>Ochrana</strong><small>Session cookie + CSRF</small></div>
+        </section>
+
+        <footer className="admin-auth-flow" aria-label="Tok přihlášení">
+          <div className="is-complete"><span>1</span><strong>Příchozí vstup</strong></div>
+          <i aria-hidden="true" />
+          <div className={error ? "is-error" : "is-active"}><span>2</span><strong>ADM-01 validace</strong></div>
+          <i aria-hidden="true" />
+          <div className={submitting ? "is-active" : ""}><span>3</span><strong>Session + CSRF</strong></div>
+          <i aria-hidden="true" />
+          <div><span>4</span><strong>Validní next</strong></div>
+        </footer>
+      </section>
     </div>
   );
 }
