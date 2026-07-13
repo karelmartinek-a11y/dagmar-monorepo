@@ -8123,6 +8123,317 @@ body:has(.print-preview-page) .kb-app {
   padding: 8px 6px;
 }
 
+/* Final July 2026 forensic stabilization for attendance sheet detail layout. */
+
+.ops-page .ops-header {
+  padding: 18px 20px;
+  gap: 18px;
+}
+
+.ops-page .ops-header h1 {
+  font-size: 42px;
+  line-height: 1.04;
+}
+
+.ops-page .ops-header p {
+  max-width: 1080px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.ops-page .ops-stat-strip {
+  grid-template-columns: repeat(6, minmax(132px, 1fr));
+}
+
+.ops-page .ops-stat-strip span {
+  font-size: 11px;
+}
+
+.ops-page .ops-stat-strip strong {
+  font-size: 28px;
+}
+
+.ops-page .ops-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.ops-page .ops-toolbar > * {
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.ops-page .ops-select-field,
+.ops-page .ops-check {
+  margin: 0;
+}
+
+.ops-page .ops-select-field > span,
+.ops-page .ops-check span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ops-page .ops-input,
+.ops-page .ops-btn,
+.ops-page .ops-toolbar button,
+.ops-page .ops-detail-actions button {
+  font-size: 14px;
+}
+
+.ops-page .ops-input,
+.ops-page .ops-btn,
+.ops-page .ops-toolbar button {
+  min-height: 42px;
+}
+
+.ops-page .ops-input--month {
+  width: 168px;
+  min-width: 168px;
+}
+
+.ops-page .ops-toolbar > .ops-input[type="search"] {
+  flex: 1 1 240px;
+  min-width: 240px;
+}
+
+.ops-page .ops-toolbar > .ops-select-field {
+  min-width: 168px;
+}
+
+.ops-page .ops-toolbar > .ops-check {
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.ops-page .ops-workspace {
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.ops-page .ops-employee-panel {
+  top: calc(var(--kb-systembar-h) + 14px);
+  max-height: calc(100vh - var(--kb-systembar-h) - 28px);
+}
+
+.ops-page .ops-panel-title {
+  font-size: 16px;
+}
+
+.ops-page .ops-employee-row {
+  min-height: 70px;
+  padding: 14px 14px 14px 12px;
+}
+
+.ops-page .ops-main-matrix {
+  gap: 14px;
+}
+
+.ops-page .ops-table-wrap {
+  overflow: auto;
+}
+
+.ops-page .ops-matrix {
+  width: max-content;
+  min-width: 100%;
+}
+
+.ops-page .ops-sticky-col,
+.ops-page .ops-name-head--compact {
+  min-width: 240px !important;
+  width: 240px !important;
+  max-width: 240px;
+}
+
+.ops-page .ops-name-head--compact {
+  padding: 14px 12px;
+  text-align: left;
+}
+
+.ops-page .ops-name-head--compact strong {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.18);
+  color: #dbeafe;
+  font-size: 14px;
+}
+
+.ops-page .ops-name-head--compact small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #9fb1c2;
+}
+
+.ops-page .ops-lock {
+  margin-top: 10px;
+}
+
+.ops-page .ops-matrix th {
+  padding: 10px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.ops-page .ops-matrix td {
+  min-width: 84px;
+  padding: 8px 6px;
+}
+
+.ops-page .ops-cell-btn {
+  min-height: 68px;
+  gap: 8px;
+}
+
+.ops-page .ops-times {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.ops-page .ops-detail-grid {
+  margin-top: 14px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+  gap: 14px;
+}
+
+.ops-page .ops-detail-card {
+  padding: 18px;
+  gap: 16px;
+}
+
+.ops-page .ops-detail-head {
+  align-items: start;
+}
+
+.ops-page .ops-detail-head h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.ops-page .ops-detail-head p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #9fb1c2;
+}
+
+.ops-page .ops-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 28, 40, 0.96);
+  color: #dbeafe;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ops-page .ops-chip.is-locked {
+  color: #fca5a5;
+}
+
+.ops-page .ops-detail-meta {
+  grid-template-columns: 140px minmax(0, 1fr);
+  row-gap: 10px;
+  column-gap: 12px;
+  font-size: 13px;
+}
+
+.ops-page .ops-detail-meta strong {
+  color: #f8fbff;
+  font-weight: 700;
+}
+
+.ops-page .ops-detail-form {
+  grid-template-columns: repeat(2, minmax(150px, 190px)) auto auto;
+  gap: 12px;
+}
+
+.ops-page .ops-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ops-page .ops-summary-list div {
+  min-height: 42px;
+  align-items: center;
+}
+
+.ops-page .ops-summary-list strong {
+  color: #f8fbff;
+}
+
+@media (max-width: 1180px) {
+  .ops-page .ops-workspace,
+  .ops-page .ops-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-page .ops-employee-panel {
+    position: static;
+    max-height: 300px;
+  }
+
+  .ops-page .ops-detail-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .ops-page .ops-header,
+  .ops-page .ops-detail-head {
+    flex-direction: column;
+  }
+
+  .ops-page .ops-header h1 {
+    font-size: 34px;
+  }
+
+  .ops-page .ops-stat-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-page .ops-toolbar > .ops-input[type="search"],
+  .ops-page .ops-toolbar > .ops-select-field,
+  .ops-page .ops-input--month,
+  .ops-page .ops-toolbar button,
+  .ops-page .ops-toolbar > .ops-check {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ops-page .ops-detail-meta,
+  .ops-page .ops-detail-form {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-page .ops-sticky-col,
+  .ops-page .ops-name-head--compact {
+    min-width: 190px !important;
+    width: 190px !important;
+    max-width: 190px;
+  }
+
+  .ops-page .ops-matrix td {
+    min-width: 62px;
+  }
+}
+
 .plan-page .plan-table-input {
   height: 36px;
   border-radius: 8px;

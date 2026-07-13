@@ -103,6 +103,12 @@ function shiftAbbrev(day: AdminAttendanceDay) {
   return "R";
 }
 
+function statusBadgeLabel(status: ShiftPlanDayStatus | null | undefined) {
+  if (status === "HOLIDAY") return "Dovolená";
+  if (status === "OFF") return "Volno";
+  return "Bez celodenní absence";
+}
+
 type EmploymentTypeFilter = "all" | "HPP" | "DPP_DPC";
 type AttendanceStateFilter = "all" | "present" | "planned" | "warning" | "holiday" | "off" | "locked";
 
@@ -187,6 +193,52 @@ export default function AdminAttendanceSheetsPage() {
       { workedMins: 0, plannedMins: 0, presentDays: 0, plannedDays: 0, warningDays: 0, holidayDays: 0, offDays: 0, afternoonMins: 0, lockedRows: 0 },
     );
   }, [cutoffMinutes, filteredRows]);
+
+  const selectedRowStats = useMemo(
+    () => (selectedRow ? computeMonthStats(selectedRow.days, selectedRow.employment_type, cutoffMinutes) : null),
+    [cutoffMinutes, selectedRow],
+  );
+
+  const selectedPlannedMins = useMemo(() => {
+    if (!selectedRow) return 0;
+    return selectedRow.days.reduce((acc, day) => {
+      const calc = computeDayCalc(
+        {
+          date: day.date,
+          arrival_time: day.planned_arrival_time ?? null,
+          departure_time: day.planned_departure_time ?? null,
+          planned_status: day.planned_status,
+        },
+        selectedRow.employment_type,
+        cutoffMinutes,
+      );
+      return acc + (calc.workedMins ?? 0) + (day.planned_status === "HOLIDAY" ? 8 * 60 : 0);
+    }, 0);
+  }, [cutoffMinutes, selectedRow]);
+
+  const selectedPresentDays = useMemo(() => {
+    if (!selectedRow) return 0;
+    return selectedRow.days.reduce((acc, day) => acc + (day.arrival_time || day.departure_time ? 1 : 0), 0);
+  }, [selectedRow]);
+
+  const selectedDayActualCalc = useMemo(() => {
+    if (!selectedRow || !selectedDay) return null;
+    return computeDayCalc(selectedDay, selectedRow.employment_type, cutoffMinutes);
+  }, [cutoffMinutes, selectedDay, selectedRow]);
+
+  const selectedDayPlannedCalc = useMemo(() => {
+    if (!selectedRow || !selectedDay) return null;
+    return computeDayCalc(
+      {
+        date: selectedDay.date,
+        arrival_time: selectedDay.planned_arrival_time ?? null,
+        departure_time: selectedDay.planned_departure_time ?? null,
+        planned_status: selectedDay.planned_status,
+      },
+      selectedRow.employment_type,
+      cutoffMinutes,
+    );
+  }, [cutoffMinutes, selectedDay, selectedRow]);
 
   const dailyCoverage = useMemo(() => {
     return days.map((day) =>
@@ -608,6 +660,131 @@ export default function AdminAttendanceSheetsPage() {
           </div>
         </main>
       </div>
+
+      <section className="ops-detail-grid" aria-label="Detail vybraného dne a měsíční souhrn">
+        <article className="admin-card ops-detail-card">
+          <div className="ops-detail-head">
+            <div>
+              <h2>Detail vybraného dne</h2>
+              <p>
+                {selectedRow && selectedDay
+                  ? `${selectedRow.user_name} · ${formatIsoDateForDisplay(selectedDay.date)}`
+                  : "Vyberte zaměstnance a den v matici."}
+              </p>
+            </div>
+            {selectedRow ? (
+              <span className={`ops-chip${selectedRow.locked ? " is-locked" : ""}`}>
+                {selectedRow.locked ? "Měsíc uzamčen" : "Měsíc otevřen"}
+              </span>
+            ) : null}
+          </div>
+
+          {selectedRow && selectedDay ? (
+            <>
+              <div className="ops-detail-meta">
+                <span>Zaměstnanec</span>
+                <strong>{selectedRow.user_name}</strong>
+                <span>Úvazek</span>
+                <strong>{selectedRow.employment_title} · {employmentTemplateLabel(selectedRow.employment_type)}</strong>
+                <span>ID řádku</span>
+                <strong>{selectedRow.employment_id}</strong>
+                <span>Plán směny</span>
+                <strong>
+                  {selectedDay.planned_status
+                    ? statusBadgeLabel(selectedDay.planned_status)
+                    : selectedDay.planned_arrival_time || selectedDay.planned_departure_time
+                      ? `${selectedDay.planned_arrival_time ?? "—"} – ${selectedDay.planned_departure_time ?? "—"}`
+                      : "Bez plánu"}
+                </strong>
+                <span>Skutečnost</span>
+                <strong>{selectedDay.arrival_time || selectedDay.departure_time ? `${selectedDay.arrival_time ?? "—"} – ${selectedDay.departure_time ?? "—"}` : "Bez průchodu"}</strong>
+                <span>Stav dne</span>
+                <strong>{statusBadgeLabel(selectedDay.planned_status)}</strong>
+                <span>Bilance dne</span>
+                <strong>
+                  {selectedDayActualCalc?.workedMins != null ? `${formatHours(selectedDayActualCalc.workedMins)} h` : "0.0 h"}
+                  {" / "}
+                  plán {selectedDayPlannedCalc?.workedMins != null ? `${formatHours(selectedDayPlannedCalc.workedMins)} h` : "0.0 h"}
+                </strong>
+              </div>
+
+              <form
+                className="ops-detail-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void saveSelectedDay();
+                }}
+              >
+                <label className="ops-select-field">
+                  <span>Příchod</span>
+                  <input
+                    className="ops-input"
+                    value={draftArrival}
+                    inputMode="numeric"
+                    placeholder={timeFieldPlaceholder()}
+                    disabled={saving || selectedRow.locked || Boolean(selectedDay.planned_status)}
+                    onChange={(event) => setDraftArrival(event.target.value)}
+                  />
+                </label>
+                <label className="ops-select-field">
+                  <span>Odchod</span>
+                  <input
+                    className="ops-input"
+                    value={draftDeparture}
+                    inputMode="numeric"
+                    placeholder={timeFieldPlaceholder()}
+                    disabled={saving || selectedRow.locked || Boolean(selectedDay.planned_status)}
+                    onChange={(event) => setDraftDeparture(event.target.value)}
+                  />
+                </label>
+                <Button type="submit" variant="primary" disabled={saving || selectedRow.locked || Boolean(selectedDay.planned_status)}>
+                  Uložit docházku
+                </Button>
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => setEditingCell({ employmentId: selectedRow.employment_id, date: selectedDay.date })}>
+                  Editovat v buňce
+                </Button>
+              </form>
+
+              <div className="ops-detail-actions">
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => void setDayStatus("HOLIDAY")}>
+                  Označit dovolenou
+                </Button>
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => void setDayStatus("OFF")}>
+                  Označit volno
+                </Button>
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => void setDayStatus(null)}>
+                  Zrušit stav dne
+                </Button>
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => void setMonthLock(selected, !selectedRow.locked)}>
+                  {selectedRow.locked ? "Odemknout měsíc" : "Uzamknout měsíc"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <EmptyState title="Není vybraný den" description="Klikněte na buňku v matici, tím se otevře detail dne pro forenzní úpravu docházky." />
+          )}
+        </article>
+
+        <article className="admin-card ops-detail-card">
+          <div className="ops-detail-head">
+            <div>
+              <h2>Měsíční souhrn řádku</h2>
+              <p>{selectedRow ? `${selectedRow.user_name} · ${selectedRow.employment_label}` : "Bez vybraného zaměstnance"}</p>
+            </div>
+          </div>
+
+          <div className="ops-summary-list">
+            <div><span>Odpracováno</span><strong>{selectedRowStats ? `${formatHours(selectedRowStats.totalMins)} h` : "—"}</strong></div>
+            <div><span>Plán měsíce</span><strong>{selectedRow ? `${formatHours(selectedPlannedMins)} h` : "—"}</strong></div>
+            <div><span>Saldo</span><strong>{selectedRowStats && selectedRow ? `${selectedRowStats.totalMins - selectedPlannedMins > 0 ? "+" : ""}${formatHours(selectedRowStats.totalMins - selectedPlannedMins)} h` : "—"}</strong></div>
+            <div><span>Přítomné dny</span><strong>{selectedRow ? `${selectedPresentDays} dnů` : "—"}</strong></div>
+            <div><span>Dovolená</span><strong>{selectedRowStats ? `${selectedRowStats.vacationDays} dnů` : "—"}</strong></div>
+            <div><span>Odpolední hodiny</span><strong>{selectedRowStats ? `${formatHours(selectedRowStats.afternoonMins)} h` : "—"}</strong></div>
+            <div><span>Datum od</span><strong>{selectedRow ? formatIsoDateForDisplay(selectedRow.start_date) : "—"}</strong></div>
+            <div><span>Datum do</span><strong>{selectedRow?.end_date ? formatIsoDateForDisplay(selectedRow.end_date) : "Aktivní bez konce"}</strong></div>
+          </div>
+        </article>
+      </section>
 
       {contextMenu ? (
         <div className="ops-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }} role="menu" aria-label="Celodenní nepřítomnost">
