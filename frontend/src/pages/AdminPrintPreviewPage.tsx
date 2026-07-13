@@ -29,6 +29,15 @@ type PlanDoc = {
 };
 type DocRecord = AttendanceDoc | PlanDoc;
 
+const A4_WIDTH_PX = (210 / 25.4) * 96;
+const A4_HEIGHT_PX = (297 / 25.4) * 96;
+
+function getPreviewScale() {
+  if (typeof window === "undefined") return 1;
+  const viewportWidth = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
+  return Math.min(1, Math.max(0.2, (viewportWidth - 16) / A4_WIDTH_PX));
+}
+
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -92,7 +101,15 @@ export default function AdminPrintPreviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [docs, setDocs] = useState<DocRecord[]>([]);
   const [pdfGenerated, setPdfGenerated] = useState(false);
+  const [previewScale, setPreviewScale] = useState(getPreviewScale);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const updatePreviewScale = () => setPreviewScale(getPreviewScale());
+    updatePreviewScale();
+    window.addEventListener("resize", updatePreviewScale);
+    return () => window.removeEventListener("resize", updatePreviewScale);
+  }, []);
 
   useEffect(() => {
     if (!parsed || idList.length === 0) return;
@@ -169,19 +186,26 @@ export default function AdminPrintPreviewPage() {
     if (loading || error || docs.length === 0 || pdfGenerated) return;
     const currentContainer = containerRef.current;
     if (!currentContainer) return;
+    const renderContainer = currentContainer;
 
     async function generatePdf() {
-      const sheets = Array.from(currentContainer!.querySelectorAll(".print-sheet")) as HTMLElement[];
+      renderContainer.classList.add("print-pdf-rendering");
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
+      const sheets = Array.from(renderContainer.querySelectorAll(".print-sheet")) as HTMLElement[];
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
 
-      for (let i = 0; i < sheets.length; i += 1) {
-        const canvas = await html2canvas(sheets[i], { scale: 2, useCORS: true, backgroundColor: "#f3efe7" });
-        const imgData = canvas.toDataURL("image/png");
-        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, 0, canvas.width * ratio, canvas.height * ratio);
+      try {
+        for (let i = 0; i < sheets.length; i += 1) {
+          const canvas = await html2canvas(sheets[i], { scale: 2, useCORS: true, backgroundColor: "#f3efe7" });
+          const imgData = canvas.toDataURL("image/png");
+          const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, 0, canvas.width * ratio, canvas.height * ratio);
+        }
+      } finally {
+        renderContainer.classList.remove("print-pdf-rendering");
       }
 
       pdf.save(`tisky-${docType}-${month || "mesic"}.pdf`);
@@ -215,16 +239,23 @@ export default function AdminPrintPreviewPage() {
           border: 1px solid rgba(32, 34, 37, 0.12);
           box-shadow: 0 18px 44px rgba(32, 34, 37, 0.08);
         }
+        .print-sheet-frame {
+          width: 210mm;
+          min-height: 297mm;
+          margin: 0 auto 14px;
+          overflow: visible;
+        }
         .print-sheet {
           width: 210mm;
           min-height: 297mm;
           padding: 15mm 12mm;
-          margin: 0 auto 14px;
+          margin: 0;
           background: #fffdf8;
           box-shadow: 0 18px 44px rgba(32, 34, 37, 0.08);
           border-radius: 8px;
+          transform-origin: top left;
         }
-        .print-sheet + .print-sheet { page-break-before: always; }
+        .print-sheet-frame + .print-sheet-frame { page-break-before: always; }
         .print-kicker {
           margin-bottom: 10px;
           font-size: 11px;
@@ -271,6 +302,16 @@ export default function AdminPrintPreviewPage() {
           font-size: 10px;
           color: #6b7280;
         }
+        @media screen and (max-width: 820px) {
+          .print-preview-page { padding: 12px 0 24px; overflow-x: hidden; }
+          .print-sheet-frame { overflow: hidden; }
+          .print-pdf-rendering .print-sheet-frame {
+            width: 210mm !important;
+            min-height: 297mm !important;
+            overflow: visible;
+          }
+          .print-pdf-rendering .print-sheet { transform: none !important; }
+        }
       `}</style>
 
       {loading ? <div className="print-preview-status">Načítám podklady pro tisk…</div> : null}
@@ -281,7 +322,12 @@ export default function AdminPrintPreviewPage() {
           if (doc.type === "attendance") {
             const stats = computeMonthStats(doc.days, doc.employment.employment_type, doc.cutoffMinutes);
             return (
-              <div key={`attendance-${doc.employment.id}`} className="print-sheet">
+              <div
+                key={`attendance-${doc.employment.id}`}
+                className="print-sheet-frame"
+                style={{ width: A4_WIDTH_PX * previewScale, minHeight: A4_HEIGHT_PX * previewScale }}
+              >
+              <div className="print-sheet" style={{ transform: `scale(${previewScale})` }}>
                 <div className="print-kicker">Operační cockpit hotelu</div>
                 <h1>{label} · Evidence docházky</h1>
                 <h2>{doc.employment.label}</h2>
@@ -371,11 +417,17 @@ export default function AdminPrintPreviewPage() {
                 </table>
                 <div className="print-signature">Tento přehled byl vygenerován produkční administrací KájovoDagmar.</div>
               </div>
+              </div>
             );
           }
 
           return (
-            <div key={`plan-${doc.employment.id}`} className="print-sheet">
+            <div
+              key={`plan-${doc.employment.id}`}
+              className="print-sheet-frame"
+              style={{ width: A4_WIDTH_PX * previewScale, minHeight: A4_HEIGHT_PX * previewScale }}
+            >
+            <div className="print-sheet" style={{ transform: `scale(${previewScale})` }}>
               <div className="print-kicker">Operační cockpit hotelu</div>
               <h1>{label} · Plán služeb</h1>
               <h2>{doc.employment.label}</h2>
@@ -441,6 +493,7 @@ export default function AdminPrintPreviewPage() {
                 </tbody>
               </table>
               <div className="print-signature">Tento přehled byl vygenerován produkční administrací KájovoDagmar.</div>
+            </div>
             </div>
           );
         })}
