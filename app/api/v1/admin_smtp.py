@@ -21,6 +21,7 @@ from app.security.crypto import decrypt_secret, encrypt_secret
 from app.security.csrf import require_csrf
 
 router = APIRouter(prefix="/api/v1/admin/smtp", tags=["admin-smtp"])
+SMTP_TEST_TIMEOUT_SECONDS = 8
 
 
 class SmtpOut(BaseModel):
@@ -182,17 +183,17 @@ def _run_smtp_test(payload: SmtpIn, *, admin: object, settings: Settings, st: Ap
         _set_step(steps, "sender", status="success", detail=f"Odesílatel: {from_email}")
 
         _set_step(steps, "connect", status="running")
-        with socket.create_connection((host, port), timeout=20):
+        with socket.create_connection((host, port), timeout=SMTP_TEST_TIMEOUT_SECONDS):
             pass
         _set_step(steps, "connect", status="success", detail=f"{host}:{port}")
 
         _set_step(steps, "tls", status="running")
         if security == "SSL":
-            server = smtplib.SMTP_SSL(host, port, timeout=20)
+            server = smtplib.SMTP_SSL(host, port, timeout=SMTP_TEST_TIMEOUT_SECONDS)
             server.ehlo()
             _set_step(steps, "tls", status="success", detail="Navázáno přes implicitní SSL.")
         else:
-            server = smtplib.SMTP(host, port, timeout=20)
+            server = smtplib.SMTP(host, port, timeout=SMTP_TEST_TIMEOUT_SECONDS)
             server.ehlo()
             if security == "STARTTLS":
                 if not server.has_extn("starttls"):
