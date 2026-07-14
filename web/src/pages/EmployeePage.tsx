@@ -19,6 +19,19 @@ const hoursLabel=(minutes:number)=>`${Math.floor(minutes/60)} h ${minutes%60} mi
 const shortHoursLabel=(minutes:number)=>`${Math.floor(minutes/60)}:${String(minutes%60).padStart(2,"0")}`;
 const statusLabels:Record<string,string>={HOLIDAY:"Dovolená",OFF:"Volno"};
 const themeKey = "kajovodagmar.employee.theme.v1";
+const fixedPublicHolidays: Record<string, string> = {
+  "01-01":"Nový rok / Den obnovy samostatného českého státu",
+  "05-01":"Svátek práce",
+  "05-08":"Den vítězství",
+  "07-05":"Cyril a Metoděj",
+  "07-06":"Den upálení mistra Jana Husa",
+  "09-28":"Den české státnosti",
+  "10-28":"Den vzniku samostatného československého státu",
+  "11-17":"Den boje za svobodu a demokracii",
+  "12-24":"Štědrý den",
+  "12-25":"1. svátek vánoční",
+  "12-26":"2. svátek vánoční",
+};
 const namedays:Record<string,string>={
   "01-01":"Nový rok / Den obnovy samostatného českého státu","01-02":"Karina","01-03":"Radmila","01-04":"Diana","01-05":"Dalimil","01-06":"Tři králové","01-07":"Vilma","01-08":"Čestmír","01-09":"Vladan","01-10":"Břetislav","01-11":"Bohdana","01-12":"Pravoslav","01-13":"Edita","01-14":"Radovan","01-15":"Alice","01-16":"Ctirad","01-17":"Drahoslav","01-18":"Vladislav","01-19":"Doubravka","01-20":"Ilona","01-21":"Běla","01-22":"Slavomír","01-23":"Zdeněk","01-24":"Milena","01-25":"Miloš","01-26":"Zora","01-27":"Ingrid","01-28":"Otýlie","01-29":"Zdislava","01-30":"Robin","01-31":"Marika",
   "02-01":"Hynek","02-02":"Nela","02-03":"Blažej","02-04":"Jarmila","02-05":"Dobromila","02-06":"Vanda","02-07":"Veronika","02-08":"Milada","02-09":"Apolena","02-10":"Mojmír","02-11":"Božena","02-12":"Slavěna","02-13":"Věnceslav","02-14":"Valentýn","02-15":"Jiřina","02-16":"Ljuba","02-17":"Miloslava","02-18":"Gizela","02-19":"Patrik","02-20":"Oldřich","02-21":"Lenka","02-22":"Petr","02-23":"Svatopluk","02-24":"Matěj","02-25":"Liliana","02-26":"Dorota","02-27":"Alexandr","02-28":"Lumír","02-29":"Horymír",
@@ -33,7 +46,45 @@ const namedays:Record<string,string>={
   "11-01":"Felix","11-02":"Památka zesnulých","11-03":"Hubert","11-04":"Karel","11-05":"Miriam","11-06":"Liběna","11-07":"Saskie","11-08":"Bohumír","11-09":"Bohdan","11-10":"Evžen","11-11":"Martin","11-12":"Benedikt","11-13":"Tibor","11-14":"Sáva","11-15":"Leopold","11-16":"Otmar","11-17":"Den boje za svobodu a demokracii","11-18":"Romana","11-19":"Alžběta","11-20":"Nikola","11-21":"Albert","11-22":"Cecílie","11-23":"Klement","11-24":"Emílie","11-25":"Kateřina","11-26":"Artur","11-27":"Xenie","11-28":"René","11-29":"Zina","11-30":"Ondřej",
   "12-01":"Iva","12-02":"Blanka","12-03":"Svatoslav","12-04":"Barbora","12-05":"Jitka","12-06":"Mikuláš","12-07":"Ambrož","12-08":"Květoslava","12-09":"Vratislav","12-10":"Julie","12-11":"Dana","12-12":"Simona","12-13":"Lucie","12-14":"Lýdie","12-15":"Radana","12-16":"Albína","12-17":"Daniel","12-18":"Miloslav","12-19":"Ester","12-20":"Dagmar","12-21":"Natálie","12-22":"Šimon","12-23":"Vlasta","12-24":"Štědrý den","12-25":"1. svátek vánoční","12-26":"2. svátek vánoční","12-27":"Žaneta","12-28":"Bohumila","12-29":"Judita","12-30":"David","12-31":"Silvestr"
 };
-const dayMeta=(date:Date)=>namedays[`${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`]??"";
+function easterSunday(year:number): Date {
+  const goldenYear=year%19;
+  const century=Math.trunc(year/100);
+  const yearInCentury=year-(century*100);
+  const leapCenturies=Math.trunc(century/4);
+  const centuryRemainder=century-(leapCenturies*4);
+  const lunarShift=Math.trunc((century+8)/25);
+  const solarLunarCorrection=Math.trunc((century-lunarShift+1)/3);
+  const epact=(19*goldenYear+century-leapCenturies-solarLunarCorrection+15)%30;
+  const leapYearsInCentury=Math.trunc(yearInCentury/4);
+  const yearRemainder=yearInCentury-(leapYearsInCentury*4);
+  const weekdayOffset=(32+2*centuryRemainder+2*leapYearsInCentury-epact-yearRemainder)%7;
+  const correction=Math.trunc((goldenYear+11*epact+22*weekdayOffset)/451);
+  const marchBasedDay=epact+weekdayOffset-7*correction+114;
+  return new Date(year,Math.trunc(marchBasedDay/31)-1,(marchBasedDay%31)+1,12);
+}
+function dateKey(date:Date): string { return `${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`; }
+function isoDateKey(date:Date): string { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`; }
+function holidayLabel(date:Date): string | null {
+  const fixed=fixedPublicHolidays[dateKey(date)];
+  if(fixed)return fixed;
+  const easter=easterSunday(date.getFullYear());
+  const goodFriday=new Date(easter);goodFriday.setDate(easter.getDate()-2);
+  const easterMonday=new Date(easter);easterMonday.setDate(easter.getDate()+1);
+  if(isoDateKey(date)===isoDateKey(goodFriday))return "Velký pátek";
+  if(isoDateKey(date)===isoDateKey(easterMonday))return "Velikonoční pondělí";
+  return null;
+}
+function dayMeta(date:Date): string {
+  const holiday=holidayLabel(date);
+  if(holiday)return holiday;
+  const name=namedays[dateKey(date)];
+  return name?`svátek má ${name}`:"";
+}
+function dayKind(date:Date): "holiday"|"weekend"|"work" {
+  if(holidayLabel(date))return "holiday";
+  const weekday=date.getDay();
+  return weekday===0||weekday===6?"weekend":"work";
+}
 
 function EmployeeLogin({ onLogin }: { onLogin:(session:PortalSession)=>void }) {
   const [email,setEmail]=useState("");const[password,setPassword]=useState("");const[error,setError]=useState("");const[pending,setPending]=useState(false);
@@ -72,10 +123,10 @@ function DayCard({ day, locked, onSave, onStatus }: { day:AttendanceDay;locked:b
   const blur=(field:TimeField)=>{const next=commit(field);if(next){setEditing(null);save(next)}};
   const key=(event:KeyboardEvent<HTMLInputElement>,field:TimeField)=>{if(event.key!=="Enter")return;if(editing!==field){event.preventDefault();enterEdit(field);return}event.preventDefault();const next=commit(field);if(next){setEditing(null);save(next)}};
   const setStatus=(status:string)=>{setStatusOpen(false);onStatus(day,status,true)};
-  return <article className={`ledger-day employee-day employee-day--${day.planned_status?.toLowerCase()??"work"} ${!day.is_within_employment_period?"ledger-day--outside":""}`}><div className="employee-day__date"><strong>{`${String(date.getDate()).padStart(2,"0")}.${String(date.getMonth()+1).padStart(2,"0")}.${date.getFullYear()}`}</strong><span>{dayName.format(date)}</span><small>{dayMeta(date)}</small></div><TimeCell field="arrival_time" label="1. příchod" planned={day.planned_arrival_time} value={values.arrival_time} editing={editing==="arrival_time"} invalid={invalid==="arrival_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("arrival_time")} onChange={value=>setValues(current=>({...current,arrival_time:value}))} onBlur={()=>blur("arrival_time")} onKeyDown={event=>key(event,"arrival_time")}/><TimeCell field="departure_time" label="1. odchod" planned={day.planned_departure_time} value={values.departure_time} editing={editing==="departure_time"} invalid={invalid==="departure_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("departure_time")} onChange={value=>setValues(current=>({...current,departure_time:value}))} onBlur={()=>blur("departure_time")} onKeyDown={event=>key(event,"departure_time")}/><TimeCell field="arrival_time_2" label="2. příchod" planned={null} value={values.arrival_time_2} editing={editing==="arrival_time_2"} invalid={invalid==="arrival_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("arrival_time_2")} onChange={value=>setValues(current=>({...current,arrival_time_2:value}))} onBlur={()=>blur("arrival_time_2")} onKeyDown={event=>key(event,"arrival_time_2")}/><TimeCell field="departure_time_2" label="2. odchod" planned={null} value={values.departure_time_2} editing={editing==="departure_time_2"} invalid={invalid==="departure_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("departure_time_2")} onChange={value=>setValues(current=>({...current,departure_time_2:value}))} onBlur={()=>blur("departure_time_2")} onKeyDown={event=>key(event,"departure_time_2")}/><div className="employee-day__status"><button type="button" className="icon-button" disabled={locked||!day.is_within_employment_period} aria-label={`${fullDate.format(date)} celodenní nepřítomnost`} title="Celodenní nepřítomnost" onClick={()=>setStatusOpen(open=>!open)}><MoreVertical/></button>{statusOpen&&<div className="absence-menu"><button type="button" onClick={()=>setStatus("")}>Pracovní den</button><button type="button" onClick={()=>setStatus("HOLIDAY")}>Dovolená</button><button type="button" onClick={()=>setStatus("OFF")}>Volno</button></div>}{day.planned_status&&<small>{statusLabels[day.planned_status]??day.planned_status}</small>}</div></article>;
+  return <article className={`ledger-day employee-day employee-day--${day.planned_status?.toLowerCase()??"work"} employee-day--${dayKind(date)} ${!day.is_within_employment_period?"ledger-day--outside":""}`}><div className="employee-day__date"><strong>{`${String(date.getDate()).padStart(2,"0")}.${String(date.getMonth()+1).padStart(2,"0")}.${date.getFullYear()}`}</strong><span>{dayName.format(date)}</span><small>{dayMeta(date)}</small></div><TimeCell field="arrival_time" label="1. příchod" planned={day.planned_arrival_time} value={values.arrival_time} editing={editing==="arrival_time"} invalid={invalid==="arrival_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("arrival_time")} onChange={value=>setValues(current=>({...current,arrival_time:value}))} onBlur={()=>blur("arrival_time")} onKeyDown={event=>key(event,"arrival_time")}/><TimeCell field="departure_time" label="1. odchod" planned={day.planned_departure_time} value={values.departure_time} editing={editing==="departure_time"} invalid={invalid==="departure_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("departure_time")} onChange={value=>setValues(current=>({...current,departure_time:value}))} onBlur={()=>blur("departure_time")} onKeyDown={event=>key(event,"departure_time")}/><TimeCell field="arrival_time_2" label="2. příchod" planned={null} value={values.arrival_time_2} editing={editing==="arrival_time_2"} invalid={invalid==="arrival_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("arrival_time_2")} onChange={value=>setValues(current=>({...current,arrival_time_2:value}))} onBlur={()=>blur("arrival_time_2")} onKeyDown={event=>key(event,"arrival_time_2")}/><TimeCell field="departure_time_2" label="2. odchod" planned={null} value={values.departure_time_2} editing={editing==="departure_time_2"} invalid={invalid==="departure_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("departure_time_2")} onChange={value=>setValues(current=>({...current,departure_time_2:value}))} onBlur={()=>blur("departure_time_2")} onKeyDown={event=>key(event,"departure_time_2")}/><div className="employee-day__status"><button type="button" className="icon-button" disabled={locked||!day.is_within_employment_period} aria-label={`${fullDate.format(date)} celodenní nepřítomnost`} title="Celodenní nepřítomnost" onClick={()=>setStatusOpen(open=>!open)}><MoreVertical/></button>{statusOpen&&<div className="absence-menu"><button type="button" onClick={()=>setStatus("")}>Pracovní den</button><button type="button" onClick={()=>setStatus("HOLIDAY")}>Dovolená</button><button type="button" onClick={()=>setStatus("OFF")}>Volno</button></div>}{day.planned_status&&<small>{statusLabels[day.planned_status]??day.planned_status}</small>}</div></article>;
 }
 
-function TimeCell({field,label,planned,value,editing,invalid,disabled,mobileHidden,onEdit,onChange,onBlur,onKeyDown}:{field:TimeField;label:string;planned:string|null;value:string;editing:boolean;invalid:boolean;disabled:boolean;mobileHidden:boolean;onEdit:()=>void;onChange:(value:string)=>void;onBlur:()=>void;onKeyDown:(event:KeyboardEvent<HTMLInputElement>)=>void}){return <label className={`time-cell ${invalid?"time-cell--invalid":""} ${mobileHidden?"time-cell--mobile-hidden":""}`}><span>{label}</span><em>{planned?`plán ${planned}`:" "}</em><input name={field} inputMode="numeric" placeholder="0:00" value={value} readOnly={!editing} disabled={disabled} aria-invalid={invalid} onDoubleClick={onEdit} onFocus={event=>{if(editing)event.currentTarget.select()}} onChange={event=>onChange(event.target.value)} onBlur={onBlur} onKeyDown={onKeyDown}/></label>}
+function TimeCell({field,label,planned,value,editing,invalid,disabled,mobileHidden,onEdit,onChange,onBlur,onKeyDown}:{field:TimeField;label:string;planned:string|null;value:string;editing:boolean;invalid:boolean;disabled:boolean;mobileHidden:boolean;onEdit:()=>void;onChange:(value:string)=>void;onBlur:()=>void;onKeyDown:(event:KeyboardEvent<HTMLInputElement>)=>void}){return <label className={`time-cell ${editing?"time-cell--editing":""} ${invalid?"time-cell--invalid":""} ${mobileHidden?"time-cell--mobile-hidden":""}`}><span>{label}</span><em>{planned?`plán ${planned}`:" "}</em><input name={field} inputMode="numeric" enterKeyHint="done" pattern="[0-9:.,]*" placeholder="0:00" value={value} readOnly={disabled} disabled={disabled} aria-invalid={invalid} onPointerDown={onEdit} onClick={onEdit} onFocus={event=>{const input=event.currentTarget;onEdit();requestAnimationFrame(()=>input.select())}} onChange={event=>onChange(event.target.value)} onBlur={onBlur} onKeyDown={onKeyDown}/></label>}
 
 export function EmployeePage(){
   const[session,setSession]=useState<PortalSession|null>(()=>loadPortalSession());const[month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));const[queueCount,setQueueCount]=useState(0);const[notice,setNotice]=useState("");const[statusConflict,setStatusConflict]=useState<{day:AttendanceDay;status:string}|null>(null);const[inverted,setInverted]=useState(()=>{try{return localStorage.getItem(themeKey)==="light"}catch{return false}});const qc=useQueryClient();
