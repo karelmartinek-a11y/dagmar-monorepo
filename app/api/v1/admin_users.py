@@ -65,6 +65,7 @@ class PortalUserOut(BaseModel):
     locked_until: str | None = None
     login_status: str
     login_status_reason: str | None = None
+    last_login_at: str | None = None
     employments: list[EmploymentOut]
 
 
@@ -270,6 +271,7 @@ def _to_user_out(user: PortalUser, lock_state: AuthLockoutState | None = None) -
     locked_until = as_utc(lock_state.locked_until) if lock_state is not None else None
     login_status, login_status_reason = _user_login_status(user)
     employments = sorted(user.employments, key=_employment_sort_key)
+    last_login_at = as_utc(getattr(user.instance, "last_seen_at", None)) if getattr(user, "instance", None) is not None else None
     return PortalUserOut(
         id=user.id,
         name=(user.name or "").strip(),
@@ -282,6 +284,7 @@ def _to_user_out(user: PortalUser, lock_state: AuthLockoutState | None = None) -
         locked_until=locked_until.isoformat() if locked_until is not None else None,
         login_status=login_status,
         login_status_reason=login_status_reason,
+        last_login_at=last_login_at.isoformat() if last_login_at is not None else None,
         employments=[_to_employment_out(item) for item in employments],
     )
 
@@ -316,6 +319,7 @@ def _apply_password(db: Session, user: PortalUser, raw_password: str | None) -> 
 def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
     users_table = PortalUser.__table__
     employments_table = Employment.__table__
+    instances_table = Instance.__table__
 
     user_rows = db.execute(
         select(
@@ -325,7 +329,10 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
             users_table.c.phone,
             users_table.c.password_hash,
             users_table.c.is_active,
-        ).order_by(users_table.c.name.asc())
+            instances_table.c.last_seen_at.label("last_login_at"),
+        )
+        .select_from(users_table.outerjoin(instances_table, instances_table.c.id == users_table.c.instance_id))
+        .order_by(users_table.c.name.asc())
     ).mappings().all()
 
     if not user_rows:
@@ -405,6 +412,7 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
                 role=SimpleNamespace(value="employee"),
                 password_hash=row["password_hash"],
                 is_active=bool(row["is_active"]),
+                instance=SimpleNamespace(last_seen_at=row["last_login_at"]) if row["last_login_at"] is not None else None,
                 employments=employments,
             )
             out.append(

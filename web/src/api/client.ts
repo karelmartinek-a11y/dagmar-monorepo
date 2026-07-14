@@ -85,6 +85,9 @@ export const api = {
   savePortalStatus: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
     "/api/v1/shift-plan/day-status", { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),
+  saveShiftPlan: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
+    "/api/v1/shift-plan", { method: "PUT", body: JSON.stringify(payload) }, "portal",
+  ),
   adminMe: () => request<{ authenticated: boolean; username: string | null }>("/api/v1/admin/me", {}, "admin"),
   adminLogin: async (username: string, password: string) => {
     csrfToken = null;

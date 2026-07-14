@@ -124,6 +124,9 @@ class Employment(Base):
     shift_plan_month_employments: Mapped[list[ShiftPlanMonthInstance]] = relationship(
         "ShiftPlanMonthInstance", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
     )
+    shift_plan_edit_overrides: Mapped[list[ShiftPlanEmploymentEditPermission]] = relationship(
+        "ShiftPlanEmploymentEditPermission", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     __table_args__ = (
         Index("ix_employments_user_id", "user_id"),
@@ -218,6 +221,48 @@ class ShiftPlanMonthInstance(Base):
         Index("ix_shift_plan_month_instances_month", "month"),
         Index("ix_shift_plan_month_instances_employment_id", "employment_id"),
         Index("ix_shift_plan_month_instances_instance_id", "instance_id"),
+    )
+
+
+class ShiftPlanMonthEditPolicy(Base):
+    __tablename__ = "shift_plan_month_edit_policies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    allow_employee_edits: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+    updated_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("year", "month", name="uq_shift_plan_month_edit_policy"),
+        Index("ix_shift_plan_month_edit_policies_year_month", "year", "month"),
+    )
+
+
+class ShiftPlanEmploymentEditPermission(Base):
+    __tablename__ = "shift_plan_employment_edit_permissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    employment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("employments.id", ondelete="CASCADE"), nullable=False
+    )
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    allow_employee_edits: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+    updated_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    employment: Mapped[Employment] = relationship("Employment", back_populates="shift_plan_edit_overrides")
+
+    __table_args__ = (
+        UniqueConstraint("employment_id", "year", "month", name="uq_shift_plan_employment_edit_permission"),
+        Index("ix_shift_plan_employment_edit_permissions_month", "year", "month"),
+        Index("ix_shift_plan_employment_edit_permissions_employment", "employment_id"),
     )
 
 

@@ -3,7 +3,7 @@ import { api, ApiError } from "../api/client";
 
 export type QueuedOperation = {
   id?: number;
-  kind: "attendance" | "day-status";
+  kind: "attendance" | "day-status" | "shift-plan";
   employment_id: number;
   payload: Record<string, unknown>;
   created_at: string;
@@ -35,7 +35,8 @@ export async function flushOperations(allowedEmploymentIds?: ReadonlySet<number>
     }
     try {
       if (operation.kind === "attendance") await api.saveAttendance(operation.payload);
-      else await api.savePortalStatus(operation.payload);
+      else if (operation.kind === "day-status") await api.savePortalStatus(operation.payload);
+      else await api.saveShiftPlan(operation.payload);
       await db.delete("operations", operation.id!);
       completed += 1;
     } catch (error) {
