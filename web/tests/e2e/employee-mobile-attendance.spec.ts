@@ -107,7 +107,7 @@ for (const width of [360, 390]) {
     expect(metrics.alignBottom).toBeLessThanOrEqual(1);
     expect(metrics.inputMode).toBe("numeric");
     expect(metrics.enterKeyHint).toBe("done");
-    expect(metrics.fontSize).toBe("16px");
+    expect(metrics.fontSize).toBe("24px");
     expect(metrics.nameDay).toBe("svátek má Jaroslava");
     expect(metrics.holidayText).toBe("Cyril a Metoděj");
     expect(metrics.weekendDate).toBe("04.07.2026");
