@@ -186,7 +186,7 @@ jobs:
             install -d "$BACK_RELEASE/app" "$BACK_RELEASE/alembic" "$WEB_RELEASE"
             rsync -a "$REPO/app/" "$BACK_RELEASE/app/"
             rsync -a "$REPO/alembic/" "$BACK_RELEASE/alembic/"
-            install -m 0644 "$REPO/pyproject.toml" "$REPO/alembic.ini" "$REPO/gunicorn.conf.py" "$BACK_RELEASE/"
+            install -m 0644 "$REPO/pyproject.toml" "$REPO/README.md" "$REPO/alembic.ini" "$REPO/gunicorn.conf.py" "$BACK_RELEASE/"
             python3 -m venv "$BACK_RELEASE/.venv"
             "$BACK_RELEASE/.venv/bin/pip" install --upgrade pip
             "$BACK_RELEASE/.venv/bin/pip" install "$BACK_RELEASE"
