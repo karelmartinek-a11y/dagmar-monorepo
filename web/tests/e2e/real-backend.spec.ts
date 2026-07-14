@@ -15,19 +15,20 @@ test.describe("real backend workflows", () => {
     await page.getByRole("button", { name: "Otevřít docházku" }).click();
     await expect(page.getByRole("heading", { name: "Měsíční docházka" })).toBeVisible();
 
-    const arrival = page.locator('input[aria-label$="příchod"]:enabled').first();
-    await arrival.fill("08:15");
-    const saveButton = arrival.locator("xpath=ancestor::article").getByRole("button", { name: "Uložit" });
+    const arrival = page.locator('input[name="arrival_time"]:enabled').first();
+    await arrival.dblclick();
+    await arrival.fill("0815");
     const refreshedAttendance = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/v1/attendance");
-    await saveButton.click();
+    await arrival.press("Enter");
     await expect(page.getByText("Docházka byla uložena.")).toBeVisible();
     await refreshedAttendance;
-    await expect(saveButton).toBeHidden();
+    await expect(arrival).toHaveValue("08:15");
 
     await page.route("**/api/v1/attendance", route => route.abort("internetdisconnected"));
-    const currentArrival = page.locator('input[aria-label$="příchod"]:enabled').first();
-    await currentArrival.fill("08:16");
-    await currentArrival.locator("xpath=ancestor::article").getByRole("button", { name: "Uložit" }).click();
+    const currentArrival = page.locator('input[name="arrival_time"]:enabled').first();
+    await currentArrival.dblclick();
+    await currentArrival.fill("0816");
+    await currentArrival.press("Enter");
     await expect(page.getByText("Změna čeká v bezpečné frontě na obnovení připojení.")).toBeVisible();
     await expect(page.getByText("Docházka byla uložena.")).not.toBeVisible();
     await page.unroute("**/api/v1/attendance");
