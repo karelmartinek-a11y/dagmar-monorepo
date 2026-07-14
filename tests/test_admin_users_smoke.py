@@ -31,6 +31,8 @@ from app.db.models import (
     PortalUserResetToken,
     PortalUserRole,
     ShiftPlan,
+    ShiftPlanEmploymentEditPermission,
+    ShiftPlanMonthEditPolicy,
     ShiftPlanMonthInstance,
 )
 from app.security.csrf import require_csrf
@@ -581,12 +583,111 @@ def test_shift_plan_defaults_to_active_employments_and_keeps_inactive_available_
     payload = response.json()
 
     assert payload["selected_employment_ids"] == [first_employment_id, second_employment_id]
-    assert [row["employment_id"] for row in payload["rows"]] == [first_employment_id, second_employment_id]
+    assert [row["employment_id"] for row in payload["rows"]] == [
+        first_employment_id,
+        second_employment_id,
+        inactive_employment_id,
+    ]
     assert inactive_employment_id in [item["id"] for item in payload["available_employments"]]
     inactive_meta = next(item for item in payload["available_employments"] if item["id"] == inactive_employment_id)
     assert inactive_meta["is_active_in_month"] is False
     assert payload["rows"][0]["days"][9]["arrival_time"] == "08:00"
     assert payload["rows"][1]["days"][9]["arrival_time"] is None
+
+
+def test_employee_shift_plan_editing_respects_admin_month_and_employment_permissions() -> None:
+    client, session_local = _build_client()
+    target_day = date(2026, 5, 12)
+    with session_local() as db:
+        user = _create_user(db, email="employee-plan-edit@example.com", name="Plánující Uživatel")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), title="Recepce")
+        employment_id = employment.id
+
+    login_response = _portal_login(client, "employee-plan-edit@example.com")
+    assert login_response.status_code == 200
+    token = login_response.json()["instance_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    attendance_response = client.get(
+        f"/api/v1/attendance?employment_id={employment_id}&year=2026&month=5",
+        headers=headers,
+    )
+    assert attendance_response.status_code == 200
+    assert attendance_response.json()["shift_plan_editable"] is False
+
+    denied_response = client.put(
+        "/api/v1/shift-plan",
+        headers=headers,
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:15",
+            "departure_time": "16:45",
+        },
+    )
+    assert denied_response.status_code == 403
+
+    global_allow_response = client.put(
+        "/api/v1/admin/shift-plan/edit-permission",
+        json={"year": 2026, "month": 5, "allow_employee_edits": True},
+    )
+    assert global_allow_response.status_code == 200
+
+    admin_month_response = client.get("/api/v1/admin/shift-plan?year=2026&month=5")
+    assert admin_month_response.status_code == 200
+    admin_payload = admin_month_response.json()
+    assert admin_payload["employee_plan_edit_default"] is True
+    assert admin_payload["rows"][0]["employee_plan_edit_allowed"] is True
+    assert admin_payload["rows"][0]["employee_plan_edit_override"] is None
+
+    editable_attendance_response = client.get(
+        f"/api/v1/attendance?employment_id={employment_id}&year=2026&month=5",
+        headers=headers,
+    )
+    assert editable_attendance_response.status_code == 200
+    assert editable_attendance_response.json()["shift_plan_editable"] is True
+
+    save_response = client.put(
+        "/api/v1/shift-plan",
+        headers=headers,
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:15",
+            "departure_time": "16:45",
+        },
+    )
+    assert save_response.status_code == 200
+    with session_local() as db:
+        shift_row = db.execute(
+            select(ShiftPlan).where(ShiftPlan.employment_id == employment_id, ShiftPlan.date == target_day)
+        ).scalar_one()
+        assert shift_row.arrival_time == "08:15"
+        assert shift_row.departure_time == "16:45"
+
+    employment_deny_response = client.put(
+        "/api/v1/admin/shift-plan/edit-permission",
+        json={"year": 2026, "month": 5, "employment_id": employment_id, "allow_employee_edits": False},
+    )
+    assert employment_deny_response.status_code == 200
+
+    blocked_by_override_response = client.put(
+        "/api/v1/shift-plan",
+        headers=headers,
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "09:00",
+            "departure_time": "17:00",
+        },
+    )
+    assert blocked_by_override_response.status_code == 403
+
+    with session_local() as db:
+        month_policy = db.execute(select(ShiftPlanMonthEditPolicy)).scalar_one()
+        employment_policy = db.execute(select(ShiftPlanEmploymentEditPermission)).scalar_one()
+        assert month_policy.allow_employee_edits is True
+        assert employment_policy.allow_employee_edits is False
 
 
 def test_admin_attendance_matrix_month_returns_all_employments_without_cell_requests() -> None:

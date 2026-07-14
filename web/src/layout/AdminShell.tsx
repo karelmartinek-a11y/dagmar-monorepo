@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { CalendarCheck2, CalendarRange, Download, Gauge, Menu, MonitorCog, PlugZap, Printer, Settings2, UsersRound, X } from "lucide-react";
+import { CalendarCheck2, CalendarRange, Download, Gauge, Menu, PlugZap, Printer, Settings2, UsersRound, X } from "lucide-react";
 import { api } from "../api/client";
 import { Brand } from "../components/Brand";
 import { Button } from "../components/Primitives";
@@ -9,7 +9,7 @@ const nav = [
   ["/admin/prehled", "Přehled", Gauge], ["/admin/users", "Uživatelé", UsersRound],
   ["/admin/dochazka", "Docházka", CalendarCheck2], ["/admin/plan-sluzeb", "Plán služeb", CalendarRange],
   ["/admin/export", "Export", Download], ["/admin/tisky", "Tisky", Printer],
-  ["/admin/settings", "Nastavení", Settings2], ["/admin/instances", "Zařízení", MonitorCog],
+  ["/admin/settings", "Nastavení", Settings2],
   ["/admin/integrace", "Integrace", PlugZap],
 ] as const;
 

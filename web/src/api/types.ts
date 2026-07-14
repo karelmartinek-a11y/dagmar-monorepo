@@ -35,6 +35,7 @@ export const attendanceMonthSchema = z.object({
   employment_id: z.number(),
   employment_label: z.string(),
   locked: z.boolean(),
+  shift_plan_editable: z.boolean().optional(),
   days: z.array(attendanceDaySchema),
 });
 
@@ -52,6 +53,7 @@ export interface AdminUser {
   phone?: string | null;
   role: string;
   is_active: boolean;
+  last_login_at?: string | null;
   instance_id?: number | null;
   employment_count?: number;
   current_employment_count?: number;
@@ -81,6 +83,8 @@ export interface ShiftPlanRow {
   employment_label: string;
   employment_type: string;
   selected: boolean;
+  employee_plan_edit_allowed?: boolean;
+  employee_plan_edit_override?: boolean | null;
   days: Array<{
     date: string;
     arrival_time: string | null;

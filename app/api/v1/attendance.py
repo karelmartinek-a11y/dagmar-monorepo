@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
 from app.services.prague_time import prague_minutes_since_midnight, prague_today
+from app.services.shift_plan_editing import can_employee_edit_shift_plan
 from app.utils.timeparse import parse_hhmm_or_none
 
 router = APIRouter(tags=["attendance"])
@@ -37,6 +38,7 @@ class AttendanceMonthOut(BaseModel):
     employment_id: int
     employment_label: str
     locked: bool = False
+    shift_plan_editable: bool = False
     days: list[AttendanceDayOut]
 
 
@@ -218,6 +220,7 @@ def get_month_attendance(
         employment_id=employment.id,
         employment_label=employment_label(employment, auth.user.name),
         locked=locked,
+        shift_plan_editable=can_employee_edit_shift_plan(db, employment_id=employment.id, year=year, month=month),
         days=days,
     )
 

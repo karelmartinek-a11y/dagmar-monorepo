@@ -7,10 +7,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ...db.models import Employment
+from ...db.models import Employment, ShiftPlan
 from ...db.session import get_db
-from ...services.day_status import normalize_day_status, set_day_status
-from ...utils.timeparse import parse_yyyy_mm_dd
+from ...services.day_status import (
+    day_status_label,
+    get_day_status,
+    normalize_day_status,
+    set_day_status,
+)
+from ...services.shift_plan_editing import can_employee_edit_shift_plan
+from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
 from .attendance import _ensure_month_not_locked, _require_accessible_employment
 
@@ -26,6 +32,16 @@ class PortalDayStatusUpsertIn(BaseModel):
     confirm_delete_conflicts: bool = False
 
 
+class PortalShiftPlanUpsertIn(BaseModel):
+    employment_id: int = Field(..., ge=1)
+    date: str = Field(..., description="YYYY-MM-DD")
+    arrival_time: str | None = Field(None, description="HH:MM or null")
+    departure_time: str | None = Field(None, description="HH:MM or null")
+    status: str | None = Field(
+        None, description="HOLIDAY | OFF | null", pattern="^(HOLIDAY|OFF)?$", examples=["HOLIDAY", "OFF"]
+    )
+
+
 class OkOut(BaseModel):
     ok: bool = True
 
@@ -36,6 +52,70 @@ def _ensure_day_in_employment_period(employment: Employment, day: dt.date) -> No
             status_code=status.HTTP_409_CONFLICT,
             detail="Zvolené datum neleží v období platnosti vybraného úvazku.",
         )
+
+
+@router.put("/api/v1/shift-plan", response_model=OkOut)
+def portal_upsert_shift_plan(
+    body: PortalShiftPlanUpsertIn,
+    db: Session = Depends(get_db),
+    auth: PortalUserAuth = Depends(require_portal_user_auth),
+) -> OkOut:
+    employment = _require_accessible_employment(body.employment_id, auth, db)
+
+    try:
+        day = parse_yyyy_mm_dd(body.date)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    _ensure_day_in_employment_period(employment, day)
+    _ensure_month_not_locked(employment.id, day.year, day.month, db)
+    if not can_employee_edit_shift_plan(db, employment_id=employment.id, year=day.year, month=day.month):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Zadávání plánu služeb není pro tento úvazek a měsíc povoleno.",
+        )
+
+    try:
+        arrival = parse_hhmm_or_none(body.arrival_time)
+        departure = parse_hhmm_or_none(body.departure_time)
+        status_value = normalize_day_status(body.status)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    blocked_status = get_day_status(db, employment_id=employment.id, day=day)
+    if blocked_status is not None and status_value is None and (arrival is not None or departure is not None):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat plán směny.",
+        )
+    if status_value is not None:
+        arrival = None
+        departure = None
+
+    existing = db.query(ShiftPlan).filter(ShiftPlan.employment_id == employment.id, ShiftPlan.date == day).one_or_none()
+    if arrival is None and departure is None and status_value is None:
+        if existing is not None:
+            db.delete(existing)
+            db.commit()
+        return OkOut(ok=True)
+
+    if existing is None:
+        existing = ShiftPlan(
+            employment_id=employment.id,
+            instance_id=auth.instance.id,
+            date=day,
+            arrival_time=arrival,
+            departure_time=departure,
+            status=status_value,
+        )
+        db.add(existing)
+    else:
+        existing.arrival_time = arrival
+        existing.departure_time = departure
+        existing.status = status_value
+        existing.instance_id = auth.instance.id
+    db.commit()
+    return OkOut(ok=True)
 
 
 @router.put("/api/v1/shift-plan/day-status", response_model=OkOut)

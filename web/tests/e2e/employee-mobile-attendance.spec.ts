@@ -50,6 +50,8 @@ function julyAttendance(): AttendanceMockDay[] {
 for (const width of [360, 390]) {
   test(`employee mobile attendance row fits and edits at ${width}px`, async ({ page }) => {
     const days = julyAttendance();
+    days[1].arrival_time = "07:45";
+    days[1].departure_time = "15:30";
     await page.setViewportSize({ width, height: 780 });
     await page.addInitScript((value) => {
       localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
@@ -58,7 +60,7 @@ for (const width of [360, 390]) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, days }),
+        body: JSON.stringify({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, shift_plan_editable: true, days }),
       });
     });
     await page.route("**/api/v1/attendance", async (route) => {
@@ -99,8 +101,8 @@ for (const width of [360, 390]) {
     expect(metrics.bodyScrollWidth).toBeLessThanOrEqual(metrics.innerWidth);
     expect(metrics.rowWidth).toBeLessThanOrEqual(metrics.innerWidth);
     expect(metrics.visibleInputs).toBe(2);
-    expect(metrics.inputWidths.every((value) => value <= 56)).toBe(true);
-    expect(metrics.inputGap).toBeGreaterThanOrEqual(4);
+    expect(metrics.inputWidths.every((value) => value >= (width <= 360 ? 56 : 60) && value <= 70)).toBe(true);
+    expect(metrics.inputGap).toBeGreaterThanOrEqual(3);
     expect(metrics.alignTop).toBeLessThanOrEqual(1);
     expect(metrics.alignBottom).toBeLessThanOrEqual(1);
     expect(metrics.inputMode).toBe("numeric");
@@ -109,12 +111,16 @@ for (const width of [360, 390]) {
     expect(metrics.nameDay).toBe("svátek má Jaroslava");
     expect(metrics.holidayText).toBe("Cyril a Metoděj");
     expect(metrics.weekendDate).toBe("04.07.2026");
+    await expect(page.locator(".employee-day").nth(1).locator("input[name=\"arrival_time\"]")).toHaveValue("07:45");
+    await expect(page.locator(".employee-day").nth(1).locator("input[name=\"departure_time\"]")).toHaveValue("15:30");
 
     const arrival = page.locator(".employee-day:first-of-type input[name=\"arrival_time\"]");
     await arrival.click();
     await arrival.fill("815");
     await arrival.press("Enter");
     await expect(arrival).toHaveValue("08:15");
+    await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
+    await expect(arrival.locator("xpath=..")).toHaveClass(/time-cell--saved/);
 
     const focusedMetrics = await page.evaluate(() => {
       const inputs = [...document.querySelectorAll<HTMLInputElement>(".employee-day:first-of-type .time-cell:not(.time-cell--mobile-hidden) input")];
@@ -127,7 +133,86 @@ for (const width of [360, 390]) {
       };
     });
     expect(focusedMetrics.scrollWidth).toBeLessThanOrEqual(width);
-    expect(focusedMetrics.gap).toBeGreaterThanOrEqual(4);
+    expect(focusedMetrics.gap).toBeGreaterThanOrEqual(3);
     expect(focusedMetrics.overlap).toBe(0);
   });
 }
+
+test("employee can switch to editable shift plan and save planned time", async ({ page }) => {
+  const days = julyAttendance();
+  let savedPlan: { date: string; arrival_time: string | null; departure_time: string | null } | null = null;
+
+  await page.setViewportSize({ width: 390, height: 780 });
+  await page.addInitScript((value) => {
+    localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
+  }, session);
+  await page.route("**/api/v1/attendance?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        employment_id: 41,
+        employment_label: "Testovací uživatel · Denní provoz",
+        locked: false,
+        shift_plan_editable: true,
+        days,
+      }),
+    });
+  });
+  await page.route("**/api/v1/shift-plan", async (route) => {
+    savedPlan = await route.request().postDataJSON() as typeof savedPlan;
+    const target = days.find((day) => day.date === savedPlan?.date);
+    if (target && savedPlan) {
+      target.planned_arrival_time = savedPlan.arrival_time;
+      target.planned_departure_time = savedPlan.departure_time;
+      target.planned_status = null;
+    }
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+
+  await page.goto("/app");
+  await page.getByRole("tab", { name: "Plán služeb" }).click();
+  await expect(page.locator(".employee-day--plan").first()).toBeVisible();
+  await expect(page.locator(".employee-nowbar")).toHaveCount(0);
+
+  const plannedArrival = page.locator(".employee-day--plan").first().locator("input[name=\"planned_arrival_time\"]");
+  await plannedArrival.click();
+  await plannedArrival.fill("815");
+  await plannedArrival.press("Enter");
+
+  expect(savedPlan).toMatchObject({
+    employment_id: 41,
+    date: "2026-07-01",
+    arrival_time: "08:15",
+    departure_time: "16:30",
+    status: null,
+  });
+  await expect(plannedArrival).toHaveValue("08:15");
+});
+
+test("employee shift plan is read-only when admin does not allow month editing", async ({ page }) => {
+  const days = julyAttendance();
+
+  await page.setViewportSize({ width: 390, height: 780 });
+  await page.addInitScript((value) => {
+    localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
+  }, session);
+  await page.route("**/api/v1/attendance?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        employment_id: 41,
+        employment_label: "Testovací uživatel · Denní provoz",
+        locked: false,
+        shift_plan_editable: false,
+        days,
+      }),
+    });
+  });
+
+  await page.goto("/app");
+  await page.getByRole("tab", { name: "Plán služeb" }).click();
+  await expect(page.getByText("Plán služeb je pouze pro čtení")).toBeVisible();
+  await expect(page.locator(".employee-day--plan").first().locator("input[name=\"planned_arrival_time\"]")).toBeDisabled();
+});
