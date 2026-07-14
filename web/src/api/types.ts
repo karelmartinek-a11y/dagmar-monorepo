@@ -83,6 +83,7 @@ export interface ShiftPlanRow {
   employment_label: string;
   employment_type: string;
   selected: boolean;
+  locked: boolean;
   employee_plan_edit_allowed?: boolean;
   employee_plan_edit_override?: boolean | null;
   days: Array<{

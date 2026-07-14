@@ -73,6 +73,7 @@ class ShiftPlanRowOut(BaseModel):
     start_date: str
     end_date: str | None = None
     is_active_in_month: bool
+    locked: bool = False
     employee_plan_edit_allowed: bool = False
     employee_plan_edit_override: bool | None = None
     days: list[ShiftPlanDayOut]
@@ -294,6 +295,13 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         )
         for row in plan_rows
     }
+    lock_rows = db.execute(
+        select(AttendanceLock.employment_id).where(
+            AttendanceLock.year == year,
+            AttendanceLock.month == month,
+        )
+    ).all()
+    locked_employment_ids = {int(row[0]) for row in lock_rows}
 
     rows: list[ShiftPlanRowOut] = []
     for employment in available_employments:
@@ -324,6 +332,7 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 start_date=employment.start_date.isoformat(),
                 end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
                 is_active_in_month=_employment_is_active_in_month(cast(Employment, employment), start, end),
+                locked=employment.id in locked_employment_ids,
                 employee_plan_edit_allowed=edit_overrides.get(employment.id, edit_default),
                 employee_plan_edit_override=edit_overrides.get(employment.id),
                 days=days,
