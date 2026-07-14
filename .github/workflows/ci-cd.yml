@@ -1,0 +1,234 @@
+name: KájovoDagmar CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: dagmar-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dagmar
+          POSTGRES_PASSWORD: dagmar-e2e
+          POSTGRES_DB: dagmar_e2e_backend
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dagmar -d dagmar_e2e_backend"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_backend
+      DAGMAR_DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_backend
+      DAGMAR_SESSION_SECRET: ci-session-secret-ci-session-secret-1234
+      DAGMAR_CSRF_SECRET: ci-csrf-secret-ci-csrf-secret-123456
+      DAGMAR_E2E_SEED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v6.2.0
+        with: { python-version: "3.11" }
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade "pip>=26.0"
+          pip install -e '.[dev]'
+      - name: Compile, lint and typecheck
+        run: |
+          python -m compileall -q app
+          ruff check app tests scripts
+          mypy app
+      - name: Alembic revision chain
+        run: |
+          test "$(alembic heads | wc -l)" -eq 1
+          python scripts/create_legacy_e2e_baseline.py
+          alembic upgrade head
+          alembic current
+      - name: Backend tests
+        run: pytest -q
+      - name: Clean-generation boundary
+        run: python scripts/check_clean_frontend_generation.py
+
+  web:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dagmar
+          POSTGRES_PASSWORD: dagmar-e2e
+          POSTGRES_DB: dagmar_e2e_web
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dagmar -d dagmar_e2e_web"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_web
+      DAGMAR_DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_web
+      DAGMAR_SESSION_SECRET: ci-session-secret-ci-session-secret-1234
+      DAGMAR_CSRF_SECRET: ci-csrf-secret-ci-csrf-secret-123456
+      DAGMAR_COOKIE_SECURE: "false"
+      DAGMAR_RATE_LIMIT_ENABLED: "false"
+      DAGMAR_DISABLE_DOCS: "true"
+      DAGMAR_E2E_SEED: "1"
+      DAGMAR_E2E_REAL_BACKEND: "1"
+      DAGMAR_E2E_ADMIN_PASSWORD: AdminE2E-Strong-123
+      DAGMAR_E2E_USER_EMAIL: employee.e2e@example.test
+      DAGMAR_E2E_USER_PASSWORD: EmployeeE2E-Strong-123
+      VITE_API_PROXY: http://127.0.0.1:8101
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v6.4.0
+        with: { node-version: 20, cache: npm, cache-dependency-path: web/package-lock.json }
+      - uses: actions/setup-python@v6.2.0
+        with: { python-version: "3.11" }
+      - name: Prepare real backend
+        run: |
+          pip install -e .
+          python scripts/create_legacy_e2e_baseline.py
+          alembic upgrade head
+          python scripts/seed_e2e.py
+          export DAGMAR_ADMIN_PASSWORD_HASH="$(python -c 'from app.security.passwords import hash_password; print(hash_password("AdminE2E-Strong-123").value)')"
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8101 > /tmp/dagmar-e2e-backend.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8101/api/v1/health && break
+            if [ "$attempt" -eq 30 ]; then cat /tmp/dagmar-e2e-backend.log; exit 1; fi
+            sleep 1
+          done
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+      - name: Static and unit checks
+        working-directory: web
+        run: |
+          npm run check:branding
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Install browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Browser, accessibility and visual tests
+        working-directory: web
+        run: npm run test:e2e
+      - name: Package exact web artifact
+        run: tar -C web/dist -czf web-release.tgz .
+      - uses: actions/upload-artifact@v6
+        with:
+          name: web-release
+          path: web-release.tgz
+          if-no-files-found: error
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, web]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v7
+        with: { name: web-release }
+      - name: Check deployment secrets
+        run: |
+          test -n "${{ secrets.DEPLOY_HOST }}"
+          test -n "${{ secrets.DEPLOY_USER }}"
+          test -n "${{ secrets.DEPLOY_SSH_KEY }}"
+      - name: Upload immutable web artifact
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          password: ${{ secrets.DEPLOY_PASS }}
+          source: web-release.tgz
+          target: /tmp/dagmar-${{ github.sha }}
+      - name: Install and atomically activate release
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          password: ${{ secrets.DEPLOY_PASS }}
+          command_timeout: 25m
+          script: |
+            set -euo pipefail
+            SHA="${{ github.sha }}"
+            SHORT_SHA="${SHA:0:7}"
+            ATTEMPT="${{ github.run_attempt }}"
+            LOCK_FILE="${HOME:-/root}/.dagmar-deploy.lock"
+            exec 9>"$LOCK_FILE"
+            flock 9
+
+            REPO=/srv/hcasc/_repos/dagmar-monorepo
+            RELEASES=/opt/dagmar/releases
+            WEB_RELEASES=/var/www/dagmar/releases
+            BACK_RELEASE="$RELEASES/$SHA-$ATTEMPT"
+            WEB_RELEASE="$WEB_RELEASES/$SHA-$ATTEMPT"
+            CURRENT_BACK=/opt/dagmar/backend
+            CURRENT_WEB=/var/www/dagmar/frontend
+            STAMP=$(date +%Y%m%d%H%M%S)
+
+            REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/karelmartinek-a11y/dagmar-monorepo.git"
+            if [ ! -d "$REPO/.git" ]; then git clone "$REPO_URL" "$REPO"; fi
+            git -C "$REPO" remote set-url origin "$REPO_URL"
+            git -C "$REPO" fetch origin main
+            git -C "$REPO" checkout main
+            git -C "$REPO" reset --hard "$SHA"
+            test "$(git -C "$REPO" rev-parse HEAD)" = "$SHA"
+
+            install -d "$BACK_RELEASE/app" "$BACK_RELEASE/alembic" "$WEB_RELEASE"
+            rsync -a "$REPO/app/" "$BACK_RELEASE/app/"
+            rsync -a "$REPO/alembic/" "$BACK_RELEASE/alembic/"
+            install -m 0644 "$REPO/pyproject.toml" "$REPO/alembic.ini" "$REPO/gunicorn.conf.py" "$BACK_RELEASE/"
+            python3 -m venv "$BACK_RELEASE/.venv"
+            "$BACK_RELEASE/.venv/bin/pip" install --upgrade pip
+            "$BACK_RELEASE/.venv/bin/pip" install "$BACK_RELEASE"
+            printf '{"backend_commit":"%s"}\n' "$SHORT_SHA" > "$BACK_RELEASE/backend-version.json"
+            tar -xzf "/tmp/dagmar-$SHA/web-release.tgz" -C "$WEB_RELEASE"
+            printf '{"frontend_commit":"%s"}\n' "$SHORT_SHA" > "$WEB_RELEASE/frontend-version.json"
+
+            set -a
+            . /etc/dagmar/backend.env
+            set +a
+            cd "$BACK_RELEASE"
+            "$BACK_RELEASE/.venv/bin/alembic" -c "$BACK_RELEASE/alembic.ini" upgrade head
+            nginx -t
+
+            PREV_BACK=$(readlink -f "$CURRENT_BACK" 2>/dev/null || true)
+            PREV_WEB=$(readlink -f "$CURRENT_WEB" 2>/dev/null || true)
+            if [ -d "$CURRENT_BACK" ] && [ ! -L "$CURRENT_BACK" ]; then
+              PREV_BACK="$RELEASES/legacy-$STAMP"
+              mv "$CURRENT_BACK" "$PREV_BACK"
+            fi
+            if [ -d "$CURRENT_WEB" ] && [ ! -L "$CURRENT_WEB" ]; then
+              PREV_WEB="$WEB_RELEASES/legacy-$STAMP"
+              mv "$CURRENT_WEB" "$PREV_WEB"
+            fi
+
+            switch_link() {
+              local target="$1" current="$2"
+              rm -f "$current.next"
+              ln -s "$target" "$current.next"
+              mv -Tf "$current.next" "$current"
+            }
+            switch_link "$BACK_RELEASE" "$CURRENT_BACK"
+            switch_link "$WEB_RELEASE" "$CURRENT_WEB"
+            systemctl restart dagmar-backend
+
+            if ! curl -fsS --retry 8 --retry-delay 2 http://127.0.0.1:8101/api/v1/health; then
+              if [ -n "$PREV_BACK" ] && [ -e "$PREV_BACK" ]; then switch_link "$PREV_BACK" "$CURRENT_BACK"; fi
+              if [ -n "$PREV_WEB" ] && [ -e "$PREV_WEB" ]; then switch_link "$PREV_WEB" "$CURRENT_WEB"; fi
+              systemctl restart dagmar-backend
+              exit 1
+            fi
+            curl -fsS http://127.0.0.1:8101/api/version
+            test "$(jq -r .frontend_commit "$CURRENT_WEB/frontend-version.json")" = "$SHORT_SHA"
+            rm -rf "/tmp/dagmar-$SHA"
+            printf '%s KájovoDagmar atomic release %s\n' "$(date '+%F %T')" "$SHA" >> /var/log/dagmar/deploy.log || true

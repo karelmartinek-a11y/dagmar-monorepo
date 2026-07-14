@@ -1,0 +1,9 @@
+{
+  "name": "KájovoDagmar — docházkový systém",
+  "short_name": "KájovoDagmar",
+  "lang": "cs",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#071411",
+  "theme_color": "#0d8f73"
+}

@@ -1,0 +1,8 @@
+{
+  "commit": "f2edd6979e6646ba8f630be2da93f85d9430a6c3",
+  "frontend_tree": "a3903fc2a1f7fa31683ff6cbfdd77ec1e061cf10",
+  "tracked_files": 160,
+  "closed_at": "2026-07-14T02:30:00+02:00",
+  "replacement_root": "web",
+  "policy": "The historical frontend is evidence only. New source must be implemented independently from the forensic catalog and backend contract."
+}

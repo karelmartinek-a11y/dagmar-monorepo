@@ -1,0 +1,25 @@
+[Unit]
+Description=KájovoDagmar Backend (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dagmar
+Group=dagmar
+WorkingDirectory=/opt/dagmar/backend
+EnvironmentFile=/etc/dagmar/backend.env
+ExecStart=/opt/dagmar/backend/.venv/bin/gunicorn -c /opt/dagmar/backend/gunicorn.conf.py app.main:app
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/dagmar
+RuntimeDirectory=dagmar
+RuntimeDirectoryMode=0755
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
