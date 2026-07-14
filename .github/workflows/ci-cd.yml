@@ -194,9 +194,7 @@ jobs:
             tar -xzf "/tmp/dagmar-$SHA/web-release.tgz" -C "$WEB_RELEASE"
             printf '{"frontend_commit":"%s"}\n' "$SHORT_SHA" > "$WEB_RELEASE/frontend-version.json"
 
-            set -a
-            . /etc/dagmar/backend.env
-            set +a
+            test -r /etc/dagmar/backend.env
             cd "$BACK_RELEASE"
             "$BACK_RELEASE/.venv/bin/alembic" -c "$BACK_RELEASE/alembic.ini" upgrade head
             nginx -t
