@@ -18,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    role_enum = ENUM("employee", name="portal_user_role", create_type=False)
+    role_enum = ENUM("EMPLOYEE", name="portal_user_role", create_type=False)
     role_enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
