@@ -17,12 +17,17 @@ test.describe("real backend workflows", () => {
 
     const arrival = page.locator('input[aria-label$="příchod"]:enabled').first();
     await arrival.fill("08:15");
-    await arrival.locator("xpath=ancestor::article").getByRole("button", { name: "Uložit" }).click();
+    const saveButton = arrival.locator("xpath=ancestor::article").getByRole("button", { name: "Uložit" });
+    const refreshedAttendance = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/v1/attendance");
+    await saveButton.click();
     await expect(page.getByText("Docházka byla uložena.")).toBeVisible();
+    await refreshedAttendance;
+    await expect(saveButton).toBeHidden();
 
     await page.route("**/api/v1/attendance", route => route.abort("internetdisconnected"));
-    await arrival.fill("08:16");
-    await arrival.locator("xpath=ancestor::article").getByRole("button", { name: "Uložit" }).click();
+    const currentArrival = page.locator('input[aria-label$="příchod"]:enabled').first();
+    await currentArrival.fill("08:16");
+    await currentArrival.locator("xpath=ancestor::article").getByRole("button", { name: "Uložit" }).click();
     await expect(page.getByText("Změna čeká v bezpečné frontě na obnovení připojení.")).toBeVisible();
     await expect(page.getByText("Docházka byla uložena.")).not.toBeVisible();
     await page.unroute("**/api/v1/attendance");
