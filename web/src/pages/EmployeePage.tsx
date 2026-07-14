@@ -47,8 +47,20 @@ const namedays:Record<string,string>={
   "12-01":"Iva","12-02":"Blanka","12-03":"Svatoslav","12-04":"Barbora","12-05":"Jitka","12-06":"Mikuláš","12-07":"Ambrož","12-08":"Květoslava","12-09":"Vratislav","12-10":"Julie","12-11":"Dana","12-12":"Simona","12-13":"Lucie","12-14":"Lýdie","12-15":"Radana","12-16":"Albína","12-17":"Daniel","12-18":"Miloslav","12-19":"Ester","12-20":"Dagmar","12-21":"Natálie","12-22":"Šimon","12-23":"Vlasta","12-24":"Štědrý den","12-25":"1. svátek vánoční","12-26":"2. svátek vánoční","12-27":"Žaneta","12-28":"Bohumila","12-29":"Judita","12-30":"David","12-31":"Silvestr"
 };
 function easterSunday(year:number): Date {
-  const a=year%19;const b=Math.floor(year/100);const c=year%100;const d=Math.floor(b/4);const e=b%4;const f=Math.floor((b+8)/25);const g=Math.floor((b-f+1)/3);const h=(19*a+b-d-g+15)%30;const i=Math.floor(c/4);const k=c%4;const l=(32+2*e+2*i-h-k)%7;const m=Math.floor((a+11*h+22*l)/451);const month=Math.floor((h+l-7*m+114)/31);const day=((h+l-7*m+114)%31)+1;
-  return new Date(year,month-1,day,12);
+  const goldenYear=year%19;
+  const century=Math.trunc(year/100);
+  const yearInCentury=year-(century*100);
+  const leapCenturies=Math.trunc(century/4);
+  const centuryRemainder=century-(leapCenturies*4);
+  const lunarShift=Math.trunc((century+8)/25);
+  const solarLunarCorrection=Math.trunc((century-lunarShift+1)/3);
+  const epact=(19*goldenYear+century-leapCenturies-solarLunarCorrection+15)%30;
+  const leapYearsInCentury=Math.trunc(yearInCentury/4);
+  const yearRemainder=yearInCentury-(leapYearsInCentury*4);
+  const weekdayOffset=(32+2*centuryRemainder+2*leapYearsInCentury-epact-yearRemainder)%7;
+  const correction=Math.trunc((goldenYear+11*epact+22*weekdayOffset)/451);
+  const marchBasedDay=epact+weekdayOffset-7*correction+114;
+  return new Date(year,Math.trunc(marchBasedDay/31)-1,(marchBasedDay%31)+1,12);
 }
 function dateKey(date:Date): string { return `${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`; }
 function isoDateKey(date:Date): string { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`; }
