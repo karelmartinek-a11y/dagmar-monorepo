@@ -1,6 +1,6 @@
 import { KeyboardEvent, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Lock, Save, Unlock } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Check, ChevronDown, Filter, Lock, Save, Unlock, X } from "lucide-react";
 import { api, ApiError } from "../api/client";
 import type { AttendanceMatrixRow } from "../api/types";
 import { Button, Field, Modal, Panel, StatusMessage } from "../components/Primitives";
@@ -15,6 +15,8 @@ type ShiftPlanRow = { employment_id: number; user_id: number; user_name: string;
 type ActiveEmployment = { id: number; display_label: string; employment_type: string; start_date: string; end_date: string | null; is_active_in_month: boolean };
 type PlanMonth = { year: number; month: number; employee_plan_edit_default: boolean; selected_employment_ids: number[]; available_employments: ActiveEmployment[]; rows: ShiftPlanRow[] };
 type DayStatusDraft = { employment_id: number; date: string; status: string | null; confirm_delete_conflicts?: boolean };
+type SelectionDirection = "asc" | "desc";
+type SelectionItem = { id: number; display_label: string; employment_type: string; start_date: string; end_date: string | null; is_active_in_month: boolean };
 
 const statusLabels: Record<string, string> = { HOLIDAY: "Dovolená", OFF: "Volno" };
 
@@ -101,6 +103,13 @@ function ShiftPlanSummaryCell({ row }: { row: ShiftPlanRow }) {
   return <div className="matrix-total"><strong>{formatHours(plannedMinutes)}</strong><small>Plán</small><span>{formatHours(calendarMinutes)} kalendář</span><span>{holidayDays} d dovolené</span></div>;
 }
 
+function sortByLabel<T>(items: T[], direction: SelectionDirection, getLabel: (item: T) => string) {
+  return [...items].sort((left, right) => {
+    const order = getLabel(left).localeCompare(getLabel(right), "cs", { sensitivity: "base" });
+    return direction === "asc" ? order : order * -1;
+  });
+}
+
 function TimeRangeEditor({
   initialArrival,
   initialDeparture,
@@ -172,24 +181,78 @@ function EmploymentSelectionDropdown({
   items,
   selectedIds,
   onToggle,
+  onSelectAll,
+  onClear,
   onSave,
   pending,
+  direction,
+  onDirectionChange,
+  activeOnly,
+  onActiveOnlyChange,
+  hideSave = false,
 }: {
-  items: ActiveEmployment[];
+  items: SelectionItem[];
   selectedIds: number[];
   onToggle: (employmentId: number, checked: boolean) => void;
+  onSelectAll: () => void;
+  onClear: () => void;
   onSave: () => void;
   pending: boolean;
+  direction: SelectionDirection;
+  onDirectionChange: (direction: SelectionDirection) => void;
+  activeOnly: boolean;
+  onActiveOnlyChange: (value: boolean) => void;
+  hideSave?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const visibleItems = useMemo(() => {
+    const source = activeOnly ? items.filter((item) => item.is_active_in_month) : items;
+    return sortByLabel(source, direction, (item) => item.display_label);
+  }, [activeOnly, direction, items]);
+
   return <div className="selection-dropdown">
     <button type="button" className="selection-dropdown__trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
       <span>{selectedIds.length} úvazků ve výběru</span>
       <ChevronDown />
     </button>
     {open && <div className="selection-dropdown__menu">
+      <div className="selection-dropdown__toolbar">
+        <div className="selection-dropdown__icon-actions">
+          <button
+            type="button"
+            className={`icon-button ${direction === "asc" ? "is-active" : ""}`}
+            aria-label="Řazení vzestupně"
+            title="Řazení vzestupně"
+            onClick={() => onDirectionChange("asc")}
+          >
+            <ArrowUpAZ />
+          </button>
+          <button
+            type="button"
+            className={`icon-button ${direction === "desc" ? "is-active" : ""}`}
+            aria-label="Řazení sestupně"
+            title="Řazení sestupně"
+            onClick={() => onDirectionChange("desc")}
+          >
+            <ArrowDownAZ />
+          </button>
+          <button
+            type="button"
+            className={`icon-button ${activeOnly ? "is-active" : ""}`}
+            aria-label="Zobrazit jen aktivní úvazky"
+            title="Zobrazit jen aktivní úvazky"
+            onClick={() => onActiveOnlyChange(!activeOnly)}
+          >
+            <Filter />
+          </button>
+        </div>
+        <div className="selection-dropdown__bulk-actions">
+          <Button variant="quiet" onClick={onSelectAll}>Vybrat vše</Button>
+          <Button variant="quiet" onClick={onClear}><X />Vymazat vše</Button>
+        </div>
+      </div>
       <div className="selection-dropdown__list">
-        {items.map((item) => <label key={item.id} className="selection-dropdown__item">
+        {visibleItems.map((item) => <label key={item.id} className="selection-dropdown__item">
           <input type="checkbox" checked={selectedIds.includes(item.id)} onChange={(event) => onToggle(item.id, event.target.checked)} />
           <span>
             <strong>{item.display_label}</strong>
@@ -197,10 +260,11 @@ function EmploymentSelectionDropdown({
           </span>
           {selectedIds.includes(item.id) && <Check />}
         </label>)}
+        {visibleItems.length === 0 && <div className="selection-dropdown__empty">Pro tento filtr nejsou k dispozici žádné úvazky.</div>}
       </div>
       <div className="selection-dropdown__footer">
         <Button variant="quiet" onClick={() => setOpen(false)}>Zavřít</Button>
-        <Button disabled={pending} onClick={() => { onSave(); setOpen(false); }}><Save />Uložit výběr</Button>
+        {!hideSave && <Button disabled={pending} onClick={() => { onSave(); setOpen(false); }}><Save />Uložit výběr</Button>}
       </div>
     </div>}
   </div>;
@@ -210,6 +274,9 @@ export function AdminAttendancePage() {
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<AttendanceEditState | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[] | null>(null);
+  const [selectionDirection, setSelectionDirection] = useState<SelectionDirection>("asc");
+  const [activeOnly, setActiveOnly] = useState(false);
   const qc = useQueryClient();
   const query = useQuery({ queryKey: ["admin-attendance", month.getFullYear(), month.getMonth() + 1], queryFn: () => api.admin<{ year: number; month: number; rows: AttendanceMatrixRow[] }>(`/api/v1/admin/attendance/month?year=${month.getFullYear()}&month=${month.getMonth() + 1}`) });
   const attendanceMutation = useMutation({
@@ -220,24 +287,74 @@ export function AdminAttendancePage() {
     },
   });
   const lockMutation = useMutation({
-    mutationFn: (body: { employment_id: number; year: number; month: number; locked: boolean }) => api.admin(`/api/v1/admin/attendance/${body.locked ? "unlock" : "lock"}`, { method: "POST", body: JSON.stringify({ employment_id: body.employment_id, year: body.year, month: body.month }) }),
+    mutationFn: async (body: { employmentIds: number[]; lock: boolean }) => {
+      await Promise.all(body.employmentIds.map((employment_id) => api.admin(`/api/v1/admin/attendance/${body.lock ? "lock" : "unlock"}`, {
+        method: "POST",
+        body: JSON.stringify({ employment_id, year: month.getFullYear(), month: month.getMonth() + 1 }),
+      })));
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-attendance"] });
       qc.invalidateQueries({ queryKey: ["shift-plan"] });
     },
   });
 
-  const rows = useMemo(() => (query.data?.rows ?? []).filter((row) => `${row.user_name} ${row.employment_label}`.toLowerCase().includes(search.toLowerCase())), [query.data?.rows, search]);
+  const selectionItems = useMemo<SelectionItem[]>(() => (query.data?.rows ?? []).map((row) => ({
+    id: row.employment_id,
+    display_label: row.employment_label,
+    employment_type: row.employment_type,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    is_active_in_month: row.is_active_in_month,
+  })), [query.data?.rows]);
+  const effectiveSelectedIds = useMemo(() => selectedIds ?? selectionItems.map((item) => item.id), [selectedIds, selectionItems]);
+  const rows = useMemo(() => {
+    const filtered = (query.data?.rows ?? []).filter((row) => {
+      if (!effectiveSelectedIds.includes(row.employment_id)) return false;
+      if (activeOnly && !row.is_active_in_month) return false;
+      return `${row.user_name} ${row.employment_label}`.toLowerCase().includes(search.toLowerCase());
+    });
+    return sortByLabel(filtered, selectionDirection, (row) => row.employment_label);
+  }, [activeOnly, effectiveSelectedIds, query.data?.rows, search, selectionDirection]);
   const days = rows[0]?.days ?? query.data?.rows[0]?.days ?? [];
+  const monthLockState = useMemo(() => {
+    const allRows = query.data?.rows ?? [];
+    if (allRows.length === 0) return "unlocked" as const;
+    const lockedCount = allRows.filter((row) => row.locked).length;
+    if (lockedCount === 0) return "unlocked" as const;
+    if (lockedCount === allRows.length) return "locked" as const;
+    return "mixed" as const;
+  }, [query.data?.rows]);
 
   return <div className="page">
-    <header className="page-heading"><div><p>Kontrola skutečně odpracovaného času</p><h1>Docházkové listy</h1></div><MonthControl value={month} onChange={setMonth} /></header>
+    <header className="page-heading"><div><p>Kontrola skutečně odpracovaného času</p><h1>Docházkové listy</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelectedIds(null); }} />{query.data && <MonthLockStateButton state={monthLockState} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), lock: monthLockState !== "locked" })} />}</div></header>
+    <Panel className="panel--overflow-visible" title="Výběr úvazků pro zobrazení" actions={<EmploymentSelectionDropdown
+      items={selectionItems}
+      selectedIds={effectiveSelectedIds}
+      onToggle={(employmentId, checked) => setSelectedIds((current) => {
+        const baseline = current ?? selectionItems.map((item) => item.id);
+        return checked ? [...baseline.filter((item) => item !== employmentId), employmentId] : baseline.filter((item) => item !== employmentId);
+      })}
+      onSelectAll={() => setSelectedIds(activeOnly ? selectionItems.filter((item) => item.is_active_in_month).map((item) => item.id) : selectionItems.map((item) => item.id))}
+      onClear={() => setSelectedIds([])}
+      onSave={() => undefined}
+      pending={false}
+      direction={selectionDirection}
+      onDirectionChange={setSelectionDirection}
+      activeOnly={activeOnly}
+      onActiveOnlyChange={setActiveOnly}
+      hideSave
+    />}>
+      <div className="panel-body panel-body--compact">
+        <p className="panel-note">Výběr v docházce slouží jen pro aktuální zobrazení a neukládá se mezi přihlášeními.</p>
+      </div>
+    </Panel>
     <Panel>
       <div className="toolbar">
         <Field label="Filtrovat úvazky"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Jméno nebo úvazek" /></Field>
         <span className="badge">{rows.length} úvazků</span>
       </div>
-      {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title="Sestavuji měsíční matici" /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title="Docházku nelze načíst">{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title="Pro filtr nejsou žádné úvazky" /></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">Úvazek</th>{days.map((day) => { const header = dayHeader(day); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__sticky-right">Úvazek</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.employment_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employment_id: row.employment_id, year: month.getFullYear(), month: month.getMonth() + 1, locked: row.locked })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const disabled = row.locked || !day.is_within_employment_period || Boolean(day.planned_status); return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || attendanceMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => attendanceMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => !disabled && setEditing({ employmentId: row.employment_id, date: day.date })}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.planned_status && <small>{statusLabels[day.planned_status] ?? day.planned_status}</small>}</button>}</td>; })}<td className="matrix__sticky-right"><MatrixLabelCell label={row.employment_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employment_id: row.employment_id, year: month.getFullYear(), month: month.getMonth() + 1, locked: row.locked })} /></td></tr>)}</tbody></table></div>}
+      {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title="Sestavuji měsíční matici" /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title="Docházku nelze načíst">{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title="Pro filtr nejsou žádné úvazky" /></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">Úvazek</th>{days.map((day) => { const header = dayHeader(day); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__sticky-right">Úvazek</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.employment_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], lock: !row.locked })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const disabled = row.locked || !day.is_within_employment_period || Boolean(day.planned_status); return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || attendanceMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => attendanceMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => !disabled && setEditing({ employmentId: row.employment_id, date: day.date })}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.planned_status && <small>{statusLabels[day.planned_status] ?? day.planned_status}</small>}</button>}</td>; })}<td className="matrix__sticky-right"><MatrixLabelCell label={row.employment_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], lock: !row.locked })} /></td></tr>)}</tbody></table></div>}
     </Panel>
     {(attendanceMutation.error || lockMutation.error) && <StatusMessage kind="error" title="Operaci nelze dokončit">{(attendanceMutation.error ?? lockMutation.error)?.message}</StatusMessage>}
   </div>;
@@ -249,6 +366,8 @@ export function AdminShiftPlanPage() {
   const [editing, setEditing] = useState<AttendanceEditState | null>(null);
   const [statusMenu, setStatusMenu] = useState<AttendanceEditState | null>(null);
   const [conflict, setConflict] = useState<DayStatusDraft | null>(null);
+  const [selectionDirection, setSelectionDirection] = useState<SelectionDirection>("asc");
+  const [activeOnly, setActiveOnly] = useState(false);
   const qc = useQueryClient();
   const query = useQuery({ queryKey: ["shift-plan", month.getFullYear(), month.getMonth() + 1], queryFn: () => api.admin<PlanMonth>(`/api/v1/admin/shift-plan?year=${month.getFullYear()}&month=${month.getMonth() + 1}`) });
   const timeMutation = useMutation({
@@ -292,7 +411,10 @@ export function AdminShiftPlanPage() {
   });
 
   const activeSelection = useMemo(() => selection ?? query.data?.selected_employment_ids ?? [], [query.data?.selected_employment_ids, selection]);
-  const rows = useMemo(() => (query.data?.rows ?? []).filter((row) => activeSelection.includes(row.employment_id)), [activeSelection, query.data?.rows]);
+  const rows = useMemo(() => {
+    const filtered = (query.data?.rows ?? []).filter((row) => activeSelection.includes(row.employment_id) && (!activeOnly || row.is_active_in_month));
+    return sortByLabel(filtered, selectionDirection, (row) => row.display_label);
+  }, [activeOnly, activeSelection, query.data?.rows, selectionDirection]);
   const days = query.data?.rows[0]?.days ?? [];
   const monthLockState = useMemo(() => {
     const allRows = query.data?.rows ?? [];
@@ -304,12 +426,24 @@ export function AdminShiftPlanPage() {
   }, [query.data?.rows]);
   const toggle = (employmentId: number, checked: boolean) => setSelection((current) => {
     const baseline = current ?? query.data?.selected_employment_ids ?? [];
-    return checked ? [...baseline, employmentId] : baseline.filter((item) => item !== employmentId);
+    return checked ? [...baseline.filter((item) => item !== employmentId), employmentId] : baseline.filter((item) => item !== employmentId);
   });
 
   return <div className="page">
     <header className="page-heading"><div><p>Budoucí kapacita a stav dne</p><h1>Plán služeb</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelection(null); setEditing(null); setStatusMenu(null); }} />{query.data && <MonthLockStateButton state={monthLockState} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), lock: monthLockState !== "locked" })} />}</div></header>
-    {query.data && <Panel className="panel--overflow-visible" title="Výběr úvazků pro zobrazení" actions={<EmploymentSelectionDropdown items={query.data.available_employments} selectedIds={activeSelection} onToggle={toggle} onSave={() => selectionMutation.mutate(activeSelection)} pending={selectionMutation.isPending} />}>
+    {query.data && <Panel className="panel--overflow-visible" title="Výběr úvazků pro zobrazení" actions={<EmploymentSelectionDropdown
+      items={query.data.available_employments}
+      selectedIds={activeSelection}
+      onToggle={toggle}
+      onSelectAll={() => setSelection(activeOnly ? query.data.available_employments.filter((item) => item.is_active_in_month).map((item) => item.id) : query.data.available_employments.map((item) => item.id))}
+      onClear={() => setSelection([])}
+      onSave={() => selectionMutation.mutate(activeSelection)}
+      pending={selectionMutation.isPending}
+      direction={selectionDirection}
+      onDirectionChange={setSelectionDirection}
+      activeOnly={activeOnly}
+      onActiveOnlyChange={setActiveOnly}
+    />}>
       <div className="panel-body panel-body--compact">
         <p className="panel-note">Vybraný seznam se po uložení zachová i při dalším přihlášení na jiném zařízení.</p>
       </div>
