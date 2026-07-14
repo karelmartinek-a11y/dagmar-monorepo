@@ -97,6 +97,7 @@ type TimeValues=Record<TimeField,string>;
 const timeFields: TimeField[] = ["arrival_time","departure_time","arrival_time_2","departure_time_2"];
 type PlanField="planned_arrival_time"|"planned_departure_time";
 type PlanValues=Record<PlanField,string>;
+type EditSession<Field extends string> = { field: Field; originalValue: string; revertOnEscape: boolean };
 
 function pragueNowParts(): { date: string; time: string } {
   const parts = Object.fromEntries(pragueDateTime.formatToParts(new Date()).map(part => [part.type, part.value]));
@@ -114,32 +115,94 @@ function nextEmptyTimeField(day: AttendanceDay): TimeField | null {
 
 function DayCard({ day, locked, savedField, onSave, onStatus }: { day:AttendanceDay;locked:boolean;savedField:TimeField|null;onSave:(day:AttendanceDay,values:TimeValues,field:TimeField)=>void;onStatus:(day:AttendanceDay,status:string,confirmed?:boolean)=>void }) {
   const initial=():TimeValues=>dayToValues(day);
-  const [values,setValues]=useState<TimeValues>(initial);const[editing,setEditing]=useState<TimeField|null>(null);const[statusOpen,setStatusOpen]=useState(false);const[invalid,setInvalid]=useState<TimeField|null>(null);
-  useEffect(()=>{setValues(dayToValues(day));setEditing(null);setInvalid(null)},[day]);
+  const [values,setValues]=useState<TimeValues>(initial);const[editing,setEditing]=useState<TimeField|null>(null);const[editSession,setEditSession]=useState<EditSession<TimeField>|null>(null);const[statusOpen,setStatusOpen]=useState(false);const[invalid,setInvalid]=useState<TimeField|null>(null);
+  useEffect(()=>{setValues(dayToValues(day));setEditing(null);setEditSession(null);setInvalid(null)},[day]);
   const date=new Date(`${day.date}T12:00:00`);const hasWholeDayStatus=day.planned_status==="HOLIDAY"||day.planned_status==="OFF";const disabled=locked||!day.is_within_employment_period||hasWholeDayStatus;
   const mobileSecondPass=Boolean(values.arrival_time_2||values.departure_time_2);
   const isDirty=(next:TimeValues)=>Object.entries(next).some(([key,value])=>value!==((day as unknown as Record<string,string|null>)[key]??""));
   const save=(next:TimeValues,field:TimeField)=>{if(!isDirty(next)||invalid)return;onSave(day,next,field)};
-  const enterEdit=(field:TimeField)=>{if(!disabled){setEditing(field);setInvalid(null)}};
+  const enterEdit=(field:TimeField)=>{if(disabled)return;setEditing(current=>current??field);setEditSession(current=>current?.field===field?current:{field,originalValue:values[field],revertOnEscape:false});setInvalid(null)};
   const commit=(field:TimeField)=>{const normalized=normalizeTimeInput(values[field]);if(normalized===null){setInvalid(field);return null}const next={...values,[field]:normalized};setValues(next);setInvalid(null);return next};
-  const blur=(field:TimeField)=>{const next=commit(field);if(next){setEditing(null);save(next,field)}};
-  const key=(event:KeyboardEvent<HTMLInputElement>,field:TimeField)=>{if(event.key!=="Enter")return;if(editing!==field){event.preventDefault();enterEdit(field);return}event.preventDefault();const next=commit(field);if(next){setEditing(null);save(next,field)}};
+  const finish=(field:TimeField,next:TimeValues)=>{setEditing(null);setEditSession(null);save(next,field)};
+  const blur=(field:TimeField)=>{const next=commit(field);if(next)finish(field,next)};
+  const key=(event:KeyboardEvent<HTMLInputElement>,field:TimeField)=>{
+    if(event.key==="Delete"||event.key==="Backspace"){
+      if(editing!==field){event.preventDefault();enterEdit(field);return}
+      if(values[field]&&editSession?.field===field&&!editSession.revertOnEscape&&values[field]===editSession.originalValue){
+        event.preventDefault();
+        setValues(current=>({...current,[field]:""}));
+        setEditSession(current=>current&&current.field===field?{...current,revertOnEscape:true}:current);
+        setInvalid(null);
+      }
+      return;
+    }
+    if(event.key==="Escape"){
+      event.preventDefault();
+      if(editSession?.field===field&&editSession.revertOnEscape){
+        setValues(current=>({...current,[field]:editSession.originalValue}));
+        setEditing(null);
+        setEditSession(null);
+        setInvalid(null);
+        return;
+      }
+      const next=commit(field);
+      if(next)finish(field,next);
+      return;
+    }
+    if(event.key!=="Enter")return;
+    if(editing!==field){event.preventDefault();enterEdit(field);return}
+    event.preventDefault();
+    const next=commit(field);
+    if(next)finish(field,next);
+  };
   const setStatus=(status:string)=>{setStatusOpen(false);onStatus(day,status,true)};
-  return <article className={`ledger-day employee-day employee-day--${day.planned_status?.toLowerCase()??"work"} employee-day--${dayKind(date)} ${!day.is_within_employment_period?"ledger-day--outside":""}`}><div className="employee-day__date"><strong>{`${String(date.getDate()).padStart(2,"0")}.${String(date.getMonth()+1).padStart(2,"0")}.${date.getFullYear()}`}</strong><span>{dayName.format(date)}</span><small>{dayMeta(date)}</small></div><TimeCell field="arrival_time" label="1. příchod" planned={day.planned_arrival_time} value={values.arrival_time} editing={editing==="arrival_time"} invalid={invalid==="arrival_time"} saved={savedField==="arrival_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("arrival_time")} onChange={value=>setValues(current=>({...current,arrival_time:value}))} onBlur={()=>blur("arrival_time")} onKeyDown={event=>key(event,"arrival_time")}/><TimeCell field="departure_time" label="1. odchod" planned={day.planned_departure_time} value={values.departure_time} editing={editing==="departure_time"} invalid={invalid==="departure_time"} saved={savedField==="departure_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("departure_time")} onChange={value=>setValues(current=>({...current,departure_time:value}))} onBlur={()=>blur("departure_time")} onKeyDown={event=>key(event,"departure_time")}/><TimeCell field="arrival_time_2" label="2. příchod" planned={null} value={values.arrival_time_2} editing={editing==="arrival_time_2"} invalid={invalid==="arrival_time_2"} saved={savedField==="arrival_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("arrival_time_2")} onChange={value=>setValues(current=>({...current,arrival_time_2:value}))} onBlur={()=>blur("arrival_time_2")} onKeyDown={event=>key(event,"arrival_time_2")}/><TimeCell field="departure_time_2" label="2. odchod" planned={null} value={values.departure_time_2} editing={editing==="departure_time_2"} invalid={invalid==="departure_time_2"} saved={savedField==="departure_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("departure_time_2")} onChange={value=>setValues(current=>({...current,departure_time_2:value}))} onBlur={()=>blur("departure_time_2")} onKeyDown={event=>key(event,"departure_time_2")}/><div className="employee-day__status"><button type="button" className="icon-button" disabled={locked||!day.is_within_employment_period} aria-label={`${fullDate.format(date)} celodenní nepřítomnost`} title="Celodenní nepřítomnost" onClick={()=>setStatusOpen(open=>!open)}><MoreVertical/></button>{statusOpen&&<div className="absence-menu"><button type="button" onClick={()=>setStatus("")}>Pracovní den</button><button type="button" onClick={()=>setStatus("HOLIDAY")}>Dovolená</button><button type="button" onClick={()=>setStatus("OFF")}>Volno</button></div>}{day.planned_status&&<small>{statusLabels[day.planned_status]??day.planned_status}</small>}</div></article>;
+  const change=(field:TimeField,value:string)=>{setValues(current=>({...current,[field]:value}));setEditSession(current=>current?.field===field&&current.revertOnEscape?{...current,revertOnEscape:false}:current)};
+  return <article className={`ledger-day employee-day employee-day--${day.planned_status?.toLowerCase()??"work"} employee-day--${dayKind(date)} ${!day.is_within_employment_period?"ledger-day--outside":""}`}><div className="employee-day__date"><strong>{`${String(date.getDate()).padStart(2,"0")}.${String(date.getMonth()+1).padStart(2,"0")}.${date.getFullYear()}`}</strong><span>{dayName.format(date)}</span><small>{dayMeta(date)}</small></div><TimeCell field="arrival_time" label="1. příchod" planned={day.planned_arrival_time} value={values.arrival_time} editing={editing==="arrival_time"} invalid={invalid==="arrival_time"} saved={savedField==="arrival_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("arrival_time")} onChange={value=>change("arrival_time",value)} onBlur={()=>blur("arrival_time")} onKeyDown={event=>key(event,"arrival_time")}/><TimeCell field="departure_time" label="1. odchod" planned={day.planned_departure_time} value={values.departure_time} editing={editing==="departure_time"} invalid={invalid==="departure_time"} saved={savedField==="departure_time"} disabled={disabled} mobileHidden={mobileSecondPass} onEdit={()=>enterEdit("departure_time")} onChange={value=>change("departure_time",value)} onBlur={()=>blur("departure_time")} onKeyDown={event=>key(event,"departure_time")}/><TimeCell field="arrival_time_2" label="2. příchod" planned={null} value={values.arrival_time_2} editing={editing==="arrival_time_2"} invalid={invalid==="arrival_time_2"} saved={savedField==="arrival_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("arrival_time_2")} onChange={value=>change("arrival_time_2",value)} onBlur={()=>blur("arrival_time_2")} onKeyDown={event=>key(event,"arrival_time_2")}/><TimeCell field="departure_time_2" label="2. odchod" planned={null} value={values.departure_time_2} editing={editing==="departure_time_2"} invalid={invalid==="departure_time_2"} saved={savedField==="departure_time_2"} disabled={disabled} mobileHidden={!mobileSecondPass} onEdit={()=>enterEdit("departure_time_2")} onChange={value=>change("departure_time_2",value)} onBlur={()=>blur("departure_time_2")} onKeyDown={event=>key(event,"departure_time_2")}/><div className="employee-day__status"><button type="button" className="icon-button" disabled={locked||!day.is_within_employment_period} aria-label={`${fullDate.format(date)} celodenní nepřítomnost`} title="Celodenní nepřítomnost" onClick={()=>setStatusOpen(open=>!open)}><MoreVertical/></button>{statusOpen&&<div className="absence-menu"><button type="button" onClick={()=>setStatus("")}>Pracovní den</button><button type="button" onClick={()=>setStatus("HOLIDAY")}>Dovolená</button><button type="button" onClick={()=>setStatus("OFF")}>Volno</button></div>}{day.planned_status&&<small>{statusLabels[day.planned_status]??day.planned_status}</small>}</div></article>;
 }
 
 function PlanDayCard({ day, locked, editable, onSave }: { day:AttendanceDay;locked:boolean;editable:boolean;onSave:(day:AttendanceDay,values:PlanValues,status:string)=>void }) {
-  const[values,setValues]=useState<PlanValues>(()=>({planned_arrival_time:day.planned_arrival_time??"",planned_departure_time:day.planned_departure_time??""}));const[editing,setEditing]=useState<PlanField|null>(null);const[statusOpen,setStatusOpen]=useState(false);const[invalid,setInvalid]=useState<PlanField|null>(null);
-  useEffect(()=>{setValues({planned_arrival_time:day.planned_arrival_time??"",planned_departure_time:day.planned_departure_time??""});setEditing(null);setInvalid(null)},[day]);
+  const[values,setValues]=useState<PlanValues>(()=>({planned_arrival_time:day.planned_arrival_time??"",planned_departure_time:day.planned_departure_time??""}));const[editing,setEditing]=useState<PlanField|null>(null);const[editSession,setEditSession]=useState<EditSession<PlanField>|null>(null);const[statusOpen,setStatusOpen]=useState(false);const[invalid,setInvalid]=useState<PlanField|null>(null);
+  useEffect(()=>{setValues({planned_arrival_time:day.planned_arrival_time??"",planned_departure_time:day.planned_departure_time??""});setEditing(null);setEditSession(null);setInvalid(null)},[day]);
   const date=new Date(`${day.date}T12:00:00`);const statusValue=day.planned_status??"";const disabled=locked||!editable||!day.is_within_employment_period||statusValue==="HOLIDAY"||statusValue==="OFF";
   const isDirty=(next:PlanValues,nextStatus=statusValue)=>next.planned_arrival_time!==(day.planned_arrival_time??"")||next.planned_departure_time!==(day.planned_departure_time??"")||nextStatus!==(day.planned_status??"");
   const save=(next:PlanValues,nextStatus=statusValue)=>{if(!isDirty(next,nextStatus)||invalid)return;onSave(day,next,nextStatus)};
-  const enterEdit=(field:PlanField)=>{if(!disabled){setEditing(field);setInvalid(null)}};
+  const enterEdit=(field:PlanField)=>{if(disabled)return;setEditing(current=>current??field);setEditSession(current=>current?.field===field?current:{field,originalValue:values[field],revertOnEscape:false});setInvalid(null)};
   const commit=(field:PlanField)=>{const normalized=normalizeTimeInput(values[field]);if(normalized===null){setInvalid(field);return null}const next={...values,[field]:normalized};setValues(next);setInvalid(null);return next};
-  const blur=(field:PlanField)=>{const next=commit(field);if(next){setEditing(null);save(next)}};
-  const key=(event:KeyboardEvent<HTMLInputElement>,field:PlanField)=>{if(event.key!=="Enter")return;if(editing!==field){event.preventDefault();enterEdit(field);return}event.preventDefault();const next=commit(field);if(next){setEditing(null);save(next)}};
+  const finish=(next:PlanValues)=>{setEditing(null);setEditSession(null);save(next)};
+  const blur=(field:PlanField)=>{const next=commit(field);if(next)finish(next)};
+  const key=(event:KeyboardEvent<HTMLInputElement>,field:PlanField)=>{
+    if(event.key==="Delete"||event.key==="Backspace"){
+      if(editing!==field){event.preventDefault();enterEdit(field);return}
+      if(values[field]&&editSession?.field===field&&!editSession.revertOnEscape&&values[field]===editSession.originalValue){
+        event.preventDefault();
+        setValues(current=>({...current,[field]:""}));
+        setEditSession(current=>current&&current.field===field?{...current,revertOnEscape:true}:current);
+        setInvalid(null);
+      }
+      return;
+    }
+    if(event.key==="Escape"){
+      event.preventDefault();
+      if(editSession?.field===field&&editSession.revertOnEscape){
+        setValues(current=>({...current,[field]:editSession.originalValue}));
+        setEditing(null);
+        setEditSession(null);
+        setInvalid(null);
+        return;
+      }
+      const next=commit(field);
+      if(next)finish(next);
+      return;
+    }
+    if(event.key!=="Enter")return;
+    if(editing!==field){event.preventDefault();enterEdit(field);return}
+    event.preventDefault();
+    const next=commit(field);
+    if(next)finish(next);
+  };
   const setPlanStatus=(nextStatus:string)=>{setStatusOpen(false);const next={planned_arrival_time:"",planned_departure_time:""};setValues(next);save(next,nextStatus)};
-  return <article className={`ledger-day employee-day employee-day--plan employee-day--${statusValue.toLowerCase()||"work"} employee-day--${dayKind(date)} ${!day.is_within_employment_period?"ledger-day--outside":""}`}><div className="employee-day__date"><strong>{`${String(date.getDate()).padStart(2,"0")}.${String(date.getMonth()+1).padStart(2,"0")}.${date.getFullYear()}`}</strong><span>{dayName.format(date)}</span><small>{dayMeta(date)}</small></div><TimeCell field="planned_arrival_time" label="Začátek" planned={null} value={values.planned_arrival_time} editing={editing==="planned_arrival_time"} invalid={invalid==="planned_arrival_time"} disabled={disabled} mobileHidden={false} onEdit={()=>enterEdit("planned_arrival_time")} onChange={value=>setValues(current=>({...current,planned_arrival_time:value}))} onBlur={()=>blur("planned_arrival_time")} onKeyDown={event=>key(event,"planned_arrival_time")}/><TimeCell field="planned_departure_time" label="Konec" planned={null} value={values.planned_departure_time} editing={editing==="planned_departure_time"} invalid={invalid==="planned_departure_time"} disabled={disabled} mobileHidden={false} onEdit={()=>enterEdit("planned_departure_time")} onChange={value=>setValues(current=>({...current,planned_departure_time:value}))} onBlur={()=>blur("planned_departure_time")} onKeyDown={event=>key(event,"planned_departure_time")}/><div className="employee-day__status"><button type="button" className="icon-button" disabled={locked||!editable||!day.is_within_employment_period} aria-label={`${fullDate.format(date)} stav plánu směny`} title={editable?"Stav plánu směny":"Editace plánu není povolena"} onClick={()=>setStatusOpen(open=>!open)}><MoreVertical/></button>{statusOpen&&<div className="absence-menu"><button type="button" onClick={()=>setPlanStatus("")}>Pracovní den</button><button type="button" onClick={()=>setPlanStatus("HOLIDAY")}>Dovolená</button><button type="button" onClick={()=>setPlanStatus("OFF")}>Volno</button></div>}{statusValue&&<small>{statusLabels[statusValue]??statusValue}</small>}</div></article>;
+  const change=(field:PlanField,value:string)=>{setValues(current=>({...current,[field]:value}));setEditSession(current=>current?.field===field&&current.revertOnEscape?{...current,revertOnEscape:false}:current)};
+  return <article className={`ledger-day employee-day employee-day--plan employee-day--${statusValue.toLowerCase()||"work"} employee-day--${dayKind(date)} ${!day.is_within_employment_period?"ledger-day--outside":""}`}><div className="employee-day__date"><strong>{`${String(date.getDate()).padStart(2,"0")}.${String(date.getMonth()+1).padStart(2,"0")}.${date.getFullYear()}`}</strong><span>{dayName.format(date)}</span><small>{dayMeta(date)}</small></div><TimeCell field="planned_arrival_time" label="Začátek" planned={null} value={values.planned_arrival_time} editing={editing==="planned_arrival_time"} invalid={invalid==="planned_arrival_time"} disabled={disabled} mobileHidden={false} onEdit={()=>enterEdit("planned_arrival_time")} onChange={value=>change("planned_arrival_time",value)} onBlur={()=>blur("planned_arrival_time")} onKeyDown={event=>key(event,"planned_arrival_time")}/><TimeCell field="planned_departure_time" label="Konec" planned={null} value={values.planned_departure_time} editing={editing==="planned_departure_time"} invalid={invalid==="planned_departure_time"} disabled={disabled} mobileHidden={false} onEdit={()=>enterEdit("planned_departure_time")} onChange={value=>change("planned_departure_time",value)} onBlur={()=>blur("planned_departure_time")} onKeyDown={event=>key(event,"planned_departure_time")}/><div className="employee-day__status"><button type="button" className="icon-button" disabled={locked||!editable||!day.is_within_employment_period} aria-label={`${fullDate.format(date)} stav plánu směny`} title={editable?"Stav plánu směny":"Editace plánu není povolena"} onClick={()=>setStatusOpen(open=>!open)}><MoreVertical/></button>{statusOpen&&<div className="absence-menu"><button type="button" onClick={()=>setPlanStatus("")}>Pracovní den</button><button type="button" onClick={()=>setPlanStatus("HOLIDAY")}>Dovolená</button><button type="button" onClick={()=>setPlanStatus("OFF")}>Volno</button></div>}{statusValue&&<small>{statusLabels[statusValue]??statusValue}</small>}</div></article>;
 }
 
 function TimeCell({field,label,planned,value,editing,invalid,saved,disabled,mobileHidden,onEdit,onChange,onBlur,onKeyDown}:{field:string;label:string;planned:string|null;value:string;editing:boolean;invalid:boolean;saved?:boolean;disabled:boolean;mobileHidden:boolean;onEdit:()=>void;onChange:(value:string)=>void;onBlur:()=>void;onKeyDown:(event:KeyboardEvent<HTMLInputElement>)=>void}){return <label className={`time-cell ${editing?"time-cell--editing":""} ${invalid?"time-cell--invalid":""} ${saved?"time-cell--saved":""} ${mobileHidden?"time-cell--mobile-hidden":""}`}><span>{label}</span><em>{planned?`plán ${planned}`:" "}</em><input name={field} inputMode="numeric" enterKeyHint="done" pattern="[0-9:.,]*" placeholder="0:00" value={value} readOnly={disabled} disabled={disabled} aria-invalid={invalid} onPointerDown={onEdit} onClick={onEdit} onFocus={event=>{const input=event.currentTarget;onEdit();requestAnimationFrame(()=>input.select())}} onChange={event=>onChange(event.target.value)} onBlur={onBlur} onKeyDown={onKeyDown}/></label>}

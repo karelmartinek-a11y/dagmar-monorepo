@@ -127,6 +127,11 @@ function TimeRangeEditor({
   const [arrival, setArrival] = useState(initialArrival ?? "");
   const [departure, setDeparture] = useState(initialDeparture ?? "");
   const [invalidField, setInvalidField] = useState<"arrival" | "departure" | null>(null);
+  const revertOnEscapeRef = useRef(false);
+
+  const syncRevertOnEscape = (value: boolean) => {
+    revertOnEscapeRef.current = value;
+  };
 
   const commit = () => {
     const normalizedArrival = normalizeTimeInput(arrival);
@@ -161,8 +166,30 @@ function TimeRangeEditor({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const field = event.currentTarget.name === "departure" ? "departure" : "arrival";
+    const currentValue = field === "arrival" ? arrival : departure;
+    const originalValue = field === "arrival" ? (initialArrival ?? "") : (initialDeparture ?? "");
+    if (revertOnEscapeRef.current && !["Escape", "Delete", "Backspace"].includes(event.key)) syncRevertOnEscape(false);
+    if (event.key === "Delete" || event.key === "Backspace") {
+      if (currentValue && !revertOnEscapeRef.current && currentValue === originalValue) {
+        event.preventDefault();
+        if (field === "arrival") setArrival("");
+        else setDeparture("");
+        setInvalidField(null);
+        syncRevertOnEscape(true);
+      }
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
+      if (revertOnEscapeRef.current) {
+        setArrival(initialArrival ?? "");
+        setDeparture(initialDeparture ?? "");
+        setInvalidField(null);
+        syncRevertOnEscape(false);
+        onCancel();
+        return;
+      }
       onCancel();
       return;
     }
@@ -172,8 +199,8 @@ function TimeRangeEditor({
   };
 
   return <div ref={wrapperRef} className="matrix-editor" onBlur={onBlur}>
-    <input autoFocus inputMode="numeric" className={invalidField === "arrival" ? "matrix-editor__input matrix-editor__input--invalid" : "matrix-editor__input"} disabled={disabled} placeholder="0:00" value={arrival} onChange={(event) => setArrival(event.target.value)} onKeyDown={onKeyDown} />
-    <input inputMode="numeric" className={invalidField === "departure" ? "matrix-editor__input matrix-editor__input--invalid" : "matrix-editor__input"} disabled={disabled} placeholder="0:00" value={departure} onChange={(event) => setDeparture(event.target.value)} onKeyDown={onKeyDown} />
+    <input autoFocus name="arrival" inputMode="numeric" className={invalidField === "arrival" ? "matrix-editor__input matrix-editor__input--invalid" : "matrix-editor__input"} disabled={disabled} placeholder="0:00" value={arrival} onChange={(event) => { setArrival(event.target.value); if (revertOnEscapeRef.current) syncRevertOnEscape(false); }} onKeyDown={onKeyDown} />
+    <input name="departure" inputMode="numeric" className={invalidField === "departure" ? "matrix-editor__input matrix-editor__input--invalid" : "matrix-editor__input"} disabled={disabled} placeholder="0:00" value={departure} onChange={(event) => { setDeparture(event.target.value); if (revertOnEscapeRef.current) syncRevertOnEscape(false); }} onKeyDown={onKeyDown} />
   </div>;
 }
 
