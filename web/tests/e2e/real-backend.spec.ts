@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const employeeEmail = process.env.DAGMAR_E2E_USER_EMAIL ?? "employee.e2e@example.test";
 const employeePassword = process.env.DAGMAR_E2E_USER_PASSWORD ?? "EmployeeE2E-Strong-123";
-const adminUsername = process.env.DAGMAR_E2E_ADMIN_USERNAME ?? "provoz";
+const adminUsername = process.env.DAGMAR_E2E_ADMIN_USERNAME ?? "provoz@hotelchodovasc.cz";
 const adminPassword = process.env.DAGMAR_E2E_ADMIN_PASSWORD ?? "AdminE2E-Strong-123";
 
 test.describe("real backend workflows", () => {
@@ -20,7 +20,8 @@ test.describe("real backend workflows", () => {
     await arrival.fill("0815");
     const refreshedAttendance = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/v1/attendance");
     await arrival.press("Enter");
-    await expect(page.getByText("Docházka byla uložena.")).toBeVisible();
+    await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
+    await expect(arrival.locator("xpath=..")).toHaveClass(/time-cell--saved/);
     await refreshedAttendance;
     await expect(arrival).toHaveValue("08:15");
 
