@@ -78,7 +78,8 @@ def collect_day_status_conflicts(db: Session, *, employment_id: int, day: date) 
         )
     ).scalar_one_or_none()
     return DayStatusConflicts(
-        attendance_exists=attendance is not None and bool(attendance.arrival_time or attendance.departure_time),
+        attendance_exists=attendance is not None
+        and bool(attendance.arrival_time or attendance.departure_time or attendance.arrival_time_2 or attendance.departure_time_2),
         shift_plan_exists=plan is not None and bool(plan.arrival_time or plan.departure_time),
     )
 
