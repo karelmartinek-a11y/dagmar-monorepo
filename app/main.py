@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -46,6 +47,8 @@ from app.db.session import get_sessionmaker
 from app.security.rate_limit import init_rate_limiting, limiter
 from app.services.attendance_reminders import run_attendance_reminders_once
 from app.services.prague_time import prague_time_payload
+
+logger = logging.getLogger(__name__)
 
 
 class _LimiterWithDefaults(Protocol):
@@ -266,6 +269,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def unhandled_exception_handler(request: Request, exc: Exception):
         # Do not leak details to client.
         if request.url.path.startswith("/api/"):
+            logger.exception(
+                "Unhandled API exception path=%s request_id=%s",
+                request.url.path,
+                ensure_request_id(request),
+                exc_info=exc,
+            )
             if request.url.path.startswith(INTEGRATION_NAMESPACE):
                 get_audit_context(request).error_code = "internal_error"
                 return integration_error_response(request, 500, "internal_error", "Došlo k interní chybě.")

@@ -63,7 +63,7 @@ def upgrade() -> None:
             sa.text(
                 """
                 INSERT INTO portal_users (email, name, role, password_hash, is_active, instance_id, created_at, updated_at)
-                VALUES (:email, :name, 'employee', NULL, true, :instance_id, NOW(), NOW())
+                VALUES (:email, :name, 'EMPLOYEE', NULL, true, :instance_id, NOW(), NOW())
                 """
             ),
             {

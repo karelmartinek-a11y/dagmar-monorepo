@@ -272,13 +272,7 @@ class PortalUser(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     role: Mapped[PortalUserRole] = mapped_column(
-        Enum(
-            PortalUserRole,
-            name="portal_user_role",
-            create_type=False,
-            values_callable=lambda enum: [member.value for member in enum],
-        ),
-        nullable=False,
+        Enum(PortalUserRole, name="portal_user_role", create_type=False), nullable=False
     )
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
