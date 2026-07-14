@@ -3,18 +3,20 @@
 Thumbs.db
 
 # Backend
-/backend/.venv/
-/backend/.mypy_cache/
-/backend/.pytest_cache/
-/backend/.ruff_cache/
-/backend/**/__pycache__/
-/backend/**/*.pyc
+/.venv/
+/.mypy_cache/
+/.pytest_cache/
+/.ruff_cache/
+/**/__pycache__/
+/**/*.pyc
 
 # Frontend
-/frontend/node_modules/
-/frontend/dist/
-/frontend/coverage/
-/frontend/tsconfig.tsbuildinfo
+/web/node_modules/
+/web/dist/
+/web/coverage/
+/web/test-results/
+/web/playwright-report/
+/web/tsconfig.tsbuildinfo
 
 # Obecné
 .env

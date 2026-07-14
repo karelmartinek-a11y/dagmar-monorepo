@@ -1,43 +1,45 @@
-# Dagmar monorepo
+# KájovoDagmar
 
-Tento repozitář sjednocuje aktuální stav projektů `dagmar-backend` a `dagmar-frontend` do jednoho monorepa bez funkční změny aplikace.
+Produkční zdrojový kód docházkového systému KájovoDagmar pro `https://dagmar.hcasc.cz`.
 
 ## Struktura
 
-- `backend/` — FastAPI backend pro `dagmar.hcasc.cz`
-- `frontend/` — Vite/React/TypeScript frontend pro `dagmar.hcasc.cz`
-- `.github/workflows/` — monorepo workflow upravené pouze o pracovní adresáře, triggery a cesty
-- `docs/monorepo-migration.md` — záznam nezbytných strukturálních změn
+- `app/` — FastAPI backend
+- `alembic/` — verzované databázové migrace
+- `tests/` — backendové testy
+- `web/` — čistý Vite/React/TypeScript frontend
+- `docs/` — provozní, integrační a forenzní dokumentace
 
 ## Zdroj pravdy
 
-Obsah `backend/` byl importován z `karelmartinek-a11y/dagmar-backend`.
-Obsah `frontend/` byl importován z `karelmartinek-a11y/dagmar-frontend`.
-
-Historie obou projektů je zachovaná pomocí `git subtree`.
+Historie původních projektů zůstává dohledatelná v git historii. Generační hranice nového frontendu je popsána v `docs/ui-redesign/forensic-inventory/boundary.json`.
 
 ## Lokální práce
 
 ### Backend
 
 ```bash
-cd backend
-python -m pip install -e .[dev]
-pytest
-ruff check app
-mypy app
+python3.11 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/pytest
+.venv/bin/ruff check app tests scripts
+.venv/bin/mypy app
+.venv/bin/alembic heads
 ```
 
 ### Frontend
 
 ```bash
-cd frontend
+cd web
 npm ci
 npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run test:e2e
 ```
+
+Skutečné integrační E2E se spouští v CI proti izolovanému PostgreSQL a lokálnímu FastAPI; seed skript odmítne jakoukoli databázi, která není explicitní lokální E2E cíl.
 
 ## Produkční invarianty
 
