@@ -29,6 +29,7 @@ jobs:
       DAGMAR_DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_backend
       DAGMAR_SESSION_SECRET: ci-session-secret-ci-session-secret-1234
       DAGMAR_CSRF_SECRET: ci-csrf-secret-ci-csrf-secret-123456
+      DAGMAR_E2E_SEED: "1"
     steps:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
@@ -46,6 +47,7 @@ jobs:
       - name: Alembic revision chain
         run: |
           test "$(alembic heads | wc -l)" -eq 1
+          python scripts/create_legacy_e2e_baseline.py
           alembic upgrade head
           alembic current
       - name: Backend tests
@@ -90,6 +92,7 @@ jobs:
       - name: Prepare real backend
         run: |
           pip install -e .
+          python scripts/create_legacy_e2e_baseline.py
           alembic upgrade head
           python scripts/seed_e2e.py
           export DAGMAR_ADMIN_PASSWORD_HASH="$(python -c 'from app.security.passwords import hash_password; print(hash_password("AdminE2E-Strong-123").value)')"

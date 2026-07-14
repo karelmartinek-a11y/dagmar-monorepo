@@ -23,6 +23,6 @@ Workflow `.github/workflows/ci-cd.yml` ověřuje backend a web paralelně. Deplo
 
 Produkce používá neměnné release adresáře `/opt/dagmar/releases/<sha>-<run-attempt>` a `/var/www/dagmar/releases/<sha>-<run-attempt>`. Stabilní cesty `/opt/dagmar/backend` a `/var/www/dagmar/frontend` jsou atomicky přepínané symlinky. První deploy přesune historické adresáře do release označeného `legacy-<timestamp>`. Před přepnutím se ověří migrace i `nginx -t`; při neúspěšném health checku workflow atomicky vrátí oba předchozí cíle a restartuje původní backend.
 
-Webová větev CI používá izolovaný PostgreSQL, aplikuje Alembic, bezpečně seeduje pouze databázi s názvem obsahujícím `e2e` a spouští skutečný FastAPI server. Playwright tak vedle veřejných a vizuálních kontrol ověřuje zaměstnanecký bearer tok, admin session/CSRF, zápis docházky, offline frontu, export a tiskový náhled bez zásahu do produkčních dat.
+Webová větev CI používá izolovaný PostgreSQL. Nejprve vytvoří přesný předalembikovský baseline, který historická přírůstková revize `0001` očekává, a poté provede celý upgrade až na head. Oba bezpečnostní skripty odmítnou jiný než explicitní lokální E2E cíl s `e2e` v názvu databáze. Playwright následně proti skutečnému FastAPI serveru ověřuje zaměstnanecký bearer tok, admin session/CSRF, zápis docházky, offline frontu, export a tiskový náhled bez zásahu do produkčních dat.
 
 Backend zůstává na `127.0.0.1:8101`, PostgreSQL na `127.0.0.1:5433` a Nginx obsluhuje pouze `dagmar.hcasc.cz`.
