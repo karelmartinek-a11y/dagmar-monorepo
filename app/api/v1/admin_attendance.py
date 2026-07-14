@@ -23,6 +23,8 @@ class AttendanceDayOut(BaseModel):
     date: str
     arrival_time: str | None = None
     departure_time: str | None = None
+    arrival_time_2: str | None = None
+    departure_time_2: str | None = None
     planned_arrival_time: str | None = None
     planned_departure_time: str | None = None
     planned_status: str | None = None
@@ -63,6 +65,8 @@ class AttendanceUpsertIn(BaseModel):
     date: str = Field(..., description="YYYY-MM-DD")
     arrival_time: str | None = Field(None, description="HH:MM or null")
     departure_time: str | None = Field(None, description="HH:MM or null")
+    arrival_time_2: str | None = Field(None, description="HH:MM or null")
+    departure_time_2: str | None = Field(None, description="HH:MM or null")
 
 
 class OkOut(BaseModel):
@@ -173,6 +177,8 @@ def admin_get_attendance_matrix_month(
                     date=cur.isoformat(),
                     arrival_time=attendance.arrival_time if attendance else None,
                     departure_time=attendance.departure_time if attendance else None,
+                    arrival_time_2=attendance.arrival_time_2 if attendance else None,
+                    departure_time_2=attendance.departure_time_2 if attendance else None,
                     planned_arrival_time=plan.arrival_time if plan else None,
                     planned_departure_time=plan.departure_time if plan else None,
                     planned_status=plan.status if plan else None,
@@ -242,6 +248,8 @@ def admin_get_month_attendance(
                 date=cur.isoformat(),
                 arrival_time=row.arrival_time if row else None,
                 departure_time=row.departure_time if row else None,
+                arrival_time_2=row.arrival_time_2 if row else None,
+                departure_time_2=row.departure_time_2 if row else None,
                 planned_arrival_time=plan.arrival_time if plan else None,
                 planned_departure_time=plan.departure_time if plan else None,
                 planned_status=plan.status if plan else None,
@@ -293,6 +301,8 @@ def admin_upsert_attendance(
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)
         departure = parse_hhmm_or_none(body.departure_time)
+        arrival_2 = parse_hhmm_or_none(body.arrival_time_2)
+        departure_2 = parse_hhmm_or_none(body.departure_time_2)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -310,11 +320,15 @@ def admin_upsert_attendance(
             date=day,
             arrival_time=arrival,
             departure_time=departure,
+            arrival_time_2=arrival_2,
+            departure_time_2=departure_2,
         )
         db.add(existing)
     else:
         existing.arrival_time = arrival
         existing.departure_time = departure
+        existing.arrival_time_2 = arrival_2
+        existing.departure_time_2 = departure_2
 
     db.commit()
     return OkOut(ok=True)

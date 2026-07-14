@@ -25,6 +25,8 @@ class AttendanceDayOut(BaseModel):
     date: str
     arrival_time: str | None = None
     departure_time: str | None = None
+    arrival_time_2: str | None = None
+    departure_time_2: str | None = None
     planned_arrival_time: str | None = None
     planned_departure_time: str | None = None
     planned_status: str | None = None
@@ -43,10 +45,8 @@ class AttendanceUpsertIn(BaseModel):
     date: str = Field(..., description="YYYY-MM-DD")
     arrival_time: str | None = Field(None, description="HH:MM or null")
     departure_time: str | None = Field(None, description="HH:MM or null")
-
-
-class OkOut(BaseModel):
-    ok: bool = True
+    arrival_time_2: str | None = Field(None, description="HH:MM or null")
+    departure_time_2: str | None = Field(None, description="HH:MM or null")
 
 
 def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
@@ -117,6 +117,8 @@ def _enforce_user_forensic_rules(
     day: dt.date,
     arrival: str | None,
     departure: str | None,
+    arrival_2: str | None,
+    departure_2: str | None,
     existing: Attendance | None,
 ) -> None:
     today = prague_today()
@@ -125,9 +127,8 @@ def _enforce_user_forensic_rules(
 
     if day == today:
         now_minutes = prague_minutes_since_midnight()
-        if (arrival is not None and (_minutes_from_hhmm(arrival) or 0) > now_minutes) or (
-            departure is not None and (_minutes_from_hhmm(departure) or 0) > now_minutes
-        ):
+        values = [arrival, departure, arrival_2, departure_2]
+        if any(value is not None and (_minutes_from_hhmm(value) or 0) > now_minutes for value in values):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="U dnesniho dne nelze zadat cas v budoucnosti podle casu v Praze.",
@@ -143,6 +144,16 @@ def _enforce_user_forensic_rules(
             detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
         )
     if existing.departure_time is not None and departure != existing.departure_time:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
+        )
+    if existing.arrival_time_2 is not None and arrival_2 != existing.arrival_time_2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
+        )
+    if existing.departure_time_2 is not None and departure_2 != existing.departure_time_2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
@@ -193,6 +204,8 @@ def get_month_attendance(
                 date=cur.isoformat(),
                 arrival_time=row.arrival_time if row else None,
                 departure_time=row.departure_time if row else None,
+                arrival_time_2=row.arrival_time_2 if row else None,
+                departure_time_2=row.departure_time_2 if row else None,
                 planned_arrival_time=plan.arrival_time if plan else None,
                 planned_departure_time=plan.departure_time if plan else None,
                 planned_status=plan.status if plan else None,
@@ -209,12 +222,12 @@ def get_month_attendance(
     )
 
 
-@router.put("/api/v1/attendance", response_model=OkOut)
+@router.put("/api/v1/attendance", response_model=AttendanceDayOut)
 def upsert_attendance(
     body: AttendanceUpsertIn,
     db: Session = Depends(get_db),
     auth: PortalUserAuth = Depends(require_portal_user_auth),
-) -> OkOut:
+) -> AttendanceDayOut:
     try:
         day = dt.date.fromisoformat(body.date)
     except ValueError as exc:
@@ -236,6 +249,8 @@ def upsert_attendance(
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)
         departure = parse_hhmm_or_none(body.departure_time)
+        arrival_2 = parse_hhmm_or_none(body.arrival_time_2)
+        departure_2 = parse_hhmm_or_none(body.departure_time_2)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -246,7 +261,14 @@ def upsert_attendance(
         )
     ).scalar_one_or_none()
 
-    _enforce_user_forensic_rules(day=day, arrival=arrival, departure=departure, existing=existing)
+    _enforce_user_forensic_rules(
+        day=day,
+        arrival=arrival,
+        departure=departure,
+        arrival_2=arrival_2,
+        departure_2=departure_2,
+        existing=existing,
+    )
 
     if existing is None:
         existing = Attendance(
@@ -255,12 +277,26 @@ def upsert_attendance(
             date=day,
             arrival_time=arrival,
             departure_time=departure,
+            arrival_time_2=arrival_2,
+            departure_time_2=departure_2,
         )
         db.add(existing)
     else:
         existing.arrival_time = arrival
         existing.departure_time = departure
+        existing.arrival_time_2 = arrival_2
+        existing.departure_time_2 = departure_2
         existing.instance_id = auth.instance.id
 
     db.commit()
-    return OkOut(ok=True)
+    return AttendanceDayOut(
+        date=day.isoformat(),
+        arrival_time=existing.arrival_time,
+        departure_time=existing.departure_time,
+        arrival_time_2=existing.arrival_time_2,
+        departure_time_2=existing.departure_time_2,
+        planned_arrival_time=None,
+        planned_departure_time=None,
+        planned_status=None,
+        is_within_employment_period=True,
+    )

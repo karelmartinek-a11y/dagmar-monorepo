@@ -60,6 +60,8 @@ class IntegrationAttendanceWriteIn(BaseModel):
 
     arrival_time: str | None = Field(default=None, description="HH:MM nebo null")
     departure_time: str | None = Field(default=None, description="HH:MM nebo null")
+    arrival_time_2: str | None = Field(default=None, description="HH:MM nebo null")
+    departure_time_2: str | None = Field(default=None, description="HH:MM nebo null")
 
 
 class IntegrationAttendanceCreateIn(IntegrationAttendanceWriteIn):
@@ -84,6 +86,8 @@ class IntegrationAttendanceMutationOut(BaseModel):
     date: str
     arrival_time: str | None = None
     departure_time: str | None = None
+    arrival_time_2: str | None = None
+    departure_time_2: str | None = None
     last_changed_at: str | None = None
     deleted: bool = False
 
@@ -261,9 +265,20 @@ def _parse_expected_updated_at(value: str | None) -> datetime | None:
     return parsed.astimezone(UTC)
 
 
-def _parse_attendance_times(*, arrival_time: str | None, departure_time: str | None) -> tuple[str | None, str | None]:
+def _parse_attendance_times(
+    *,
+    arrival_time: str | None,
+    departure_time: str | None,
+    arrival_time_2: str | None = None,
+    departure_time_2: str | None = None,
+) -> tuple[str | None, str | None, str | None, str | None]:
     try:
-        return (parse_hhmm_or_none(arrival_time), parse_hhmm_or_none(departure_time))
+        return (
+            parse_hhmm_or_none(arrival_time),
+            parse_hhmm_or_none(departure_time),
+            parse_hhmm_or_none(arrival_time_2),
+            parse_hhmm_or_none(departure_time_2),
+        )
     except ValueError as exc:
         raise_integration_error(status.HTTP_400_BAD_REQUEST, "validation_error", str(exc))
         raise AssertionError from exc
@@ -275,6 +290,8 @@ def _attendance_state(row: models.Attendance | None) -> dict[str, Any] | None:
     return {
         "arrival_time": row.arrival_time,
         "departure_time": row.departure_time,
+        "arrival_time_2": row.arrival_time_2,
+        "departure_time_2": row.departure_time_2,
         "last_changed_at": utc_isoformat(row.updated_at),
     }
 
@@ -288,6 +305,8 @@ def _serialize_attendance_mutation(row: models.Attendance, *, deleted: bool = Fa
         "date": row.date.isoformat(),
         "arrival_time": row.arrival_time,
         "departure_time": row.departure_time,
+        "arrival_time_2": row.arrival_time_2,
+        "departure_time_2": row.departure_time_2,
         "last_changed_at": utc_isoformat(row.updated_at),
         "deleted": deleted,
     }
@@ -560,6 +579,26 @@ def integration_attendances(
                         "raw_event_available": False,
                     }
                 )
+            if row.arrival_time_2:
+                punches.append(
+                    {
+                        "event_type": "ARRIVAL",
+                        "event_time": row.arrival_time_2,
+                        "sequence_no": 2,
+                        "source": "derived_from_attendance",
+                        "raw_event_available": False,
+                    }
+                )
+            if row.departure_time_2:
+                punches.append(
+                    {
+                        "event_type": "DEPARTURE",
+                        "event_time": row.departure_time_2,
+                        "sequence_no": 2,
+                        "source": "derived_from_attendance",
+                        "raw_event_available": False,
+                    }
+                )
         lock = lock_map.get((row.employment_id, row.date.year, row.date.month))
         cursor_key = f"{row.date.isoformat()}:{row.employment_id}:{row.id}"
         payload.append(
@@ -570,6 +609,8 @@ def integration_attendances(
                 "date": row.date.isoformat(),
                 "arrival_time": row.arrival_time,
                 "departure_time": row.departure_time,
+                "arrival_time_2": row.arrival_time_2,
+                "departure_time_2": row.departure_time_2,
                 "timezone": TIMEZONE,
                 "plan": (
                     {
@@ -621,9 +662,11 @@ def create_integration_attendance(
             "day_status_blocked",
             f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
         )
-    arrival_time, departure_time = _parse_attendance_times(
+    arrival_time, departure_time, arrival_time_2, departure_time_2 = _parse_attendance_times(
         arrival_time=payload.arrival_time,
         departure_time=payload.departure_time,
+        arrival_time_2=payload.arrival_time_2,
+        departure_time_2=payload.departure_time_2,
     )
 
     existing = db.execute(
@@ -653,6 +696,8 @@ def create_integration_attendance(
         date=day,
         arrival_time=arrival_time,
         departure_time=departure_time,
+        arrival_time_2=arrival_time_2,
+        departure_time_2=departure_time_2,
     )
     row.employment = employment
     db.add(row)
@@ -689,7 +734,7 @@ def patch_integration_attendance(
 ) -> dict[str, Any]:
     request.state.integration_rate_key = f"client:{auth.client.id}"
     _ensure_scope(auth, "attendance:update")
-    fields_to_update = {"arrival_time", "departure_time"} & set(payload.model_fields_set)
+    fields_to_update = {"arrival_time", "departure_time", "arrival_time_2", "departure_time_2"} & set(payload.model_fields_set)
     if not fields_to_update:
         raise_integration_error(
             status.HTTP_400_BAD_REQUEST,
@@ -715,15 +760,21 @@ def patch_integration_attendance(
             f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
         )
     _ensure_expected_updated_at(row, expected_updated_at=expected_updated_at)
-    arrival_time, departure_time = _parse_attendance_times(
+    arrival_time, departure_time, arrival_time_2, departure_time_2 = _parse_attendance_times(
         arrival_time=payload.arrival_time,
         departure_time=payload.departure_time,
+        arrival_time_2=payload.arrival_time_2,
+        departure_time_2=payload.departure_time_2,
     )
     before_state = _attendance_state(row)
     if "arrival_time" in fields_to_update:
         row.arrival_time = arrival_time
     if "departure_time" in fields_to_update:
         row.departure_time = departure_time
+    if "arrival_time_2" in fields_to_update:
+        row.arrival_time_2 = arrival_time_2
+    if "departure_time_2" in fields_to_update:
+        row.departure_time_2 = departure_time_2
     db.add(row)
     db.commit()
     db.refresh(row)

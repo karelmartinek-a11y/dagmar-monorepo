@@ -23,6 +23,8 @@ export const attendanceDaySchema = z.object({
   date: z.string(),
   arrival_time: z.string().nullable(),
   departure_time: z.string().nullable(),
+  arrival_time_2: z.string().nullable().optional(),
+  departure_time_2: z.string().nullable().optional(),
   planned_arrival_time: z.string().nullable(),
   planned_departure_time: z.string().nullable(),
   planned_status: z.string().nullable(),

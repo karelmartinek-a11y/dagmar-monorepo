@@ -767,6 +767,8 @@ def test_write_audit_logs_create_update_delete_and_never_logs_plaintext_token(tm
         assert logs[0].after_state == {
             "arrival_time": "08:10",
             "departure_time": "16:20",
+            "arrival_time_2": None,
+            "departure_time_2": None,
             "last_changed_at": logs[0].after_state["last_changed_at"],
         }
         assert logs[1].before_state is not None

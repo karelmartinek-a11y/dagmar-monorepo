@@ -298,15 +298,20 @@ def test_attendance_and_shift_plan_are_stored_by_employment_id() -> None:
 
     attendance_response = client.put(
         "/api/v1/attendance",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "employment_id": employment_id,
-                "date": target_day.isoformat(),
-                "arrival_time": "08:00",
-                "departure_time": "16:00",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:00",
+            "departure_time": "12:00",
+            "arrival_time_2": "13:00",
+            "departure_time_2": "16:00",
         },
     )
     assert attendance_response.status_code == 200
+    attendance_payload = attendance_response.json()
+    assert attendance_payload["arrival_time_2"] == "13:00"
+    assert attendance_payload["departure_time_2"] == "16:00"
 
     shift_plan_response = client.put(
         "/api/v1/admin/shift-plan",
@@ -326,6 +331,8 @@ def test_attendance_and_shift_plan_are_stored_by_employment_id() -> None:
         assert shift_plan_row.employment_id == employment_id
         assert attendance_row.instance_id == instance_id
         assert shift_plan_row.instance_id == instance_id
+        assert attendance_row.arrival_time_2 == "13:00"
+        assert attendance_row.departure_time_2 == "16:00"
 
 
 def test_portal_attendance_rejects_locked_month_for_read_and_write() -> None:

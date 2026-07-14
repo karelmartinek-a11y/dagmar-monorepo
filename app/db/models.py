@@ -149,6 +149,8 @@ class Attendance(Base):
     # Stored as "HH:MM" or NULL. Validation is performed in API layer.
     arrival_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
     departure_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    arrival_time_2: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    departure_time_2: Mapped[str | None] = mapped_column(String(5), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
