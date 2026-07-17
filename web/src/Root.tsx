@@ -9,7 +9,8 @@ function DocumentTitle() {
 
   useEffect(() => {
     const routeTitleKey = (() => {
-      if (pathname === "/app" || pathname === "/") return "employee.login.title";
+      if (pathname === "/") return "employee.login.title";
+      if (pathname === "/app") return null;
       if (pathname === "/reset") return "auth.reset.title";
       if (pathname === "/integration-api") return "integrationDocs.title";
       if (pathname === "/admin/login") return "auth.admin.title";
@@ -25,6 +26,7 @@ function DocumentTitle() {
       return "auth.notFound.title";
     })();
 
+    if (!routeTitleKey) return;
     document.title = `${t("common.appName")} · ${t(routeTitleKey)}`;
   }, [pathname, t]);
 
