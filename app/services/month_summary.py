@@ -244,10 +244,10 @@ def build_month_summary(db: Session, *, employment: Employment, year: int, month
         plan = plan_by_date.get(current)
         attendance_intervals = []
         plan_intervals = []
-        for row in attendance_rows:
-            attendance_intervals.extend(_attendance_intervals(row))
-        for row in plan_rows:
-            plan_intervals.extend(_plan_intervals(row))
+        for attendance_row in attendance_rows:
+            attendance_intervals.extend(_attendance_intervals(attendance_row))
+        for plan_row in plan_rows:
+            plan_intervals.extend(_plan_intervals(plan_row))
         worked_minutes = sum(_slice_interval(interval, current) for interval in attendance_intervals)
         planned_minutes = sum(_slice_interval(interval, current) for interval in plan_intervals)
         afternoon_minutes = sum(_slice_after_cutoff(interval, current, cutoff_minutes) for interval in attendance_intervals)
