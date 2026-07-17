@@ -34,7 +34,8 @@ export const attendanceDaySchema = z.object({
 export const attendanceMonthSchema = z.object({
   employment_id: z.number(),
   employment_label: z.string(),
-  locked: z.boolean(),
+  attendance_locked: z.boolean(),
+  shift_plan_locked: z.boolean(),
   shift_plan_editable: z.boolean().optional(),
   days: z.array(attendanceDaySchema),
 });
@@ -72,7 +73,8 @@ export interface AttendanceMatrixRow {
   start_date: string;
   end_date: string | null;
   is_active_in_month: boolean;
-  locked: boolean;
+  attendance_locked: boolean;
+  shift_plan_locked: boolean;
   days: AttendanceDay[];
 }
 
@@ -83,7 +85,8 @@ export interface ShiftPlanRow {
   employment_label: string;
   employment_type: string;
   selected: boolean;
-  locked: boolean;
+  shift_plan_locked: boolean;
+  attendance_locked: boolean;
   employee_plan_edit_allowed?: boolean;
   employee_plan_edit_override?: boolean | null;
   days: Array<{

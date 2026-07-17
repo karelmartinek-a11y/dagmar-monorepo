@@ -10,11 +10,18 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
-from app.db.models import Attendance, AttendanceLock, Employment, ShiftPlan
+from app.db.models import Attendance, Employment, ShiftPlan
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
+from app.services.locks import (
+    LockType,
+    ensure_month_unlocked,
+    is_month_locked,
+    load_locked_employment_ids,
+    set_month_lock_state,
+)
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
 router = APIRouter(tags=["admin"])
@@ -36,6 +43,8 @@ class AttendanceMonthOut(BaseModel):
     employment_id: int
     employment_label: str
     locked: bool = False
+    attendance_locked: bool = False
+    shift_plan_locked: bool = False
     days: list[AttendanceDayOut]
 
 
@@ -52,6 +61,8 @@ class AttendanceMatrixRowOut(BaseModel):
     end_date: str | None = None
     is_active_in_month: bool
     locked: bool = False
+    attendance_locked: bool = False
+    shift_plan_locked: bool = False
     days: list[AttendanceDayOut]
 
 
@@ -110,15 +121,7 @@ def _employment_active_in_month(employment: Employment, start: dt.date, end: dt.
 
 
 def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
-    lock = db.execute(
-        select(AttendanceLock).where(
-            AttendanceLock.employment_id == employment_id,
-            AttendanceLock.year == year,
-            AttendanceLock.month == month,
-        )
-    ).scalar_one_or_none()
-    if lock is not None:
-        raise_api_error(423, "attendance_month_locked", "Docházka za zvolené období je uzamčena.")
+    ensure_month_unlocked(db, lock_type=LockType.ATTENDANCE, employment_id=employment_id, year=year, month=month)
 
 
 @router.get("/api/v1/admin/attendance/month", response_model=AttendanceMatrixMonthOut)
@@ -156,14 +159,20 @@ def admin_get_attendance_matrix_month(
     ).scalars().all()
     plan_by_key = {(row.employment_id, row.date): row for row in plan_rows}
 
-    lock_rows = db.execute(
-        select(AttendanceLock).where(
-            AttendanceLock.employment_id.in_(employment_ids),
-            AttendanceLock.year == year,
-            AttendanceLock.month == month,
-        )
-    ).scalars().all()
-    locked_employment_ids = {row.employment_id for row in lock_rows}
+    attendance_locked_ids = load_locked_employment_ids(
+        db,
+        lock_type=LockType.ATTENDANCE,
+        employment_ids=employment_ids,
+        year=year,
+        month=month,
+    )
+    shift_plan_locked_ids = load_locked_employment_ids(
+        db,
+        lock_type=LockType.SHIFT_PLAN,
+        employment_ids=employment_ids,
+        year=year,
+        month=month,
+    )
 
     rows: list[AttendanceMatrixRowOut] = []
     for employment in employments:
@@ -203,7 +212,9 @@ def admin_get_attendance_matrix_month(
                 end_date=employment.end_date.isoformat() if employment.end_date else None,
                 is_active_in_month=_employment_active_in_month(employment, start, end)
                 and (bool(user.is_active) if user else False),
-                locked=employment.id in locked_employment_ids,
+                locked=employment.id in attendance_locked_ids,
+                attendance_locked=employment.id in attendance_locked_ids,
+                shift_plan_locked=employment.id in shift_plan_locked_ids,
                 days=days,
             )
         )
@@ -259,22 +270,28 @@ def admin_get_month_attendance(
         )
         cur = cur + dt.timedelta(days=1)
 
-    locked = (
-        db.execute(
-            select(AttendanceLock).where(
-                AttendanceLock.employment_id == employment.id,
-                AttendanceLock.year == year,
-                AttendanceLock.month == month,
-            )
-        ).scalar_one_or_none()
-        is not None
+    attendance_locked = is_month_locked(
+        db,
+        lock_type=LockType.ATTENDANCE,
+        employment_id=employment.id,
+        year=year,
+        month=month,
+    )
+    shift_plan_locked = is_month_locked(
+        db,
+        lock_type=LockType.SHIFT_PLAN,
+        employment_id=employment.id,
+        year=year,
+        month=month,
     )
 
     return AttendanceMonthOut(
         employment_id=employment.id,
         employment_label=employment_label(employment, employment.user.name if employment.user else None),
         days=days,
-        locked=locked,
+        locked=attendance_locked,
+        attendance_locked=attendance_locked,
+        shift_plan_locked=shift_plan_locked,
     )
 
 
@@ -348,24 +365,17 @@ def lock_month(
     db: Session = Depends(get_db),
 ) -> OkOut:
     employment = _get_employment(body.employment_id, db)
-    existing = db.execute(
-        select(AttendanceLock).where(
-            AttendanceLock.employment_id == employment.id,
-            AttendanceLock.year == body.year,
-            AttendanceLock.month == body.month,
-        )
-    ).scalar_one_or_none()
-    if existing is None:
-        lock = AttendanceLock(
-            employment_id=employment.id,
-            instance_id=employment.user.instance_id if employment.user else None,
-            year=body.year,
-            month=body.month,
-            locked_by=admin.username or None,
-        )
-        db.add(lock)
-        db.commit()
-
+    set_month_lock_state(
+        db,
+        lock_type=LockType.ATTENDANCE,
+        employment_id=employment.id,
+        instance_id=employment.user.instance_id if employment.user else None,
+        year=body.year,
+        month=body.month,
+        locked=True,
+        locked_by=admin.username or None,
+    )
+    db.commit()
     return OkOut(ok=True)
 
 
@@ -377,16 +387,15 @@ def unlock_month(
     db: Session = Depends(get_db),
 ) -> OkOut:
     employment = _get_employment(body.employment_id, db)
-    lock = db.execute(
-        select(AttendanceLock).where(
-            AttendanceLock.employment_id == employment.id,
-            AttendanceLock.year == body.year,
-            AttendanceLock.month == body.month,
-        )
-    ).scalar_one_or_none()
-    if lock is None:
-        return OkOut(ok=True)
-
-    db.delete(lock)
+    set_month_lock_state(
+        db,
+        lock_type=LockType.ATTENDANCE,
+        employment_id=employment.id,
+        instance_id=employment.user.instance_id if employment.user else None,
+        year=body.year,
+        month=body.month,
+        locked=False,
+        locked_by=admin.username or None,
+    )
     db.commit()
     return OkOut(ok=True)

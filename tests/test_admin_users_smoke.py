@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.deps import require_admin
 from app.api.v1 import (
     admin_attendance,
+    admin_locks,
     admin_shift_plan,
     admin_users,
     attendance,
@@ -32,6 +33,7 @@ from app.db.models import (
     PortalUserRole,
     ShiftPlan,
     ShiftPlanEmploymentEditPermission,
+    ShiftPlanLock,
     ShiftPlanMonthEditPolicy,
     ShiftPlanMonthInstance,
 )
@@ -54,6 +56,7 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
     app.include_router(admin_employments_router)
     app.include_router(attendance.router)
     app.include_router(admin_attendance.router)
+    app.include_router(admin_locks.router)
     app.include_router(admin_shift_plan.router)
     app.include_router(portal_auth.router)
     app.include_router(shift_plan.router)
@@ -65,7 +68,7 @@ def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
         finally:
             db.close()
 
-    for module in (admin_users, attendance, admin_attendance, admin_shift_plan, portal_auth, shift_plan):
+    for module in (admin_users, attendance, admin_attendance, admin_locks, admin_shift_plan, portal_auth, shift_plan):
         app.dependency_overrides[module.get_db] = override_db
     app.dependency_overrides[require_admin] = lambda: {"username": "admin"}
     app.dependency_overrides[require_csrf] = lambda: None
@@ -366,6 +369,8 @@ def test_portal_attendance_rejects_locked_month_for_read_and_write() -> None:
     )
     assert read_response.status_code == 200
     assert read_response.json()["locked"] is True
+    assert read_response.json()["attendance_locked"] is True
+    assert read_response.json()["shift_plan_locked"] is False
 
     write_response = client.put(
         "/api/v1/attendance",
@@ -380,7 +385,7 @@ def test_portal_attendance_rejects_locked_month_for_read_and_write() -> None:
     assert write_response.status_code == 423
 
 
-def test_portal_day_status_rejects_locked_month() -> None:
+def test_portal_day_status_can_write_shift_plan_when_only_attendance_is_locked() -> None:
     client, session_local = _build_client()
     target_day = date(2026, 2, 10)
     with session_local() as db:
@@ -409,6 +414,56 @@ def test_portal_day_status_rejects_locked_month() -> None:
             "employment_id": employment_id,
             "date": target_day.isoformat(),
             "status": "OFF",
+        },
+    )
+    assert response.status_code == 200
+
+    with session_local() as db:
+        shift_plan_row = db.execute(
+            select(ShiftPlan).where(ShiftPlan.employment_id == employment_id, ShiftPlan.date == target_day)
+        ).scalar_one()
+        assert shift_plan_row.status == "OFF"
+
+
+def test_portal_day_status_rejects_shift_plan_change_that_would_modify_locked_attendance() -> None:
+    client, session_local = _build_client()
+    target_day = date(2026, 2, 10)
+    with session_local() as db:
+        user = _create_user(db, email="locked-plan-status-attendance@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(
+            AttendanceLock(
+                employment_id=employment.id,
+                instance_id=user.instance_id,
+                year=target_day.year,
+                month=target_day.month,
+                locked_by="admin",
+            )
+        )
+        db.add(
+            Attendance(
+                employment_id=employment.id,
+                instance_id=user.instance_id,
+                date=target_day,
+                arrival_time="08:00",
+                departure_time="16:00",
+            )
+        )
+        db.commit()
+        employment_id = employment.id
+
+    login_response = _portal_login(client, "locked-plan-status-attendance@example.com")
+    assert login_response.status_code == 200
+    token = login_response.json()["instance_token"]
+
+    response = client.put(
+        "/api/v1/shift-plan/day-status",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "status": "OFF",
+            "confirm_delete_conflicts": True,
         },
     )
     assert response.status_code == 423
@@ -749,8 +804,131 @@ def test_admin_attendance_matrix_month_returns_all_employments_without_cell_requ
     assert first_row["days"][9]["arrival_time"] == "08:00"
     assert first_row["days"][9]["planned_arrival_time"] == "08:00"
     assert first_row["locked"] is False
+    assert first_row["attendance_locked"] is False
+    assert first_row["shift_plan_locked"] is False
     assert second_row["days"][10]["planned_status"] == "HOLIDAY"
     assert second_row["locked"] is True
+    assert second_row["attendance_locked"] is True
+    assert second_row["shift_plan_locked"] is False
+
+
+def test_admin_shift_plan_lock_is_independent_from_attendance_lock() -> None:
+    client, session_local = _build_client()
+    target_day = date(2026, 5, 12)
+    with session_local() as db:
+        user = _create_user(db, email="independent-locks@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(
+            AttendanceLock(
+                employment_id=employment.id,
+                instance_id=user.instance_id,
+                year=target_day.year,
+                month=target_day.month,
+                locked_by="admin",
+            )
+        )
+        db.commit()
+        employment_id = employment.id
+
+    shift_plan_response = client.put(
+        "/api/v1/admin/shift-plan",
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:00",
+            "departure_time": "16:00",
+        },
+    )
+    assert shift_plan_response.status_code == 200
+
+    attendance_response = client.put(
+        "/api/v1/admin/attendance",
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "08:00",
+            "departure_time": "16:00",
+        },
+    )
+    assert attendance_response.status_code == 423
+
+    lock_response = client.put(
+        "/api/v1/admin/locks",
+        json={
+            "lock_type": "shift_plan",
+            "year": target_day.year,
+            "month": target_day.month,
+            "locked": True,
+            "employment_ids": [employment_id],
+        },
+    )
+    assert lock_response.status_code == 200
+
+    blocked_shift_plan_response = client.put(
+        "/api/v1/admin/shift-plan",
+        json={
+            "employment_id": employment_id,
+            "date": target_day.isoformat(),
+            "arrival_time": "09:00",
+            "departure_time": "17:00",
+        },
+    )
+    assert blocked_shift_plan_response.status_code == 423
+
+
+def test_admin_bulk_lock_endpoint_sets_explicit_target_state_without_inverting() -> None:
+    client, session_local = _build_client()
+    with session_local() as db:
+        first_user = _create_user(db, email="bulk-first@example.com")
+        second_user = _create_user(db, email="bulk-second@example.com")
+        first_employment = _add_employment(db, first_user, start_date=date(2025, 1, 1), end_date=None)
+        second_employment = _add_employment(db, second_user, start_date=date(2025, 1, 1), end_date=None)
+        db.add(
+            ShiftPlanLock(
+                employment_id=first_employment.id,
+                instance_id=first_user.instance_id,
+                year=2026,
+                month=5,
+                locked_by="admin",
+            )
+        )
+        db.commit()
+        employment_ids = [first_employment.id, second_employment.id]
+
+    lock_all_response = client.put(
+        "/api/v1/admin/locks",
+        json={
+            "lock_type": "shift_plan",
+            "year": 2026,
+            "month": 5,
+            "locked": True,
+            "employment_ids": employment_ids,
+        },
+    )
+    assert lock_all_response.status_code == 200
+
+    with session_local() as db:
+        locked_ids = {
+            row.employment_id
+            for row in db.execute(select(ShiftPlanLock).where(ShiftPlanLock.year == 2026, ShiftPlanLock.month == 5)).scalars().all()
+        }
+        assert locked_ids == set(employment_ids)
+
+    unlock_all_response = client.put(
+        "/api/v1/admin/locks",
+        json={
+            "lock_type": "shift_plan",
+            "year": 2026,
+            "month": 5,
+            "locked": False,
+            "employment_ids": employment_ids,
+        },
+    )
+    assert unlock_all_response.status_code == 200
+
+    with session_local() as db:
+        remaining_locks = db.execute(select(ShiftPlanLock).where(ShiftPlanLock.year == 2026, ShiftPlanLock.month == 5)).scalars().all()
+        assert remaining_locks == []
 
 
 def test_employment_delete_with_related_data_returns_409_until_confirmed() -> None:

@@ -18,6 +18,7 @@ from app.db.models import (
     PortalUser,
     PortalUserRole,
     ShiftPlan,
+    ShiftPlanLock,
 )
 from app.security.integration_tokens import build_token_record
 
@@ -161,6 +162,14 @@ def _seed_domain_data(db: Session) -> dict[str, int]:
             locked_by="admin",
         )
     )
+    db.add(
+        ShiftPlanLock(
+            employment_id=in_scope_employment.id,
+            year=2026,
+            month=6,
+            locked_by="planner",
+        )
+    )
     db.commit()
 
     return {
@@ -227,6 +236,22 @@ def test_integration_read_endpoints_return_scoped_data_and_derived_punches(tmp_p
     assert [row["event_type"] for row in payload] == ["ARRIVAL", "DEPARTURE"]
     assert all(row["source"] == "derived_from_attendance" for row in payload)
     assert all(row["raw_event_available"] is False for row in payload)
+
+    shift_plan = client.get(
+        "/api/v1/integration/shift-plan?date_from=2026-06-10&date_to=2026-06-10&include_locks=true",
+        headers=headers,
+    )
+    assert shift_plan.status_code == 200
+    assert shift_plan.json()["data"][0]["lock_status"] == "LOCKED"
+
+    locks = client.get(
+        "/api/v1/integration/locks?date_from=2026-05-01&date_to=2026-06-30",
+        headers=headers,
+    )
+    assert locks.status_code == 200
+    lock_types = {(row["lock_type"], row["year"], row["month"]) for row in locks.json()["data"]}
+    assert ("attendance", 2026, 5) in lock_types
+    assert ("shift_plan", 2026, 6) in lock_types
 
 
 def test_integration_period_limit_is_enforced(tmp_path: Path) -> None:

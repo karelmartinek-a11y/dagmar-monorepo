@@ -60,6 +60,8 @@ describe("admin pages", () => {
               end_date: null,
               is_active_in_month: true,
               locked: true,
+              attendance_locked: true,
+              shift_plan_locked: false,
               days: [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", planned_status: null, is_within_employment_period: true }],
             },
             {
@@ -71,37 +73,40 @@ describe("admin pages", () => {
               end_date: "2026-06-30",
               is_active_in_month: false,
               locked: false,
+              attendance_locked: false,
+              shift_plan_locked: false,
               days: [{ date: "2026-07-01", arrival_time: null, departure_time: null, planned_status: null, is_within_employment_period: false }],
             },
           ],
         });
       }
       if (path === "/api/v1/admin/csrf") return jsonResponse({ csrf_token: "csrf-token" });
-      if (path === "/api/v1/admin/attendance/lock") return jsonResponse({ ok: true });
+      if (path === "/api/v1/admin/locks") return jsonResponse({ ok: true });
       throw new Error(`Unhandled fetch ${path}`);
     });
 
     const user = userEvent.setup();
     renderWithProviders(<AdminAttendancePage />);
 
-    await screen.findByRole("button", { name: "Smíšený stav, kliknutím zamknete všechny úvazky" });
-    expect(screen.getByRole("button", { name: "Smíšený stav, kliknutím zamknete všechny úvazky" })).toBeInTheDocument();
+    await screen.findByRole("button", { name: "Zamknout vše: Docházka" });
+    expect(screen.getByRole("button", { name: "Zamknout vše: Docházka" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /2 úvazků ve výběru/i }));
     await user.click(screen.getByRole("button", { name: "Zobrazit jen aktivní úvazky" }));
     expect(screen.getAllByText("Aktivní úvazek").length).toBeGreaterThan(0);
     expect(screen.queryByText("Neaktivní úvazek")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Smíšený stav, kliknutím zamknete všechny úvazky" }));
+    await user.click(screen.getByRole("button", { name: "Zamknout vše: Docházka" }));
 
     await waitFor(() => {
-      const lockBodies = calls
-        .filter((call) => call.path === "/api/v1/admin/attendance/lock")
+      const payloads = calls
+        .filter((call) => call.path === "/api/v1/admin/locks")
         .map((call) => JSON.parse(call.body ?? "{}"));
-      expect(lockBodies).toEqual(expect.arrayContaining([
-        expect.objectContaining({ employment_id: 1, year: expect.any(Number), month: expect.any(Number) }),
-        expect.objectContaining({ employment_id: 2, year: expect.any(Number), month: expect.any(Number) }),
-      ]));
+      expect(payloads).toContainEqual(expect.objectContaining({
+        employment_ids: [1, 2],
+        lock_type: "attendance",
+        locked: true,
+      }));
     });
   });
 
@@ -161,6 +166,8 @@ describe("admin pages", () => {
             end_date: null,
             is_active_in_month: true,
             locked: false,
+            attendance_locked: false,
+            shift_plan_locked: false,
             days: [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", planned_status: null, is_within_employment_period: true }],
           }],
         });
@@ -204,6 +211,8 @@ describe("admin pages", () => {
             end_date: null,
             is_active_in_month: true,
             locked: false,
+            attendance_locked: false,
+            shift_plan_locked: false,
             employee_plan_edit_allowed: true,
             employee_plan_edit_override: null,
             days: [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", status: null, is_within_employment_period: true }],
@@ -241,6 +250,8 @@ describe("admin pages", () => {
               employment_title: "Osobní asistence",
               employment_type: "HPP",
               locked: false,
+              attendance_locked: false,
+              shift_plan_locked: false,
               days: [
                 {
                   date: "2026-07-01",

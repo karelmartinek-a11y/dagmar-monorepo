@@ -87,7 +87,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
       }
       if (path === "/api/v1/attendance") {
         throw new Error("Attendance save should not be called");
@@ -113,7 +113,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
       }
       if (path === "/api/v1/attendance") {
         const payload = JSON.parse(String(init?.body ?? "{}")) as { arrival_time: string | null };
@@ -149,7 +149,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
       }
       if (path === "/api/v1/shift-plan") {
         throw new Error("Shift plan save should not be called");
@@ -176,7 +176,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
       }
       if (path === "/api/v1/shift-plan") {
         const payload = JSON.parse(String(init?.body ?? "{}")) as { arrival_time: string | null };

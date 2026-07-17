@@ -22,6 +22,7 @@ from app.db.models import (
     Employment,
     PortalUser,
     ShiftPlan,
+    ShiftPlanLock,
     ShiftPlanMonthInstance,
 )
 from app.db.session import get_db
@@ -71,6 +72,7 @@ class EmploymentDeleteOut(BaseModel):
     deleted_attendance_count: int = 0
     deleted_shift_plan_count: int = 0
     deleted_attendance_lock_count: int = 0
+    deleted_shift_plan_lock_count: int = 0
     deleted_shift_plan_selection_count: int = 0
     deleted_reminder_count: int = 0
 
@@ -84,6 +86,7 @@ class RangeConflictSummary:
     attendance_count: int = 0
     shift_plan_count: int = 0
     attendance_lock_count: int = 0
+    shift_plan_lock_count: int = 0
     shift_plan_selection_count: int = 0
     reminder_count: int = 0
     min_date: date | None = None
@@ -167,6 +170,22 @@ def _collect_range_conflicts(employment_id: int, start_date: date, end_date: dat
         last_lock = _month_bounds(offending_lock_months[-1][0], offending_lock_months[-1][1])
         summary.touch(first_lock[0], last_lock[1])
 
+    shift_plan_lock_rows = (
+        db.execute(
+            select(ShiftPlanLock.year, ShiftPlanLock.month)
+            .where(ShiftPlanLock.employment_id == employment_id)
+            .order_by(ShiftPlanLock.year.asc(), ShiftPlanLock.month.asc())
+        ).all()
+    )
+    offending_shift_plan_lock_months = [
+        row for row in shift_plan_lock_rows if _month_record_out_of_range(row[0], row[1], start_date, end_date)
+    ]
+    if offending_shift_plan_lock_months:
+        summary.shift_plan_lock_count = len(offending_shift_plan_lock_months)
+        first_lock = _month_bounds(offending_shift_plan_lock_months[0][0], offending_shift_plan_lock_months[0][1])
+        last_lock = _month_bounds(offending_shift_plan_lock_months[-1][0], offending_shift_plan_lock_months[-1][1])
+        summary.touch(first_lock[0], last_lock[1])
+
     selection_rows = (
         db.execute(
             select(ShiftPlanMonthInstance.year, ShiftPlanMonthInstance.month)
@@ -205,6 +224,7 @@ def _raise_range_conflict(summary: RangeConflictSummary) -> None:
             "attendance_count": summary.attendance_count,
             "shift_plan_count": summary.shift_plan_count,
             "attendance_lock_count": summary.attendance_lock_count,
+            "shift_plan_lock_count": summary.shift_plan_lock_count,
             "shift_plan_selection_count": summary.shift_plan_selection_count,
             "reminder_count": summary.reminder_count,
             "problem_range_start": summary.min_date.isoformat() if summary.min_date is not None else None,
@@ -223,6 +243,7 @@ def _raise_delete_conflict(summary: RangeConflictSummary) -> None:
             "attendance_count": summary.attendance_count,
             "shift_plan_count": summary.shift_plan_count,
             "attendance_lock_count": summary.attendance_lock_count,
+            "shift_plan_lock_count": summary.shift_plan_lock_count,
             "shift_plan_selection_count": summary.shift_plan_selection_count,
             "reminder_count": summary.reminder_count,
             "problem_range_start": summary.min_date.isoformat() if summary.min_date is not None else None,
@@ -258,6 +279,17 @@ def _collect_related_data_summary(employment_id: int, db: Session) -> RangeConfl
         summary.attendance_lock_count = len(lock_months)
         first_lock = _month_bounds(lock_months[0][0], lock_months[0][1])
         last_lock = _month_bounds(lock_months[-1][0], lock_months[-1][1])
+        summary.touch(first_lock[0], last_lock[1])
+
+    shift_plan_lock_months = db.execute(
+        select(ShiftPlanLock.year, ShiftPlanLock.month)
+        .where(ShiftPlanLock.employment_id == employment_id)
+        .order_by(ShiftPlanLock.year.asc(), ShiftPlanLock.month.asc())
+    ).all()
+    if shift_plan_lock_months:
+        summary.shift_plan_lock_count = len(shift_plan_lock_months)
+        first_lock = _month_bounds(shift_plan_lock_months[0][0], shift_plan_lock_months[0][1])
+        last_lock = _month_bounds(shift_plan_lock_months[-1][0], shift_plan_lock_months[-1][1])
         summary.touch(first_lock[0], last_lock[1])
 
     selection_months = db.execute(
@@ -328,6 +360,21 @@ def _delete_out_of_range_records(employment_id: int, start_date: date, end_date:
         else 0
     )
 
+    shift_plan_lock_rows = (
+        db.execute(select(ShiftPlanLock.id, ShiftPlanLock.year, ShiftPlanLock.month).where(ShiftPlanLock.employment_id == employment_id))
+        .all()
+    )
+    shift_plan_lock_ids = [
+        row[0] for row in shift_plan_lock_rows if _month_record_out_of_range(row[1], row[2], start_date, end_date)
+    ]
+    shift_plan_lock_deleted = (
+        _delete_row_count(
+            cast(CursorResult[Any], db.execute(delete(ShiftPlanLock).where(ShiftPlanLock.id.in_(shift_plan_lock_ids))))
+        )
+        if shift_plan_lock_ids
+        else 0
+    )
+
     selection_rows = (
         db.execute(
             select(ShiftPlanMonthInstance.id, ShiftPlanMonthInstance.year, ShiftPlanMonthInstance.month).where(
@@ -359,6 +406,7 @@ def _delete_out_of_range_records(employment_id: int, start_date: date, end_date:
         deleted_attendance_count=attendance_deleted,
         deleted_shift_plan_count=shift_plan_deleted,
         deleted_attendance_lock_count=attendance_lock_deleted,
+        deleted_shift_plan_lock_count=shift_plan_lock_deleted,
         deleted_shift_plan_selection_count=shift_plan_selection_deleted,
         deleted_reminder_count=reminder_deleted,
     )
@@ -375,6 +423,9 @@ def _delete_all_related_records(employment_id: int, db: Session) -> EmploymentDe
         ),
         deleted_attendance_lock_count=_delete_row_count(
             cast(CursorResult[Any], db.execute(delete(AttendanceLock).where(AttendanceLock.employment_id == employment_id)))
+        ),
+        deleted_shift_plan_lock_count=_delete_row_count(
+            cast(CursorResult[Any], db.execute(delete(ShiftPlanLock).where(ShiftPlanLock.employment_id == employment_id)))
         ),
         deleted_shift_plan_selection_count=_delete_row_count(
             cast(
@@ -453,6 +504,7 @@ def update_employment(
             summary.attendance_count,
             summary.shift_plan_count,
             summary.attendance_lock_count,
+            summary.shift_plan_lock_count,
             summary.shift_plan_selection_count,
             summary.reminder_count,
         )

@@ -225,18 +225,29 @@ def _employment_payload(employment: models.Employment) -> dict[str, Any]:
 def _load_lock_map(
     db: Session,
     *,
+    lock_type: str,
     employment_ids: list[int],
     start: date,
     end: date,
-) -> dict[tuple[int, int, int], models.AttendanceLock]:
+) -> dict[tuple[int, int, int], models.AttendanceLock | models.ShiftPlanLock]:
     if not employment_ids:
         return {}
-    rows = db.execute(
-        select(models.AttendanceLock)
-        .where(models.AttendanceLock.employment_id.in_(employment_ids))
-        .where((models.AttendanceLock.year * 100 + models.AttendanceLock.month) >= (start.year * 100 + start.month))
-        .where((models.AttendanceLock.year * 100 + models.AttendanceLock.month) <= (end.year * 100 + end.month))
-    ).scalars().all()
+    if lock_type == "attendance":
+        attendance_rows = db.execute(
+            select(models.AttendanceLock)
+            .where(models.AttendanceLock.employment_id.in_(employment_ids))
+            .where((models.AttendanceLock.year * 100 + models.AttendanceLock.month) >= (start.year * 100 + start.month))
+            .where((models.AttendanceLock.year * 100 + models.AttendanceLock.month) <= (end.year * 100 + end.month))
+        ).scalars().all()
+        rows: list[models.AttendanceLock | models.ShiftPlanLock] = list(attendance_rows)
+    else:
+        shift_plan_rows = db.execute(
+            select(models.ShiftPlanLock)
+            .where(models.ShiftPlanLock.employment_id.in_(employment_ids))
+            .where((models.ShiftPlanLock.year * 100 + models.ShiftPlanLock.month) >= (start.year * 100 + start.month))
+            .where((models.ShiftPlanLock.year * 100 + models.ShiftPlanLock.month) <= (end.year * 100 + end.month))
+        ).scalars().all()
+        rows = list(shift_plan_rows)
     return {(row.employment_id, row.year, row.month): row for row in rows}
 
 
@@ -479,7 +490,17 @@ def integration_shift_plan(
         .where(models.ShiftPlan.date <= end)
         .order_by(models.ShiftPlan.date.asc(), models.ShiftPlan.employment_id.asc(), models.ShiftPlan.id.asc())
     ).scalars().all()
-    lock_map = _load_lock_map(db, employment_ids=list(employment_map.keys()), start=start, end=end) if include_locks else {}
+    lock_map = (
+        _load_lock_map(
+            db,
+            lock_type="shift_plan",
+            employment_ids=list(employment_map.keys()),
+            start=start,
+            end=end,
+        )
+        if include_locks
+        else {}
+    )
     payload: list[dict[str, Any]] = []
     for row in rows:
         employment = employment_map.get(row.employment_id)
@@ -552,7 +573,17 @@ def integration_attendances(
             .where(models.ShiftPlan.date <= end)
         ).scalars().all()
         plan_rows = {(row.employment_id, row.date): row for row in rows}
-    lock_map = _load_lock_map(db, employment_ids=list(employment_map.keys()), start=start, end=end) if include_locks else {}
+    lock_map = (
+        _load_lock_map(
+            db,
+            lock_type="attendance",
+            employment_ids=list(employment_map.keys()),
+            start=start,
+            end=end,
+        )
+        if include_locks
+        else {}
+    )
     payload: list[dict[str, Any]] = []
     for row in attendance_rows:
         employment = employment_map.get(row.employment_id)
@@ -919,6 +950,7 @@ def integration_locks(
     date_to: str | None = None,
     employment_id: int | None = Query(default=None, ge=1),
     employee_id: int | None = Query(default=None, ge=1),
+    lock_type: str | None = Query(default=None),
     limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     cursor: str | None = None,
 ) -> dict[str, Any]:
@@ -927,6 +959,8 @@ def integration_locks(
     _check_requested_scope(auth=auth, db=db, employment_id=employment_id, employee_id=employee_id)
     limit = _normalize_limit(limit)
     cursor_value = decode_cursor(cursor)
+    if lock_type not in (None, "attendance", "shift_plan"):
+        raise_integration_error(status.HTTP_400_BAD_REQUEST, "invalid_request", "Pole lock_type musí být attendance nebo shift_plan.")
     if year is None and month is None and (date_from is None or date_to is None):
         raise_integration_error(status.HTTP_400_BAD_REQUEST, "invalid_request", "U zámků zadejte year+month nebo date_from+date_to.")
     start = parse_iso_date(date_from, field_name="date_from") if date_from else None
@@ -937,43 +971,84 @@ def integration_locks(
         for row in _filter_employments_by_scope(employments, auth)
         if (employment_id is None or row.id == employment_id) and (employee_id is None or row.user_id == employee_id)
     }
-    rows = db.execute(
-        select(models.AttendanceLock).order_by(
-            models.AttendanceLock.year.asc(),
-            models.AttendanceLock.month.asc(),
-            models.AttendanceLock.employment_id.asc(),
-            models.AttendanceLock.id.asc(),
-        )
-    ).scalars().all()
     payload: list[dict[str, Any]] = []
-    for row in rows:
-        employment = employment_map.get(row.employment_id)
-        if employment is None:
-            continue
-        if year is not None and row.year != year:
-            continue
-        if month is not None and row.month != month:
-            continue
-        month_date = date(row.year, row.month, 1)
-        if start is not None and month_date < date(start.year, start.month, 1):
-            continue
-        if end is not None and month_date > date(end.year, end.month, 1):
-            continue
-        cursor_key = f"{row.year:04d}-{row.month:02d}:{row.employment_id}:{row.id}"
-        payload.append(
-            {
-                "lock_id": row.id,
-                "employment_id": row.employment_id,
-                "employee_id": employment.user_id,
-                "year": row.year,
-                "month": row.month,
-                "locked_at": utc_isoformat(row.locked_at),
-                "locked_by": row.locked_by,
-                "is_locked": True,
-                "last_changed_at": utc_isoformat(row.locked_at),
-                "cursor_key": cursor_key,
-            }
-        )
+    if lock_type in (None, "attendance"):
+        attendance_rows = db.execute(
+            select(models.AttendanceLock).order_by(
+                models.AttendanceLock.year.asc(),
+                models.AttendanceLock.month.asc(),
+                models.AttendanceLock.employment_id.asc(),
+                models.AttendanceLock.id.asc(),
+            )
+        ).scalars().all()
+        for attendance_lock in attendance_rows:
+            employment = employment_map.get(attendance_lock.employment_id)
+            if employment is None:
+                continue
+            if year is not None and attendance_lock.year != year:
+                continue
+            if month is not None and attendance_lock.month != month:
+                continue
+            month_date = date(attendance_lock.year, attendance_lock.month, 1)
+            if start is not None and month_date < date(start.year, start.month, 1):
+                continue
+            if end is not None and month_date > date(end.year, end.month, 1):
+                continue
+            cursor_key = f"attendance:{attendance_lock.year:04d}-{attendance_lock.month:02d}:{attendance_lock.employment_id}:{attendance_lock.id}"
+            payload.append(
+                {
+                    "lock_id": attendance_lock.id,
+                    "lock_type": "attendance",
+                    "employment_id": attendance_lock.employment_id,
+                    "employee_id": employment.user_id,
+                    "year": attendance_lock.year,
+                    "month": attendance_lock.month,
+                    "locked_at": utc_isoformat(attendance_lock.locked_at),
+                    "locked_by": attendance_lock.locked_by,
+                    "is_locked": True,
+                    "last_changed_at": utc_isoformat(attendance_lock.locked_at),
+                    "cursor_key": cursor_key,
+                }
+            )
+    if lock_type in (None, "shift_plan"):
+        shift_plan_rows = db.execute(
+            select(models.ShiftPlanLock).order_by(
+                models.ShiftPlanLock.year.asc(),
+                models.ShiftPlanLock.month.asc(),
+                models.ShiftPlanLock.employment_id.asc(),
+                models.ShiftPlanLock.id.asc(),
+            )
+        ).scalars().all()
+        for shift_plan_lock in shift_plan_rows:
+            employment = employment_map.get(shift_plan_lock.employment_id)
+            if employment is None:
+                continue
+            if year is not None and shift_plan_lock.year != year:
+                continue
+            if month is not None and shift_plan_lock.month != month:
+                continue
+            month_date = date(shift_plan_lock.year, shift_plan_lock.month, 1)
+            if start is not None and month_date < date(start.year, start.month, 1):
+                continue
+            if end is not None and month_date > date(end.year, end.month, 1):
+                continue
+            cursor_key = f"shift_plan:{shift_plan_lock.year:04d}-{shift_plan_lock.month:02d}:{shift_plan_lock.employment_id}:{shift_plan_lock.id}"
+            payload.append(
+                {
+                    "lock_id": shift_plan_lock.id,
+                    "lock_type": "shift_plan",
+                    "employment_id": shift_plan_lock.employment_id,
+                    "employee_id": employment.user_id,
+                    "year": shift_plan_lock.year,
+                    "month": shift_plan_lock.month,
+                    "locked_at": utc_isoformat(shift_plan_lock.locked_at),
+                    "locked_by": shift_plan_lock.locked_by,
+                    "is_locked": True,
+                    "last_changed_at": utc_isoformat(shift_plan_lock.locked_at),
+                    "cursor_key": cursor_key,
+                }
+            )
+    payload.sort(key=lambda item: str(item["cursor_key"]))
     if cursor_value is not None:
         last_seen = str(cursor_value.get("cursor_key", ""))
         payload = [row for row in payload if str(row["cursor_key"]) > last_seen]

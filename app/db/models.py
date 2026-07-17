@@ -121,6 +121,9 @@ class Employment(Base):
     attendance_locks: Mapped[list[AttendanceLock]] = relationship(
         "AttendanceLock", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
     )
+    shift_plan_locks: Mapped[list[ShiftPlanLock]] = relationship(
+        "ShiftPlanLock", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+    )
     shift_plan_month_employments: Mapped[list[ShiftPlanMonthInstance]] = relationship(
         "ShiftPlanMonthInstance", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
     )
@@ -290,6 +293,33 @@ class AttendanceLock(Base):
         UniqueConstraint("employment_id", "year", "month", name="uq_attendance_lock_employment_month"),
         Index("ix_attendance_locks_employment_month", "employment_id", "year", "month"),
         Index("ix_attendance_locks_instance_month", "instance_id", "year", "month"),
+    )
+
+
+class ShiftPlanLock(Base):
+    __tablename__ = "shift_plan_locks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    employment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("employments.id", ondelete="CASCADE"), nullable=False
+    )
+    instance_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("instances.id", ondelete="SET NULL"), nullable=True
+    )
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    locked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    locked_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    employment: Mapped[Employment] = relationship(back_populates="shift_plan_locks")
+    instance: Mapped[Instance | None] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("employment_id", "year", "month", name="uq_shift_plan_lock_employment_month"),
+        Index("ix_shift_plan_locks_employment_month", "employment_id", "year", "month"),
+        Index("ix_shift_plan_locks_instance_month", "instance_id", "year", "month"),
     )
 
 

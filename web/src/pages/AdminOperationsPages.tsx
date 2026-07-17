@@ -23,7 +23,7 @@ type IntegrationOptions = { scopes: Array<{ id: string; label: string; descripti
 type IntegrationOperation = { title?: string; description?: string; path: string; method?: "POST" | "PUT"; body?: unknown };
 
 function loadAttendanceMonth(year: number, month: number) {
-  return api.admin<{ year: number; month: number; rows: Array<{ employment_id: number; user_name: string; employment_label: string; employment_title: string; employment_type: string; locked: boolean; days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; arrival_time_2: string | null; departure_time_2: string | null; planned_arrival_time: string | null; planned_departure_time: string | null; planned_status: string | null; is_within_employment_period?: boolean }> }> }>(`/api/v1/admin/attendance/month?year=${year}&month=${month}`);
+  return api.admin<{ year: number; month: number; rows: Array<{ employment_id: number; user_name: string; employment_label: string; employment_title: string; employment_type: string; attendance_locked: boolean; shift_plan_locked: boolean; days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; arrival_time_2: string | null; departure_time_2: string | null; planned_arrival_time: string | null; planned_departure_time: string | null; planned_status: string | null; is_within_employment_period?: boolean }> }> }>(`/api/v1/admin/attendance/month?year=${year}&month=${month}`);
 }
 
 function loadShiftPlanMonth(year: number, month: number) {

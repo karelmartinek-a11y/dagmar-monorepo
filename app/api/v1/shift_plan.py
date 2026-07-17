@@ -7,18 +7,21 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ...api.errors import raise_api_error
 from ...db.models import Employment, ShiftPlan
 from ...db.session import get_db
 from ...services.day_status import (
+    collect_day_status_conflicts,
     day_status_label,
     get_day_status,
     normalize_day_status,
     set_day_status,
 )
+from ...services.locks import LockType, ensure_month_unlocked, is_month_locked
 from ...services.shift_plan_editing import can_employee_edit_shift_plan
 from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
-from .attendance import _ensure_month_not_locked, _require_accessible_employment
+from .attendance import _require_accessible_employment
 
 router = APIRouter(tags=["shift-plan"])
 
@@ -68,7 +71,7 @@ def portal_upsert_shift_plan(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     _ensure_day_in_employment_period(employment, day)
-    _ensure_month_not_locked(employment.id, day.year, day.month, db)
+    ensure_month_unlocked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=day.year, month=day.month)
     if not can_employee_edit_shift_plan(db, employment_id=employment.id, year=day.year, month=day.month):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -132,12 +135,22 @@ def portal_upsert_day_status(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     _ensure_day_in_employment_period(employment, day)
-    _ensure_month_not_locked(employment.id, day.year, day.month, db)
+    ensure_month_unlocked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=day.year, month=day.month)
 
     try:
         status_value = normalize_day_status(body.status)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    conflicts = collect_day_status_conflicts(db, employment_id=employment.id, day=day)
+    if status_value is not None and conflicts.attendance_exists and is_month_locked(
+        db,
+        lock_type=LockType.ATTENDANCE,
+        employment_id=employment.id,
+        year=day.year,
+        month=day.month,
+    ):
+        raise_api_error(status.HTTP_423_LOCKED, "attendance_month_locked", "Docházka za zvolené období je uzamčena.")
 
     conflicts = set_day_status(
         db,

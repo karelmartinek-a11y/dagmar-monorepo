@@ -12,10 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import PortalUserAuth, require_portal_user_auth
 from app.api.errors import raise_api_error
-from app.db.models import Attendance, AttendanceLock, Employment, ShiftPlan
+from app.db.models import Attendance, Employment, ShiftPlan
 from app.db.session import get_db
 from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
+from app.services.locks import LockType, ensure_month_unlocked, is_month_locked
 from app.services.prague_time import prague_minutes_since_midnight, prague_today
 from app.services.shift_plan_editing import can_employee_edit_shift_plan
 from app.utils.timeparse import parse_hhmm_or_none
@@ -39,6 +40,8 @@ class AttendanceMonthOut(BaseModel):
     employment_id: int
     employment_label: str
     locked: bool = False
+    attendance_locked: bool = False
+    shift_plan_locked: bool = False
     shift_plan_editable: bool = False
     days: list[AttendanceDayOut]
 
@@ -87,26 +90,11 @@ def _ensure_day_in_employment_period(employment: Employment, day: dt.date) -> No
 
 
 def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
-    lock = db.execute(
-        select(AttendanceLock).where(
-            AttendanceLock.employment_id == employment_id,
-            AttendanceLock.year == year,
-            AttendanceLock.month == month,
-        )
-    ).scalar_one_or_none()
-    if lock is not None:
-        raise_api_error(status.HTTP_423_LOCKED, "attendance_month_locked", "Docházka za zvolené období je uzamčena.")
+    ensure_month_unlocked(db, lock_type=LockType.ATTENDANCE, employment_id=employment_id, year=year, month=month)
 
 
 def _month_is_locked(employment_id: int, year: int, month: int, db: Session) -> bool:
-    lock = db.execute(
-        select(AttendanceLock).where(
-            AttendanceLock.employment_id == employment_id,
-            AttendanceLock.year == year,
-            AttendanceLock.month == month,
-        )
-    ).scalar_one_or_none()
-    return lock is not None
+    return is_month_locked(db, lock_type=LockType.ATTENDANCE, employment_id=employment_id, year=year, month=month)
 
 
 def _enforce_user_forensic_rules(
@@ -172,7 +160,14 @@ def get_month_attendance(
 ) -> AttendanceMonthOut:
     start, end = _month_range(year, month)
     employment = _require_accessible_employment(employment_id, auth, db)
-    locked = _month_is_locked(employment.id, year, month, db)
+    attendance_locked = _month_is_locked(employment.id, year, month, db)
+    shift_plan_locked = is_month_locked(
+        db,
+        lock_type=LockType.SHIFT_PLAN,
+        employment_id=employment.id,
+        year=year,
+        month=month,
+    )
 
     rows = db.execute(
         select(Attendance)
@@ -219,7 +214,9 @@ def get_month_attendance(
     return AttendanceMonthOut(
         employment_id=employment.id,
         employment_label=employment_label(employment, auth.user.name),
-        locked=locked,
+        locked=attendance_locked,
+        attendance_locked=attendance_locked,
+        shift_plan_locked=shift_plan_locked,
         shift_plan_editable=can_employee_edit_shift_plan(db, employment_id=employment.id, year=year, month=month),
         days=days,
     )

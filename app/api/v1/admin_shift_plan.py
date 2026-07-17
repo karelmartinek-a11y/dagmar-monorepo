@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session, joinedload
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
 from app.db.models import (
-    AttendanceLock,
     Employment,
     PortalUser,
     ShiftPlan,
@@ -27,12 +26,19 @@ from app.security.csrf import require_csrf
 from app.services.day_status import (
     DAY_STATUS_HOLIDAY,
     DAY_STATUS_OFF,
+    collect_day_status_conflicts,
     day_status_label,
     get_day_status,
     normalize_day_status,
     set_day_status,
 )
 from app.services.employment_access import employment_label, employment_overlaps_month
+from app.services.locks import (
+    LockType,
+    ensure_month_unlocked,
+    is_month_locked,
+    load_locked_employment_ids,
+)
 from app.services.shift_plan_editing import (
     get_employment_edit_overrides,
     get_month_employee_edit_default,
@@ -74,7 +80,8 @@ class ShiftPlanRowOut(BaseModel):
     start_date: str
     end_date: str | None = None
     is_active_in_month: bool
-    locked: bool = False
+    shift_plan_locked: bool = False
+    attendance_locked: bool = False
     employee_plan_edit_allowed: bool = False
     employee_plan_edit_override: bool | None = None
     days: list[ShiftPlanDayOut]
@@ -178,15 +185,7 @@ def _get_employment(employment_id: int, db: Session) -> Employment:
 
 
 def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
-    lock = db.execute(
-        select(AttendanceLock).where(
-            AttendanceLock.employment_id == employment_id,
-            AttendanceLock.year == year,
-            AttendanceLock.month == month,
-        )
-    ).scalar_one_or_none()
-    if lock is not None:
-        raise HTTPException(status_code=423, detail="Dochazka za zvolene obdobi je uzamcena.")
+    ensure_month_unlocked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment_id, year=year, month=month)
 
 
 def _load_available_employment_rows(db: Session) -> list[SimpleNamespace]:
@@ -296,13 +295,20 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         )
         for row in plan_rows
     }
-    lock_rows = db.execute(
-        select(AttendanceLock.employment_id).where(
-            AttendanceLock.year == year,
-            AttendanceLock.month == month,
-        )
-    ).all()
-    locked_employment_ids = {int(row[0]) for row in lock_rows}
+    shift_plan_locked_ids = load_locked_employment_ids(
+        db,
+        lock_type=LockType.SHIFT_PLAN,
+        employment_ids=selected_ids,
+        year=year,
+        month=month,
+    )
+    attendance_locked_ids = load_locked_employment_ids(
+        db,
+        lock_type=LockType.ATTENDANCE,
+        employment_ids=selected_ids,
+        year=year,
+        month=month,
+    )
 
     rows: list[ShiftPlanRowOut] = []
     for employment in available_employments:
@@ -333,7 +339,8 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 start_date=employment.start_date.isoformat(),
                 end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
                 is_active_in_month=_employment_is_active_in_month(cast(Employment, employment), start, end),
-                locked=employment.id in locked_employment_ids,
+                shift_plan_locked=employment.id in shift_plan_locked_ids,
+                attendance_locked=employment.id in attendance_locked_ids,
                 employee_plan_edit_allowed=edit_overrides.get(employment.id, edit_default),
                 employee_plan_edit_override=edit_overrides.get(employment.id),
                 days=days,
@@ -422,6 +429,7 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise_api_error(409, "employment_period_mismatch", "Datum nelezi v obdobi platnosti vybraneho uvazku.")
+    _ensure_month_not_locked(employment.id, day.year, day.month, db)
 
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)
@@ -498,6 +506,16 @@ def admin_upsert_day_status(
         if str(exc) == "invalid_day_status":
             raise_api_error(400, "invalid_day_status", "Neplatný stav dne.")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    conflicts = collect_day_status_conflicts(db, employment_id=employment.id, day=day)
+    if status is not None and conflicts.attendance_exists and is_month_locked(
+        db,
+        lock_type=LockType.ATTENDANCE,
+        employment_id=employment.id,
+        year=day.year,
+        month=day.month,
+    ):
+        raise_api_error(423, "attendance_month_locked", "Docházka za zvolené období je uzamčena.")
 
     conflicts = set_day_status(
         db,

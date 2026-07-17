@@ -12,8 +12,9 @@ import { formatHours, normalizeMinutes } from "../utils/timeMath";
 import { normalizeTimeInput } from "../utils/timeInput";
 
 type AttendanceEditState = { employmentId: number; date: string };
+type LockKind = "attendance" | "shift_plan";
 type ShiftPlanDay = { date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean };
-type ShiftPlanRow = { employment_id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; start_date: string; end_date: string | null; is_active_in_month: boolean; locked: boolean; employee_plan_edit_allowed: boolean; employee_plan_edit_override: boolean | null; days: ShiftPlanDay[] };
+type ShiftPlanRow = { employment_id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; start_date: string; end_date: string | null; is_active_in_month: boolean; shift_plan_locked: boolean; attendance_locked: boolean; employee_plan_edit_allowed: boolean; employee_plan_edit_override: boolean | null; days: ShiftPlanDay[] };
 type ActiveEmployment = { id: number; display_label: string; employment_type: string; start_date: string; end_date: string | null; is_active_in_month: boolean };
 type PlanMonth = { year: number; month: number; employee_plan_edit_default: boolean; selected_employment_ids: number[]; available_employments: ActiveEmployment[]; rows: ShiftPlanRow[] };
 type DayStatusDraft = { employment_id: number; date: string; status: string | null; confirm_delete_conflicts?: boolean };
@@ -24,20 +25,21 @@ function RowLockButton({
   locked,
   pending,
   label,
+  kindLabel,
   onToggle,
 }: {
   locked: boolean;
   pending: boolean;
   label: string;
+  kindLabel: string;
   onToggle: () => void;
 }) {
-  const { t } = useTranslation();
   return <button
     type="button"
     className="icon-button matrix-lock-toggle"
     disabled={pending}
-    aria-label={t(locked ? "adminMatrix.locks.unlockRow" : "adminMatrix.locks.lockRow", { label })}
-    title={t(locked ? "adminMatrix.locks.unlockMonthTitle" : "adminMatrix.locks.lockMonthTitle")}
+    aria-label={`${locked ? "Odemknout" : "Zamknout"} ${kindLabel.toLowerCase()} pro ${label}`}
+    title={`${locked ? "Odemknout" : "Zamknout"} ${kindLabel.toLowerCase()}`}
     onClick={onToggle}
   >
     {locked ? <Lock /> : <Unlock />}
@@ -48,41 +50,36 @@ function MatrixLabelCell({
   label,
   locked,
   pending,
+  kindLabel,
   onToggle,
 }: {
   label: string;
   locked: boolean;
   pending: boolean;
+  kindLabel: string;
   onToggle: () => void;
 }) {
   return <div className="matrix-label-cell">
     <strong>{label}</strong>
-    <RowLockButton locked={locked} pending={pending} label={label} onToggle={onToggle} />
+    <RowLockButton locked={locked} pending={pending} label={label} kindLabel={kindLabel} onToggle={onToggle} />
   </div>;
 }
 
-function MonthLockStateButton({
-  state,
+function MonthLockActions({
+  kindLabel,
   pending,
-  onToggle,
+  onLockAll,
+  onUnlockAll,
 }: {
-  state: "locked" | "unlocked" | "mixed";
+  kindLabel: string;
   pending: boolean;
-  onToggle: () => void;
+  onLockAll: () => void;
+  onUnlockAll: () => void;
 }) {
-  const { t } = useTranslation();
-  const icon = state === "locked" ? <Lock /> : <Unlock />;
-  const title = state === "locked" ? t("adminMatrix.locks.unlockMonth") : state === "unlocked" ? t("adminMatrix.locks.lockMonth") : t("adminMatrix.locks.mixedMonth");
-  return <button
-    type="button"
-    className={`button button--quiet month-control__lock month-control__lock--${state}`}
-    disabled={pending}
-    aria-label={title}
-    title={title}
-    onClick={onToggle}
-  >
-    {icon}
-  </button>;
+  return <div className="month-control-group">
+    <Button variant="quiet" disabled={pending} onClick={onLockAll}><Lock />Zamknout vše: {kindLabel}</Button>
+    <Button variant="quiet" disabled={pending} onClick={onUnlockAll}><Unlock />Odemknout vše: {kindLabel}</Button>
+  </div>;
 }
 
 function dayHeader(day: { date: string }, language: string) {
@@ -321,12 +318,10 @@ export function AdminAttendancePage() {
     },
   });
   const lockMutation = useMutation({
-    mutationFn: async (body: { employmentIds: number[]; lock: boolean }) => {
-      await Promise.all(body.employmentIds.map((employment_id) => api.admin(`/api/v1/admin/attendance/${body.lock ? "lock" : "unlock"}`, {
-        method: "POST",
-        body: JSON.stringify({ employment_id, year: month.getFullYear(), month: month.getMonth() + 1 }),
-      })));
-    },
+    mutationFn: (body: { employmentIds: number[]; locked: boolean; lockType: LockKind }) => api.admin("/api/v1/admin/locks", {
+      method: "PUT",
+      body: JSON.stringify({ employment_ids: body.employmentIds, lock_type: body.lockType, year: month.getFullYear(), month: month.getMonth() + 1, locked: body.locked }),
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-attendance"] });
       qc.invalidateQueries({ queryKey: ["shift-plan"] });
@@ -351,17 +346,8 @@ export function AdminAttendancePage() {
     return sortByLabel(filtered, selectionDirection, (row) => row.employment_label);
   }, [activeOnly, effectiveSelectedIds, query.data?.rows, search, selectionDirection]);
   const days = rows[0]?.days ?? query.data?.rows[0]?.days ?? [];
-  const monthLockState = useMemo(() => {
-    const allRows = query.data?.rows ?? [];
-    if (allRows.length === 0) return "unlocked" as const;
-    const lockedCount = allRows.filter((row) => row.locked).length;
-    if (lockedCount === 0) return "unlocked" as const;
-    if (lockedCount === allRows.length) return "locked" as const;
-    return "mixed" as const;
-  }, [query.data?.rows]);
-
   return <div className="page">
-    <header className="page-heading"><div><p>{t("adminMatrix.attendance.eyebrow")}</p><h1>{t("adminMatrix.attendance.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelectedIds(null); }} />{query.data && <MonthLockStateButton state={monthLockState} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), lock: monthLockState !== "locked" })} />}</div></header>
+    <header className="page-heading"><div><p>{t("adminMatrix.attendance.eyebrow")}</p><h1>{t("adminMatrix.attendance.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelectedIds(null); }} />{query.data && <MonthLockActions kindLabel="Docházka" pending={lockMutation.isPending} onLockAll={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), locked: true, lockType: "attendance" })} onUnlockAll={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), locked: false, lockType: "attendance" })} />}</div></header>
     <Panel className="panel--overflow-visible" title={t("adminMatrix.attendance.selectionTitle")} actions={<EmploymentSelectionDropdown
       items={selectionItems}
       selectedIds={effectiveSelectedIds}
@@ -388,7 +374,7 @@ export function AdminAttendancePage() {
         <Field label={t("adminMatrix.attendance.filter")}><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("adminMatrix.attendance.filterPlaceholder")} /></Field>
         <span className="badge">{t("adminMatrix.attendance.resultCount", { count: rows.length })}</span>
       </div>
-      {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminMatrix.attendance.loading")} /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title={t("adminMatrix.attendance.loadFailed")}>{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title={t("adminMatrix.attendance.empty")} /></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => { const header = dayHeader(day, language); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__sticky-right">{t("adminMatrix.common.employment")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.employment_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], lock: !row.locked })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const disabled = row.locked || !day.is_within_employment_period || Boolean(day.planned_status); return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || attendanceMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => attendanceMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => !disabled && setEditing({ employmentId: row.employment_id, date: day.date })}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.planned_status && <small>{statusLabels[day.planned_status] ?? day.planned_status}</small>}</button>}</td>; })}<td className="matrix__sticky-right"><MatrixLabelCell label={row.employment_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], lock: !row.locked })} /></td></tr>)}</tbody></table></div>}
+      {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminMatrix.attendance.loading")} /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title={t("adminMatrix.attendance.loadFailed")}>{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title={t("adminMatrix.attendance.empty")} /></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => { const header = dayHeader(day, language); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__sticky-right">{t("adminMatrix.common.employment")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.employment_label} kindLabel="Docházka" locked={row.attendance_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.attendance_locked, lockType: "attendance" })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const disabled = row.attendance_locked || !day.is_within_employment_period || Boolean(day.planned_status); return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || attendanceMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => attendanceMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => !disabled && setEditing({ employmentId: row.employment_id, date: day.date })}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.planned_status && <small>{statusLabels[day.planned_status] ?? day.planned_status}</small>}</button>}</td>; })}<td className="matrix__sticky-right"><MatrixLabelCell label={row.employment_label} kindLabel="Docházka" locked={row.attendance_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.attendance_locked, lockType: "attendance" })} /></td></tr>)}</tbody></table></div>}
     </Panel>
     {(attendanceMutation.error || lockMutation.error) && <StatusMessage kind="error" title={t("adminMatrix.attendance.actionFailed")}>{(attendanceMutation.error ?? lockMutation.error)?.message}</StatusMessage>}
   </div>;
@@ -435,12 +421,10 @@ export function AdminShiftPlanPage() {
     },
   });
   const lockMutation = useMutation({
-    mutationFn: async (body: { employmentIds: number[]; lock: boolean }) => {
-      await Promise.all(body.employmentIds.map((employment_id) => api.admin(`/api/v1/admin/attendance/${body.lock ? "lock" : "unlock"}`, {
-        method: "POST",
-        body: JSON.stringify({ employment_id, year: month.getFullYear(), month: month.getMonth() + 1 }),
-      })));
-    },
+    mutationFn: (body: { employmentIds: number[]; locked: boolean; lockType: LockKind }) => api.admin("/api/v1/admin/locks", {
+      method: "PUT",
+      body: JSON.stringify({ employment_ids: body.employmentIds, lock_type: body.lockType, year: month.getFullYear(), month: month.getMonth() + 1, locked: body.locked }),
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["shift-plan"] });
       qc.invalidateQueries({ queryKey: ["admin-attendance"] });
@@ -453,21 +437,13 @@ export function AdminShiftPlanPage() {
     return sortByLabel(filtered, selectionDirection, (row) => row.display_label);
   }, [activeOnly, activeSelection, query.data?.rows, selectionDirection]);
   const days = query.data?.rows[0]?.days ?? [];
-  const monthLockState = useMemo(() => {
-    const allRows = query.data?.rows ?? [];
-    if (allRows.length === 0) return "unlocked" as const;
-    const lockedCount = allRows.filter((row) => row.locked).length;
-    if (lockedCount === 0) return "unlocked" as const;
-    if (lockedCount === allRows.length) return "locked" as const;
-    return "mixed" as const;
-  }, [query.data?.rows]);
   const toggle = (employmentId: number, checked: boolean) => setSelection((current) => {
     const baseline = current ?? query.data?.selected_employment_ids ?? [];
     return checked ? [...baseline.filter((item) => item !== employmentId), employmentId] : baseline.filter((item) => item !== employmentId);
   });
 
   return <div className="page">
-    <header className="page-heading"><div><p>{t("adminMatrix.shiftPlan.eyebrow")}</p><h1>{t("adminMatrix.shiftPlan.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelection(null); setEditing(null); setStatusMenu(null); }} />{query.data && <MonthLockStateButton state={monthLockState} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), lock: monthLockState !== "locked" })} />}</div></header>
+    <header className="page-heading"><div><p>{t("adminMatrix.shiftPlan.eyebrow")}</p><h1>{t("adminMatrix.shiftPlan.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelection(null); setEditing(null); setStatusMenu(null); }} />{query.data && <MonthLockActions kindLabel="Plán služeb" pending={lockMutation.isPending} onLockAll={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), locked: true, lockType: "shift_plan" })} onUnlockAll={() => lockMutation.mutate({ employmentIds: query.data.rows.map((row) => row.employment_id), locked: false, lockType: "shift_plan" })} />}</div></header>
     {query.data && <Panel className="panel--overflow-visible" title={t("adminMatrix.shiftPlan.selectionTitle")} actions={<EmploymentSelectionDropdown
       items={query.data.available_employments}
       selectedIds={activeSelection}
@@ -486,7 +462,7 @@ export function AdminShiftPlanPage() {
       </div>
     </Panel>}
     <Panel>
-      {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminMatrix.shiftPlan.loading")} /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title={t("adminMatrix.shiftPlan.loadFailed")}>{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title={t("adminMatrix.shiftPlan.empty")}>{t("adminMatrix.shiftPlan.emptyBody")}</StatusMessage></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => { const header = dayHeader(day, language); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__summary-head">{t("adminMatrix.common.completed")}</th><th className="matrix__sticky-right">{t("adminMatrix.common.employment")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.display_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], lock: !row.locked })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const menuOpen = statusMenu?.employmentId === row.employment_id && statusMenu.date === day.date; const disabled = row.locked || !day.is_within_employment_period; return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`} onContextMenu={(event) => { if (disabled) return; event.preventDefault(); setStatusMenu({ employmentId: row.employment_id, date: day.date }); setEditing(null); }}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || timeMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => timeMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => { if (disabled) return; setEditing({ employmentId: row.employment_id, date: day.date }); setStatusMenu(null); }}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.status && <small>{statusLabels[day.status] ?? day.status}</small>}</button>}{menuOpen && <div className="matrix-menu"><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: null })}>{t("adminMatrix.common.workday")}</button><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: "HOLIDAY" })}>{t("adminMatrix.common.holiday")}</button><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: "OFF" })}>{t("adminMatrix.common.off")}</button></div>}</td>; })}<td className="matrix__summary"><ShiftPlanSummaryCell row={row} /></td><td className="matrix__sticky-right"><MatrixLabelCell label={row.display_label} locked={row.locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], lock: !row.locked })} /></td></tr>)}</tbody></table></div>}
+      {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminMatrix.shiftPlan.loading")} /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title={t("adminMatrix.shiftPlan.loadFailed")}>{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title={t("adminMatrix.shiftPlan.empty")}>{t("adminMatrix.shiftPlan.emptyBody")}</StatusMessage></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => { const header = dayHeader(day, language); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__summary-head">{t("adminMatrix.common.completed")}</th><th className="matrix__sticky-right">{t("adminMatrix.common.employment")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.display_label} kindLabel="Plán služeb" locked={row.shift_plan_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.shift_plan_locked, lockType: "shift_plan" })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const menuOpen = statusMenu?.employmentId === row.employment_id && statusMenu.date === day.date; const disabled = row.shift_plan_locked || !day.is_within_employment_period; return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`} onContextMenu={(event) => { if (disabled) return; event.preventDefault(); setStatusMenu({ employmentId: row.employment_id, date: day.date }); setEditing(null); }}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || timeMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => timeMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => { if (disabled) return; setEditing({ employmentId: row.employment_id, date: day.date }); setStatusMenu(null); }}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.status && <small>{statusLabels[day.status] ?? day.status}</small>}</button>}{menuOpen && <div className="matrix-menu"><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: null })}>{t("adminMatrix.common.workday")}</button><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: "HOLIDAY" })}>{t("adminMatrix.common.holiday")}</button><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: "OFF" })}>{t("adminMatrix.common.off")}</button></div>}</td>; })}<td className="matrix__summary"><ShiftPlanSummaryCell row={row} /></td><td className="matrix__sticky-right"><MatrixLabelCell label={row.display_label} kindLabel="Plán služeb" locked={row.shift_plan_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.shift_plan_locked, lockType: "shift_plan" })} /></td></tr>)}</tbody></table></div>}
     </Panel>
     {(timeMutation.error || selectionMutation.error || statusMutation.error || lockMutation.error) && !conflict && <StatusMessage kind="error" title={t("adminMatrix.shiftPlan.saveFailed")}>{(timeMutation.error ?? selectionMutation.error ?? statusMutation.error ?? lockMutation.error)?.message}</StatusMessage>}
     {conflict && <Modal title={t("adminMatrix.shiftPlan.conflictTitle")} description={t("adminMatrix.shiftPlan.conflictBody")} confirmLabel={t("adminMatrix.shiftPlan.conflictConfirm")} danger onClose={() => setConflict(null)} onConfirm={() => statusMutation.mutate({ ...conflict, confirm_delete_conflicts: true })} />}
