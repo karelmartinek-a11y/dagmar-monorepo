@@ -88,15 +88,15 @@ describe("admin pages", () => {
     const user = userEvent.setup();
     renderWithProviders(<AdminAttendancePage />);
 
-    await screen.findByRole("button", { name: "Zamknout vše: Docházka" });
-    expect(screen.getByRole("button", { name: "Zamknout vše: Docházka" })).toBeInTheDocument();
+    await screen.findByRole("button", { name: "Uzamknout všechny úvazky v měsíci" });
+    expect(screen.getByRole("button", { name: "Uzamknout všechny úvazky v měsíci" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /2 úvazků ve výběru/i }));
     await user.click(screen.getByRole("button", { name: "Zobrazit jen aktivní úvazky" }));
     expect(screen.getAllByText("Aktivní úvazek").length).toBeGreaterThan(0);
     expect(screen.queryByText("Neaktivní úvazek")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Zamknout vše: Docházka" }));
+    await user.click(screen.getByRole("button", { name: "Uzamknout všechny úvazky v měsíci" }));
 
     await waitFor(() => {
       const payloads = calls
