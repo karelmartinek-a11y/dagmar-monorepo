@@ -41,7 +41,7 @@ def normalize_day_status(value: str | None) -> str | None:
         return None
     normalized = value.strip().upper()
     if normalized not in DAY_STATUS_VALUES:
-        raise ValueError("Neplatný stav dne.")
+        raise ValueError("invalid_day_status")
     return normalized
 
 

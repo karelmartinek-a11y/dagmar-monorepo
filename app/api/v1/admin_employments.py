@@ -13,6 +13,7 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
+from app.api.errors import raise_api_error
 from app.api.v1.admin_users import EmploymentOut, _to_employment_out
 from app.db.models import (
     Attendance,
@@ -400,10 +401,10 @@ def create_employment(
 ):
     user = db.get(PortalUser, user_id)
     if user is None:
-        raise HTTPException(status_code=404, detail="Uživatel nebyl nalezen.")
+        raise_api_error(404, "user_not_found", "Uživatel nebyl nalezen.")
 
     if not employment_type_is_valid(payload.employment_type):
-        raise HTTPException(status_code=400, detail="Neplatný typ úvazku.")
+        raise_api_error(400, "invalid_employment_type", "Neplatný typ úvazku.")
 
     start_date = _parse_date(payload.start_date, "start_date")
     end_date = _parse_date(payload.end_date, "end_date")
@@ -434,12 +435,12 @@ def update_employment(
 ):
     employment = db.get(Employment, employment_id)
     if employment is None:
-        raise HTTPException(status_code=404, detail="Úvazek nebyl nalezen.")
+        raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
 
     next_title = payload.title.strip() if payload.title is not None else employment.title
     next_type = payload.employment_type if payload.employment_type is not None else employment.employment_type
     if not employment_type_is_valid(next_type):
-        raise HTTPException(status_code=400, detail="Neplatný typ úvazku.")
+        raise_api_error(400, "invalid_employment_type", "Neplatný typ úvazku.")
 
     next_start_date = _parse_date(payload.start_date, "start_date") if payload.start_date is not None else employment.start_date
     next_end_date = _parse_date(payload.end_date, "end_date") if payload.end_date is not None else employment.end_date
@@ -488,7 +489,7 @@ def delete_employment(
 ):
     employment = db.get(Employment, employment_id)
     if employment is None:
-        raise HTTPException(status_code=404, detail="Úvazek nebyl nalezen.")
+        raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
 
     summary = _collect_related_data_summary(employment.id, db)
     related_count = (

@@ -1,5 +1,6 @@
 import { openDB } from "idb";
 import { api, ApiError } from "../api/client";
+import { i18n } from "../i18n";
 
 export type QueuedOperation = {
   id?: number;
@@ -29,7 +30,7 @@ export async function flushOperations(allowedEmploymentIds?: ReadonlySet<number>
   let completed = 0;
   for (const operation of operations.sort((a, b) => (a.id ?? 0) - (b.id ?? 0))) {
     if (allowedEmploymentIds && !allowedEmploymentIds.has(operation.employment_id)) {
-      const lastError = "Položka patří jinému účtu. Přihlaste se původním uživatelem.";
+      const lastError = i18n.t("api.offlineQueueBlocked");
       await db.put("operations", { ...operation, last_error: lastError });
       return { completed, blocked: { ...operation, last_error: lastError } };
     }
@@ -40,7 +41,7 @@ export async function flushOperations(allowedEmploymentIds?: ReadonlySet<number>
       await db.delete("operations", operation.id!);
       completed += 1;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Neznámá chyba synchronizace";
+      const message = error instanceof Error ? error.message : i18n.t("api.offlineUnknown");
       await db.put("operations", { ...operation, attempts: operation.attempts + 1, last_error: message });
       if (error instanceof ApiError && (error.conflict || error.authenticationExpired)) return { completed, blocked: { ...operation, last_error: message } };
       return { completed, blocked: null };

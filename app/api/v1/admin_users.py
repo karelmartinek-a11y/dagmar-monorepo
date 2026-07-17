@@ -17,6 +17,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import require_admin
+from app.api.errors import raise_api_error
 from app.config import Settings, get_settings
 from app.db.models import (
     AppSettings,
@@ -436,16 +437,16 @@ def create_user(
 ):
     email = payload.email.strip().lower()
     if email == "provoz@hotelchodovasc.cz":
-        raise HTTPException(status_code=400, detail="Tento e-mail je vyhrazen pro admin ucet.")
+        raise_api_error(400, "reserved_admin_email", "Tento e-mail je vyhrazen pro admin ucet.")
 
     try:
         role_enum = PortalUserRole(payload.role)
     except Exception:
-        raise HTTPException(status_code=400, detail="Neplatna role uzivatele.") from None
+        raise_api_error(400, "invalid_user_role", "Neplatna role uzivatele.")
 
     exists = db.execute(select(PortalUser).where(PortalUser.email == email)).scalars().first()
     if exists:
-        raise HTTPException(status_code=409, detail="Uzivatel s timto e-mailem uz existuje.")
+        raise_api_error(409, "user_email_exists", "Uzivatel s timto e-mailem uz existuje.")
 
     now = datetime.now(UTC)
     inst = Instance(
@@ -501,7 +502,7 @@ def update_user(
         .first()
     )
     if user is None:
-        raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
+        raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
 
     if payload.name is not None:
         user.name = payload.name.strip()
@@ -515,13 +516,13 @@ def update_user(
     if payload.email is not None:
         email = payload.email.strip().lower()
         if email == "provoz@hotelchodovasc.cz":
-            raise HTTPException(status_code=400, detail="Tento e-mail je vyhrazen pro admin ucet.")
+            raise_api_error(400, "reserved_admin_email", "Tento e-mail je vyhrazen pro admin ucet.")
         if email != user.email:
             exists = db.execute(
                 select(PortalUser).where(PortalUser.email == email).where(PortalUser.id != user.id)
             ).scalars().first()
             if exists:
-                raise HTTPException(status_code=409, detail="Uzivatel s timto e-mailem uz existuje.")
+                raise_api_error(409, "user_email_exists", "Uzivatel s timto e-mailem uz existuje.")
             clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
             revoke_unlock_tokens(db, actor_type="portal", principal=user.email.lower())
             user.email = email
@@ -530,7 +531,7 @@ def update_user(
         try:
             user.role = PortalUserRole(payload.role)
         except Exception:
-            raise HTTPException(status_code=400, detail="Neplatna role uzivatele.") from None
+            raise_api_error(400, "invalid_user_role", "Neplatna role uzivatele.")
 
     if payload.is_active is not None:
         user.is_active = payload.is_active
@@ -566,7 +567,7 @@ def set_user_password(
         .first()
     )
     if user is None:
-        raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
+        raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
     _apply_password(db, user, payload.password)
     db.add(user)
     db.commit()
@@ -585,7 +586,7 @@ def delete_user(
         select(PortalUser.id, PortalUser.email).where(PortalUser.id == int(user_id))
     ).mappings().first()
     if row is None:
-        raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
+        raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
 
     email = str(row["email"] or "").strip().lower()
     if email:
@@ -610,7 +611,7 @@ def send_reset_link(
 ):
     user = db.get(PortalUser, int(user_id))
     if not user or not user.is_active:
-        raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
+        raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
 
     raw_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
@@ -625,7 +626,7 @@ def send_reset_link(
     try:
         _send_reset_email(settings=settings, cfg=cfg, to_email=user.email, reset_url=reset_url)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Odeslani selhalo: {exc}") from exc
+        raise_api_error(400, "reset_email_failed", f"Odeslani selhalo: {exc}")
 
     return OkOut(ok=True)
 
@@ -639,7 +640,7 @@ def unlock_user(
 ):
     user = db.get(PortalUser, int(user_id))
     if user is None:
-        raise HTTPException(status_code=404, detail="Uzivatel nenalezen.")
+        raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
 
     clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
     revoke_unlock_tokens(db, actor_type="portal", principal=user.email.lower())

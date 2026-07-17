@@ -5,10 +5,11 @@ import json
 import smtplib
 from email.message import EmailMessage
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel, Field, ValidationError
 from starlette.responses import RedirectResponse
 
+from app.api.errors import raise_api_error
 from app.config import Settings, get_settings
 from app.db.models import AppSettings
 from app.db.session import get_db
@@ -105,9 +106,9 @@ async def _parse_admin_login_body(request: Request) -> AdminLoginBody | None:
                 password=raw_password if isinstance(raw_password, str) else "",
             )
         except ValidationError:
-            raise HTTPException(status_code=400, detail="Vyplňte uživatelské jméno a heslo.") from None
+            raise_api_error(400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo.")
         except Exception:
-            raise HTTPException(status_code=400, detail="Nelze zpracovat přihlašovací údaje.") from None
+            raise_api_error(400, "admin_login_invalid_payload", "Nelze zpracovat přihlašovací údaje.")
 
     return payload
 
@@ -148,24 +149,21 @@ async def admin_login(
     configured_hash = settings.admin_password_hash
 
     if not configured_hash:
-        raise HTTPException(
-            status_code=503,
-            detail="Admin účet není inicializován. Spusťte scripts/seed_admin.sh.",
-        )
+        raise_api_error(503, "admin_account_not_initialized", "Admin účet není inicializován. Spusťte scripts/seed_admin.sh.")
 
     payload = await _parse_admin_login_body(request)
     if not payload:
-        raise HTTPException(status_code=400, detail="Vyplňte uživatelské jméno a heslo.")
+        raise_api_error(400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo.")
 
     username = (payload.username or payload.email or "").strip().lower()
     if not username or not payload.password:
-        raise HTTPException(status_code=400, detail="Vyplňte uživatelské jméno a heslo.")
+        raise_api_error(400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo.")
 
     user_ok = username == configured_user
     pass_ok = verify_password(payload.password, configured_hash)
 
     if not (user_ok and pass_ok):
-        raise HTTPException(status_code=401, detail="Neplatné přihlašovací údaje")
+        raise_api_error(401, "admin_login_invalid_credentials", "Neplatné přihlašovací údaje")
 
     set_admin_session(response=response, username=configured_user, settings=settings)
     csrf = csrf_issue_token(request=request, response=response, settings=settings)

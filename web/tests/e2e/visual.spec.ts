@@ -4,6 +4,9 @@ const viewports = [{ width: 1920, height: 1080 }, { width: 1440, height: 900 }, 
 for (const viewport of viewports) {
   test(`employee login ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      window.localStorage.setItem("dagmar.language", "cs");
+    });
     await page.goto("/app");
     await expect(page).toHaveScreenshot(`employee-login-${viewport.width}.png`, {
       fullPage: true,

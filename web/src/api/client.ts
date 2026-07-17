@@ -1,5 +1,6 @@
 import type { ZodType } from "zod";
 import { attendanceMonthSchema, portalLoginSchema, type AttendanceMonth, type PortalLogin } from "./types";
+import { i18n } from "../i18n";
 
 export class ApiError extends Error {
   constructor(
@@ -31,13 +32,27 @@ async function csrf(): Promise<string> {
 }
 
 async function responseError(response: Response): Promise<ApiError> {
-  let message = `Požadavek skončil chybou ${response.status}.`;
+  let message: string = String(i18n.t("api.genericError", { status: response.status }));
   let code: string | null = null;
   try {
-    const body = await response.json() as { detail?: unknown; error?: { message?: string; code?: string } };
-    if (typeof body.detail === "string") message = body.detail;
-    else if (body.error?.message) message = body.error.message;
-    code = body.error?.code ?? null;
+    const body = await response.json() as {
+      detail?: unknown;
+      error?: { message?: string; code?: string; params?: Record<string, unknown> };
+    };
+    const detailObject = typeof body.detail === "object" && body.detail !== null
+      ? body.detail as { code?: string; message?: string; params?: Record<string, unknown> }
+      : null;
+    const params = body.error?.params ?? detailObject?.params ?? {};
+    code = body.error?.code ?? detailObject?.code ?? null;
+    if (code && i18n.exists(`apiErrors.${code}`)) {
+      message = String(i18n.t(`apiErrors.${code}`, params));
+    } else if (typeof body.detail === "string") {
+      message = body.detail;
+    } else if (detailObject?.message) {
+      message = detailObject.message;
+    } else if (body.error?.message) {
+      message = body.error.message;
+    }
   } catch { /* response is not JSON */ }
   return new ApiError(message, response.status, code, response.headers.get("x-request-id"));
 }
@@ -57,7 +72,7 @@ export async function request<T>(
   try {
     response = await fetch(path, { ...options, headers, credentials: mode === "admin" ? "include" : "same-origin" });
   } catch {
-    throw new ApiError("Připojení není dostupné. Změnu lze bezpečně zařadit k synchronizaci.", 0, "offline", null);
+    throw new ApiError(i18n.t("common.status.networkOffline"), 0, "offline", null);
   }
   if (!response.ok) {
     if (response.status === 403 && mode === "admin") csrfToken = null;

@@ -54,6 +54,7 @@ for (const width of [360, 390]) {
     days[1].departure_time = "15:30";
     await page.setViewportSize({ width, height: 780 });
     await page.addInitScript((value) => {
+      localStorage.setItem("dagmar.language", "cs");
       localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
     }, session);
     await page.route("**/api/v1/attendance?**", async (route) => {
@@ -71,6 +72,7 @@ for (const width of [360, 390]) {
     });
 
     await page.goto("/app");
+    await page.getByLabel("Language switcher").selectOption("cs");
     await expect(page.locator(".employee-day").first()).toBeVisible();
 
     const metrics = await page.evaluate(() => {
@@ -110,7 +112,7 @@ for (const width of [360, 390]) {
     expect(metrics.fontSize).toBe("24px");
     expect(metrics.nameDay).toBe("svátek má Jaroslava");
     expect(metrics.holidayText).toBe("Cyril a Metoděj");
-    expect(metrics.weekendDate).toBe("04.07.2026");
+    expect(metrics.weekendDate).toMatch(/^04\.\s?07\.\s?2026$/);
     await expect(page.locator(".employee-day").nth(1).locator("input[name=\"arrival_time\"]")).toHaveValue("07:45");
     await expect(page.locator(".employee-day").nth(1).locator("input[name=\"departure_time\"]")).toHaveValue("15:30");
 
@@ -144,6 +146,7 @@ test("employee can switch to editable shift plan and save planned time", async (
 
   await page.setViewportSize({ width: 390, height: 780 });
   await page.addInitScript((value) => {
+    localStorage.setItem("dagmar.language", "cs");
     localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
   }, session);
   await page.route("**/api/v1/attendance?**", async (route) => {
@@ -171,6 +174,7 @@ test("employee can switch to editable shift plan and save planned time", async (
   });
 
   await page.goto("/app");
+  await page.getByLabel("Language switcher").selectOption("cs");
   await page.getByRole("tab", { name: "Plán služeb" }).click();
   await expect(page.locator(".employee-day--plan").first()).toBeVisible();
   await expect(page.locator(".employee-nowbar")).toHaveCount(0);
@@ -195,6 +199,7 @@ test("employee shift plan is read-only when admin does not allow month editing",
 
   await page.setViewportSize({ width: 390, height: 780 });
   await page.addInitScript((value) => {
+    localStorage.setItem("dagmar.language", "cs");
     localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
   }, session);
   await page.route("**/api/v1/attendance?**", async (route) => {
@@ -212,6 +217,7 @@ test("employee shift plan is read-only when admin does not allow month editing",
   });
 
   await page.goto("/app");
+  await page.getByLabel("Language switcher").selectOption("cs");
   await page.getByRole("tab", { name: "Plán služeb" }).click();
   await expect(page.getByText("Plán služeb je pouze pro čtení")).toBeVisible();
   await expect(page.locator(".employee-day--plan").first().locator("input[name=\"planned_arrival_time\"]")).toBeDisabled();

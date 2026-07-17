@@ -5,11 +5,12 @@ import hashlib
 from datetime import UTC, datetime
 from typing import NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.errors import raise_api_error
 from app.db.models import (
     AppSettings,
     Employment,
@@ -89,16 +90,13 @@ def _get_settings(db: Session) -> AppSettings:
 def _record_login_failure(db: Session, *, email: str, detail: str) -> NoReturn:
     state = get_lockout_state(db, actor_type="portal", principal=email, create=True)
     if state is None:
-        raise HTTPException(status_code=401, detail=detail)
+        raise_api_error(401, "portal_invalid_credentials", detail)
     locked_now = record_failed_login(state, lock_duration=PORTAL_LOCKOUT_DURATION)
     db.add(state)
     db.commit()
     if locked_now or is_locked(state):
-        raise HTTPException(
-            status_code=423,
-            detail="Účet je dočasně uzamčen po opakovaných neplatných pokusech.",
-        )
-    raise HTTPException(status_code=401, detail=detail)
+        raise_api_error(423, "portal_account_locked", "Účet je dočasně uzamčen po opakovaných neplatných pokusech.")
+    raise_api_error(401, "portal_invalid_credentials", detail)
 
 
 def _to_login_employment_out(employment: Employment, today) -> LoginEmploymentOut:
@@ -120,10 +118,7 @@ def portal_login(payload: PortalLoginIn, db: Session = Depends(get_db)):
     lock_state = get_lockout_state(db, actor_type="portal", principal=email, create=True)
     if lock_state is not None and is_locked(lock_state):
         db.commit()
-        raise HTTPException(
-            status_code=423,
-            detail="Účet je dočasně uzamčen po opakovaných neplatných pokusech.",
-        )
+        raise_api_error(423, "portal_account_locked", "Účet je dočasně uzamčen po opakovaných neplatných pokusech.")
 
     user = (
         db.execute(
@@ -139,7 +134,7 @@ def portal_login(payload: PortalLoginIn, db: Session = Depends(get_db)):
     if not user.is_active or user.password_hash is None:
         _record_login_failure(db, email=email, detail="Neplatne prihlasovaci udaje")
     if user.role != PortalUserRole.EMPLOYEE:
-        _record_login_failure(db, email=email, detail="Nepodporovany typ uctu")
+        _record_login_failure(db, email=email, detail="Nepodporovaný typ účtu")
 
     password_verification = verify_password_details(payload.password, user.password_hash)
     if not password_verification.valid:
@@ -149,14 +144,15 @@ def portal_login(payload: PortalLoginIn, db: Session = Depends(get_db)):
         db.add(user)
 
     if not user.instance_id or user.instance is None:
-        raise HTTPException(status_code=409, detail="Uzivatel nema pripraveny pristupovy token")
+        raise_api_error(409, "portal_missing_instance_token", "Uživatel nemá připravený přístupový token.")
 
     today = prague_today()
     selection = select_login_employments(user, today)
     if not selection.available:
-        raise HTTPException(
-            status_code=403,
-            detail="Prihlaseni neni povoleno, protoze uzivatel nema dostupny uvazek v povolenem prihlasovacim okne.",
+        raise_api_error(
+            403,
+            "portal_no_available_employment",
+            "Přihlášení není povoleno, protože uživatel nemá dostupný úvazek v povoleném přihlašovacím okně.",
         )
 
     token = issue_instance_token_once(db, user.instance)
@@ -190,12 +186,12 @@ def portal_reset(payload: PortalResetIn, db: Session = Depends(get_db)):
     ).scalars().first()
 
     if not row or not row.user or not row.user.is_active:
-        raise HTTPException(status_code=400, detail="Odkaz je neplatny nebo vyprsel")
+        raise_api_error(400, "portal_reset_token_invalid", "Odkaz je neplatný nebo vypršel.")
 
     try:
         new_hash = hash_password(payload.password)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise_api_error(400, "portal_password_policy_failed", str(exc))
 
     row.user.password_hash = new_hash.value
     row.used_at = now

@@ -64,4 +64,7 @@ def test_admin_login_rejects_invalid_password_after_json_parse() -> None:
         headers=_csrf_headers(client),
     )
     assert response.status_code == 401
-    assert response.json()["detail"] == "Neplatné přihlašovací údaje"
+    assert response.json()["detail"] == {
+        "code": "admin_login_invalid_credentials",
+        "message": "Neplatné přihlašovací údaje",
+    }

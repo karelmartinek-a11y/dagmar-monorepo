@@ -4,13 +4,14 @@ from __future__ import annotations
 import datetime as dt
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import PortalUserAuth, require_portal_user_auth
+from app.api.errors import raise_api_error
 from app.db.models import Attendance, AttendanceLock, Employment, ShiftPlan
 from app.db.session import get_db
 from app.services.day_status import day_status_label, get_day_status
@@ -76,16 +77,13 @@ def _require_accessible_employment(
 ) -> Employment:
     employment = db.get(Employment, employment_id)
     if employment is None or employment.user_id != auth.user.id:
-        raise HTTPException(status_code=404, detail="Uvazek nenalezen.")
+        raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
     return employment
 
 
 def _ensure_day_in_employment_period(employment: Employment, day: dt.date) -> None:
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Zvolene datum nelezi v obdobi platnosti vybraneho uvazku.",
-        )
+        raise_api_error(status.HTTP_409_CONFLICT, "employment_period_mismatch", "Zvolené datum neleží v období platnosti vybraného úvazku.")
 
 
 def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
@@ -97,10 +95,7 @@ def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Sess
         )
     ).scalar_one_or_none()
     if lock is not None:
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED,
-            detail="Dochazka za zvolene obdobi je uzamcena.",
-        )
+        raise_api_error(status.HTTP_423_LOCKED, "attendance_month_locked", "Docházka za zvolené období je uzamčena.")
 
 
 def _month_is_locked(employment_id: int, year: int, month: int, db: Session) -> bool:
@@ -125,15 +120,16 @@ def _enforce_user_forensic_rules(
 ) -> None:
     today = prague_today()
     if day > today:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Budouci pruchod uzivatel nesmi zadat.")
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "attendance_future_entry_forbidden", "Budoucí průchod uživatel nesmí zadat.")
 
     if day == today:
         now_minutes = prague_minutes_since_midnight()
         values = [arrival, departure, arrival_2, departure_2]
         if any(value is not None and (_minutes_from_hhmm(value) or 0) > now_minutes for value in values):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="U dnesniho dne nelze zadat cas v budoucnosti podle casu v Praze.",
+            raise_api_error(
+                status.HTTP_400_BAD_REQUEST,
+                "attendance_future_time_forbidden",
+                "U dnešního dne nelze zadat čas v budoucnosti podle času v Praze.",
             )
         return
 
@@ -141,24 +137,28 @@ def _enforce_user_forensic_rules(
         return
 
     if existing.arrival_time is not None and arrival != existing.arrival_time:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
+        raise_api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "attendance_past_edit_forbidden",
+            "Na minulých dnech lze doplnit jen chybějící příchod nebo odchod. Uložené hodnoty už měnit nejdou.",
         )
     if existing.departure_time is not None and departure != existing.departure_time:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
+        raise_api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "attendance_past_edit_forbidden",
+            "Na minulých dnech lze doplnit jen chybějící příchod nebo odchod. Uložené hodnoty už měnit nejdou.",
         )
     if existing.arrival_time_2 is not None and arrival_2 != existing.arrival_time_2:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
+        raise_api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "attendance_past_edit_forbidden",
+            "Na minulých dnech lze doplnit jen chybějící příchod nebo odchod. Uložené hodnoty už měnit nejdou.",
         )
     if existing.departure_time_2 is not None and departure_2 != existing.departure_time_2:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Na minulych dnech lze doplnit jen chybejici prichod nebo odchod. Ulozene hodnoty uz menit nejdou.",
+        raise_api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "attendance_past_edit_forbidden",
+            "Na minulých dnech lze doplnit jen chybějící příchod nebo odchod. Uložené hodnoty už měnit nejdou.",
         )
 
 
@@ -233,20 +233,19 @@ def upsert_attendance(
 ) -> AttendanceDayOut:
     try:
         day = dt.date.fromisoformat(body.date)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid date format, expected YYYY-MM-DD",
-        ) from exc
+    except ValueError:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_date_format", "Invalid date format, expected YYYY-MM-DD")
 
     employment = _require_accessible_employment(body.employment_id, auth, db)
     _ensure_day_in_employment_period(employment, day)
     _ensure_month_not_locked(employment.id, day.year, day.month, db)
     blocked_status = get_day_status(db, employment_id=employment.id, day=day)
     if blocked_status is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "attendance_blocked_by_day_status",
+            f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
+            blocked_status=blocked_status,
         )
 
     try:
@@ -255,7 +254,7 @@ def upsert_attendance(
         arrival_2 = parse_hhmm_or_none(body.arrival_time_2)
         departure_2 = parse_hhmm_or_none(body.departure_time_2)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_time_format", str(exc))
 
     existing = db.execute(
         select(Attendance).where(

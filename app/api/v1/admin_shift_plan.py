@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_admin
+from app.api.errors import raise_api_error
 from app.db.models import (
     AttendanceLock,
     Employment,
@@ -420,7 +421,7 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
-        raise HTTPException(status_code=409, detail="Datum nelezi v obdobi platnosti vybraneho uvazku.")
+        raise_api_error(409, "employment_period_mismatch", "Datum nelezi v obdobi platnosti vybraneho uvazku.")
 
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)
@@ -428,10 +429,15 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if body.status not in (None, DAY_STATUS_HOLIDAY, DAY_STATUS_OFF):
-        raise HTTPException(status_code=400, detail="Invalid status, expected HOLIDAY or OFF or null")
+        raise_api_error(400, "invalid_day_status", "Invalid status, expected HOLIDAY or OFF or null")
     blocked_status = get_day_status(db, employment_id=employment.id, day=day)
     if blocked_status is not None and body.status is None and (arrival is not None or departure is not None):
-        raise HTTPException(status_code=409, detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat plán směny.")
+        raise_api_error(
+            409,
+            "shift_plan_blocked_by_day_status",
+            f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat plán směny.",
+            blocked_status=blocked_status,
+        )
     if body.status is not None:
         arrival = None
         departure = None
@@ -483,12 +489,14 @@ def admin_upsert_day_status(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
-        raise HTTPException(status_code=409, detail="Datum nelezi v obdobi platnosti vybraneho uvazku.")
+        raise_api_error(409, "employment_period_mismatch", "Datum nelezi v obdobi platnosti vybraneho uvazku.")
     _ensure_month_not_locked(employment.id, day.year, day.month, db)
 
     try:
         status = normalize_day_status(body.status)
     except ValueError as exc:
+        if str(exc) == "invalid_day_status":
+            raise_api_error(400, "invalid_day_status", "Neplatný stav dne.")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     conflicts = set_day_status(

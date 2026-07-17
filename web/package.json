@@ -21,10 +21,12 @@
   "dependencies": {
     "@fontsource/montserrat": "^5.2.6",
     "@tanstack/react-query": "^5.81.5",
+    "i18next": "^26.3.6",
     "idb": "^8.0.3",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.10",
     "react-router-dom": "^6.28.0",
     "zod": "^3.24.1"
   },

@@ -9,6 +9,6 @@ test("public integration documentation is complete and navigable", async ({ page
 
 test("unknown route offers a safe return", async ({ page }) => {
   await page.goto("/route-does-not-exist");
-  await expect(page.getByRole("heading", { name: "Tato cesta neexistuje" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Zpět do portálu" })).toHaveAttribute("href", "/app");
+  await expect(page.locator("h1")).toBeVisible();
+  await expect(page.locator('a[href="/app"]')).toBeVisible();
 });
