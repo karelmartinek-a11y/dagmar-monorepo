@@ -159,6 +159,9 @@ export function EmployeePage(){
   const { t } = useTranslation();
   const monthName = useDateFormatter({ month:"long", year:"numeric" });
   const[session,setSession]=useState<PortalSession|null>(()=>loadPortalSession());const[month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));const[queueCount,setQueueCount]=useState(0);const[notice,setNotice]=useState("");const[view,setView]=useState<"attendance"|"plan">("attendance");const[savedCell,setSavedCell]=useState<{date:string;field:TimeField;token:number}|null>(null);const[statusConflict,setStatusConflict]=useState<{day:AttendanceDay;status:string}|null>(null);const[inverted,setInverted]=useState(()=>{try{return localStorage.getItem(themeKey)==="light"}catch{return false}});const qc=useQueryClient();
+  useEffect(() => {
+    document.title = `${t("common.appName")} · ${t(session ? "employee.page.title" : "employee.login.title")}`;
+  }, [session, t]);
   const employmentId=session?.selected_employment_id??null;
   const query=useQuery({queryKey:["attendance",employmentId,month.getFullYear(),month.getMonth()+1],queryFn:()=>api.attendance(employmentId!,month.getFullYear(),month.getMonth()+1),enabled:!!employmentId,retry:false});
   useEffect(()=>{listOperations().then(items=>setQueueCount(items.length));const allowed=new Set(session?.available_employments.map(item=>item.id)??[]);const online=()=>flushOperations(allowed).then(async result=>{setQueueCount((await listOperations()).length);if(result.completed)setNotice(t("employee.notices.synced",{count:result.completed}));if(result.blocked)setNotice(t("employee.notices.syncBlocked",{reason:result.blocked.last_error}));qc.invalidateQueries({queryKey:["attendance"]})});window.addEventListener("online",online);return()=>window.removeEventListener("online",online)},[qc,session,t]);
