@@ -4,11 +4,13 @@ const employeeEmail = process.env.DAGMAR_E2E_USER_EMAIL ?? "employee.e2e@example
 const employeePassword = process.env.DAGMAR_E2E_USER_PASSWORD ?? "EmployeeE2E-Strong-123";
 const adminUsername = process.env.DAGMAR_E2E_ADMIN_USERNAME ?? "provoz@hotelchodovasc.cz";
 const adminPassword = process.env.DAGMAR_E2E_ADMIN_PASSWORD ?? "AdminE2E-Strong-123";
+const languageStorageKey = "kajovodagmar.language.v1";
 
 test.describe("real backend workflows", () => {
   test.skip(!process.env.DAGMAR_E2E_REAL_BACKEND, "Requires the isolated PostgreSQL E2E environment.");
 
   test("employee login, attendance write, offline queue and logout", async ({ page }) => {
+    await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [languageStorageKey, "cs"]);
     await page.goto("/app");
     await page.getByLabel("Pracovní e-mail").fill(employeeEmail);
     await page.getByLabel("Heslo").fill(employeePassword);
@@ -38,6 +40,7 @@ test.describe("real backend workflows", () => {
   });
 
   test("admin session, protected routes, export and print preview", async ({ page }) => {
+    await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [languageStorageKey, "cs"]);
     await page.goto("/admin/login");
     await page.getByLabel("Přihlašovací jméno administrátora").fill(adminUsername);
     await page.getByLabel("Heslo").fill(adminPassword);
