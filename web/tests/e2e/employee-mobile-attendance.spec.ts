@@ -61,7 +61,14 @@ for (const width of [360, 390]) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, shift_plan_editable: true, days }),
+        body: JSON.stringify({
+          employment_id: 41,
+          employment_label: "Testovací uživatel · Denní provoz",
+          attendance_locked: false,
+          shift_plan_locked: false,
+          shift_plan_editable: true,
+          days,
+        }),
       });
     });
     await page.route("**/api/v1/attendance", async (route) => {
@@ -156,7 +163,8 @@ test("employee can switch to editable shift plan and save planned time", async (
       body: JSON.stringify({
         employment_id: 41,
         employment_label: "Testovací uživatel · Denní provoz",
-        locked: false,
+        attendance_locked: false,
+        shift_plan_locked: false,
         shift_plan_editable: true,
         days,
       }),
@@ -209,7 +217,8 @@ test("employee shift plan is read-only when admin does not allow month editing",
       body: JSON.stringify({
         employment_id: 41,
         employment_label: "Testovací uživatel · Denní provoz",
-        locked: false,
+        attendance_locked: false,
+        shift_plan_locked: false,
         shift_plan_editable: false,
         days,
       }),
