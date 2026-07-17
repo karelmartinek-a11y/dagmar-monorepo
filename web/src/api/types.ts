@@ -28,7 +28,30 @@ export const attendanceDaySchema = z.object({
   planned_arrival_time: z.string().nullable(),
   planned_departure_time: z.string().nullable(),
   planned_status: z.string().nullable(),
+  attendance_status: z.string().nullable().optional(),
+  effective_status: z.string().nullable().optional(),
   is_within_employment_period: z.boolean(),
+  worked_minutes: z.number().optional(),
+  worked_state: z.string().optional(),
+  planned_minutes: z.number().optional(),
+  planned_state: z.string().optional(),
+});
+
+export const attendanceMonthSummarySchema = z.object({
+  work_fund_minutes: z.number(),
+  work_fund_source: z.string(),
+  planned_minutes: z.number(),
+  worked_minutes: z.number(),
+  vacation_minutes: z.number(),
+  vacation_days: z.number(),
+  sickness_days: z.number(),
+  paragraph_minutes: z.number(),
+  afternoon_minutes: z.number(),
+  weekend_holiday_minutes: z.number(),
+  plan_balance_minutes: z.number(),
+  worked_balance_minutes: z.number().nullable().optional(),
+  elapsed_fund_minutes: z.number().nullable().optional(),
+  worked_balance_mode: z.string().nullable().optional(),
 });
 
 export const attendanceMonthSchema = z.object({
@@ -38,6 +61,7 @@ export const attendanceMonthSchema = z.object({
   shift_plan_locked: z.boolean(),
   shift_plan_editable: z.boolean().optional(),
   days: z.array(attendanceDaySchema),
+  summary: attendanceMonthSummarySchema.optional(),
 });
 
 export type Employment = z.infer<typeof employmentSchema>;

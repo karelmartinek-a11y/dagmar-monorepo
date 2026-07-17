@@ -17,6 +17,7 @@ from app.db.session import get_db
 from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
 from app.services.locks import LockType, ensure_month_unlocked, is_month_locked
+from app.services.month_summary import build_month_summary
 from app.services.prague_time import prague_minutes_since_midnight, prague_today
 from app.services.shift_plan_editing import can_employee_edit_shift_plan
 from app.utils.timeparse import parse_hhmm_or_none
@@ -33,7 +34,30 @@ class AttendanceDayOut(BaseModel):
     planned_arrival_time: str | None = None
     planned_departure_time: str | None = None
     planned_status: str | None = None
+    attendance_status: str | None = None
+    effective_status: str | None = None
     is_within_employment_period: bool
+    worked_minutes: int = 0
+    worked_state: str = "empty"
+    planned_minutes: int = 0
+    planned_state: str = "empty"
+
+
+class AttendanceMonthSummaryOut(BaseModel):
+    work_fund_minutes: int
+    work_fund_source: str
+    planned_minutes: int
+    worked_minutes: int
+    vacation_minutes: int
+    vacation_days: int
+    sickness_days: int
+    paragraph_minutes: int
+    afternoon_minutes: int
+    weekend_holiday_minutes: int
+    plan_balance_minutes: int
+    worked_balance_minutes: int | None = None
+    elapsed_fund_minutes: int | None = None
+    worked_balance_mode: str | None = None
 
 
 class AttendanceMonthOut(BaseModel):
@@ -44,6 +68,7 @@ class AttendanceMonthOut(BaseModel):
     shift_plan_locked: bool = False
     shift_plan_editable: bool = False
     days: list[AttendanceDayOut]
+    summary: AttendanceMonthSummaryOut
 
 
 class AttendanceUpsertIn(BaseModel):
@@ -169,7 +194,7 @@ def get_month_attendance(
         month=month,
     )
 
-    rows = db.execute(
+    db.execute(
         select(Attendance)
         .where(Attendance.employment_id == employment.id)
         .where(Attendance.date >= start)
@@ -177,39 +202,38 @@ def get_month_attendance(
         .order_by(Attendance.date.asc())
     ).scalars().all()
 
-    by_date: dict[dt.date, Attendance] = {r.date: r for r in rows}
-
-    plan_by_date: dict[dt.date, ShiftPlan] = {}
     try:
-        plan_rows = db.execute(
+        db.execute(
             select(ShiftPlan)
             .where(ShiftPlan.employment_id == employment.id)
             .where(ShiftPlan.date >= start)
             .where(ShiftPlan.date < end)
         ).scalars().all()
-        plan_by_date = {r.date: r for r in plan_rows}
     except SQLAlchemyError as exc:
         logging.getLogger(__name__).warning("ShiftPlan unavailable for attendance: %s", exc)
 
-    days: list[AttendanceDayOut] = []
-    cur = start
-    while cur < end:
-        row = by_date.get(cur)
-        plan = plan_by_date.get(cur)
-        days.append(
-            AttendanceDayOut(
-                date=cur.isoformat(),
-                arrival_time=row.arrival_time if row else None,
-                departure_time=row.departure_time if row else None,
-                arrival_time_2=row.arrival_time_2 if row else None,
-                departure_time_2=row.departure_time_2 if row else None,
-                planned_arrival_time=plan.arrival_time if plan else None,
-                planned_departure_time=plan.departure_time if plan else None,
-                planned_status=plan.status if plan else None,
-                is_within_employment_period=employment.start_date <= cur and (employment.end_date is None or cur <= employment.end_date),
-            )
+    month_summary = build_month_summary(db, employment=employment, year=year, month=month)
+    days = [
+        AttendanceDayOut(
+            date=item.date.isoformat(),
+            arrival_time=item.attendance.arrival_time if item.attendance else None,
+            departure_time=item.attendance.departure_time if item.attendance else None,
+            arrival_time_2=item.attendance.arrival_time_2 if item.attendance else None,
+            departure_time_2=item.attendance.departure_time_2 if item.attendance else None,
+            planned_arrival_time=item.plan.arrival_time if item.plan else None,
+            planned_departure_time=item.plan.departure_time if item.plan else None,
+            planned_status=item.plan.status if item.plan else None,
+            attendance_status=item.attendance.status if item.attendance else None,
+            effective_status=item.effective_status,
+            is_within_employment_period=employment.start_date <= item.date
+            and (employment.end_date is None or item.date <= employment.end_date),
+            worked_minutes=item.worked_minutes,
+            worked_state=item.worked_state,
+            planned_minutes=item.planned_minutes,
+            planned_state=item.planned_state,
         )
-        cur = cur + dt.timedelta(days=1)
+        for item in month_summary.day_summaries
+    ]
 
     return AttendanceMonthOut(
         employment_id=employment.id,
@@ -219,6 +243,22 @@ def get_month_attendance(
         shift_plan_locked=shift_plan_locked,
         shift_plan_editable=can_employee_edit_shift_plan(db, employment_id=employment.id, year=year, month=month),
         days=days,
+        summary=AttendanceMonthSummaryOut(
+            work_fund_minutes=month_summary.work_fund_minutes,
+            work_fund_source=month_summary.work_fund_source,
+            planned_minutes=month_summary.planned_minutes,
+            worked_minutes=month_summary.worked_minutes,
+            vacation_minutes=month_summary.vacation_minutes,
+            vacation_days=month_summary.vacation_days,
+            sickness_days=month_summary.sickness_days,
+            paragraph_minutes=month_summary.paragraph_minutes,
+            afternoon_minutes=month_summary.afternoon_minutes,
+            weekend_holiday_minutes=month_summary.weekend_holiday_minutes,
+            plan_balance_minutes=month_summary.plan_balance_minutes,
+            worked_balance_minutes=month_summary.worked_balance_minutes,
+            elapsed_fund_minutes=month_summary.elapsed_fund_minutes,
+            worked_balance_mode=month_summary.worked_balance_mode,
+        ),
     )
 
 
@@ -278,6 +318,7 @@ def upsert_attendance(
             departure_time=departure,
             arrival_time_2=arrival_2,
             departure_time_2=departure_2,
+            status=None,
         )
         db.add(existing)
     else:
@@ -285,6 +326,7 @@ def upsert_attendance(
         existing.departure_time = departure
         existing.arrival_time_2 = arrival_2
         existing.departure_time_2 = departure_2
+        existing.status = None
         existing.instance_id = auth.instance.id
 
     db.commit()
@@ -297,5 +339,11 @@ def upsert_attendance(
         planned_arrival_time=None,
         planned_departure_time=None,
         planned_status=None,
+        attendance_status=existing.status,
+        effective_status=existing.status,
         is_within_employment_period=True,
+        worked_minutes=0,
+        worked_state="empty",
+        planned_minutes=0,
+        planned_state="empty",
     )

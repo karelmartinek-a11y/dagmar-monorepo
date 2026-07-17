@@ -10,7 +10,9 @@ from app.db.models import Attendance, Employment, ShiftPlan
 
 DAY_STATUS_HOLIDAY = "HOLIDAY"
 DAY_STATUS_OFF = "OFF"
-DAY_STATUS_VALUES = {DAY_STATUS_HOLIDAY, DAY_STATUS_OFF}
+DAY_STATUS_SICKNESS = "SICKNESS"
+DAY_STATUS_PARAGRAPH = "PARAGRAPH"
+DAY_STATUS_VALUES = {DAY_STATUS_HOLIDAY, DAY_STATUS_OFF, DAY_STATUS_SICKNESS, DAY_STATUS_PARAGRAPH}
 VACATION_DAY_MINUTES = 8 * 60
 
 
@@ -55,6 +57,14 @@ def get_shift_plan_day(db: Session, *, employment_id: int, day: date) -> ShiftPl
 
 
 def get_day_status(db: Session, *, employment_id: int, day: date) -> str | None:
+    attendance = db.execute(
+        select(Attendance).where(
+            Attendance.employment_id == employment_id,
+            Attendance.date == day,
+        )
+    ).scalar_one_or_none()
+    if attendance is not None and attendance.status:
+        return attendance.status
     row = get_shift_plan_day(db, employment_id=employment_id, day=day)
     if row is None:
         return None
@@ -66,6 +76,10 @@ def day_status_label(status: str | None) -> str | None:
         return "DOVOLENÁ"
     if status == DAY_STATUS_OFF:
         return "VOLNO"
+    if status == DAY_STATUS_SICKNESS:
+        return "NEMOC"
+    if status == DAY_STATUS_PARAGRAPH:
+        return "PARAGRAF"
     return None
 
 
@@ -79,8 +93,8 @@ def collect_day_status_conflicts(db: Session, *, employment_id: int, day: date) 
     ).scalar_one_or_none()
     return DayStatusConflicts(
         attendance_exists=attendance is not None
-        and bool(attendance.arrival_time or attendance.departure_time or attendance.arrival_time_2 or attendance.departure_time_2),
-        shift_plan_exists=plan is not None and bool(plan.arrival_time or plan.departure_time),
+        and bool(attendance.arrival_time or attendance.departure_time or attendance.arrival_time_2 or attendance.departure_time_2 or attendance.status),
+        shift_plan_exists=plan is not None and bool(plan.arrival_time or plan.departure_time or plan.status),
     )
 
 
