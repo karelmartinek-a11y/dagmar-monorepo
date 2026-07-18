@@ -26,15 +26,19 @@ class DayStatusConflicts:
         return self.attendance_exists or self.shift_plan_exists
 
     def to_detail(self, *, employment_id: int, day: date, next_status: str | None) -> dict[str, object]:
-        return {
-            "code": "day_status_conflict",
-            "message": "V tomto dni už existuje plán směny nebo docházka. Potvrzením budou stávající údaje smazány.",
+        params = {
             "employment_id": employment_id,
             "date": day.isoformat(),
             "next_status": next_status,
             "requires_confirmation": True,
             "attendance_exists": self.attendance_exists,
             "shift_plan_exists": self.shift_plan_exists,
+        }
+        return {
+            "code": "day_status_conflict",
+            "message": "V tomto dni už existuje plán směny nebo docházka. Potvrzením budou stávající údaje smazány.",
+            "params": params,
+            **params,
         }
 
 

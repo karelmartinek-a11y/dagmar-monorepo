@@ -1,18 +1,29 @@
+import calendarSnapshot from "../data/calendar-snapshot.json";
 import { getLocale } from "../i18n/language";
 import type { AppLanguage } from "../i18n/resources";
 
 export type CalendarDayTone = "holiday" | "weekend" | "work";
+export type CalendarObservanceKind = "nameday" | "commemoration";
+
+export type CalendarDayInfo = {
+  publicHoliday: { id: string; label: string } | null;
+  observance: {
+    kind: CalendarObservanceKind;
+    items: string[];
+    source: string;
+  } | null;
+};
 
 const holidayLabels: Record<AppLanguage, Record<string, string>> = {
   cs: {
     "01-01": "Nový rok / Den obnovy samostatného českého státu",
     "05-01": "Svátek práce",
     "05-08": "Den vítězství",
-    "07-05": "Cyril a Metoděj",
+    "07-05": "Den slovanských věrozvěstů Cyrila a Metoděje",
     "07-06": "Den upálení mistra Jana Husa",
     "09-28": "Den české státnosti",
     "10-28": "Den vzniku samostatného československého státu",
-    "11-17": "Den boje za svobodu a demokracii",
+    "11-17": "Den boje za svobodu a demokracii a Mezinárodní den studentstva",
     "12-24": "Štědrý den",
     "12-25": "1. svátek vánoční",
     "12-26": "2. svátek vánoční",
@@ -27,7 +38,8 @@ const holidayLabels: Record<AppLanguage, Record<string, string>> = {
     "07-06": "Jan Hus Day",
     "09-28": "Czech Statehood Day",
     "10-28": "Independent Czechoslovak State Day",
-    "11-17": "Struggle for Freedom and Democracy Day",
+    "11-17":
+      "Struggle for Freedom and Democracy Day and International Students' Day",
     "12-24": "Christmas Eve",
     "12-25": "Christmas Day",
     "12-26": "St Stephen's Day",
@@ -35,14 +47,14 @@ const holidayLabels: Record<AppLanguage, Record<string, string>> = {
     easterMonday: "Easter Monday",
   },
   sk: {
-    "01-01": "Nový rok / Deň vzniku Slovenskej republiky",
+    "01-01": "Nový rok / Deň obnovy samostatného českého štátu",
     "05-01": "Sviatok práce",
-    "05-08": "Deň víťazstva nad fašizmom",
-    "07-05": "Sviatok svätého Cyrila a Metoda",
+    "05-08": "Deň víťazstva",
+    "07-05": "Deň slovanských vierozvestcov Cyrila a Metoda",
     "07-06": "Deň upálenia majstra Jána Husa",
     "09-28": "Deň českej štátnosti",
     "10-28": "Deň vzniku samostatného československého štátu",
-    "11-17": "Deň boja za slobodu a demokraciu",
+    "11-17": "Deň boja za slobodu a demokraciu a Medzinárodný deň študentstva",
     "12-24": "Štedrý deň",
     "12-25": "Prvý sviatok vianočný",
     "12-26": "Druhý sviatok vianočný",
@@ -50,112 +62,163 @@ const holidayLabels: Record<AppLanguage, Record<string, string>> = {
     easterMonday: "Veľkonočný pondelok",
   },
   de: {
-    "01-01": "Neujahr / Tag der Erneuerung des unabhängigen tschechischen Staates",
+    "01-01":
+      "Neujahr / Tag der Erneuerung des unabhängigen tschechischen Staates",
     "05-01": "Tag der Arbeit",
     "05-08": "Tag des Sieges",
-    "07-05": "Cyrill und Methodius",
-    "07-06": "Jan-Hus-Gedenktag",
+    "07-05": "Tag der Slawenapostel Kyrill und Method",
+    "07-06": "Gedenktag der Verbrennung von Jan Hus",
     "09-28": "Tag der tschechischen Staatlichkeit",
     "10-28": "Tag der Gründung des unabhängigen tschechoslowakischen Staates",
-    "11-17": "Tag des Kampfes für Freiheit und Demokratie",
+    "11-17":
+      "Tag des Kampfes für Freiheit und Demokratie und Internationaler Studententag",
     "12-24": "Heiligabend",
     "12-25": "Erster Weihnachtstag",
     "12-26": "Zweiter Weihnachtstag",
     easterFriday: "Karfreitag",
     easterMonday: "Ostermontag",
   },
+  hi: {
+    "01-01": "नववर्ष / स्वतंत्र चेक राज्य की पुनर्स्थापना दिवस",
+    "05-01": "श्रम दिवस",
+    "05-08": "विजय दिवस",
+    "07-05": "संत सिरिल और मेथोडियस दिवस",
+    "07-06": "यान हुस स्मृति दिवस",
+    "09-28": "चेक राज्यत्व दिवस",
+    "10-28": "स्वतंत्र चेकोस्लोवाक राज्य की स्थापना दिवस",
+    "11-17":
+      "स्वतंत्रता और लोकतंत्र के संघर्ष का दिवस तथा अंतरराष्ट्रीय छात्र दिवस",
+    "12-24": "क्रिसमस की पूर्वसंध्या",
+    "12-25": "क्रिसमस दिवस",
+    "12-26": "क्रिसमस का दूसरा दिन",
+    easterFriday: "गुड फ़्राइडे",
+    easterMonday: "ईस्टर सोमवार",
+  },
 };
 
-const czechNamedays: Record<string, string> = {
-  "01-01": "Nový rok / Den obnovy samostatného českého státu", "01-02": "Karina", "01-03": "Radmila", "01-04": "Diana", "01-05": "Dalimil", "01-06": "Tři králové", "01-07": "Vilma", "01-08": "Čestmír", "01-09": "Vladan", "01-10": "Břetislav", "01-11": "Bohdana", "01-12": "Pravoslav", "01-13": "Edita", "01-14": "Radovan", "01-15": "Alice", "01-16": "Ctirad", "01-17": "Drahoslav", "01-18": "Vladislav", "01-19": "Doubravka", "01-20": "Ilona", "01-21": "Běla", "01-22": "Slavomír", "01-23": "Zdeněk", "01-24": "Milena", "01-25": "Miloš", "01-26": "Zora", "01-27": "Ingrid", "01-28": "Otýlie", "01-29": "Zdislava", "01-30": "Robin", "01-31": "Marika",
-  "02-01": "Hynek", "02-02": "Nela", "02-03": "Blažej", "02-04": "Jarmila", "02-05": "Dobromila", "02-06": "Vanda", "02-07": "Veronika", "02-08": "Milada", "02-09": "Apolena", "02-10": "Mojmír", "02-11": "Božena", "02-12": "Slavěna", "02-13": "Věnceslav", "02-14": "Valentýn", "02-15": "Jiřina", "02-16": "Ljuba", "02-17": "Miloslava", "02-18": "Gizela", "02-19": "Patrik", "02-20": "Oldřich", "02-21": "Lenka", "02-22": "Petr", "02-23": "Svatopluk", "02-24": "Matěj", "02-25": "Liliana", "02-26": "Dorota", "02-27": "Alexandr", "02-28": "Lumír", "02-29": "Horymír",
-  "03-01": "Bedřich", "03-02": "Anežka", "03-03": "Kamil", "03-04": "Stela", "03-05": "Kazimír", "03-06": "Miroslav", "03-07": "Tomáš", "03-08": "Gabriela", "03-09": "Františka", "03-10": "Viktorie", "03-11": "Anděla", "03-12": "Řehoř", "03-13": "Růžena", "03-14": "Rút", "03-15": "Ida", "03-16": "Elena", "03-17": "Vlastimil", "03-18": "Eduard", "03-19": "Josef", "03-20": "Světlana", "03-21": "Radek", "03-22": "Leona", "03-23": "Ivona", "03-24": "Gabriel", "03-25": "Marián", "03-26": "Emanuel", "03-27": "Dita", "03-28": "Soňa", "03-29": "Taťána", "03-30": "Arnošt", "03-31": "Kvido",
-  "04-01": "Hugo", "04-02": "Erika", "04-03": "Richard", "04-04": "Ivana", "04-05": "Miroslava", "04-06": "Vendula", "04-07": "Heřman", "04-08": "Ema", "04-09": "Dušan", "04-10": "Darja", "04-11": "Izabela", "04-12": "Julius", "04-13": "Aleš", "04-14": "Vincenc", "04-15": "Anastázie", "04-16": "Irena", "04-17": "Rudolf", "04-18": "Valérie", "04-19": "Rostislav", "04-20": "Marcela", "04-21": "Alexandra", "04-22": "Evženie", "04-23": "Vojtěch", "04-24": "Jiří", "04-25": "Marek", "04-26": "Oto", "04-27": "Jaroslav", "04-28": "Vlastislav", "04-29": "Robert", "04-30": "Blahoslav",
-  "05-01": "Svátek práce", "05-02": "Zikmund", "05-03": "Alexej", "05-04": "Květoslav", "05-05": "Klaudie", "05-06": "Radoslav", "05-07": "Stanislav", "05-08": "Den vítězství", "05-09": "Ctibor", "05-10": "Blažena", "05-11": "Svatava", "05-12": "Pankrác", "05-13": "Servác", "05-14": "Bonifác", "05-15": "Žofie", "05-16": "Přemysl", "05-17": "Aneta", "05-18": "Nataša", "05-19": "Ivo", "05-20": "Zbyšek", "05-21": "Monika", "05-22": "Emil", "05-23": "Vladimír", "05-24": "Jana", "05-25": "Viola", "05-26": "Filip", "05-27": "Valdemar", "05-28": "Vilém", "05-29": "Maxmilián", "05-30": "Ferdinand", "05-31": "Kamila",
-  "06-01": "Laura", "06-02": "Jarmil", "06-03": "Tamara", "06-04": "Dalibor", "06-05": "Dobroslav", "06-06": "Norbert", "06-07": "Iveta", "06-08": "Medard", "06-09": "Stanislava", "06-10": "Gita", "06-11": "Bruno", "06-12": "Antonie", "06-13": "Antonín", "06-14": "Roland", "06-15": "Vít", "06-16": "Zbyněk", "06-17": "Adolf", "06-18": "Milan", "06-19": "Leoš", "06-20": "Květa", "06-21": "Alois", "06-22": "Pavla", "06-23": "Zdeňka", "06-24": "Jan", "06-25": "Ivan", "06-26": "Adriana", "06-27": "Ladislav", "06-28": "Lubomír", "06-29": "Petr a Pavel", "06-30": "Šárka",
-  "07-01": "Jaroslava", "07-02": "Patricie", "07-03": "Radomír", "07-04": "Prokop", "07-05": "Cyril a Metoděj", "07-06": "Den upálení mistra Jana Husa", "07-07": "Bohuslava", "07-08": "Nora", "07-09": "Drahoslava", "07-10": "Libuše", "07-11": "Olga", "07-12": "Bořek", "07-13": "Markéta", "07-14": "Karolína", "07-15": "Jindřich", "07-16": "Luboš", "07-17": "Martina", "07-18": "Drahomíra", "07-19": "Čeněk", "07-20": "Ilja", "07-21": "Vítězslav", "07-22": "Magdaléna", "07-23": "Libor", "07-24": "Kristýna", "07-25": "Jakub", "07-26": "Anna", "07-27": "Věroslav", "07-28": "Viktor", "07-29": "Marta", "07-30": "Bořivoj", "07-31": "Ignác",
-  "08-01": "Oskar", "08-02": "Gustav", "08-03": "Miluše", "08-04": "Dominik", "08-05": "Kristián", "08-06": "Oldřiška", "08-07": "Lada", "08-08": "Soběslav", "08-09": "Roman", "08-10": "Vavřinec", "08-11": "Zuzana", "08-12": "Klára", "08-13": "Alena", "08-14": "Alan", "08-15": "Hana", "08-16": "Jáchym", "08-17": "Petra", "08-18": "Helena", "08-19": "Ludvík", "08-20": "Bernard", "08-21": "Johana", "08-22": "Bohuslav", "08-23": "Sandra", "08-24": "Bartoloměj", "08-25": "Radim", "08-26": "Luděk", "08-27": "Otakar", "08-28": "Augustýn", "08-29": "Evelína", "08-30": "Vladěna", "08-31": "Pavlína",
-  "09-01": "Linda / Samuel", "09-02": "Adéla", "09-03": "Bronislav", "09-04": "Jindřiška", "09-05": "Boris", "09-06": "Boleslav", "09-07": "Regína", "09-08": "Mariana", "09-09": "Daniela", "09-10": "Irma", "09-11": "Denisa", "09-12": "Marie", "09-13": "Lubor", "09-14": "Radka", "09-15": "Jolana", "09-16": "Ludmila", "09-17": "Naděžda", "09-18": "Kryštof", "09-19": "Zita", "09-20": "Oleg", "09-21": "Matouš", "09-22": "Darina", "09-23": "Berta", "09-24": "Jaromír", "09-25": "Zlata", "09-26": "Andrea", "09-27": "Jonáš", "09-28": "Den české státnosti", "09-29": "Michal", "09-30": "Jeroným",
-  "10-01": "Igor", "10-02": "Olívie", "10-03": "Bohumil", "10-04": "František", "10-05": "Eliška", "10-06": "Hanuš", "10-07": "Justýna", "10-08": "Věra", "10-09": "Štefan / Sára", "10-10": "Marina", "10-11": "Andrej", "10-12": "Marcel", "10-13": "Renáta", "10-14": "Agáta", "10-15": "Tereza", "10-16": "Havel", "10-17": "Hedvika", "10-18": "Lukáš", "10-19": "Michaela", "10-20": "Vendelín", "10-21": "Brigita", "10-22": "Sabina", "10-23": "Teodor", "10-24": "Nina", "10-25": "Beáta", "10-26": "Erik", "10-27": "Šarlota", "10-28": "Den vzniku samostatného československého státu", "10-29": "Silvie", "10-30": "Tadeáš", "10-31": "Štěpánka",
-  "11-01": "Felix", "11-02": "Památka zesnulých", "11-03": "Hubert", "11-04": "Karel", "11-05": "Miriam", "11-06": "Liběna", "11-07": "Saskie", "11-08": "Bohumír", "11-09": "Bohdan", "11-10": "Evžen", "11-11": "Martin", "11-12": "Benedikt", "11-13": "Tibor", "11-14": "Sáva", "11-15": "Leopold", "11-16": "Otmar", "11-17": "Den boje za svobodu a demokracii", "11-18": "Romana", "11-19": "Alžběta", "11-20": "Nikola", "11-21": "Albert", "11-22": "Cecílie", "11-23": "Klement", "11-24": "Emílie", "11-25": "Kateřina", "11-26": "Artur", "11-27": "Xenie", "11-28": "René", "11-29": "Zina", "11-30": "Ondřej",
-  "12-01": "Iva", "12-02": "Blanka", "12-03": "Svatoslav", "12-04": "Barbora", "12-05": "Jitka", "12-06": "Mikuláš", "12-07": "Ambrož", "12-08": "Květoslava", "12-09": "Vratislav", "12-10": "Julie", "12-11": "Dana", "12-12": "Simona", "12-13": "Lucie", "12-14": "Lýdie", "12-15": "Radana", "12-16": "Albína", "12-17": "Daniel", "12-18": "Miloslav", "12-19": "Ester", "12-20": "Dagmar", "12-21": "Natálie", "12-22": "Šimon", "12-23": "Vlasta", "12-24": "Štědrý den", "12-25": "1. svátek vánoční", "12-26": "2. svátek vánoční", "12-27": "Žaneta", "12-28": "Bohumila", "12-29": "Judita", "12-30": "David", "12-31": "Silvestr",
+const snapshot = calendarSnapshot as {
+  meta: Record<string, string>;
+  cs: Record<string, string | string[]>;
+  sk: Record<string, string[]>;
+  de: Record<string, string[]>;
+  en: Record<string, string[]>;
 };
-
-function toLocale(language: AppLanguage | string | undefined): string {
-  if (!language) return getLocale("cs");
-  if (language.includes("-")) return language;
-  return getLocale(language as AppLanguage);
-}
 
 function toLanguage(language: AppLanguage | string | undefined): AppLanguage {
   if (!language) return "cs";
   const base = language.toLowerCase().split("-")[0] as AppLanguage;
-  return ["cs", "en", "sk", "de"].includes(base) ? base : "cs";
+  return ["cs", "en", "sk", "de", "hi"].includes(base) ? base : "cs";
+}
+
+function toLocale(language: AppLanguage | string | undefined): string {
+  if (!language) return getLocale("cs");
+  if (language.includes("-")) return language;
+  return getLocale(toLanguage(language));
 }
 
 export function asPragueDate(isoDate: string): Date {
-  return new Date(`${isoDate}T12:00:00`);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return new Date(Number.NaN);
+  return new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12),
+  );
 }
 
 function easterSunday(year: number): Date {
-  const goldenYear = year % 19;
-  const century = Math.trunc(year / 100);
-  const yearInCentury = year - century * 100;
-  const leapCenturies = Math.trunc(century / 4);
-  const centuryRemainder = century - leapCenturies * 4;
-  const lunarShift = Math.trunc((century + 8) / 25);
-  const solarLunarCorrection = Math.trunc((century - lunarShift + 1) / 3);
-  const epact = (19 * goldenYear + century - leapCenturies - solarLunarCorrection + 15) % 30;
-  const leapYearsInCentury = Math.trunc(yearInCentury / 4);
-  const yearRemainder = yearInCentury - leapYearsInCentury * 4;
-  const weekdayOffset = (32 + 2 * centuryRemainder + 2 * leapYearsInCentury - epact - yearRemainder) % 7;
-  const correction = Math.trunc((goldenYear + 11 * epact + 22 * weekdayOffset) / 451);
-  const marchBasedDay = epact + weekdayOffset - 7 * correction + 114;
-  return new Date(year, Math.trunc(marchBasedDay / 31) - 1, (marchBasedDay % 31) + 1, 12);
+  const a = year % 19;
+  const b = Math.trunc(year / 100);
+  const c = year % 100;
+  const d = Math.trunc(b / 4);
+  const e = b % 4;
+  const f = Math.trunc((b + 8) / 25);
+  const g = Math.trunc((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.trunc(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.trunc((a + 11 * h + 22 * l) / 451);
+  const value = h + l - 7 * m + 114;
+  return new Date(
+    Date.UTC(year, Math.trunc(value / 31) - 1, (value % 31) + 1, 12),
+  );
 }
 
 function dateKey(date: Date): string {
-  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return `${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
-function isoDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+function isoKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${dateKey(date)}`;
 }
 
-export function getHolidayLabel(date: Date, language?: AppLanguage | string): string | null {
+export function getHolidayLabel(
+  date: Date,
+  language?: AppLanguage | string,
+): string | null {
   const labels = holidayLabels[toLanguage(language)];
   const fixed = labels[dateKey(date)];
   if (fixed) return fixed;
-
-  const easter = easterSunday(date.getFullYear());
-  const goodFriday = new Date(easter);
-  goodFriday.setDate(easter.getDate() - 2);
-  const easterMonday = new Date(easter);
-  easterMonday.setDate(easter.getDate() + 1);
-
-  if (isoDateKey(date) === isoDateKey(goodFriday)) return labels.easterFriday;
-  if (isoDateKey(date) === isoDateKey(easterMonday)) return labels.easterMonday;
+  const easter = easterSunday(date.getUTCFullYear());
+  const friday = new Date(easter);
+  friday.setUTCDate(easter.getUTCDate() - 2);
+  const monday = new Date(easter);
+  monday.setUTCDate(easter.getUTCDate() + 1);
+  if (isoKey(date) === isoKey(friday)) return labels.easterFriday;
+  if (isoKey(date) === isoKey(monday)) return labels.easterMonday;
   return null;
+}
+
+function observanceFor(
+  date: Date,
+  language: AppLanguage,
+): CalendarDayInfo["observance"] {
+  if (language === "hi") return null;
+  const key = dateKey(date);
+  const raw = snapshot[language][key];
+  if (!raw) return null;
+  const items = Array.isArray(raw) ? raw : [raw];
+  return {
+    kind: language === "en" ? "commemoration" : "nameday",
+    items,
+    source: snapshot.meta[language],
+  };
+}
+
+export function getCalendarDayInfo(
+  date: Date,
+  language?: AppLanguage | string,
+): CalendarDayInfo {
+  const resolved = toLanguage(language);
+  const holiday = getHolidayLabel(date, resolved);
+  return {
+    publicHoliday: holiday ? { id: isoKey(date), label: holiday } : null,
+    observance: observanceFor(date, resolved),
+  };
 }
 
 export function getCalendarDayTone(date: Date): CalendarDayTone {
   if (getHolidayLabel(date)) return "holiday";
-  const weekday = date.getDay();
+  const weekday = date.getUTCDay();
   return weekday === 0 || weekday === 6 ? "weekend" : "work";
 }
 
-export function getWeekdayLongLabel(date: Date, language?: AppLanguage | string): string {
+export function getWeekdayLongLabel(
+  date: Date,
+  language?: AppLanguage | string,
+): string {
   return new Intl.DateTimeFormat(toLocale(language), {
     weekday: "long",
     timeZone: "Europe/Prague",
   }).format(date);
 }
 
-export function getDayMeta(date: Date, language?: AppLanguage | string): string {
-  const resolvedLanguage = toLanguage(language);
-  const holiday = getHolidayLabel(date, resolvedLanguage);
-  if (holiday) return holiday;
-  if (resolvedLanguage !== "cs") return "";
-  const nameday = czechNamedays[dateKey(date)];
-  return nameday ? `svátek má ${nameday}` : "";
+/** Compatibility text for admin matrices; employee cards use the structured contract. */
+export function getDayMeta(
+  date: Date,
+  language?: AppLanguage | string,
+): string {
+  const info = getCalendarDayInfo(date, language);
+  return [info.observance?.items.join(", "), info.publicHoliday?.label]
+    .filter(Boolean)
+    .join(" · ");
 }
