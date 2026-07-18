@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import { attendanceMonthSchema, portalLoginSchema, type AttendanceMonth, type PortalLogin } from "./types";
+import { attendanceMonthSchema, portalLoginSchema, type AttendanceMonth, type AuthMethods, type ExternalProvider, type PortalLogin } from "./types";
 import { i18n } from "../i18n";
 
 export class ApiError extends Error {
@@ -90,6 +90,25 @@ export const api = {
   ),
   portalReset: (token: string, password: string) => request<{ ok: boolean }>(
     "/api/v1/portal/reset", { method: "POST", body: JSON.stringify({ token, password }) },
+  ),
+  externalProviders: () => request<{ google: boolean; apple: boolean }>("/api/v1/auth/providers"),
+  externalLoginUrl: (portal: "employee" | "admin", provider: ExternalProvider, returnPath: string) =>
+    `/api/v1/auth/${portal}/${provider}/start?return_path=${encodeURIComponent(returnPath)}`,
+  consumeExternalLogin: (): Promise<PortalLogin> => request(
+    "/api/v1/auth/result", { method: "POST" }, "public", portalLoginSchema,
+  ),
+  authMethods: (portal: "employee" | "admin"): Promise<AuthMethods> => request(
+    `/api/v1/${portal === "employee" ? "portal" : "admin"}/auth-methods`, {}, portal === "employee" ? "portal" : "admin",
+  ),
+  linkAuthMethod: (portal: "employee" | "admin", provider: ExternalProvider, password: string): Promise<{ authorization_url: string }> => request(
+    `/api/v1/${portal === "employee" ? "portal" : "admin"}/auth-methods/${provider}/link`,
+    { method: "POST", body: JSON.stringify({ password, return_path: portal === "employee" ? "/app" : "/admin/ucet" }) },
+    portal === "employee" ? "portal" : "admin",
+  ),
+  unlinkAuthMethod: (portal: "employee" | "admin", provider: ExternalProvider, password: string) => request<{ ok: boolean }>(
+    `/api/v1/${portal === "employee" ? "portal" : "admin"}/auth-methods/${provider}`,
+    { method: "DELETE", body: JSON.stringify({ password }) },
+    portal === "employee" ? "portal" : "admin",
   ),
   attendance: (employmentId: number, year: number, month: number): Promise<AttendanceMonth> => request(
     `/api/v1/attendance?employment_id=${employmentId}&year=${year}&month=${month}`, {}, "portal", attendanceMonthSchema,

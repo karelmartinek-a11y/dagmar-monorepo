@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { CalendarCheck2, CalendarRange, Download, Gauge, Menu, PlugZap, Printer, Settings2, UsersRound, X } from "lucide-react";
+import { CalendarCheck2, CalendarRange, Download, Gauge, KeyRound, Menu, PlugZap, Printer, Settings2, UsersRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { Brand } from "../components/Brand";
@@ -16,6 +16,7 @@ export function AdminShell() {
     ["/admin/dochazka", t("nav.attendance"), CalendarCheck2], ["/admin/plan-sluzeb", t("nav.shiftPlan"), CalendarRange],
     ["/admin/export", t("nav.export"), Download], ["/admin/tisky", t("nav.prints"), Printer],
     ["/admin/settings", t("nav.settings"), Settings2],
+    ["/admin/ucet", "Zabezpečení účtu", KeyRound],
     ["/admin/integrace", t("nav.integrations"), PlugZap],
   ] as const;
   const [open, setOpen] = useState(false);
