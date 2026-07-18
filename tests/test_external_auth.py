@@ -99,6 +99,20 @@ def test_safe_return_path_rejects_external_and_encoded_urls() -> None:
     assert service.safe_return_path("admin", "link", "/admin/ucet") == "/admin/ucet"
 
 
+def test_admin_login_callback_error_is_visible_on_login_page() -> None:
+    transaction = SimpleNamespace(portal="admin", purpose="login", return_path="/admin/prehled")
+
+    location = external_auth._callback_error_path(transaction, "external_identity_not_linked")
+    parsed = urlparse(location)
+    query = parse_qs(parsed.query)
+
+    assert parsed.path == "/admin/login"
+    assert query == {
+        "external_auth_error": ["external_identity_not_linked"],
+        "next": ["/admin/prehled"],
+    }
+
+
 def test_enabled_provider_requires_complete_secure_configuration() -> None:
     with pytest.raises(ValueError, match="GOOGLE_OIDC_CLIENT_SECRET"):
         _settings(google_oidc_client_secret=None, apple_signin_enabled=False).validate_external_auth()
