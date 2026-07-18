@@ -269,7 +269,10 @@ def set_admin_session(
 
     settings = settings or get_settings()
     issued_at = int(time.time())
-    payload = json.dumps({"u": username, "iat": issued_at}, separators=(",", ":"))
+    payload = json.dumps(
+        {"u": username, "iat": issued_at, "jti": generate_session_id()},
+        separators=(",", ":"),
+    )
     sig = _sign(payload, settings.session_secret)
     token = f"{_b64url(payload.encode('utf-8'))}.{sig}"
 
