@@ -294,7 +294,11 @@ describe("admin pages", () => {
     renderWithProviders(<AdminPrintPreviewPage />, ["/admin/tisky/preview?month=2026-07&kind=detail"]);
 
     expect(await screen.findByText("Osobní asistence")).toBeInTheDocument();
+    expect(screen.getByText("Dagmar Kájová")).toBeInTheDocument();
     expect(screen.getByText("Docházkový list pro mzdový podklad")).toBeInTheDocument();
+    expect(screen.getAllByText("Fond 8 h")).toHaveLength(2);
+    expect(screen.getAllByText("Pauza").length).toBeGreaterThan(0);
+    expect(screen.getByText("Rozdíl vůči fondu")).toBeInTheDocument();
     expect(screen.getByText("Sváteční hodiny")).toBeInTheDocument();
     expect(screen.getByText("Vytištěno Dagmar Kájovo osobní asistentkou")).toBeInTheDocument();
   });
