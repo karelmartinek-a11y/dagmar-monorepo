@@ -154,6 +154,14 @@ for (const { width, height } of [
     expect(focusedMetrics.gap).toBeGreaterThanOrEqual(3);
     expect(focusedMetrics.overlap).toBe(0);
 
+    await arrival.click();
+    await page.setViewportSize({ width, height: Math.min(height, 500) });
+    await page.waitForTimeout(240);
+    const keyboardNowbar = await page.locator(".employee-nowbar").boundingBox();
+    const keyboardFocused = await arrival.boundingBox();
+    if (keyboardNowbar && keyboardFocused)
+      expect(keyboardFocused.y + keyboardFocused.height).toBeLessThanOrEqual(keyboardNowbar.y - 8);
+
     const intervalToggle = page.getByRole("button", { name: "Zobrazit další časový interval" }).first();
     await intervalToggle.click();
     await expect(page.locator(".employee-day").first().locator("input[name=\"arrival_time\"]")).toHaveValue("08:15");

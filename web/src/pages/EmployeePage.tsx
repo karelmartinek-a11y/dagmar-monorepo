@@ -1077,6 +1077,22 @@ export function EmployeePage() {
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
+    let focusTimer: number | undefined;
+    const keepFocusedInputVisible = () => {
+      const input = document.activeElement;
+      const nowbar = document.querySelector<HTMLElement>(".employee-nowbar");
+      if (!(input instanceof HTMLInputElement) || !input.closest(".employee-day") || !nowbar)
+        return;
+      const inputRect = input.getBoundingClientRect();
+      const nowbarRect = nowbar.getBoundingClientRect();
+      const safeGap = 12;
+      if (inputRect.bottom > nowbarRect.top - safeGap) {
+        window.scrollBy({
+          top: inputRect.bottom - nowbarRect.top + safeGap,
+          behavior: "auto",
+        });
+      }
+    };
     const update = () => {
       const keyboardOffset = Math.max(
         0,
@@ -1086,6 +1102,9 @@ export function EmployeePage() {
         "--employee-keyboard-offset",
         `${keyboardOffset}px`,
       );
+      window.requestAnimationFrame(keepFocusedInputVisible);
+      window.clearTimeout(focusTimer);
+      focusTimer = window.setTimeout(keepFocusedInputVisible, 180);
     };
     update();
     viewport.addEventListener("resize", update);
@@ -1093,6 +1112,7 @@ export function EmployeePage() {
     return () => {
       viewport.removeEventListener("resize", update);
       viewport.removeEventListener("scroll", update);
+      window.clearTimeout(focusTimer);
       document.documentElement.style.removeProperty(
         "--employee-keyboard-offset",
       );
