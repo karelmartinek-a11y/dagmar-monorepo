@@ -494,6 +494,8 @@ def test_admin_day_status_requires_confirmation_and_deletes_conflicts() -> None:
     assert detail["requires_confirmation"] is True
     assert detail["attendance_exists"] is True
     assert detail["shift_plan_exists"] is True
+    assert detail["params"]["attendance_exists"] is True
+    assert detail["params"]["shift_plan_exists"] is True
 
     confirm_response = client.put(
         "/api/v1/admin/day-status",
@@ -681,6 +683,9 @@ def test_employee_shift_plan_editing_respects_admin_month_and_employment_permiss
         },
     )
     assert denied_response.status_code == 403
+    denied_detail = denied_response.json()["detail"]
+    assert denied_detail["code"] == "shift_plan_edit_forbidden"
+    assert denied_detail["message"]
 
     global_allow_response = client.put(
         "/api/v1/admin/shift-plan/edit-permission",

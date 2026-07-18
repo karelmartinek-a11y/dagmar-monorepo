@@ -60,9 +60,10 @@ class OkOut(BaseModel):
 
 def _ensure_day_in_employment_period(employment: Employment, day: dt.date) -> None:
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Zvolené datum neleží v období platnosti vybraného úvazku.",
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "employment_period_mismatch",
+            "Zvolené datum neleží v období platnosti vybraného úvazku.",
         )
 
 
@@ -76,29 +77,35 @@ def portal_upsert_shift_plan(
 
     try:
         day = parse_yyyy_mm_dd(body.date)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except ValueError:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_date_format", "Neplatný formát data.")
 
     _ensure_day_in_employment_period(employment, day)
     ensure_month_unlocked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=day.year, month=day.month)
     if not can_employee_edit_shift_plan(db, employment_id=employment.id, year=day.year, month=day.month):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Zadávání plánu služeb není pro tento úvazek a měsíc povoleno.",
+        raise_api_error(
+            status.HTTP_403_FORBIDDEN,
+            "shift_plan_edit_forbidden",
+            "Zadávání plánu služeb není pro tento úvazek a měsíc povoleno.",
         )
 
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)
         departure = parse_hhmm_or_none(body.departure_time)
+    except ValueError:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_time_format", "Neplatný formát času.")
+    try:
         status_value = normalize_day_status(body.status)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except ValueError:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_day_status", "Neplatný stav dne.")
 
     blocked_status = get_day_status(db, employment_id=employment.id, day=day)
     if blocked_status is not None and status_value is None and (arrival is not None or departure is not None):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat plán směny.",
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "shift_plan_blocked_by_day_status",
+            f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat plán směny.",
+            day_status=blocked_status,
         )
     if status_value is not None:
         if status_value in {DAY_STATUS_SICKNESS, DAY_STATUS_PARAGRAPH}:
@@ -146,16 +153,16 @@ def portal_upsert_day_status(
 
     try:
         day = parse_yyyy_mm_dd(body.date)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except ValueError:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_date_format", "Neplatný formát data.")
 
     _ensure_day_in_employment_period(employment, day)
     ensure_month_unlocked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=day.year, month=day.month)
 
     try:
         status_value = normalize_day_status(body.status)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except ValueError:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_day_status", "Neplatný stav dne.")
 
     attendance = db.execute(
         select(Attendance).where(
