@@ -1,0 +1,5010 @@
+{
+  "cs": {
+    "01-02": "Karina",
+    "01-03": [
+      "Radmila",
+      "Radomil"
+    ],
+    "01-04": "Diana",
+    "01-05": "Dalimil",
+    "01-06": [
+      "Kašpar",
+      "Melichar",
+      "Baltazar"
+    ],
+    "01-07": "Vilma",
+    "01-08": "Čestmír",
+    "01-09": [
+      "Vladan",
+      "Valtr"
+    ],
+    "01-10": "Břetislav",
+    "01-11": "Bohdana",
+    "01-12": "Pravoslav",
+    "01-13": "Edita",
+    "01-14": "Radovan",
+    "01-15": "Alice",
+    "01-16": "Ctirad",
+    "01-17": "Drahoslav",
+    "01-18": [
+      "Vladislav",
+      "Vladislava"
+    ],
+    "01-19": "Doubravka",
+    "01-20": [
+      "Ilona",
+      "Sebastián"
+    ],
+    "01-21": "Běla",
+    "01-22": [
+      "Slavomír",
+      "Slavomíra"
+    ],
+    "01-23": "Zdeněk",
+    "01-24": "Milena",
+    "01-25": "Miloš",
+    "01-26": "Zora",
+    "01-27": "Ingrid",
+    "01-28": "Otýlie",
+    "01-29": "Zdislava",
+    "01-30": [
+      "Robin",
+      "Erna"
+    ],
+    "01-31": [
+      "Marika",
+      "Spytihněv"
+    ],
+    "02-01": "Hynek",
+    "02-02": [
+      "Nela",
+      "Hromnice"
+    ],
+    "02-03": "Blažej",
+    "02-04": "Jarmila",
+    "02-05": "Dobromila",
+    "02-06": "Vanda",
+    "02-07": "Veronika",
+    "02-08": "Milada",
+    "02-09": "Apolena",
+    "02-10": "Mojmír",
+    "02-11": "Božena",
+    "02-12": [
+      "Slavěna",
+      "Slávka"
+    ],
+    "02-13": [
+      "Věnceslav",
+      "Věnceslava"
+    ],
+    "02-14": [
+      "Valentýn",
+      "Valentýna"
+    ],
+    "02-15": "Jiřina",
+    "02-16": "Ljuba",
+    "02-17": "Miloslava",
+    "02-18": "Gizela",
+    "02-19": "Patrik",
+    "02-20": "Oldřich",
+    "02-21": [
+      "Lenka",
+      "Eleonora"
+    ],
+    "02-22": "Petr",
+    "02-23": "Svatopluk",
+    "02-24": [
+      "Matěj",
+      "Matyáš"
+    ],
+    "02-25": "Liliana",
+    "02-26": "Dorota",
+    "02-27": "Alexandr",
+    "02-28": "Lumír",
+    "02-29": "Horymír",
+    "03-01": [
+      "Bedřich",
+      "Bedřiška"
+    ],
+    "03-02": "Anežka",
+    "03-03": [
+      "Kamil",
+      "Kunhuta"
+    ],
+    "03-04": "Stela",
+    "03-05": "Kazimír",
+    "03-06": "Miroslav",
+    "03-07": "Tomáš",
+    "03-08": [
+      "Gabriela",
+      "Zoltán"
+    ],
+    "03-09": "Františka",
+    "03-10": "Viktorie",
+    "03-11": "Anděla",
+    "03-12": "Řehoř",
+    "03-13": "Růžena",
+    "03-14": [
+      "Rút",
+      "Matylda"
+    ],
+    "03-15": "Ida",
+    "03-16": [
+      "Elena",
+      "Herbert"
+    ],
+    "03-17": [
+      "Vlastimil",
+      "Vlastimila"
+    ],
+    "03-18": "Eduard",
+    "03-19": [
+      "Josef",
+      "Josefa"
+    ],
+    "03-20": "Světlana",
+    "03-21": "Radek",
+    "03-22": [
+      "Leona",
+      "Leontina",
+      "Lea"
+    ],
+    "03-23": "Ivona",
+    "03-24": "Gabriel",
+    "03-25": "Marián",
+    "03-26": "Emanuel",
+    "03-27": "Dita",
+    "03-28": "Soňa",
+    "03-29": "Taťána",
+    "03-30": [
+      "Arnošt",
+      "Ernest"
+    ],
+    "03-31": "Kvido",
+    "04-01": "Hugo",
+    "04-02": "Erika",
+    "04-03": "Richard",
+    "04-04": "Ivana",
+    "04-05": [
+      "Miroslava",
+      "Mirka"
+    ],
+    "04-06": [
+      "Vendula",
+      "Venuše"
+    ],
+    "04-07": [
+      "Heřman",
+      "Hermína"
+    ],
+    "04-08": "Ema",
+    "04-09": "Dušan",
+    "04-10": "Darja",
+    "04-11": "Izabela",
+    "04-12": "Julius",
+    "04-13": "Aleš",
+    "04-14": "Vincenc",
+    "04-15": "Anastázie",
+    "04-16": [
+      "Irena",
+      "Bernadeta"
+    ],
+    "04-17": "Rudolf",
+    "04-18": "Valérie",
+    "04-19": "Rostislav",
+    "04-20": "Marcela",
+    "04-21": "Alexandra",
+    "04-22": "Evženie",
+    "04-23": "Vojtěch",
+    "04-24": "Jiří",
+    "04-25": "Marek",
+    "04-26": "Oto",
+    "04-27": "Jaroslav",
+    "04-28": "Vlastislav",
+    "04-29": "Robert",
+    "04-30": "Blahoslav",
+    "05-02": "Zikmund",
+    "05-03": [
+      "Alexej",
+      "Alex"
+    ],
+    "05-04": "Květoslav",
+    "05-05": "Klaudie",
+    "05-06": "Radoslav",
+    "05-07": "Stanislav",
+    "05-09": "Ctibor",
+    "05-10": "Blažena",
+    "05-11": "Svatava",
+    "05-12": "Pankrác",
+    "05-13": "Servác",
+    "05-14": "Bonifác",
+    "05-15": [
+      "Žofie",
+      "Sofie"
+    ],
+    "05-16": "Přemysl",
+    "05-17": "Aneta",
+    "05-18": "Nataša",
+    "05-19": "Ivo",
+    "05-20": "Zbyšek",
+    "05-21": "Monika",
+    "05-22": "Emil",
+    "05-23": [
+      "Vladimír",
+      "Vladimíra"
+    ],
+    "05-24": [
+      "Jana",
+      "Vanesa"
+    ],
+    "05-25": "Viola",
+    "05-26": "Filip",
+    "05-27": "Valdemar",
+    "05-28": "Vilém",
+    "05-29": [
+      "Maxmilián",
+      "Maxim"
+    ],
+    "05-30": "Ferdinand",
+    "05-31": "Kamila",
+    "06-01": "Laura",
+    "06-02": "Jarmil",
+    "06-03": [
+      "Tamara",
+      "Kevin"
+    ],
+    "06-04": "Dalibor",
+    "06-05": [
+      "Dobroslav",
+      "Dobroslava"
+    ],
+    "06-06": "Norbert",
+    "06-07": [
+      "Iveta",
+      "Slavoj"
+    ],
+    "06-08": "Medard",
+    "06-09": "Stanislava",
+    "06-10": [
+      "Gita",
+      "Margita"
+    ],
+    "06-11": "Bruno",
+    "06-12": "Antonie",
+    "06-13": "Antonín",
+    "06-14": [
+      "Roland",
+      "Herta"
+    ],
+    "06-15": "Vít",
+    "06-16": "Zbyněk",
+    "06-17": "Adolf",
+    "06-18": [
+      "Milan",
+      "Milana"
+    ],
+    "06-19": [
+      "Leoš",
+      "Leo"
+    ],
+    "06-20": [
+      "Květa",
+      "Květuše"
+    ],
+    "06-21": [
+      "Alois",
+      "Aloisie"
+    ],
+    "06-22": "Pavla",
+    "06-23": "Zdeňka",
+    "06-24": "Jan",
+    "06-25": "Ivan",
+    "06-26": [
+      "Adriana",
+      "Adrian"
+    ],
+    "06-27": [
+      "Ladislav",
+      "Ladislava"
+    ],
+    "06-28": "Lubomír",
+    "06-29": [
+      "Petr",
+      "Pavel"
+    ],
+    "06-30": "Šárka",
+    "07-01": "Jaroslava",
+    "07-02": "Patricie",
+    "07-03": [
+      "Radomír",
+      "Radomíra"
+    ],
+    "07-04": "Prokop",
+    "07-05": [
+      "Cyril",
+      "Metoděj"
+    ],
+    "07-07": "Bohuslava",
+    "07-08": "Nora",
+    "07-09": [
+      "Drahoslava",
+      "Drahuše"
+    ],
+    "07-10": [
+      "Libuše",
+      "Amálie"
+    ],
+    "07-11": [
+      "Olga",
+      "Helga"
+    ],
+    "07-12": "Bořek",
+    "07-13": "Markéta",
+    "07-14": "Karolína",
+    "07-15": "Jindřich",
+    "07-16": "Luboš",
+    "07-17": "Martina",
+    "07-18": [
+      "Drahomíra",
+      "Drahomír"
+    ],
+    "07-19": "Čeněk",
+    "07-20": "Ilja",
+    "07-21": [
+      "Vítězslav",
+      "Vítězslava"
+    ],
+    "07-22": [
+      "Magdaléna",
+      "Magda"
+    ],
+    "07-23": "Libor",
+    "07-24": "Kristýna",
+    "07-25": "Jakub",
+    "07-26": [
+      "Anna",
+      "Anita"
+    ],
+    "07-27": "Věroslav",
+    "07-28": [
+      "Viktor",
+      "Alina"
+    ],
+    "07-29": "Marta",
+    "07-30": "Bořivoj",
+    "07-31": "Ignác",
+    "08-01": "Oskar",
+    "08-02": "Gustav",
+    "08-03": "Miluše",
+    "08-04": [
+      "Dominik",
+      "Dominika"
+    ],
+    "08-05": "Kristián",
+    "08-06": "Oldřiška",
+    "08-07": "Lada",
+    "08-08": "Soběslav",
+    "08-09": "Roman",
+    "08-10": "Vavřinec",
+    "08-11": "Zuzana",
+    "08-12": "Klára",
+    "08-13": "Alena",
+    "08-14": "Alan",
+    "08-15": "Hana",
+    "08-16": "Jáchym",
+    "08-17": "Petra",
+    "08-18": [
+      "Helena",
+      "Jelena"
+    ],
+    "08-19": "Ludvík",
+    "08-20": "Bernard",
+    "08-21": "Johana",
+    "08-22": "Bohuslav",
+    "08-23": "Sandra",
+    "08-24": "Bartoloměj",
+    "08-25": "Radim",
+    "08-26": "Luděk",
+    "08-27": "Otakar",
+    "08-28": "Augustýn",
+    "08-29": "Evelína",
+    "08-30": "Vladěna",
+    "08-31": "Pavlína",
+    "09-01": [
+      "Linda",
+      "Samuel"
+    ],
+    "09-02": "Adéla",
+    "09-03": [
+      "Bronislav",
+      "Bronislava"
+    ],
+    "09-04": [
+      "Jindřiška",
+      "Rozálie"
+    ],
+    "09-05": "Boris",
+    "09-06": "Boleslav",
+    "09-07": "Regína",
+    "09-08": "Mariana",
+    "09-09": "Daniela",
+    "09-10": "Irma",
+    "09-11": [
+      "Denisa",
+      "Denis"
+    ],
+    "09-12": "Marie",
+    "09-13": "Lubor",
+    "09-14": "Radka",
+    "09-15": "Jolana",
+    "09-16": [
+      "Ludmila",
+      "Lidmila"
+    ],
+    "09-17": [
+      "Naděžda",
+      "Naďa"
+    ],
+    "09-18": "Kryštof",
+    "09-19": "Zita",
+    "09-20": "Oleg",
+    "09-21": "Matouš",
+    "09-22": "Darina",
+    "09-23": "Berta",
+    "09-24": [
+      "Jaromír",
+      "Jaromíra"
+    ],
+    "09-25": [
+      "Zlata",
+      "Zlatuše"
+    ],
+    "09-26": "Andrea",
+    "09-27": "Jonáš",
+    "09-28": [
+      "Václav",
+      "Václava"
+    ],
+    "09-29": [
+      "Michal",
+      "Michael"
+    ],
+    "09-30": [
+      "Jeroným",
+      "Ráchel"
+    ],
+    "10-01": "Igor",
+    "10-02": [
+      "Olívie",
+      "Oliver"
+    ],
+    "10-03": "Bohumil",
+    "10-04": "František",
+    "10-05": "Eliška",
+    "10-06": "Hanuš",
+    "10-07": "Justýna",
+    "10-08": "Věra",
+    "10-09": [
+      "Štefan",
+      "Sára"
+    ],
+    "10-10": "Marina",
+    "10-11": "Andrej",
+    "10-12": "Marcel",
+    "10-13": "Renáta",
+    "10-14": "Agáta",
+    "10-15": [
+      "Tereza",
+      "Terezie"
+    ],
+    "10-16": [
+      "Havel",
+      "Galina"
+    ],
+    "10-17": "Hedvika",
+    "10-18": "Lukáš",
+    "10-19": [
+      "Michaela",
+      "Michala"
+    ],
+    "10-20": "Vendelín",
+    "10-21": "Brigita",
+    "10-22": "Sabina",
+    "10-23": "Teodor",
+    "10-24": "Nina",
+    "10-25": "Beáta",
+    "10-26": "Erik",
+    "10-27": [
+      "Šarlota",
+      "Zoe"
+    ],
+    "10-28": [
+      "Jidáš",
+      "Alfréd"
+    ],
+    "10-29": [
+      "Silvie",
+      "Sylva"
+    ],
+    "10-30": "Tadeáš",
+    "10-31": "Štěpánka",
+    "11-01": "Felix",
+    "11-02": "Tobiáš",
+    "11-03": "Hubert",
+    "11-04": [
+      "Karel",
+      "Karla"
+    ],
+    "11-05": "Miriam",
+    "11-06": [
+      "Liběna",
+      "Leonard"
+    ],
+    "11-07": "Saskie",
+    "11-08": [
+      "Bohumír",
+      "Bohumíra"
+    ],
+    "11-09": "Bohdan",
+    "11-10": "Evžen",
+    "11-11": "Martin",
+    "11-12": "Benedikt",
+    "11-13": "Tibor",
+    "11-14": "Sáva",
+    "11-15": "Leopold",
+    "11-16": "Otmar",
+    "11-17": [
+      "Mahulena",
+      "Gertruda"
+    ],
+    "11-18": "Romana",
+    "11-19": "Alžběta",
+    "11-20": "Nikola",
+    "11-21": "Albert",
+    "11-22": "Cecílie",
+    "11-23": "Klement",
+    "11-24": "Emílie",
+    "11-25": "Kateřina",
+    "11-26": "Artur",
+    "11-27": "Xenie",
+    "11-28": "René",
+    "11-29": "Zina",
+    "11-30": "Ondřej",
+    "12-01": "Iva",
+    "12-02": "Blanka",
+    "12-03": "Svatoslav",
+    "12-04": "Barbora",
+    "12-05": "Jitka",
+    "12-06": "Mikuláš",
+    "12-07": [
+      "Ambrož",
+      "Benjamín"
+    ],
+    "12-08": "Květoslava",
+    "12-09": "Vratislav",
+    "12-10": "Julie",
+    "12-11": [
+      "Dana",
+      "Danuše"
+    ],
+    "12-12": "Simona",
+    "12-13": "Lucie",
+    "12-14": "Lýdie",
+    "12-15": [
+      "Radana",
+      "Radan"
+    ],
+    "12-16": "Albína",
+    "12-17": "Daniel",
+    "12-18": "Miloslav",
+    "12-19": "Ester",
+    "12-20": "Dagmar",
+    "12-21": "Natálie",
+    "12-22": "Šimon",
+    "12-23": "Vlasta",
+    "12-24": [
+      "Adam",
+      "Eva"
+    ],
+    "12-26": "Štěpán",
+    "12-27": "Žaneta",
+    "12-28": "Bohumila",
+    "12-29": "Judita",
+    "12-30": "David",
+    "12-31": "Silvestr"
+  },
+  "de": {
+    "01-01": [
+      "(Fest)",
+      "Zdislava (Berka)"
+    ],
+    "01-02": [
+      "Adelhard",
+      "Basilius",
+      "Dietmar",
+      "Gregor",
+      "Makarios",
+      "Makarius (Makarios, Makaris)"
+    ],
+    "01-03": [
+      "Adele",
+      "Genoveva",
+      "Hermine",
+      "Odilo",
+      "Telemach"
+    ],
+    "01-04": [
+      "Angelika (Angela)",
+      "Anneliese",
+      "Christiane (Christiana)",
+      "Elisabeth Anna Bayley"
+    ],
+    "01-05": [
+      "Edward",
+      "Emilia",
+      "Gerlach",
+      "Johann Nepomuk",
+      "Roger"
+    ],
+    "01-06": [
+      "Andreas Corsini",
+      "Erminold",
+      "Fest"
+    ],
+    "01-07": [
+      "Knud Lavard",
+      "Reinhold von Köln",
+      "Sigrid",
+      "Valentin"
+    ],
+    "01-08": [
+      "Erhard",
+      "Gudrun",
+      "Gudula von Nivelles",
+      "Severin",
+      "Thorfinn",
+      "Thorsten"
+    ],
+    "01-09": [
+      "Adrian von Canterbury",
+      "Alice Le Clerc",
+      "Julian von Antinoë"
+    ],
+    "01-10": [
+      "Agatho(n)",
+      "Gregor X., Papst",
+      "Léonie Aviat",
+      "Paulus von Theben",
+      "Wilhelm von Bourges"
+    ],
+    "01-11": [
+      "Paulinus von Aquileja",
+      "Theodosius",
+      "Thomas von Cori,"
+    ],
+    "01-12": [
+      "Anton (Antonio)",
+      "Antonius",
+      "Ernst von Rom",
+      "Margarita (Marguerite, Margot)",
+      "Tatjana",
+      "Xenia"
+    ],
+    "01-13": [
+      "Gottfried, Graf von Cappenberg",
+      "Hilarius von Poitiers",
+      "Hilmar",
+      "Jutta von Huy",
+      "Remigius von Reims"
+    ],
+    "01-14": [
+      "Berno",
+      "Diomira (Mira, Mirella)",
+      "Engelmar,",
+      "Felix von Nola",
+      "Malachias",
+      "Rainer"
+    ],
+    "01-15": [
+      "Arnold Janssen",
+      "Deïrdre",
+      "Francisco (Franz)",
+      "Habakuk",
+      "Maurus (Mauro)",
+      "Romed (Romedius)"
+    ],
+    "01-16": [
+      "Marcellus",
+      "Priscilla",
+      "Tasso",
+      "Theobald von Geisling",
+      "Tilman (Till, Thilo, Tillmann)"
+    ],
+    "01-17": [
+      "Antonius der Große",
+      "Mildwina (Malwina, Malvine)",
+      "Rosalind"
+    ],
+    "01-18": [
+      "Margarethe (Margit, Margitta, Margarete)",
+      "Priska",
+      "Regina Protmann",
+      "Ulfried"
+    ],
+    "01-19": [
+      "Agritius",
+      "Martha und Marius (Mario)",
+      "Pia"
+    ],
+    "01-20": [
+      "Fabian, Papst",
+      "Sebastian",
+      "Ursula Haider",
+      "Ute"
+    ],
+    "01-21": [
+      "Agnes",
+      "Epiphanius",
+      "Ines",
+      "Meinrad,",
+      "Patroklus"
+    ],
+    "01-22": [
+      "Anastasius",
+      "Dietlinde",
+      "Vinzenz",
+      "Vinzenz Palotti",
+      "Walther von Bierbeeke"
+    ],
+    "01-23": [
+      "Emerentia",
+      "Eugen",
+      "Hartmut",
+      "Heinrich (Heiko, Haiko, Heiner, Heino).",
+      "Nikolaus",
+      "Reinhold"
+    ],
+    "01-24": [
+      "Arno",
+      "Franz",
+      "Theorigith",
+      "Thurid",
+      "Vera"
+    ],
+    "01-25": [
+      "Eberhard",
+      "Paulus (Fest)",
+      "Wolfram"
+    ],
+    "01-26": [
+      "Alberich und Robert",
+      "Paula",
+      "Timotheus, Tim, Timo",
+      "Titus"
+    ],
+    "01-27": [
+      "Alrun (Adelrun, Alraune),",
+      "Angela Merici",
+      "Antonia",
+      "Enrique (Heinrich)",
+      "Georg ( Jurgis )",
+      "Julian"
+    ],
+    "01-28": [
+      "Caroline (Carola, Karla)",
+      "Karl der Große",
+      "Manfred",
+      "Thomas von Aquin"
+    ],
+    "01-29": [
+      "Aquilin",
+      "Gerhard (Gerd, Gert, Gero)",
+      "Gildas",
+      "Josef",
+      "Julius",
+      "Valerius"
+    ],
+    "01-30": [
+      "Adelgunde",
+      "Balthilde",
+      "Jacinta",
+      "Louis-Joseph",
+      "Martina",
+      "Serena"
+    ],
+    "01-31": [
+      "Emma (Hemma)",
+      "Eusebius",
+      "Johannes (Don) Bosco",
+      "Marcella"
+    ],
+    "02-01": [
+      "Barbara",
+      "Katharina",
+      "Name: Brigitta (Brigida, Brigitte, Britta, Gitta)",
+      "Reginald",
+      "Severus",
+      "Siegbert (Sigibert)"
+    ],
+    "02-02": [
+      "Alfred",
+      "Bodo (Botho)",
+      "Jakob (Jacques)",
+      "Maria Katharina",
+      "Simeon und Hannah (Anna)"
+    ],
+    "02-03": [
+      "Ansgar",
+      "Berlinda (Berlinde)",
+      "Blasius",
+      "Claudia (Claudine, Klaudia)",
+      "Helene (Helena)",
+      "Neithard (Neithart, Nithard)"
+    ],
+    "02-04": [
+      "Andreas (Andrea, André, András, Andres, Andrej)",
+      "Gilbert",
+      "Hector (Hektor, Ettore)",
+      "Name: Johanna (Jeanne, Jeannette)",
+      "Rabanus (Hrabanus)",
+      "Veronika (Veronica, Vera, Véronique, Frauke, Verona, Veruschka)"
+    ],
+    "02-05": [
+      "Adelheid (Elke, Alke, Heidi)",
+      "Agatha (Agathe, Ágata)",
+      "Ingenuin (Ingwin) u. Albuin (Albwin, Alwin)",
+      "Melvin (Mel, Malwin)",
+      "Tabea (Tabitha, Tabita)"
+    ],
+    "02-06": [
+      "Aline (Alina, Alena)",
+      "Amand, Amandus",
+      "Dorothea (Doris, Dor(r)it, Dorthe, Dora, Dolly)",
+      "Gaston (Vedast, Foster)",
+      "Paul"
+    ],
+    "02-07": [
+      "Ava",
+      "Moses",
+      "Richard (Ricardo, Rick)",
+      "Ronan (Ron, Ronnie)"
+    ],
+    "02-08": [
+      "Anna Margareta (Annegret)",
+      "Elfrieda (Elfriede, Edelfrida, Elfreda, Frieda, Freda)",
+      "Hieronymus (Geronimo, Girolamo)",
+      "Jacoba (Jacqueline, Jaqueline)",
+      "Josefina",
+      "Josefina (Giuseppina)",
+      "Philipp (Philip)"
+    ],
+    "02-09": [
+      "Alto (Aldo)",
+      "Anna Katharina (Annekathrin, Antje, Anke)",
+      "Apollonia (Lona, Loana, Lonny, Polly, Abelone)",
+      "Lambert"
+    ],
+    "02-10": [
+      "Georg (George)",
+      "Scholastika",
+      "Siegmar (Sigmar, Sigo)",
+      "Silvano (Silvanus)",
+      "Wilhelm (William, Guglielmo)"
+    ],
+    "02-11": [
+      "Benedikt",
+      "Eleonora (Eleonore, Ella, Lore, Nora)",
+      "Gregor",
+      "Maria Lourdes (Gedächtnis Unserer Lieben Frau in Lourdes)",
+      "Theodor",
+      "Theodor (Fedor)",
+      "Theodora (Fedora)"
+    ],
+    "02-12": [
+      "Benedikt (Bengt, Bent, Bennet, Benedetto, Benito)",
+      "Eulalia",
+      "Gregor",
+      "Helmward (Helmfried, Helfried)",
+      "Ludan"
+    ],
+    "02-13": [
+      "Adolf",
+      "Castor",
+      "Christina (Christine, Kerstin, Kirsten, Kirstin, Kristina)",
+      "Gosbert",
+      "Irmhild",
+      "Jordan es)",
+      "Reinhilde",
+      "Wiho (Wido, Witold)"
+    ],
+    "02-14": [
+      "Cyrill und Methodius",
+      "Licinius",
+      "Maron",
+      "Valentin (Velten, Valentino, Tino)"
+    ],
+    "02-15": [
+      "Claude (Claudius)",
+      "Drutmar",
+      "Faustin (Faustinus) und Jovita",
+      "Friedrich",
+      "Georgia",
+      "Siegfried (Sigfrid, Sigurd, Seyfried)"
+    ],
+    "02-16": [
+      "Juliana (Juliane, Julianna, Giuliana, Giulietta, Juliette, Julienne, Liane, Liana, Iliana, Ileana)",
+      "Onesimus",
+      "Pamphilius, .Pamela (Pammelios)",
+      "Philippa (Pippa)"
+    ],
+    "02-17": [
+      "Alexius (Alexis, Alessio, Alexej, Lex)",
+      "Benignus",
+      "Bonosus",
+      "Ebermut (Evermod)",
+      "Isfried (Isfrid)",
+      "Lukas (Luca)"
+    ],
+    "02-18": [
+      "Angelikus (Angelico); Angelika",
+      "Constanze (Constantia, Konstanze, Constanzia)",
+      "Koloman (Colman)",
+      "Simon; Simone (Simona, Simonetta)"
+    ],
+    "02-19": [
+      "Alvaro (Alvarez)",
+      "Bonifaz",
+      "Hedwig (Hadwig, Hedda, Edwiga)",
+      "Irmgard (Irma, Irmela, Armgard)",
+      "Konrad (Corrado)"
+    ],
+    "02-20": [
+      "Amata (Aimée).",
+      "Corona (Korona; auch Stephana, Stephanie)",
+      "Eucherius",
+      "Falko (Falk, Falco)",
+      "Jacinta",
+      "Jordan u. Heinrich"
+    ],
+    "02-21": [
+      "Enrica (Henrike, Henrika, Henrietta, Henriette)",
+      "German (Germain)",
+      "Gunhild (Gunthild, Gunilla, Gunna, Gunilda)",
+      "Irene (Irena)",
+      "Petrus (Peter, Pietro, Piero)"
+    ],
+    "02-22": [
+      "Isabella (Elisabeth, Isabeau, Isabelle)",
+      "Marald (Marold); Maralda (Mara)",
+      "Margarita (Margaretha, Margarete)"
+    ],
+    "02-23": [
+      "Polykarp",
+      "Raffaela (Raphaela, Rafaela)",
+      "Romana (Romina)",
+      "Willigis"
+    ],
+    "02-24": [
+      "Edelbert (Adelbert)",
+      "Eunike (Eunice)",
+      "Matthias (Mathias, Mattéo, Matthew, Matt, Mattis)"
+    ],
+    "02-25": [
+      "Adelhelm",
+      "Adeltrud",
+      "Callisto, Luigi",
+      "Sebastian (Bastián)",
+      "Walburga (Walpurga, Walpurgis)"
+    ],
+    "02-26": [
+      "Dionysius (Dionys, Denis, Dennis, Dion, Nies)",
+      "Edigna (Edna, Edina)",
+      "Gerlinde (Gerlind)",
+      "Ottokar"
+    ],
+    "02-27": [
+      "August",
+      "Augustin",
+      "Baldomer (Baldur, Balder)",
+      "Gabriel (Gabriele)",
+      "Markward (Marko)"
+    ],
+    "02-28": [
+      "Oswald",
+      "Roman (Romanus, Romano, Romain)",
+      "Silvana (Siloana)",
+      "Sirin (Sira, Sirina)"
+    ],
+    "02-29": [
+      "Oswald"
+    ],
+    "03-01": [
+      "Albin (Albinus, Aubin)",
+      "David",
+      "Eudokia (Dunja, Awdotja)",
+      "Leontine (Leontina, Leontia)",
+      "Roger",
+      "Swidbert (Suitbert),"
+    ],
+    "03-02": [
+      "Agnes",
+      "Hubert",
+      "Karl",
+      "Volker (Fulker, Fulko, Foulques, Fouquier)"
+    ],
+    "03-03": [
+      "Camilla",
+      "Catherine (Kathrin)",
+      "Friedrich (Frederick, Friederike, Frederica)",
+      "Kunigunde",
+      "Leif (Isleifr)",
+      "Tobias"
+    ],
+    "03-04": [
+      "Basin",
+      "Christopher (Christoph)",
+      "Edwin (Otwin, Oduin)",
+      "Humbert (Umberto)",
+      "Kasimir"
+    ],
+    "03-05": [
+      "Dietmar",
+      "Gerda (Garda, Gerta)",
+      "Ingmar (Hingmar)",
+      "Olivia (Oliva)"
+    ],
+    "03-06": [
+      "Amalie",
+      "Chrodegang",
+      "Fridolin (Frido)",
+      "Nicoletta (Coletta, Nicole, Nicola)",
+      "Quiriak (Quiriacus)",
+      "Rosa"
+    ],
+    "03-07": [
+      "Jean (Johannes)",
+      "Perpetua u. Felicitas (Felizitas)",
+      "Reinhard (Reinert, Renard)",
+      "Volker (Folke, Fokke, Volko)"
+    ],
+    "03-08": [
+      "Gerhard (Gerd, Gert)",
+      "Johannes (Juan, Johann, Hannes, Hanno, Hans, Jens, Jan, Jon)",
+      "Michael"
+    ],
+    "03-09": [
+      "Anne (Annette)",
+      "Bruno (Brun)",
+      "Dominik (Dominikus, Domenico)",
+      "Franziska (Francesca, Fanny, Fanni, Siska, Frances, Françoise)"
+    ],
+    "03-10": [
+      "Emil (Ämilius, Emilio, Émile)",
+      "Gustav (Gösta, Gustavo, Gus)",
+      "John (Johannes)",
+      "Maria-Elisabeth (Marlies, Marilies)"
+    ],
+    "03-11": [
+      "Alram (Adelram)",
+      "Heinrich",
+      "Rosina (Euphrosyne)",
+      "Ulrich (Ulrik, Utz, Ole)"
+    ],
+    "03-12": [
+      "Almut (Adelmut)",
+      "Beatrix",
+      "Engelhard",
+      "Innozenz",
+      "Maximilian",
+      "Serafina (Fina)"
+    ],
+    "03-13": [
+      "Judith",
+      "Leander",
+      "Pauline (Paulina)",
+      "Rodrigo (Roderick)"
+    ],
+    "03-14": [
+      "Einhard (Einar, Enno, Eginhard)",
+      "Eva (Evelyn, Eveline, Evita)",
+      "Mathilde (Thilde, Hilde, Matilda, Tilda, Maud).",
+      "Paulina"
+    ],
+    "03-15": [
+      "Diedo (Dieter)",
+      "Klemens",
+      "Louise",
+      "Lucrezia (Lukretia)",
+      "Zacharias"
+    ],
+    "03-16": [
+      "Gundomar (Guntmar, Gummar, Gommer)",
+      "Herbert (Heribert)",
+      "Rüdiger (Rudger)"
+    ],
+    "03-17": [
+      "Gertrud (Gertraud)",
+      "Jan (Johannes)",
+      "Patrick (Patricius)"
+    ],
+    "03-18": [
+      "Cyrill (Cyril, Cyrillus, Kyrillos)",
+      "Eduard (Edward)",
+      "Sibylle (Sibilla, Sibyllina)"
+    ],
+    "03-19": [
+      "Gero",
+      "Josef (Joseph, Giuseppe, José, Josip, Jussuf, Pepe); Josefa (Josepha, Josefine, Josephine, Josefina, Giuseppa, Pepita)",
+      "Marcel",
+      "Sibylle"
+    ],
+    "03-20": [
+      "Claudia, Alexandra",
+      "Gisbert (Cuthbert)",
+      "Irmgard",
+      "Wolfram"
+    ],
+    "03-21": [
+      "Alexandra",
+      "Axel (Absalon),",
+      "Benedikt",
+      "Christian",
+      "Emilia",
+      "Nikolaus",
+      "Richeza (Rizza);"
+    ],
+    "03-22": [
+      "Clemens (Klemens)",
+      "Elmar (Elko)",
+      "Herlinde",
+      "Lea (Lia)",
+      "Reinhilde (Reinhild, Ragnhild, Reinelde, Relinde )"
+    ],
+    "03-23": [
+      "Merbod (Marbod)",
+      "Otto",
+      "Rebekka",
+      "Toribio"
+    ],
+    "03-24": [
+      "Elias",
+      "Gabriel",
+      "Hidelinde (Heidelinde)",
+      "Karin (Katharina, Karen, Kaja)",
+      "Margaret (Margret, Margareta, Peggy)"
+    ],
+    "03-25": [
+      "Annunziata",
+      "Dismas",
+      "Judith (Jutta)",
+      "Lucia (Luzia, Lucie, Lucienne, Lucille)",
+      "Maria Rosa",
+      "Prokop"
+    ],
+    "03-26": [
+      "Castulus",
+      "Larissa (Lara)",
+      "Ludger (Liudger)",
+      "Manuel (Emanuel, Manuela)"
+    ],
+    "03-27": [
+      "Augusta",
+      "Ernst",
+      "Frowin",
+      "Heimo (Haimo)",
+      "Rupert"
+    ],
+    "03-28": [
+      "Adelheid (Alida)",
+      "Guntram",
+      "Ingbert (Ingo)"
+    ],
+    "03-29": [
+      "Berthold",
+      "Gladys (Claudia)",
+      "Helmut (Helmstan, Helmod)",
+      "Ludolf,",
+      "Ragnar (Ragnachar)"
+    ],
+    "03-30": [
+      "Amadeus (Amadeo, Gottlieb)",
+      "Armand",
+      "Diemut (Dietmut)",
+      "Leonardo (Leonhard)",
+      "Maria Restituta",
+      "Quirin"
+    ],
+    "03-31": [
+      "Amos",
+      "Benjamin",
+      "Cornelia (Kornelia, Conny, Nelly, Nelia, Cora, Corinne)",
+      "Guido",
+      "Klemens, Clemens"
+    ],
+    "04-01": [
+      "Hugo (Ugo)",
+      "Name: Irene (Irina, Irena, Ireen, Ira), Chiona , Agape",
+      "Nunio (Nuño)"
+    ],
+    "04-02": [
+      "Eustasius",
+      "Franz (Frank, Franco)",
+      "Maria (Mirjam)",
+      "Sandrina (Sandra)",
+      "Vilmos (Wilhelm)"
+    ],
+    "04-03": [
+      "Dorothea (Dorotea)",
+      "Josepha, Josefa",
+      "Richard",
+      "Thiento"
+    ],
+    "04-04": [
+      "Heinrich (Heinz)",
+      "Isidor",
+      "Konrad (Kurt)",
+      "Platon"
+    ],
+    "04-05": [
+      "Crescentia (Kreszentia)",
+      "Eva",
+      "Juliane (Juliana, Julianna, Liane, Iliane, Ileana)",
+      "Vinzenz (Vincent)"
+    ],
+    "04-06": [
+      "Michael",
+      "Notker",
+      "Sixtus",
+      "Wilhelm"
+    ],
+    "04-07": [
+      "Burkhard",
+      "Goran",
+      "Hermann",
+      "Johann Baptist",
+      "Orsina (Ursula, Orsolina)",
+      "Ralph"
+    ],
+    "04-08": [
+      "Beate (Beata)",
+      "Rose Marie (Rosemarie, Rosa Maria)",
+      "Walter (Walther, Wolter, Gautier, Gualtiero)"
+    ],
+    "04-09": [
+      "Casilda",
+      "Madrun",
+      "Maria (Mirjam)",
+      "Waltraud (Waldetrud, Waltrud)"
+    ],
+    "04-10": [
+      "Ezechiel",
+      "Gernot (Notger, Notker)",
+      "Gerold",
+      "Hulda (Holda),",
+      "Magdalene (Maddalena)"
+    ],
+    "04-11": [
+      "Gemma",
+      "Hildebrand",
+      "Rainer",
+      "Stanislaus,"
+    ],
+    "04-12": [
+      "Giuseppe (Josef)",
+      "Herta (Hertula, Hertila)",
+      "Joana",
+      "Julius",
+      "Zeno"
+    ],
+    "04-13": [
+      "Hermenegild; Hermenegilda (Gilda, Gildis)",
+      "Ida",
+      "Martin",
+      "Paternus"
+    ],
+    "04-14": [
+      "Elmo",
+      "Ernestine (Erna, Ernesta)",
+      "Hedwig (Hadwig)",
+      "Lidwina (Lida)",
+      "Tiburtius (Tiburcio)"
+    ],
+    "04-15": [
+      "Anastasia (Nastasja, Nastja)",
+      "Damian",
+      "Nidgar (Nidker)",
+      "Una (Unna, Huna, Oona)"
+    ],
+    "04-16": [
+      "Benedikt",
+      "Bernadette",
+      "Hartmut",
+      "Magnus"
+    ],
+    "04-17": [
+      "Eberhard (Ebert, Evert)",
+      "Isadora",
+      "Rudolf",
+      "Wando, Wanda"
+    ],
+    "04-18": [
+      "(Sascha, Sandro, Sándor, Alex, Lex)",
+      "Barbara (Barbe)",
+      "Werner",
+      "Wigbert (Wikterp, Wiggo, Wibke)"
+    ],
+    "04-19": [
+      "Arminia",
+      "Emma (Imma, Hemma)",
+      "Gerold (Gerald, Géraud, Giraldo)",
+      "Leo",
+      "Timo (Timon)",
+      "Werner"
+    ],
+    "04-20": [
+      "Christoph (erus)",
+      "Hildegund (Hildgund)",
+      "Odetta (Odette, Oda, Uta, Ute)",
+      "Wiho"
+    ],
+    "04-21": [
+      "Alexandra",
+      "Anselm; Anselma (Selma)",
+      "Konrad"
+    ],
+    "04-22": [
+      "Alfried (Alfred, Alfrid)",
+      "Cajus (Kaj, Kai)",
+      "Leonidas",
+      "Wolfhelm"
+    ],
+    "04-23": [
+      "Adalbert",
+      "Georg: (Jörg, Jürgen, Jürg, Jörgen, Jürn, Jörn, Jöran, Giorgio)",
+      "Gerhard (Gerd, Gert, Gerrit, Gero, Gérard, Gerardo, Géllert)",
+      "Teresa Maria"
+    ],
+    "04-24": [
+      "Egbert",
+      "Fidelis (Fidel, Fidelio)",
+      "Theodor",
+      "Virginia",
+      "Wilfried (Wilfrid)"
+    ],
+    "04-25": [
+      "Erwin (Irwin, Irving)",
+      "Franka (Franca)",
+      "Hermann",
+      "Markus (Marcus, Marco, Marko, Mark, Marc, Marek)"
+    ],
+    "04-26": [
+      "Cletus (Anaklet)",
+      "Consuelo (Consuela)",
+      "Helene (Helena, Elena, Jelena, Ilona, Ilka, Jelka, Eileen, Eleni, Helen)",
+      "Pedro (Peter)",
+      "Ratbert (Paschasius Ratbertus)",
+      "Trudbert (Trudpert)"
+    ],
+    "04-27": [
+      "Montserrat",
+      "Petrus",
+      "Zita"
+    ],
+    "04-28": [
+      "Hugo (Hauke, Ugo, Hugbert)",
+      "Ludwig",
+      "Pierre (Peter)",
+      "Theodora (Fedora)",
+      "Vitalis"
+    ],
+    "04-29": [
+      "Dieter (Diether, Dietger, Theoder)",
+      "Dietrich",
+      "Katharina (Caterina, Katja, Kathrin)",
+      "Roswitha"
+    ],
+    "04-30": [
+      "Hildegard",
+      "Pauline",
+      "Pius",
+      "Quirin und Balbina",
+      "Rosamunde",
+      "Silvius (Silvio)",
+      "Wolfhard"
+    ],
+    "05-01": [
+      "Arnold",
+      "August (Augustin)",
+      "Jeremias",
+      "Josef",
+      "Siegmund"
+    ],
+    "05-02": [
+      "Antonin (Antonino, Nino)",
+      "Athanasius",
+      "Boris (Borislav)",
+      "Siegmund (Sigmund, Sigismund)",
+      "Wiborada (Wibke, Wiebke).",
+      "Zoë"
+    ],
+    "05-03": [
+      "Alexander",
+      "Béla",
+      "Jakobus (Jakob, Jacob, Giacomo, Jaime, James, Jacques)",
+      "Philippus (Philipp, Philip, Felipe, Phil)",
+      "Viola (Violetta)"
+    ],
+    "05-04": [
+      "Aribo (Arbeo)",
+      "Briktius",
+      "Florian",
+      "Guido",
+      "Martin",
+      "Valeria,"
+    ],
+    "05-05": [
+      "Gotthard (Godehard)",
+      "Jutta",
+      "Nunzio",
+      "Sigrid (Sirid, Sigreda)"
+    ],
+    "05-06": [
+      "Antonia (Tonia, Tonja, Antonella, Antoinette)",
+      "Britto (Britta)",
+      "François (Franz)",
+      "Francois (Franz)",
+      "Gundula (Gunda, Gundila)",
+      "Maria Caterina",
+      "Markward",
+      "Markward (Marko, Mark, Markwart, Marquard)"
+    ],
+    "05-07": [
+      "Boris",
+      "Gisela (Silke, Gila, Gislinde, Gizella)",
+      "Helga (Heilika, Heilke, Olga)",
+      "Notker (Gernot)"
+    ],
+    "05-08": [
+      "Friedrich (Fritz, Fred);",
+      "Ida (Iduberga, Idisa, Ita, Itta)",
+      "Klara",
+      "Ulrike (Ulrika, Ulla)",
+      "Wulfhild (Wolfhild)"
+    ],
+    "05-09": [
+      "Beat (Beatus)",
+      "Caroline (Karoline, Carola, Karla, Lina, Carolin)",
+      "Ottokar",
+      "Volkmar"
+    ],
+    "05-10": [
+      "Gordian und Epimach",
+      "Isidor",
+      "Job (Hiob)",
+      "Johannes (Juan)",
+      "Liliana (Lilia)",
+      "Solange (Solangia)"
+    ],
+    "05-11": [
+      "Francesco (Franz)",
+      "Gangolf (Wolfgang)",
+      "Joachim (Jochen, Achim, Joakim, Joaquin)",
+      "Lucinda (Lucina, Lucinde)",
+      "Mamertus (Mamerz)"
+    ],
+    "05-12": [
+      "Achilles und Nereus (Achilleus)",
+      "Imelda (Irmhild)",
+      "Joanna (Joana, Johanna)",
+      "Modoald (Modwald)",
+      "Pankratius (Pankraz)"
+    ],
+    "05-13": [
+      "André Hubert",
+      "Ellenger (Elgar, Elger)",
+      "Fatima",
+      "Rolanda (Rolendis)",
+      "Servatius (Servaz, Servais, Servaas)"
+    ],
+    "05-14": [
+      "Bonifatius",
+      "Christian",
+      "Ismar (Iso)",
+      "Maria Domenica",
+      "Pachomius"
+    ],
+    "05-15": [
+      "Gerbert und Dympna",
+      "Halvard",
+      "Heinrich",
+      "Hertrud (Hertraud)",
+      "Rupert",
+      "Sophia (Sophie, Sofie, Sonja)"
+    ],
+    "05-16": [
+      "Adolf (Adelphus)",
+      "Brendan (Brandon)",
+      "Johannes (Hans, Hannes, Jan, Johann)",
+      "Johannes Nepomuk",
+      "Simon"
+    ],
+    "05-17": [
+      "Antonella (Antonia)",
+      "Dietmar",
+      "Elgiva",
+      "Pascal (Pascalis, Paschalis, Pascale, Pasquale)",
+      "Walter"
+    ],
+    "05-18": [
+      "Alexandra",
+      "Burkhard (Birk)",
+      "Erich (Erik, Eric)",
+      "Felix",
+      "Johannes"
+    ],
+    "05-19": [
+      "Alkuin (Alkwin)",
+      "August (Augustus)",
+      "Cölestin",
+      "Ivo (Yvon, Yvonne)",
+      "Kuno,",
+      "Verena"
+    ],
+    "05-20": [
+      "Bernhardin (Bernardino, Dino)",
+      "Elfriede (Elfrieda, Elfreda, Frieda)",
+      "Henrietta (Henriette, Hendrina, Hendrika)",
+      "Mirella (Mira)",
+      "Saturnina und Valeria"
+    ],
+    "05-21": [
+      "Christophorus",
+      "E(h)renfried (Ehrenfried)",
+      "Henning (Hemming)",
+      "Hermann (Hermo, Harm, Herman, Armand, Ermanno, Ermino)",
+      "Konstantin",
+      "Wiltrud (Wiltraud)"
+    ],
+    "05-22": [
+      "Emil (Aemilius)",
+      "Julia",
+      "Konstantin",
+      "Ortwin",
+      "Renate",
+      "Rita"
+    ],
+    "05-23": [
+      "Almerida (Alma) und Quintus",
+      "Bartholomäus",
+      "Désiré (Desiderius; Désirée)",
+      "Renata (Renate, Renée)"
+    ],
+    "05-24": [
+      "Dagmar",
+      "Esther",
+      "Franz ( Wendelin )",
+      "Johanna und Susanna",
+      "Sophie (Sofie, Sophia, Sofia, Sonja)"
+    ],
+    "05-25": [
+      "Beda (Bede)",
+      "Eilhard (Egilhard),",
+      "Gregor",
+      "Heribert (Herbert)",
+      "Maria Magdalene",
+      "Urban"
+    ],
+    "05-26": [
+      "Elvin (Alwin)",
+      "Maria Anna (Marianne, Marianna, Marie-Anne)",
+      "Philipp (Filippo, Pippo)",
+      "Regentraud (Regintrud)"
+    ],
+    "05-27": [
+      "Augustin (August)",
+      "Bruno",
+      "Margaret",
+      "Matthias (Mathias)",
+      "Randolph"
+    ],
+    "05-28": [
+      "German (Germain, Germano)",
+      "Margaret (Margaretha, Margarete)",
+      "Otto",
+      "Viktor",
+      "Wilhelm (Willem, Wilke, Guillaume, Guglielmo, Guillermo, William, Vilmos)"
+    ],
+    "05-29": [
+      "Erwin (Irwin, Irving)",
+      "Irmtraud (Irmtrud)",
+      "Julia",
+      "Maximin"
+    ],
+    "05-30": [
+      "Emmelia",
+      "Ferdinand (Fernando, Fernand, Fernão, Fernandez, Ferrante, Nándor)",
+      "Hubert,",
+      "Johanna (Jeanne)",
+      "Reinhild (Rendel, Reinhilde, Reinelde)"
+    ],
+    "05-31": [
+      "Helmtraud (Heltraud, Hiltrud, Helma)",
+      "Mechthild",
+      "Petronella (Petronilla, Petra, Pernilla, Pernella, Pierina, Piera, Perinne)",
+      "Pilgrim (Peregrin)",
+      "Siegwin (Sigwin)"
+    ],
+    "06-01": [
+      "Hortense, Silka (Sillica), Silvana",
+      "Justin (Justinus)",
+      "Konrad (Kuno)",
+      "Simeon"
+    ],
+    "06-02": [
+      "Armin (Arminius)",
+      "Blandina (Blandine)",
+      "Erasmus (Rasmus, Asmus, Elmo, Elms, Erasmo)",
+      "Marcellinus und Petrus"
+    ],
+    "06-03": [
+      "Hildburg (Hildburga)",
+      "Johannes XXIII.",
+      "Karl",
+      "Klothilde",
+      "Morand",
+      "Silvia (Sylvia, Sylvie)",
+      "Silvia und Marcellus"
+    ],
+    "06-04": [
+      "Christa",
+      "Franz (Francesco)",
+      "Iona (Jona, Yona)",
+      "Klothilde (Clothilde, Clotilde)",
+      "Quirin (Kirin)",
+      "Werner"
+    ],
+    "06-05": [
+      "Adelar und Eoban",
+      "Erika (Erica, Rika)",
+      "Ferdinand (Fernando, Fernand, Fernandez, Fernão, Ferrante)",
+      "Meinwerk",
+      "Winfried Bonifatius (Bonifaz)"
+    ],
+    "06-06": [
+      "Bertrand (Bertran)",
+      "Claudius (Claude, Claudio)",
+      "Falk (Falko)",
+      "Kevin (Coemgen)",
+      "Norbert"
+    ],
+    "06-07": [
+      "Adelar (Adolar) und Eoban",
+      "Anna (Ana, Anita)",
+      "Bogumil",
+      "Gottlieb (Deochar)",
+      "Robert (Bob, Robin)",
+      "Sophie (Sophia) Thérèse (Theresia)"
+    ],
+    "06-08": [
+      "Chlodwig (Cloud)",
+      "Giselbert",
+      "Ilga (Elga, Hilga, Helga)",
+      "Marie",
+      "Medard (Medardus)"
+    ],
+    "06-09": [
+      "Anna Maria (Annemarie, Annamaria)",
+      "Ephraim",
+      "Grazia (Gracia, Gratia, Graziella)",
+      "Josef (José)",
+      "Liborius,",
+      "Primus und Felician"
+    ],
+    "06-10": [
+      "Bardo",
+      "Diana",
+      "Heinrich (Heinz)",
+      "Josef",
+      "Olivia"
+    ],
+    "06-11": [
+      "Alice (Aleydis, Adelheid, Alisa, Alyson)",
+      "Barnabas",
+      "Jolentha (Jolanthe, Jolantha)",
+      "Paula (Paola, Pola, Paoletta)"
+    ],
+    "06-12": [
+      "Florinda (Florida, Fiorina)",
+      "Guido (Wido, Witold)",
+      "Leo",
+      "Mercedes"
+    ],
+    "06-13": [
+      "Antonius (Anton, Antonio, Tonio, Anthony, Antoine, Ante, Antal)",
+      "Benilda (Benilde, Bernhild, Bernhilde)",
+      "Bernhard (Bernard, Bernd, Barnet)",
+      "Randolf (Randolph)"
+    ],
+    "06-14": [
+      "Elisäus",
+      "Gottschalk",
+      "Hartwig (Hertwig, Herwig)",
+      "Meinrad"
+    ],
+    "06-15": [
+      "Bernhard",
+      "Gebhard (Gebhart, Gebbert)",
+      "Germaine (Germana)",
+      "Isfried",
+      "Lothar (Lothaire, Chlotar, Lüder)",
+      "Vitus (Veit)"
+    ],
+    "06-16": [
+      "Anna-Maria (Annemarie)",
+      "Benno",
+      "Julietta (Julitta)",
+      "Kunigunde",
+      "Luitgard (Lukardis)",
+      "Quirin"
+    ],
+    "06-17": [
+      "Adam",
+      "Adolf (Adolph, Addo, Ado, Dolf, Adolfo)",
+      "Alena (Alina, Alinda)",
+      "Rainer (Raniero)",
+      "Ramwold",
+      "Volker (Fulko, Fulker, Foulques)"
+    ],
+    "06-18": [
+      "Elisabeth (Ilsa, Ilse, Elsa, Else, Elisa, Elise)",
+      "Maria Dolores",
+      "Marina (Mara, Maren, Mascha, Marinella)",
+      "Roxana (Osanna, Oxana, Rossana)"
+    ],
+    "06-19": [
+      "Andreas",
+      "Elisabeth",
+      "Gervasius (Gervais, Gervasio) und Protasius",
+      "Hildegrim. (Krimhild, Kriemhild).",
+      "Juliana (Giuliana, Gillian, Jill, Liane, Iliana, Julischka)",
+      "Michaela (Micaela, Michelle)",
+      "Modest (Modestus)",
+      "Rasso (Ratold)",
+      "Romuald"
+    ],
+    "06-20": [
+      "Adalbert (Adelbert, Edelbert)",
+      "Benina (Benigna)",
+      "Deodat",
+      "Florentina (Florence, Florencia)",
+      "Mafalda",
+      "Margaretha (Margarete)"
+    ],
+    "06-21": [
+      "Alban (Albano)",
+      "Alois (Aloisius, Aloysius); Aloisia (Aloysia, Luise, Loisa)",
+      "Eberhard",
+      "Radulf (Ralf)"
+    ],
+    "06-22": [
+      "Achatius (Achaz)",
+      "Eberhard",
+      "John (Johannes)",
+      "Paulin (Paulinus)",
+      "Rotraud (Rotrud)",
+      "Thomas"
+    ],
+    "06-23": [
+      "Edeltraud (Edeltrud, Audrey, Ethel)",
+      "Josef (Giuseppe)",
+      "Marion (Marie)",
+      "Ortrud (Ortrun)"
+    ],
+    "06-24": [
+      "Dietger (Dieter)",
+      "Friso (Frisius)",
+      "Johannes (Johann, Hans, Hannes, Jan, Jens, Hanno, Ian, Ion, Iwan, John)",
+      "Reingard"
+    ],
+    "06-25": [
+      "Dorothea",
+      "Eleonora (Eleonore, Ella, Lore, Nora, Ellen, Lenore, Leonore)",
+      "Prosper"
+    ],
+    "06-26": [
+      "Anthelm",
+      "David",
+      "Johannes und Paul (Paulus),",
+      "Konstantin",
+      "Ortwin (Otwin)",
+      "Vigilius"
+    ],
+    "06-27": [
+      "Benvenuto",
+      "Crescens, Aureus, Maximus und Theonest",
+      "Cyrill",
+      "Gerhoh (Gerhoch, Gero)",
+      "Harald (Araldus, Ariald)",
+      "Heimo (Heimerad)",
+      "Hemma (Emma)",
+      "Siebenschläfer"
+    ],
+    "06-28": [
+      "Diethild (Diethilde)",
+      "Ekkehard (Eckhard, Eckhart, Edzard)",
+      "Harald",
+      "Heimo (Heimerad)",
+      "Irenäus",
+      "Vincenta (Senta)"
+    ],
+    "06-29": [
+      "Gero",
+      "Judith",
+      "Notker (Gernot)",
+      "Paulus (Paul)",
+      "Petrus (Peter),"
+    ],
+    "06-30": [
+      "(Fest)",
+      "Adolf",
+      "Bertram (Bertechram)",
+      "Ehrentrud (Erentrudis, Arntraud)",
+      "Erich",
+      "Ernst",
+      "Otto",
+      "Theobald"
+    ],
+    "07-01": [
+      "Aaron",
+      "Dietrich (Dieter, Dirk, Dietz, Derek, Theoderich, Thierry)",
+      "Eckhard (Eckart)",
+      "Theobald (Dietwald, Diebald; Thibaut)"
+    ],
+    "07-02": [
+      "Jakob",
+      "Petrus (Peter)",
+      "Svethun (Sven, Swithun)",
+      "Wiltrud"
+    ],
+    "07-03": [
+      "Anatol,",
+      "Josef",
+      "Ramon (Ramona, Mona).",
+      "Thomas"
+    ],
+    "07-04": [
+      "Berta",
+      "Elisabeth (Isabel)",
+      "Hasso (Hatto)",
+      "Ulrich (Utz, Ole, Ulrik, Olrik, Olderico, Uwe)",
+      "Wilhelm (Wiliam)"
+    ],
+    "07-05": [
+      "Albrecht",
+      "Anton (Antonio, Tonio)",
+      "Kyrilla (Kyra, Kira)",
+      "Letizia (Lätitia, Laetitia, Leticia, Lettice)"
+    ],
+    "07-06": [
+      "Dominica (Domenica, Dominique)",
+      "Goar",
+      "Godolewa (Gottlieba, Godeleva, Geva)",
+      "Isaias",
+      "Maria (Marietta, Marita)",
+      "Maria Theresia (Marie Theres, Maresa, Marisa)"
+    ],
+    "07-07": [
+      "Edda (Edelburga, Ethel, Etta)",
+      "Walfried (Waltfried, Waldefried)",
+      "Willibald"
+    ],
+    "07-08": [
+      "Amalia",
+      "Disibod",
+      "Edgar",
+      "Kilian",
+      "Maria",
+      "Priscilla und Aquila"
+    ],
+    "07-09": [
+      "Adrian (Adriano, Adrien)",
+      "Agilolf",
+      "Hermine (Ermina, Herma, Mina, Minna, Minka) und Pauline (Paulina, Paolina, Paulette)",
+      "Veronica (Veronika, Verona, Frauke, Vera, Véronique, Veruschka)"
+    ],
+    "07-10": [
+      "Amalia (Amalberga, Alma, Elma, Amelia)",
+      "Engelbert",
+      "Erich",
+      "Knud",
+      "Olaf",
+      "Raphael",
+      "Sieben Brüder"
+    ],
+    "07-11": [
+      "Benedikt",
+      "Olga",
+      "Oliver",
+      "Rachel (Raquel)"
+    ],
+    "07-12": [
+      "Felix und Nabor",
+      "Henriette",
+      "Hermagor (Hermagoras) und Fortunat",
+      "Johannes (Johann, Giovanni)",
+      "Siegbert (Sigisbert)"
+    ],
+    "07-13": [
+      "Arno (Arne)",
+      "Heinrich",
+      "Johannes",
+      "Mildred (Mildreda)",
+      "Sara (Sarah)",
+      "Silas"
+    ],
+    "07-14": [
+      "Camillo (Camillus, Kamillus)",
+      "Francisco (Franz)",
+      "Goswin",
+      "Jacobus",
+      "Roland",
+      "Ulrich",
+      "Wando (Wanda, Wandregisel))"
+    ],
+    "07-15": [
+      "Anne Marie",
+      "Answer",
+      "Bernhard",
+      "Bonaventura",
+      "Ceslaus",
+      "Egon (Egino)",
+      "Gumbert (Guntbert)",
+      "Rudolf",
+      "Waldemar (Wladimir)"
+    ],
+    "07-16": [
+      "Carmen (Carmela)",
+      "Irmgard (Irmengard)",
+      "Marie Madeleine",
+      "Reinelde (Reinhilde)"
+    ],
+    "07-17": [
+      "Alexius (Alex, Alexis, Alexej)",
+      "Clemens (Klemens)",
+      "Donata",
+      "Gabriella (Gabriela, Gabrielle, Gabriele), Charlotte (Carlotta), Angelika (Angélique), Marianne (Marie-Anne)",
+      "Koloman,",
+      "Marina"
+    ],
+    "07-18": [
+      "Answer",
+      "Arnold",
+      "Arnulf (Ulf, Arnulfo, Arne)",
+      "Friedrich (Frederik)",
+      "Radegunde"
+    ],
+    "07-19": [
+      "Bernulf (Bernold)",
+      "Marina (Maren, Mascha, Mara)",
+      "Reto (Raetus, Rheticus)"
+    ],
+    "07-20": [
+      "Bernhard",
+      "Elias",
+      "Margaretha (Margarethe, Margareta, Margarete, Margit, Margot, Marga, Greta, Meta, Grit, Marita, Marina, Peggy)",
+      "Volkmar (Volmar, Wulmar)"
+    ],
+    "07-21": [
+      "Arbogast",
+      "Daniel (Danilo); Daniela (Dana, Danielle, Danuta)",
+      "Julia",
+      "Laurentius (Laurenz, Lorenz, Lorenzo, Renzo, Laurent. Lars, Lasse)",
+      "Stilla (Stella)"
+    ],
+    "07-22": [
+      "Elvira (Elmira)",
+      "Magdalena (Marlene, Magda, Madeleine, Maddalena, Alena, Lena, Lenka).",
+      "Maria",
+      "Wando"
+    ],
+    "07-23": [
+      "Apollinaris",
+      "Birgitta (Brigitta, Birgit, Britta, Gitta, Birte) und Birger",
+      "Liborius (Börries).",
+      "Marcia (Marciana)"
+    ],
+    "07-24": [
+      "Christina",
+      "Christoph (Christophorus)",
+      "Kunigunde",
+      "Luise (Louise)",
+      "Scharbel (Charbel, Sabelius)",
+      "Sieglinde (Siglind, Selinde)",
+      "Ursicin"
+    ],
+    "07-25": [
+      "Herrada (Herta)",
+      "Jakob (Jakobus, Jacob, Jacques, Jaime, Diégo, James, Giacomo, Jakov, Jakub)",
+      "Magnerich",
+      "Thea",
+      "Thomas",
+      "Valentina"
+    ],
+    "07-26": [
+      "Anna (Anja, Nina, Anita, Annika, Annette, Annabell, Antje, Anke, Anka, Anuschka)",
+      "Gloria (Gloriosa)",
+      "Joachim,"
+    ],
+    "07-27": [
+      "Berthold",
+      "Magnerich (Meinrich)",
+      "Maria Graziella",
+      "Natalia (Natalie, Natascha) und Liliosa",
+      "Pantaleon",
+      "Rudolf (Rolf, Rodolfo, Raoul)"
+    ],
+    "07-28": [
+      "Ada (Adele, Adela)",
+      "Alphonsa",
+      "Beat (Beatus) und Bantus",
+      "Innozenz",
+      "Manuel",
+      "Samson"
+    ],
+    "07-29": [
+      "Ladislaus",
+      "Lazarus",
+      "Lucilla und Flora",
+      "Martha (Marta, Marthe)",
+      "Olaf"
+    ],
+    "07-30": [
+      "Beatrix",
+      "Botho (Batho)",
+      "Ingeborg (Inga, Inge, Inger)",
+      "Leopold / Bogdan",
+      "Petrus (Peter, Piero, Pietro)"
+    ],
+    "07-31": [
+      "German (Germain)",
+      "Ignatius (Ignaz, Inigo)",
+      "Joseph, Josef"
+    ],
+    "08-01": [
+      "Alfons (Alfonso)",
+      "Edelwald (Ewald)",
+      "Kenneth (Kenned, Kined)",
+      "Peter Julian",
+      "Peter, Petrus"
+    ],
+    "08-02": [
+      "Adriana (Adrienne, Adriane)",
+      "Eusebius",
+      "Gundaker (Gundekar)",
+      "Peter Julian"
+    ],
+    "08-03": [
+      "August",
+      "Benno",
+      "Lydia",
+      "Nikodemus"
+    ],
+    "08-04": [
+      "Cäcilia (Cecilia, Celina)",
+      "Johannes (Johann, Jean, Hannes, Hans, Jan, Jens, Hanno, Nino, Jannick)",
+      "Rainer (Raniero)",
+      "Sidney (Sid)"
+    ],
+    "08-05": [
+      "Dominica (Domenica, Dominique)",
+      "Eva Maria",
+      "Henryk (Heinrich)",
+      "Niëves",
+      "Oswald"
+    ],
+    "08-06": [
+      "Berta",
+      "Felicissimus und Agapit",
+      "Gilbert",
+      "Hermann",
+      "Jacqueline"
+    ],
+    "08-07": [
+      "Afra",
+      "Albert",
+      "Donat (Donato)",
+      "Friedrich",
+      "Kajetan (Cajetan, Gaetano)",
+      "Sixtus"
+    ],
+    "08-08": [
+      "Altmann",
+      "Cyriak",
+      "Dominikus (Dominik, Domingo, Domenico, Dominic)",
+      "Elgar (Elger, Hilger, Hildiger)",
+      "Hartwig"
+    ],
+    "08-09": [
+      "Altmann",
+      "Edith (Editha) und Rosa",
+      "Franz",
+      "Hademar (Hathumar, Hadmar)",
+      "Maria-Anna (Marianne)",
+      "Roman (Romana, Romina)"
+    ],
+    "08-10": [
+      "Asteria (Astrid, Asta)",
+      "Erik (Erich, Erika)",
+      "Laurentius (Laurenz, Lorenz, Lars, Lasse, Renzo, Laurent, Laurids)",
+      "Tiburtius (Tibor, Tiberius)"
+    ],
+    "08-11": [
+      "Donald (Donwald)",
+      "Ghislen (Schetzel, Gezzelin)",
+      "Klara (Clara, Chiara, Clarissa)",
+      "Nikolaus",
+      "Philomena",
+      "Susanna"
+    ],
+    "08-12": [
+      "Innozenz",
+      "Karl",
+      "Leo (Leon)",
+      "Radegunde (Radegund)"
+    ],
+    "08-13": [
+      "Cassian (Kassian)",
+      "Concordia",
+      "Gertrud, Gertrude",
+      "Hippolyt",
+      "Johannes",
+      "Marco , Markus",
+      "Pontian",
+      "Radegunde",
+      "Wigbert (Wibke)"
+    ],
+    "08-14": [
+      "Eberhard",
+      "Maximilian",
+      "Meinhard",
+      "Werenfried (Wernfried)"
+    ],
+    "08-15": [
+      "Altfried",
+      "Arnulf",
+      "Assunta (Fest)",
+      "Hyazinth",
+      "Mechthild",
+      "Napoleon",
+      "Stanislaus",
+      "Tarsicius"
+    ],
+    "08-16": [
+      "Alfried (Altfried)",
+      "Rochus (Rocco, Rock)",
+      "Stephan (Stefan, Steffen, Stepan, István); Stephanie (Stefanie)",
+      "Theodor (Theodul)"
+    ],
+    "08-17": [
+      "Amor",
+      "Guda (Gudrun)",
+      "Hyazinth",
+      "Jeannine (Janine)"
+    ],
+    "08-18": [
+      "Claudia",
+      "Helena (Ilona, Ilka, Jelena, Jelka, Elena, Eleni, Eileen)",
+      "Rainald (Rinaldo)"
+    ],
+    "08-19": [
+      "Caritas",
+      "Johann (Jean, Johannes)",
+      "Julius",
+      "Reinlinde (Reglinde)",
+      "Sebald"
+    ],
+    "08-20": [
+      "Bernhard (Bernd, Björn)",
+      "Oswin",
+      "Ronald",
+      "Samuel"
+    ],
+    "08-21": [
+      "Baldwin (Balduin)",
+      "Franz",
+      "Gracia (Grazia, Grace)",
+      "Maximilian",
+      "Pius (Pia)"
+    ],
+    "08-22": [
+      "Regina",
+      "Siegfried,",
+      "Symphorian",
+      "Timotheus (Timo, Tim)"
+    ],
+    "08-23": [
+      "Isolde (Ansoalda)",
+      "Richilde",
+      "Rosa (Rosita)",
+      "Zachäus"
+    ],
+    "08-24": [
+      "Amadeus",
+      "Bartholomäus",
+      "Emilia (Emilie, Emily, Milena, Milla)",
+      "Johanna-Antida (Jeanne-Antide)",
+      "Michaela (Miguela)"
+    ],
+    "08-25": [
+      "Ebba",
+      "Elvira",
+      "Gregor",
+      "Joseph (José)",
+      "Ludwig (Louis)",
+      "Patricia"
+    ],
+    "08-26": [
+      "Gregor",
+      "Miriam",
+      "Patricia (Patrizia)",
+      "Teresa"
+    ],
+    "08-27": [
+      "Cäsar (Caecarius),",
+      "Gebhard",
+      "Guarin (Warin)",
+      "Monika",
+      "Vivian"
+    ],
+    "08-28": [
+      "Adelinde (Alinda, Alinde)",
+      "Alina (Aline, Adeline)",
+      "Augustin (Augustinus)",
+      "Elmar (Elmer)",
+      "Hermes",
+      "Vivian"
+    ],
+    "08-29": [
+      "Beatrice (Beatrix)",
+      "Johannes Johann Baptist",
+      "Sabina",
+      "Theodora",
+      "Verona"
+    ],
+    "08-30": [
+      "Adolf (Adelphus)",
+      "Amadeus",
+      "Felix",
+      "Fiacrius (Fiacre)",
+      "Guarin (Warin, Warren)",
+      "Heribert",
+      "Ingeborg (Ingoberg)",
+      "Rebekka"
+    ],
+    "08-31": [
+      "Adolf (Adelphus)",
+      "Aidan",
+      "Marcello",
+      "Paulinus",
+      "Raimund (Raimo, Ramon, Raimondo, Raymond)",
+      "Sieglinde (Selinde)"
+    ],
+    "09-01": [
+      "Ägidius (Gilg, Gilles)",
+      "Josue (Joschua)",
+      "Pelagius",
+      "Ruth und Naomi",
+      "Verena"
+    ],
+    "09-02": [
+      "Emmerich",
+      "Ingrid",
+      "Nonnosus",
+      "René , Oliver, Salomon , Apollinaris , Gilbert, Denis",
+      "Wolfsind"
+    ],
+    "09-03": [
+      "Gilbert Denis Yvon",
+      "Gregor",
+      "Hildebald",
+      "Phoebe",
+      "Silvia (Sylvia, Sylvie)",
+      "Sophia (Sonia, Sonja, Sofie, Sophie)"
+    ],
+    "09-04": [
+      "Ida",
+      "Iris",
+      "Irmgard",
+      "Remaklus",
+      "Rosa",
+      "Rosalie (Rosalia)",
+      "Suitbert (Swidbert)"
+    ],
+    "09-05": [
+      "Hermine (Hermione) und Eutyche",
+      "Roswitha (Hrotsvith)",
+      "Therese",
+      "Urs (Ursicin)"
+    ],
+    "09-06": [
+      "Alexis (Alexius)",
+      "Bertram (Bertrand)",
+      "Gundolf",
+      "Magnus (Mang)"
+    ],
+    "09-07": [
+      "Otto",
+      "Ralph",
+      "Regina (Regine, Ina, Gina, Renja, Rina)",
+      "Stefan (Stephan István, Stepan), Markus (Marko, Marek) und Melchior"
+    ],
+    "09-08": [
+      "Adrian (Hadrian, Adriano, Adrien, Arian)",
+      "Allan (Alan, Alain, Allen)",
+      "Belina",
+      "Korbinian",
+      "Sergius (Serge, Sergej, Sergio)",
+      "Stephan"
+    ],
+    "09-09": [
+      "Emma",
+      "Gorgon (Gorgonius)",
+      "Otmar (Othmar, Ottmar, Omer)",
+      "Pedro (Peter, Petrus)"
+    ],
+    "09-10": [
+      "Carlo",
+      "Diethard (Dethard)",
+      "Isabel (Isabella)",
+      "Nikolaus (Nicolas, Nikolaj)"
+    ],
+    "09-11": [
+      "Felix und Regula",
+      "Helga (Hilga, Hildga); Helge",
+      "Josef",
+      "Ludwig (Lutz)",
+      "Maternus",
+      "Paphnutius"
+    ],
+    "09-12": [
+      "Denhard (Degenhard, Deinhard",
+      "Gerfried",
+      "Guido (Wido, Witold, Guide, Guy)",
+      "Maria (Marika, Marilyn, Marlies, Marion, Maja, Mara, Marietta, Mariella, Marita, May, Marina, Mascha, Meika, Maruschka, Molly, Maureen u.a.)",
+      "Maximin"
+    ],
+    "09-13": [
+      "Amat (Amatus, Aimé)",
+      "Johannes (Johann)",
+      "Notburga",
+      "Tobias"
+    ],
+    "09-14": [
+      "Albert (Alberto)",
+      "Cornelius (Conan, Cornelia)",
+      "Maternus",
+      "Notburga"
+    ],
+    "09-15": [
+      "Dolores",
+      "Gotlinde (Godelind)",
+      "Gustav",
+      "Ludmilla",
+      "Melitta (Melissa),",
+      "Oranna (Oranda)",
+      "Roland (Orlando)"
+    ],
+    "09-16": [
+      "André",
+      "Cornelius",
+      "Cyprian (Zyprian)",
+      "Edith (Edgitha, Editha)",
+      "Ludmilla (Milena, Milla)"
+    ],
+    "09-17": [
+      "Ariane (Arianna, Ariadne)",
+      "Colomba (Paloma)",
+      "Hildegard (Hilde, Hildga)",
+      "Lambert",
+      "Reinfried",
+      "Robert (Roberto)"
+    ],
+    "09-18": [
+      "Herlinde",
+      "Joseph (Giuseppe, Josef)",
+      "Lambert (Lambrecht)",
+      "Lambert (Lantpert)",
+      "Reinfried",
+      "Ricarda (Rica, Richardis)"
+    ],
+    "09-19": [
+      "Igor (Ingvar, Ingmar)",
+      "Januarius (Gennaro)",
+      "Lambert",
+      "Theodor",
+      "Wilhelmine (Wilhelmina, Wilhelma, Wilma, Vilma, Helma)"
+    ],
+    "09-20": [
+      "Andreas, Paul",
+      "Candida (Kandida)",
+      "Eustachius (Stachus)",
+      "Hertha (Herta, Hereswitha)",
+      "Susanna",
+      "Traugott (Theopist)"
+    ],
+    "09-21": [
+      "Debora (Deborah)",
+      "Gerulf (Gerolf)",
+      "Iphigenia (Iphigenie)",
+      "Jonas",
+      "Matthäus",
+      "Maura (Moira, Maureen)"
+    ],
+    "09-22": [
+      "Emmeram (Emmeran)",
+      "Gunhild (Gunthild, Gunilda, Gunilla, Gunna)",
+      "Landelin (Lando)",
+      "Laurent",
+      "Mauritius (Moritz, Maurice, Maurizio)",
+      "Otto",
+      "Phokas",
+      "Wolftraud (Wulftrud)"
+    ],
+    "09-23": [
+      "Basin",
+      "Gerhild (Gerhilde)",
+      "Linus",
+      "Liutwin (Lutwin)",
+      "Pio (Pius)",
+      "Pio (Pius); Pia",
+      "Rotraud (Rotrud, Rotraut)",
+      "Thekla"
+    ],
+    "09-24": [
+      "Gerhard (Gellert)",
+      "Hermann",
+      "Mercedes",
+      "Rupert",
+      "Virgil"
+    ],
+    "09-25": [
+      "Firmin",
+      "Irmfried (Immo)",
+      "Klaus (Nikolaus)",
+      "Sergej (Sergius, Serge, Sergio)"
+    ],
+    "09-26": [
+      "Eugenie",
+      "Justine",
+      "Kaspar, Kasper",
+      "Kosmas und Damian",
+      "René (Renatus)"
+    ],
+    "09-27": [
+      "Dietrich (Dirk, Derk)",
+      "Eberhard",
+      "Gotthelf (Elzear)",
+      "Hiltrud (Heltraud)",
+      "Kjeld",
+      "Siegmund",
+      "Vinzenz (Vincent)"
+    ],
+    "09-28": [
+      "Adalrich (Adelrich, Alarich)",
+      "Bernhardin (Bernardino)",
+      "Giselher (Gislar) und Kuniald",
+      "Lioba (Liobgyth)",
+      "Lorenzo (Laurentius, Lorenz)",
+      "Lorenzo (Laurenz)",
+      "Thekla",
+      "Thiemo (Dietmar)",
+      "Wenzel (Wenzeslaus)"
+    ],
+    "09-29": [
+      "Gabriel (Gábor, Gavrilo, Gawril); Gabriela (Gabriele)",
+      "Michael (Mike, Miguel, Mischa, Mikael, Michail); Michaela (Michelle)",
+      "Raphael (Raphaela)"
+    ],
+    "09-30": [
+      "Alfred",
+      "Hieronymus (Jerôme, Geronimo)",
+      "Urs und Victor"
+    ],
+    "10-01": [
+      "Bavo (Allowin)",
+      "Emanuel (Manuel),",
+      "Francisco (Franz)",
+      "Remigius (Remi, Remo)",
+      "Theresia",
+      "Werner"
+    ],
+    "10-02": [
+      "Balthasar",
+      "Gideon (Gedeon)",
+      "Gottfried",
+      "Leodegar (Luitgar)"
+    ],
+    "10-03": [
+      "Adelgott (Adalgott)",
+      "Blanca (Bianca, Bianka, Blanka)",
+      "Ewald",
+      "Leodegar",
+      "Niketius",
+      "Udo (Utto)"
+    ],
+    "10-04": [
+      "Aurea (Aurora)",
+      "Edwin",
+      "Franz (Francesco, Frank, Franko, Francis, François, Ferenc, Ferry, František, Paco)"
+    ],
+    "10-05": [
+      "Anna",
+      "Attila",
+      "Flavia",
+      "Gallina (Galla)",
+      "Herwig (Gerwig)",
+      "Maria",
+      "Meinolf (Meinulf)",
+      "Placido (Placidus)"
+    ],
+    "10-06": [
+      "Adalbero",
+      "Bruno",
+      "Maria Nicola (Nicoletta)",
+      "Melanie",
+      "Renatus (Renato)"
+    ],
+    "10-07": [
+      "Georg (Jörg)",
+      "Justina (Giustina)",
+      "Rosa Maria (Rosemarie, Rosario, Rosaria, Romy)"
+    ],
+    "10-08": [
+      "(Demetrios, Dimitrij, Mitja)",
+      "Günther (Gunther, Gunnar)",
+      "José, (Josef)",
+      "Laura (Laurentia)",
+      "Simeon und Anna"
+    ],
+    "10-09": [
+      "Abraham und Sara",
+      "Dionys (Dionysius, Denis, Dennis)",
+      "Emanuela",
+      "Günther (Gunther, Gunnar)",
+      "Johannes",
+      "Sibylle"
+    ],
+    "10-10": [
+      "Cassius und Florentius",
+      "Daniel (Daniele, Daniela, Danielle, Dana, Danuta)",
+      "Gereon",
+      "Samuel",
+      "Viktor (Victor, Vico, Vittorio)"
+    ],
+    "10-11": [
+      "Alexander (Alessandro, Sandro, Sascha, Lex)",
+      "Bruno",
+      "Edelburga (Ethelburga, Edda, Ethel)",
+      "Jakob",
+      "Manuela Maria Soledat"
+    ],
+    "10-12": [
+      "Edwin",
+      "Herlinde",
+      "Horst (Horestes, Orestes)",
+      "Jakob",
+      "Maximilian (Max, Massimiliano)",
+      "Pilár",
+      "Serafin"
+    ],
+    "10-13": [
+      "Belisinda (Belinda)",
+      "Edward (Eduard)",
+      "Gerald (Gerold, Giraud, Géraud),",
+      "Koloman (Colman, Kálmán)",
+      "Lubentius",
+      "Reinwald (Reginbald)",
+      "Simbert (Sintpert)"
+    ],
+    "10-14": [
+      "Burkhard",
+      "Calixtus (Kallistus)",
+      "Fausto (Faustus)",
+      "Hildgund (Hildegund, Hildegunde)"
+    ],
+    "10-15": [
+      "Aurelia",
+      "Thekla",
+      "Theresia (Teresa)"
+    ],
+    "10-16": [
+      ": Margareta (Margaretha, Margarete, Marguerite, Margot)",
+      "Gallus",
+      "Gordon",
+      "Hedwig",
+      "Lullus"
+    ],
+    "10-17": [
+      "Astrud (Anstrud)",
+      "Contardo (Gunthard)",
+      "Ignatius",
+      "Name: Marie Louise (Marie-Luise) und Augusta (Auguste) und Gabriella (Gabrielle, Gabriele, Gabriela)",
+      "Rudolf (Rodolfo, Rolf, Raoul, Rolof)"
+    ],
+    "10-18": [
+      "Gwenn (Gwen, Gwenda, Gwendolyn, Gwennifer = Jennifer)",
+      "Joël",
+      "Justus",
+      "Lukas (Luca, Luc, Luke)",
+      "Petrus (Peter, Pedro, Perez)"
+    ],
+    "10-19": [
+      "Frieda (Frida, Frideswinda)",
+      "Isaak",
+      "Jean (Johannes)",
+      "Laura",
+      "Paul (Paulus, Paolo)"
+    ],
+    "10-20": [
+      "Anna (Annina, Nina)",
+      "Franz Alexander",
+      "Ira (Irina)",
+      "Vitalis (Vital)",
+      "Wendelin"
+    ],
+    "10-21": [
+      "Celina (Celine)",
+      "Irmtraud, Constanze, Clementine",
+      "Ursula (Ulla, Orsola, Orsina)"
+    ],
+    "10-22": [
+      "Blandina-Maria",
+      "Contardo (Gunthard)",
+      "Cordula (Cordelia, Cora, Corinna, Corazon)",
+      "Ingbert",
+      "Salome",
+      "Ulbert (Olbert, Ulfert)"
+    ],
+    "10-23": [
+      "Bertrand",
+      "Johannes (Johann, Hans, Hanno, Hannes, Jan, Jens, János, Ion, Jovan)",
+      "Severin (Sören)",
+      "Uta (Ute, Oda)"
+    ],
+    "10-24": [
+      "Alois (Aloisia)",
+      "Anton (Antonio)",
+      "Armella (Armilla)",
+      "Evergisel",
+      "Nathan"
+    ],
+    "10-25": [
+      "Arnold",
+      "Crispin, Crispinian",
+      "Darja (Daria) und Chrysanth (Chrysanthus)",
+      "Ludwig (Lutz)"
+    ],
+    "10-26": [
+      "Albin (Witta)",
+      "Amand (Amandus, Amanda, Amandina)",
+      "Josephine und Eloïse",
+      "Wigand (Wiland, Wigland)"
+    ],
+    "10-27": [
+      "Manfred (Manfried)",
+      "Sabina (Sabine, Sabrina) , Christa (Christeta) und Vincent (Vinzenz)",
+      "Wolfhard"
+    ],
+    "10-28": [
+      "Alfred",
+      "Georg",
+      "Simon; Simone (Simona, Simonetta) und Judas"
+    ],
+    "10-29": [
+      "Berengar (Bernger)",
+      "Ermelinda (Melinda, Irmlinde, Hermelindis, Linda)",
+      "Ferrutius",
+      "Ingold (Ingwald)",
+      "Narzissus"
+    ],
+    "10-30": [
+      "Alfons (Alfonso)",
+      "Angelo",
+      "Dieter (Dietger, Thöger, Dioter)",
+      "Rupert"
+    ],
+    "10-31": [
+      "Christoph",
+      "Notburga",
+      "Quentin (Quintinius)",
+      "Wolfgang"
+    ],
+    "11-01": [
+      "Allerheiligen",
+      "Arthur",
+      "Harald",
+      "Luitpold",
+      "Otmar",
+      "Rupert",
+      "Wolfhold"
+    ],
+    "11-02": [
+      "Allerseelen",
+      "Angela",
+      "Margarethe (Margot, Marguerite)",
+      "Tobias"
+    ],
+    "11-03": [
+      "Hubert (Hubertus)",
+      "Ida (Itta)",
+      "Martin",
+      "Pirmin",
+      "Viktorin",
+      "Winifred (Gwennifrew)"
+    ],
+    "11-04": [
+      "Eilbert",
+      "Karl (Carl, Kalle, Carlo, Carlos, Charles, Karel, Károly); Karoline (Karla, Karola)",
+      "Modesta",
+      "Reinhard (Reginhard)",
+      "Silvia"
+    ],
+    "11-05": [
+      "Bernhard (Bernd)",
+      "Berthilde (Bertilda, Bertilla)",
+      "Elisabeth und Zacharias",
+      "Emmerich (Imre)"
+    ],
+    "11-06": [
+      "Christine (Kirsten, Kerstin, Kirstin, Kristina)",
+      "Leonhard (Léonard, Lennart)",
+      "Modesta",
+      "Protasius",
+      "Sibylle"
+    ],
+    "11-07": [
+      "Carina (Cara)",
+      "Engelbert",
+      "Ernst",
+      "Florentius",
+      "Willibrord"
+    ],
+    "11-08": [
+      "Claudio (Claudius)",
+      "Gottfried (Geoffrey)",
+      "Johannes (Ian)",
+      "Maximiliane (Maximiliana)",
+      "Willehad"
+    ],
+    "11-09": [
+      "Aurel (Aurelius)",
+      "Herfried",
+      "Rainulf (Ragnulf)",
+      "Roland",
+      "Theodor"
+    ],
+    "11-10": [
+      "Andreas (Andrea)",
+      "Johannes (Jens)",
+      "Justus",
+      "Leo"
+    ],
+    "11-11": [
+      "Innocenta (Senta)",
+      "Martin",
+      "Mennas"
+    ],
+    "11-12": [
+      "Arsacius,",
+      "Christian (Christinus, Carsten, Karsten, Kirsten, Kristian)",
+      "Diégo",
+      "Emil (Milan, Emilio)",
+      "Josaphat",
+      "Kunibert",
+      "Lewin (Lebuin, Liebwin)",
+      "René"
+    ],
+    "11-13": [
+      "Carl",
+      "Eugen (Eugenius)",
+      "Gertrud",
+      "Herbert",
+      "Himerius (Immer, Imier)",
+      "Livia",
+      "Sieghard (Siard)",
+      "Stanislaus"
+    ],
+    "11-14": [
+      "Bernhard",
+      "Nikolaus (Nikolaj, (Klaus, Nico, Miklos)",
+      "Serapion",
+      "Sidonius",
+      "Wilfried"
+    ],
+    "11-15": [
+      "Albert",
+      "Arthur",
+      "Ilona (Helena)",
+      "Leopold (Leopoldine)",
+      "Marinus und Anianus"
+    ],
+    "11-16": [
+      "Edmund",
+      "Margarita (Margaret, Margit)",
+      "Othmar (Otmar)"
+    ],
+    "11-17": [
+      "Florin (Florinus)",
+      "Gertrud",
+      "Gregor von Tour",
+      "Hilda",
+      "Victoria"
+    ],
+    "11-18": [
+      "Alda",
+      "Karolina",
+      "Leonardo und Cosimo",
+      "Odo",
+      "Rochus (Roque, Rocco)",
+      "St. Peter und St. Paul"
+    ],
+    "11-19": [
+      "Elisabeth (Bettina, Tina, Lisa, Lisbeth, Else, Elisa, Ilse, Sissy, Isabel, Elsbeth, Betty)",
+      "Mechthild",
+      "Raphael Joseph"
+    ],
+    "11-20": [
+      "Bernward",
+      "Edmund",
+      "Felix",
+      "Korbinian (Corvin)"
+    ],
+    "11-21": [
+      "Amalia (Alma, Elma, Amélie, Amelia, Amelina, Melina, Amelita, Malika, Amy)",
+      "Gelasius",
+      "Maria Opferung",
+      "Rufus"
+    ],
+    "11-22": [
+      "Cäcilia (Cecilia, Silja, Celia, Sheila, Silka, Lia, Lilli, Cilla, Cécile)",
+      "Philemon",
+      "Salvator (Salvatore)"
+    ],
+    "11-23": [
+      "Clemens",
+      "Columban, Kolumban",
+      "Detlef (Detlev)",
+      "Felicitas (Felicia)",
+      "Trudo"
+    ],
+    "11-24": [
+      "Albert",
+      "Andreas",
+      "Chrysogon (Chrysogonus)",
+      "Flora",
+      "Herta (Erda)"
+    ],
+    "11-25": [
+      "Egbert",
+      "Elisabet von Reute (Elisabeth Achler)",
+      "Katharina (Kathrin, Katja, Käthe, Karin, Karen, Katinka, Kitty, Kaja)",
+      "Margaretha"
+    ],
+    "11-26": [
+      "Anna-Elisabeth",
+      "Delfina (Delphine )",
+      "Gebhard",
+      "Konrad (Kurt, Kunz, Curd, Curt, Connie, Kord, Corrado, Conrado)",
+      "Leonhard (Leonardo)",
+      "Niko (Nikon)"
+    ],
+    "11-27": [
+      "Albrecht (Adalbert)",
+      "Bilhild (Brunhild)",
+      "Modest (Modestus)",
+      "Uta (Oda, Ute)",
+      "Virgil"
+    ],
+    "11-28": [
+      "Berta (Bertha)",
+      "Jakob",
+      "Noa (Noe, Noah)",
+      "Stephan (Stefan)"
+    ],
+    "11-29": [
+      "Christine (Christina, Kerstin, Kirstin)",
+      "Friedrich (Frederik, Fred, Frido, Fredo, Fritz, Federico); Friederike (Frederica, Frieda, Rica)",
+      "Jutta",
+      "Saturnin (Sernin)"
+    ],
+    "11-30": [
+      "Andreas (Andrea)",
+      "Grisold (Griselda)",
+      "Volkert (Folkart) und Gerwald"
+    ],
+    "12-01": [
+      "Blanka (Blanche, Bianca, Bianka)",
+      "Charles (Karl, Charlotte)",
+      "Edmund (Edmond)",
+      "Eligius (Éloi)",
+      "Natalie (Natalia, Natascha)"
+    ],
+    "12-02": [
+      "Bibiana",
+      "Hertha (Hereswitha)",
+      "Jan (Johannes)",
+      "Lucius (Lutz)"
+    ],
+    "12-03": [
+      "Franz Xaver",
+      "Gerlinde",
+      "Jason",
+      "Johann",
+      "Sola"
+    ],
+    "12-04": [
+      "Adolf",
+      "Barbara",
+      "Christian",
+      "Johannes",
+      "Osmond"
+    ],
+    "12-05": [
+      "Anno",
+      "Gerald",
+      "Modestus",
+      "Niels",
+      "Reinhard (Reginhard)",
+      "Sola (Sualo)"
+    ],
+    "12-06": [
+      "Dionysia (Denise)",
+      "Henrike (Heike)",
+      "Majoricus",
+      "Nikolaus"
+    ],
+    "12-07": [
+      "Ambros (Ambrosius)",
+      "Benedikte (Benedetta)",
+      "Fara (Farah)",
+      "Gerald"
+    ],
+    "12-08": [
+      "Alfrida, Edith, und Sabine",
+      "Immaculata, Conchita, Concetta",
+      "Reinmar (Romaricus, Romarich)"
+    ],
+    "12-09": [
+      "Abel",
+      "Eucharius",
+      "Liborius",
+      "Pierre (Peter)",
+      "Reinmar (Romaricus, Romarich, Raimarius)",
+      "Valerie (Valeria, Valeska)"
+    ],
+    "12-10": [
+      "Angelina",
+      "Emma (Imma)",
+      "Eulalia",
+      "Johann Georg (Hansjörg, Hansjürgen)",
+      "Loretta",
+      "Miltiades (Melchiades)"
+    ],
+    "12-11": [
+      "Arthur",
+      "Damasus",
+      "Daniel",
+      "David",
+      "Joseph",
+      "Ruben",
+      "Tassilo"
+    ],
+    "12-12": [
+      "Dietrich (Dieter, Dirk)",
+      "Hartmann",
+      "Johanna (Hanna, Hannah, Jana, Janina, Janine, Joana, Joanna, Gianna, Jenny, Jovanka, Jeannette, Ivana)",
+      "Konrad (Corrado)",
+      "Vicelin (Witold, Wetzel)"
+    ],
+    "12-13": [
+      "Edburga (Edda)",
+      "Jodok (Jobst, Jost)",
+      "Lucia",
+      "Ottilia (Ottilie, Odilia, Odile)"
+    ],
+    "12-14": [
+      "Berthold",
+      "Franziska",
+      "Heron (Hero)",
+      "Johannes",
+      "Spiridion"
+    ],
+    "12-15": [
+      "Carlo",
+      "Christiane (Christiana, Nina, Christa)",
+      "Paola",
+      "Silva",
+      "Wunibald"
+    ],
+    "12-16": [
+      "Adelheid (Heidi, Elke, Heidrun, Heidelinde, Heidemarie, Adelaide, Alida, Etelka, Alice, Adele, Ada, Adeline, Alina)",
+      "Albine (Albina)",
+      "Dankrad (Tankred, Tanko)",
+      "Reinhold (Reinaud, Renauld, Rainald)",
+      "Sturmius"
+    ],
+    "12-17": [
+      "Johannes",
+      "Jolanda (Jolantha)",
+      "Olympia (Olympias)",
+      "Sturmius",
+      "Viviana (Vivina, Vivienne, Vivien)"
+    ],
+    "12-18": [
+      "Esperanza (Nadeschda, Nadja, Nadine) (Fest)",
+      "Gratian (Gatien)",
+      "Luise",
+      "Philipp",
+      "Samthanna (Samantha)",
+      "Wunibald"
+    ],
+    "12-19": [
+      "Benjamin",
+      "Edwina (Winnie)",
+      "Susanna",
+      "Urban"
+    ],
+    "12-20": [
+      "Eiko (Eike)",
+      "Eugen (Eugène, Eugenio, Evgenij, Jenö)",
+      "Hoger, Holger",
+      "Julius",
+      "Makarius und Eugenius"
+    ],
+    "12-21": [
+      "Dominik (Domenico)",
+      "Hagar",
+      "Ingmar (Ingemar, Ingo, Ingomar, Hingmar, Hinkmar)",
+      "Peter (Peer)"
+    ],
+    "12-22": [
+      "Cäcilie",
+      "Francesca-Saveria (Franziska Xaveria)",
+      "Jutta (Jütte)",
+      "Marian"
+    ],
+    "12-23": [
+      "Dagobert",
+      "Hartmann",
+      "Ivo (Yves)",
+      "Johannes",
+      "Margot (Marguerite, Margarete)",
+      "Servulus",
+      "Thorlak (Thorwald, Thorsten)",
+      "Victoria"
+    ],
+    "12-24": [
+      "Adam und Eva",
+      "Constanza (Constanze, Constantia)",
+      "Hanno"
+    ],
+    "12-25": [
+      "Anastasia",
+      "Eugenia",
+      "Josefina",
+      "Natalis, Noël Noëlle (Fest)",
+      "Therese"
+    ],
+    "12-26": [
+      "Richlinde",
+      "Stephanus (Stephan, Stefan, Steffen, Steven, Stepan, Stefano, Etienne, Estebán, Dušan) Stephanie (Stefanie, Fanny)",
+      "Vincenta (Senta)"
+    ],
+    "12-27": [
+      "Balto (Baldo, Walto)",
+      "Fabiola",
+      "Johannes (Johann; Jan, Jon, Ian, Hannes, Hans, Hanno, Johnny, Giovanni, Nino, Gino , Ioannis, Iwan, Jens, João, János, Jovan, Jannick)",
+      "Rutger (Rüdiger)"
+    ],
+    "12-28": [
+      "Donna (Domna)",
+      "Mattéa (Matthäa)",
+      "Thaddäus",
+      "Unschuldige Kinder"
+    ],
+    "12-29": [
+      "David",
+      "Jesse (Isai)",
+      "Jesse (Jessika, Jessica, Isai)",
+      "Jonathan",
+      "Tamara",
+      "Thomas"
+    ],
+    "12-30": [
+      "Elfrieda (Alfreda),",
+      "Germar",
+      "Hermine (Irmina, Ermina, Hirmina, Herma, Mina, Minna, Minka, Erminia).",
+      "Lothar"
+    ],
+    "12-31": [
+      "Apollonia (Lona, Loana, Lonny, Polly)",
+      "Cathérine (Katharina)",
+      "Maro",
+      "Melanie (Melania)",
+      "Odilo",
+      "Silvester"
+    ]
+  },
+  "en": {
+    "01-01": [
+      "The Naming and Circumcision of Jesus"
+    ],
+    "01-02": [
+      "Basil the Great and Gregory of Nazianzus, Bishops, Teachers of the Faith, 379 and 389",
+      "Seraphim, Monk of Sarov, Spiritual Guide, 1833",
+      "Vedanayagam Samuel Azariah, Bishop in South India, Evangelist, 1945"
+    ],
+    "01-06": [
+      "The Epiphany"
+    ],
+    "01-10": [
+      "William Laud, Archbishop of Canterbury, 1645"
+    ],
+    "01-11": [
+      "Mary Slessor, Missionary in West Africa, 1915"
+    ],
+    "01-12": [
+      "Aelred of Hexham, Abbot of Rievaulx, 1167",
+      "Benedict Biscop, Abbot of Wearmouth, Scholar, 689"
+    ],
+    "01-13": [
+      "Hilary, Bishop of Poitiers, Teacher of the Faith, 367",
+      "Kentigern (Mungo), Missionary Bishop in Strathclyde and Cumbria, 603",
+      "George Fox, Founder of the Society of Friends (the Quakers), 1691"
+    ],
+    "01-17": [
+      "Antony of Egypt, Hermit, Abbot, 356",
+      "Charles Gore, Bishop, Founder of the Community of the Resurrection, 1932"
+    ],
+    "01-18": [
+      "Amy Carmichael, Founder of the Dohnavur Fellowship, spiritual writer, 1951"
+    ],
+    "01-19": [
+      "Wulfstan, Bishop of Worcester, 1095"
+    ],
+    "01-20": [
+      "Richard Rolle of Hampole, Spiritual Writer, 1349"
+    ],
+    "01-21": [
+      "Agnes, Child Martyr at Rome, 304"
+    ],
+    "01-22": [
+      "Vincent of Saragossa, Deacon, first Martyr of Spain, 304"
+    ],
+    "01-24": [
+      "Francis de Sales, Bishop of Geneva, Teacher of the Faith, 1622"
+    ],
+    "01-25": [
+      "The Conversion of Paul"
+    ],
+    "01-26": [
+      "Timothy and Titus, Companions of Paul"
+    ],
+    "01-28": [
+      "Thomas Aquinas, Priest, Philosopher, Teacher of the Faith, 1274"
+    ],
+    "01-30": [
+      "Charles, King and Martyr, 1649"
+    ],
+    "01-31": [
+      "John Bosco, Priest, Founder of the Salesian Teaching Order, 1888"
+    ],
+    "02-01": [
+      "Brigid, Abbess of Kildare, c.525"
+    ],
+    "02-02": [
+      "The Presentation of Christ in the Temple (Candlemas)"
+    ],
+    "02-03": [
+      "Anskar, Archbishop of Hamburg, Missionary in Denmark and Sweden, 865"
+    ],
+    "02-04": [
+      "Gilbert of Sempringham, Founder of the Gilbertine Order, 1189"
+    ],
+    "02-06": [
+      "The Martyrs of Japan, 1597"
+    ],
+    "02-10": [
+      "Scholastica, sister of Benedict, Abbess of Plombariola, c.543"
+    ],
+    "02-14": [
+      "Cyril and Methodius, Missionaries to the Slavs, 869 and 885",
+      "Valentine, Martyr at Rome, c.269"
+    ],
+    "02-15": [
+      "Sigfrid, Bishop, Apostle of Sweden, 1045",
+      "Thomas Bray, Priest, Founder of the SPCK and the SPG, 1730"
+    ],
+    "02-17": [
+      "Janani Luwum, Archbishop of Uganda, Martyr, 1977"
+    ],
+    "02-23": [
+      "Polycarp, Bishop of Smyrna, Martyr, c.155"
+    ],
+    "02-27": [
+      "George Herbert, Priest, Poet, 1633"
+    ],
+    "03-01": [
+      "David, Bishop of Menevia, Patron of Wales, c.601"
+    ],
+    "03-02": [
+      "Chad, Bishop of Lichfield, Missionary, 672"
+    ],
+    "03-07": [
+      "Perpetua, Felicity and their Companions, Martyrs at Carthage, 203"
+    ],
+    "03-08": [
+      "Edward King, Bishop of Lincoln, 1910",
+      "Felix, Bishop, Apostle to the East Angles, 647",
+      "Geoffrey Studdert Kennedy, Priest, Poet, 1929"
+    ],
+    "03-17": [
+      "Patrick, Bishop, Missionary, Patron of Ireland, c.460"
+    ],
+    "03-18": [
+      "Cyril, Bishop of Jerusalem, Teacher of the Faith, 386"
+    ],
+    "03-19": [
+      "Joseph of Nazareth"
+    ],
+    "03-20": [
+      "Cuthbert, Bishop of Lindisfarne, Missionary, 687"
+    ],
+    "03-21": [
+      "Thomas Cranmer, Archbishop of Canterbury, Reformation Martyr, 1556"
+    ],
+    "03-24": [
+      "Walter Hilton of Thurgarton, Augustinian Canon, Mystic, 1396",
+      "Paul Couturier, Priest, Ecumenist, 1953",
+      "Oscar Romero, Archbishop of San Salvador, Martyr, 1980"
+    ],
+    "03-25": [
+      "The Annunciation of Our Lord to the Blessed Virgin Mary"
+    ],
+    "03-26": [
+      "Harriet Monsell, Founder of the Community of St John the Baptist, 1883"
+    ],
+    "03-31": [
+      "John Donne, Priest, Poet, 1631"
+    ],
+    "04-01": [
+      "Frederick Denison Maurice, Priest, Teacher of the Faith, 1872"
+    ],
+    "04-09": [
+      "Dietrich Bonhoeffer, Lutheran Pastor, Martyr, 1945"
+    ],
+    "04-10": [
+      "William Law, Priest, Spiritual Writer, 1761",
+      "William of Ockham, Friar, Philosopher, Teacher of the Faith, 1347"
+    ],
+    "04-11": [
+      "George Augustus Selwyn, first Bishop of New Zealand, 1878"
+    ],
+    "04-16": [
+      "Isabella Gilmore, Deaconess, 1923"
+    ],
+    "04-19": [
+      "Alphege, Archbishop of Canterbury, Martyr, 1012"
+    ],
+    "04-21": [
+      "Anselm, Abbot of Le Bec, Archbishop of Canterbury, Teacher of the Faith, 1109"
+    ],
+    "04-23": [
+      "George, Martyr, Patron of England, c.304"
+    ],
+    "04-24": [
+      "Mellitus, Bishop of London, first Bishop at St Paul’s, 624",
+      "The Seven Martyrs of the Melanesian Brotherhood, Solomon Islands, 2003"
+    ],
+    "04-25": [
+      "Mark the Evangelist"
+    ],
+    "04-27": [
+      "Christina Rossetti, Poet, 1894"
+    ],
+    "04-28": [
+      "Peter Chanel, Missionary in the South Pacific, Martyr, 1841"
+    ],
+    "04-29": [
+      "Catherine of Siena, Teacher of the Faith, 1380"
+    ],
+    "04-30": [
+      "Pandita Mary Ramabai, Translator of the Scriptures, 1922"
+    ],
+    "05-01": [
+      "Philip and James, Apostles"
+    ],
+    "05-02": [
+      "Athanasius, Bishop of Alexandria, Teacher of the Faith, 373"
+    ],
+    "05-04": [
+      "English Saints and Martyrs of the Reformation Era"
+    ],
+    "05-08": [
+      "Julian of Norwich, Spiritual Writer, c.1417"
+    ],
+    "05-12": [
+      "Gregory Dix, Priest, Monk, Scholar, 1952"
+    ],
+    "05-14": [
+      "Matthias the Apostle"
+    ],
+    "05-16": [
+      "Caroline Chisholm, Social Reformer, 1877"
+    ],
+    "05-19": [
+      "Dunstan, Archbishop of Canterbury, Restorer of Monastic Life, 988"
+    ],
+    "05-20": [
+      "Alcuin of York, Deacon, Abbot of Tours, 804"
+    ],
+    "05-21": [
+      "Helena, Protector of the Holy Places, 330"
+    ],
+    "05-24": [
+      "John and Charles Wesley, Evangelists, Hymn Writers, 1791 and 1788"
+    ],
+    "05-25": [
+      "The Venerable Bede, Monk at Jarrow, Scholar, Historian, 735",
+      "Aldhelm, Bishop of Sherborne, 709"
+    ],
+    "05-26": [
+      "Augustine, first Archbishop of Canterbury, 605",
+      "John Calvin, Reformer, 1564",
+      "Philip Neri, Founder of the Oratorians, Spiritual Guide, 1595"
+    ],
+    "05-28": [
+      "Lanfranc, Prior of Le Bec, Archbishop of Canterbury, Scholar, 1089"
+    ],
+    "05-30": [
+      "Josephine Butler, Social Reformer, 1906",
+      "Joan of Arc, Visionary, 1431",
+      "Apolo Kivebulaya, Priest, Evangelist in Central Africa, 1933"
+    ],
+    "05-31": [
+      "The Visit of the Blessed Virgin Mary to Elizabeth"
+    ],
+    "06-01": [
+      "Justin, Martyr at Rome, c.165"
+    ],
+    "06-03": [
+      "The Martyrs of Uganda, 1885-7 and 1977"
+    ],
+    "06-04": [
+      "Petroc, Abbot of Padstow, 6th century"
+    ],
+    "06-05": [
+      "Boniface (Wynfrith) of Crediton, Bishop, Apostle of Germany, Martyr, 754"
+    ],
+    "06-06": [
+      "Ini Kopuria, Founder of the Melanesian Brotherhood, 1945"
+    ],
+    "06-08": [
+      "Thomas Ken, Bishop of Bath and Wells, Nonjuror, Hymn Writer, 1711"
+    ],
+    "06-09": [
+      "Columba, Abbot of Iona, Missionary, 597",
+      "Ephrem of Syria, Deacon, Hymn Writer, Teacher of the Faith, 373"
+    ],
+    "06-11": [
+      "Barnabas the Apostle"
+    ],
+    "06-14": [
+      "Richard Baxter, Puritan Divine, 1691"
+    ],
+    "06-15": [
+      "Evelyn Underhill, Spiritual Writer, 1941"
+    ],
+    "06-16": [
+      "Richard, Bishop of Chichester, 1253",
+      "Joseph Butler, Bishop of Durham, Philosopher, 1752"
+    ],
+    "06-17": [
+      "Samuel and Henrietta Barnett, Social Reformers, 1913 and 1936"
+    ],
+    "06-18": [
+      "Bernard Mizeki, Apostle of the MaShona, Martyr, 1896"
+    ],
+    "06-19": [
+      "Sundar Singh of India, Sadhu (holy man), Evangelist, Teacher of the Faith, 1929"
+    ],
+    "06-22": [
+      "Alban, first Martyr of Britain, c.250"
+    ],
+    "06-23": [
+      "Etheldreda, Abbess of Ely, c.678"
+    ],
+    "06-24": [
+      "The Birth of John the Baptist"
+    ],
+    "06-27": [
+      "Cyril, Bishop of Alexandria, Teacher of the Faith, 444"
+    ],
+    "06-28": [
+      "Irenæus, Bishop of Lyons, Teacher of the Faith, c.200"
+    ],
+    "06-29": [
+      "Peter and Paul, Apostles"
+    ],
+    "07-01": [
+      "Henry, John, and Henry Venn the younger, Priests, Evangelical Divines, 1797, 1813 and 1873"
+    ],
+    "07-03": [
+      "Thomas the Apostle"
+    ],
+    "07-06": [
+      "Thomas More, Scholar, and John Fisher, Bishop of Rochester, Reformation Martyrs, 1535"
+    ],
+    "07-11": [
+      "Benedict of Nursia, Abbot of Monte Cassino, Father of Western Monasticism, c.550"
+    ],
+    "07-14": [
+      "John Keble, Priest, Tractarian, Poet, 1866"
+    ],
+    "07-15": [
+      "Swithun, Bishop of Winchester, c.862",
+      "Bonaventure, Friar, Bishop, Teacher of the Faith, 1274"
+    ],
+    "07-16": [
+      "Osmund, Bishop of Salisbury, 1099"
+    ],
+    "07-18": [
+      "Elizabeth Ferard, first Deaconess of the Church of England, Founder of the Community of St Andrew, 1883"
+    ],
+    "07-19": [
+      "Gregory, Bishop of Nyssa, and his sister Macrina, Deaconess, Teachers of the Faith, c.394 and c.379"
+    ],
+    "07-20": [
+      "Margaret of Antioch, Martyr, 4th century",
+      "Bartolomé de las Casas, Apostle to the Indies, 1566"
+    ],
+    "07-22": [
+      "Mary Magdalene"
+    ],
+    "07-23": [
+      "Bridget of Sweden, Abbess of Vadstena, 1373"
+    ],
+    "07-25": [
+      "James the Apostle"
+    ],
+    "07-26": [
+      "Anne and Joachim, Parents of the Blessed Virgin Mary"
+    ],
+    "07-27": [
+      "Brooke Foss Westcott, Bishop of Durham, Teacher of the Faith, 1901"
+    ],
+    "07-29": [
+      "Mary, Martha and Lazarus, Companions of Our Lord"
+    ],
+    "07-30": [
+      "William Wilberforce, Social Reformer"
+    ],
+    "07-31": [
+      "Ignatius of Loyola, Founder of the Society of Jesus, 1556"
+    ],
+    "08-04": [
+      "Jean-Baptiste Vianney, Curé d’Ars, Spiritual Guide, 1859"
+    ],
+    "08-05": [
+      "Oswald, King of Northumbria, Martyr, 642"
+    ],
+    "08-06": [
+      "The Transfiguration of Our Lord"
+    ],
+    "08-07": [
+      "John Mason Neale, Priest, Hymn Writer, 1866"
+    ],
+    "08-08": [
+      "Dominic, Priest, Founder of the Order of Preachers, 1221"
+    ],
+    "08-09": [
+      "Mary Sumner, Founder of the Mothers’ Union, 1921"
+    ],
+    "08-10": [
+      "Laurence, Deacon at Rome, Martyr, 258"
+    ],
+    "08-11": [
+      "Clare of Assisi, Founder of the Minoresses (Poor Clares), 1253",
+      "John Henry Newman, Priest, Tractarian, 1890"
+    ],
+    "08-13": [
+      "Jeremy Taylor, Bishop of Down and Connor, Teacher of the Faith, 1667",
+      "Florence Nightingale, Nurse, Social Reformer, 1910",
+      "Octavia Hill, Social Reformer, 1912"
+    ],
+    "08-14": [
+      "Maximilian Kolbe, Friar, Martyr, 1941"
+    ],
+    "08-15": [
+      "The Blessed Virgin Mary"
+    ],
+    "08-20": [
+      "Bernard, Abbot of Clairvaux, Teacher of the Faith, 1153",
+      "William and Catherine Booth, Founders of the Salvation Army, 1912 and 1890"
+    ],
+    "08-24": [
+      "Bartholomew the Apostle"
+    ],
+    "08-27": [
+      "Monica, mother of Augustine of Hippo, 387"
+    ],
+    "08-28": [
+      "Augustine, Bishop of Hippo, Teacher of the Faith, 430"
+    ],
+    "08-29": [
+      "The Beheading of John the Baptist"
+    ],
+    "08-30": [
+      "John Bunyan, Spiritual Writer, 1688"
+    ],
+    "08-31": [
+      "Aidan, Bishop of Lindisfarne, Missionary, 651"
+    ],
+    "09-01": [
+      "Giles of Provence, Hermit, c.710"
+    ],
+    "09-02": [
+      "The Martyrs of Papua New Guinea, 1901 and 1942"
+    ],
+    "09-03": [
+      "Gregory the Great, Bishop of Rome, Teacher of the Faith, 604"
+    ],
+    "09-04": [
+      "Birinus, Bishop of Dorchester (Oxon), Apostle of Wessex, 650"
+    ],
+    "09-06": [
+      "Allen Gardiner, Missionary, Founder of the South American Mission Society, 1851"
+    ],
+    "09-08": [
+      "The Birth of the Blessed Virgin Mary",
+      "Accession of King Charles III"
+    ],
+    "09-09": [
+      "Charles Fuge Lowder, Priest, 1880"
+    ],
+    "09-13": [
+      "John Chrysostom, Bishop of Constantinople, Teacher of the Faith, 407"
+    ],
+    "09-14": [
+      "Holy Cross Day"
+    ],
+    "09-15": [
+      "Cyprian, Bishop of Carthage, Martyr, 258"
+    ],
+    "09-16": [
+      "Ninian, Bishop of Galloway, Apostle of the Picts, c.432",
+      "Edward Bouverie Pusey, Priest, Tractarian, 1882"
+    ],
+    "09-17": [
+      "Hildegard, Abbess of Bingen, Visionary, 1179"
+    ],
+    "09-19": [
+      "Theodore of Tarsus, Archbishop of Canterbury, 690"
+    ],
+    "09-20": [
+      "John Coleridge Patteson, First Bishop of Melanesia, and his Companions, Martyrs, 1871"
+    ],
+    "09-21": [
+      "Matthew, Apostle and Evangelist"
+    ],
+    "09-25": [
+      "Lancelot Andrewes, Bishop of Winchester, Spiritual Writer, 1626",
+      "Sergei of Radonezh, Russian Monastic Reformer, Teacher of the Faith, 1392"
+    ],
+    "09-26": [
+      "Wilson Carlile, Founder of the Church Army, 1942"
+    ],
+    "09-27": [
+      "Vincent de Paul, Founder of the Congregation of the Mission (Lazarists), 1660"
+    ],
+    "09-29": [
+      "Michael and All Angels"
+    ],
+    "09-30": [
+      "Jerome, Translator of the Scriptures, Teacher of the Faith, 420"
+    ],
+    "10-01": [
+      "Remigius, Bishop of Rheims, Apostle of the Franks, 533",
+      "Anthony Ashley Cooper, Earl of Shaftesbury, Social Reformer, 1885"
+    ],
+    "10-03": [
+      "George Bell, Bishop of Chichester, Ecumenist, Peacemaker, 1958"
+    ],
+    "10-04": [
+      "Francis of Assisi, Friar, Deacon, Founder of the Friars Minor, 1226"
+    ],
+    "10-06": [
+      "William Tyndale, Translator of the Scriptures, Reformation Martyr, 1536"
+    ],
+    "10-09": [
+      "Denys, Bishop of Paris, and his Companions, Martyrs, c.250",
+      "Robert Grosseteste, Bishop of Lincoln, Philosopher, Scientist, 1253"
+    ],
+    "10-10": [
+      "Paulinus, Bishop of York, Missionary, 644",
+      "Thomas Traherne, Poet, Spiritual Writer, 1674"
+    ],
+    "10-11": [
+      "Ethelburga, Abbess of Barking, 675",
+      "James the Deacon, companion of Paulinus, 7th century"
+    ],
+    "10-12": [
+      "Wilfrid of Ripon, Bishop, Missionary, 709",
+      "Elizabeth Fry, Prison Reformer, 1845",
+      "Edith Cavell, Nurse, 1915"
+    ],
+    "10-13": [
+      "Edward the Confessor, King of England, 1066"
+    ],
+    "10-15": [
+      "Teresa of Avila, Teacher of the Faith, 1582"
+    ],
+    "10-16": [
+      "Nicholas Ridley, Bishop of London, and Hugh Latimer, Bishop of Worcester, Reformation Martyrs, 1555"
+    ],
+    "10-17": [
+      "Ignatius, Bishop of Antioch, Martyr, c.107"
+    ],
+    "10-18": [
+      "Luke the Evangelist"
+    ],
+    "10-19": [
+      "Henry Martyn, Translator of the Scriptures, Missionary in India and Persia, 1812"
+    ],
+    "10-25": [
+      "Crispin and Crispinian, Martyrs at Rome, c.287"
+    ],
+    "10-26": [
+      "Alfred the Great, King of the West Saxons, Scholar, 899",
+      "Cedd, Abbot of Lastingham, Bishop of the East Saxons, 664"
+    ],
+    "10-28": [
+      "Simon and Jude, Apostles"
+    ],
+    "10-29": [
+      "James Hannington, Bishop of Eastern Equatorial Africa, Martyr in Uganda, 1885"
+    ],
+    "10-31": [
+      "Martin Luther, Reformer, 1546"
+    ],
+    "11-01": [
+      "All Saints’ Day"
+    ],
+    "11-02": [
+      "Commemoration of the Faithful Departed (All Souls’ Day)"
+    ],
+    "11-03": [
+      "Richard Hooker, Priest, Anglican Apologist, Teacher of the Faith, 1600",
+      "Martin of Porres, Friar, 1639"
+    ],
+    "11-06": [
+      "Leonard, Hermit, 6th century",
+      "William Temple, Archbishop of Canterbury, Teacher of the Faith, 1944"
+    ],
+    "11-07": [
+      "Willibrord of York, Bishop, Apostle of Frisia, 739"
+    ],
+    "11-08": [
+      "The Saints and Martyrs of England"
+    ],
+    "11-09": [
+      "Margery Kempe, Mystic, c.1440"
+    ],
+    "11-10": [
+      "Leo the Great, Bishop of Rome, Teacher of the Faith, 461"
+    ],
+    "11-11": [
+      "Martin, Bishop of Tours, c.397"
+    ],
+    "11-13": [
+      "Charles Simeon, Priest, Evangelical Divine, 1836"
+    ],
+    "11-14": [
+      "Samuel Seabury, first Anglican Bishop in North America, 1796"
+    ],
+    "11-16": [
+      "Margaret, Queen of Scotland, Philanthropist, Reformer of the Church, 1093",
+      "Edmund Rich of Abingdon, Archbishop of Canterbury, 1240"
+    ],
+    "11-17": [
+      "Hugh, Bishop of Lincoln, 1200"
+    ],
+    "11-18": [
+      "Elizabeth of Hungary, Princess of Thuringia, Philanthropist, 1231"
+    ],
+    "11-19": [
+      "Hilda, Abbess of Whitby, 680",
+      "Mechtild, Béguine of Magdeburg, Mystic, 1280"
+    ],
+    "11-20": [
+      "Edmund, King of the East Angles, Martyr, 870",
+      "Priscilla Lydia Sellon, a Restorer of the Religious Life in the Church of England, 1876"
+    ],
+    "11-22": [
+      "Cecilia, Martyr at Rome, c.230"
+    ],
+    "11-23": [
+      "Clement, Bishop of Rome, Martyr, c.100"
+    ],
+    "11-25": [
+      "Catherine of Alexandria, Martyr, 4th century",
+      "Isaac Watts, Hymn Writer, 1748"
+    ],
+    "11-29": [
+      "Day of Intercession and Thanksgiving for the Missionary Work of the Church"
+    ],
+    "11-30": [
+      "Andrew the Apostle"
+    ],
+    "12-01": [
+      "Charles de Foucauld, Hermit in the Sahara, 1916"
+    ],
+    "12-03": [
+      "Francis Xavier, Missionary, Apostle of the Indies, 1552"
+    ],
+    "12-04": [
+      "John of Damascus, Monk, Teacher of the Faith, c.749",
+      "Nicholas Ferrar, Deacon, Founder of the Little Gidding Community, 1637"
+    ],
+    "12-06": [
+      "Nicholas, Bishop of Myra, c.326"
+    ],
+    "12-07": [
+      "Ambrose, Bishop of Milan, Teacher of the Faith, 397"
+    ],
+    "12-08": [
+      "The Conception of the Blessed Virgin Mary"
+    ],
+    "12-13": [
+      "Lucy, Martyr at Syracuse, 304",
+      "Samuel Johnson, Moralist, 1784"
+    ],
+    "12-14": [
+      "John of the Cross, Poet, Teacher of the Faith, 1591"
+    ],
+    "12-17": [
+      "O Sapientia",
+      "Eglantyne Jebb, Social Reformer, Founder of ‘Save The Children’, 1928"
+    ],
+    "12-24": [
+      "Christmas Eve"
+    ],
+    "12-25": [
+      "Christmas Day"
+    ],
+    "12-26": [
+      "Stephen, Deacon, First Martyr"
+    ],
+    "12-27": [
+      "John, Apostle and Evangelist"
+    ],
+    "12-28": [
+      "The Holy Innocents"
+    ],
+    "12-29": [
+      "Thomas Becket, Archbishop of Canterbury, Martyr, 1170"
+    ],
+    "12-31": [
+      "John Wyclif, Reformer, 1384"
+    ]
+  },
+  "meta": {
+    "cs": "namedays-cs 1.2.1 (MIT), pinned npm snapshot",
+    "de": "katholisch.de Heiligen- und Namenstagskalender, selected Catholic variant",
+    "en": "Church of England, Common Worship Calendar, observances (not a statutory UK nameday calendar)",
+    "retrieved": "2026-07-18",
+    "sk": "Ministry of Culture of the Slovak Republic, Official calendar 2025",
+    "version": "2026-07-18"
+  },
+  "sk": {
+    "01-02": [
+      "Alexandra",
+      "Sandra",
+      "Karina"
+    ],
+    "01-03": [
+      "Daniela"
+    ],
+    "01-04": [
+      "Drahoslav"
+    ],
+    "01-05": [
+      "Andrea",
+      "Artur"
+    ],
+    "01-06": [
+      "Antónia"
+    ],
+    "01-07": [
+      "Bohuslava",
+      "Atila"
+    ],
+    "01-08": [
+      "Severín"
+    ],
+    "01-09": [
+      "Alexej",
+      "Alex",
+      "Alexia"
+    ],
+    "01-10": [
+      "Daša"
+    ],
+    "01-11": [
+      "Malvína"
+    ],
+    "01-12": [
+      "Ernest",
+      "Ernestína"
+    ],
+    "01-13": [
+      "Rastislav"
+    ],
+    "01-14": [
+      "Radovan",
+      "Radovana"
+    ],
+    "01-15": [
+      "Dobroslav",
+      "Dobroslava"
+    ],
+    "01-16": [
+      "Kristína"
+    ],
+    "01-17": [
+      "Nataša"
+    ],
+    "01-18": [
+      "Bohdana"
+    ],
+    "01-19": [
+      "Mário",
+      "Sára",
+      "Zara"
+    ],
+    "01-20": [
+      "Dalibor",
+      "Sebastián",
+      "Fabián"
+    ],
+    "01-21": [
+      "Vincent"
+    ],
+    "01-22": [
+      "Zora",
+      "Zoran",
+      "Auróra"
+    ],
+    "01-23": [
+      "Miloš"
+    ],
+    "01-24": [
+      "Timotej",
+      "Timon",
+      "Tímea"
+    ],
+    "01-25": [
+      "Gejza"
+    ],
+    "01-26": [
+      "Tamara"
+    ],
+    "01-27": [
+      "Bohuš"
+    ],
+    "01-28": [
+      "Alfonz"
+    ],
+    "01-29": [
+      "Gašpar"
+    ],
+    "01-30": [
+      "Ema"
+    ],
+    "01-31": [
+      "Emil"
+    ],
+    "02-01": [
+      "Tatiana",
+      "Táňa"
+    ],
+    "02-02": [
+      "Erich",
+      "Erik",
+      "Erika"
+    ],
+    "02-03": [
+      "Blažej"
+    ],
+    "02-04": [
+      "Veronika"
+    ],
+    "02-05": [
+      "Agáta"
+    ],
+    "02-06": [
+      "Dorota"
+    ],
+    "02-07": [
+      "Vanda"
+    ],
+    "02-08": [
+      "Zoja"
+    ],
+    "02-09": [
+      "Zdeno",
+      "Zdenko",
+      "Ronald"
+    ],
+    "02-10": [
+      "Gabriela"
+    ],
+    "02-11": [
+      "Dezider"
+    ],
+    "02-12": [
+      "Perla"
+    ],
+    "02-13": [
+      "Arpád"
+    ],
+    "02-14": [
+      "Valentín"
+    ],
+    "02-15": [
+      "Pravoslav"
+    ],
+    "02-16": [
+      "Ida",
+      "Liana"
+    ],
+    "02-17": [
+      "Miloslava"
+    ],
+    "02-18": [
+      "Jaromír",
+      "Jaromíra"
+    ],
+    "02-19": [
+      "Vlasta"
+    ],
+    "02-20": [
+      "Lívia",
+      "Aladár"
+    ],
+    "02-21": [
+      "Eleonóra"
+    ],
+    "02-22": [
+      "Etela"
+    ],
+    "02-23": [
+      "Roman",
+      "Romana"
+    ],
+    "02-24": [
+      "Matej",
+      "Matiáš",
+      "Matias"
+    ],
+    "02-25": [
+      "Frederik",
+      "Frederika"
+    ],
+    "02-26": [
+      "Viktor"
+    ],
+    "02-27": [
+      "Alexander"
+    ],
+    "02-28": [
+      "Zlatica"
+    ],
+    "02-29": [
+      "Radomír"
+    ],
+    "03-01": [
+      "Albín"
+    ],
+    "03-02": [
+      "Anežka"
+    ],
+    "03-03": [
+      "Bohumil",
+      "Bohumila"
+    ],
+    "03-04": [
+      "Kazimír"
+    ],
+    "03-05": [
+      "Fridrich"
+    ],
+    "03-06": [
+      "Radoslav",
+      "Radoslava"
+    ],
+    "03-07": [
+      "Tomáš"
+    ],
+    "03-08": [
+      "Alan",
+      "Alana"
+    ],
+    "03-09": [
+      "Františka"
+    ],
+    "03-10": [
+      "Branislav",
+      "Bronislav",
+      "Bruno"
+    ],
+    "03-11": [
+      "Angela",
+      "Angelika"
+    ],
+    "03-12": [
+      "Gregor"
+    ],
+    "03-13": [
+      "Vlastimil",
+      "Letícia"
+    ],
+    "03-14": [
+      "Matilda"
+    ],
+    "03-15": [
+      "Svetlana"
+    ],
+    "03-16": [
+      "Boleslav"
+    ],
+    "03-17": [
+      "Ľubica"
+    ],
+    "03-18": [
+      "Eduard"
+    ],
+    "03-19": [
+      "Jozef"
+    ],
+    "03-20": [
+      "Víťazoslav"
+    ],
+    "03-21": [
+      "Blahoslav"
+    ],
+    "03-22": [
+      "Beňadik",
+      "Benedikt"
+    ],
+    "03-23": [
+      "Adrián"
+    ],
+    "03-24": [
+      "Gabriel"
+    ],
+    "03-25": [
+      "Marián"
+    ],
+    "03-26": [
+      "Emanuel"
+    ],
+    "03-27": [
+      "Alena"
+    ],
+    "03-28": [
+      "Soňa"
+    ],
+    "03-29": [
+      "Miroslav"
+    ],
+    "03-30": [
+      "Vieroslava"
+    ],
+    "03-31": [
+      "Benjamín"
+    ],
+    "04-01": [
+      "Hugo"
+    ],
+    "04-02": [
+      "Zita"
+    ],
+    "04-03": [
+      "Richard"
+    ],
+    "04-04": [
+      "Izidor"
+    ],
+    "04-05": [
+      "Miroslava"
+    ],
+    "04-06": [
+      "Irena"
+    ],
+    "04-07": [
+      "Zoltán"
+    ],
+    "04-08": [
+      "Albert"
+    ],
+    "04-09": [
+      "Milena"
+    ],
+    "04-10": [
+      "Igor"
+    ],
+    "04-11": [
+      "Július"
+    ],
+    "04-12": [
+      "Estera"
+    ],
+    "04-13": [
+      "Aleš"
+    ],
+    "04-14": [
+      "Justín",
+      "Justína"
+    ],
+    "04-15": [
+      "Fedor"
+    ],
+    "04-16": [
+      "Dana",
+      "Danica"
+    ],
+    "04-17": [
+      "Rudolf"
+    ],
+    "04-18": [
+      "Valér"
+    ],
+    "04-19": [
+      "Jela"
+    ],
+    "04-20": [
+      "Marcel"
+    ],
+    "04-21": [
+      "Ervín"
+    ],
+    "04-22": [
+      "Slavomír"
+    ],
+    "04-23": [
+      "Vojtech"
+    ],
+    "04-24": [
+      "Juraj"
+    ],
+    "04-25": [
+      "Marek",
+      "Marko",
+      "Markus"
+    ],
+    "04-26": [
+      "Jaroslava"
+    ],
+    "04-27": [
+      "Jaroslav"
+    ],
+    "04-28": [
+      "Jarmila"
+    ],
+    "04-29": [
+      "Leo",
+      "Lea"
+    ],
+    "04-30": [
+      "Anastázia"
+    ],
+    "05-02": [
+      "Žigmund"
+    ],
+    "05-03": [
+      "Galina"
+    ],
+    "05-04": [
+      "Florián"
+    ],
+    "05-05": [
+      "Lesana",
+      "Lesia"
+    ],
+    "05-06": [
+      "Hermína"
+    ],
+    "05-07": [
+      "Monika"
+    ],
+    "05-08": [
+      "Ingrida"
+    ],
+    "05-09": [
+      "Roland"
+    ],
+    "05-10": [
+      "Viktória"
+    ],
+    "05-11": [
+      "Blažena"
+    ],
+    "05-12": [
+      "Pankrác"
+    ],
+    "05-13": [
+      "Servác"
+    ],
+    "05-14": [
+      "Bonifác"
+    ],
+    "05-15": [
+      "Žofia",
+      "Sofia"
+    ],
+    "05-16": [
+      "Svetozár"
+    ],
+    "05-17": [
+      "Gizela"
+    ],
+    "05-18": [
+      "Viola"
+    ],
+    "05-19": [
+      "Gertrúda"
+    ],
+    "05-20": [
+      "Bernard"
+    ],
+    "05-21": [
+      "Zina"
+    ],
+    "05-22": [
+      "Júlia",
+      "Juliána",
+      "Rita"
+    ],
+    "05-23": [
+      "Želmíra"
+    ],
+    "05-24": [
+      "Ela",
+      "Vanesa"
+    ],
+    "05-25": [
+      "Urban"
+    ],
+    "05-26": [
+      "Dušan"
+    ],
+    "05-27": [
+      "Iveta"
+    ],
+    "05-28": [
+      "Viliam"
+    ],
+    "05-29": [
+      "Vilma"
+    ],
+    "05-30": [
+      "Ferdinand"
+    ],
+    "05-31": [
+      "Petrana",
+      "Petronela",
+      "Nela"
+    ],
+    "06-01": [
+      "Žaneta"
+    ],
+    "06-02": [
+      "Oxana",
+      "Xénia"
+    ],
+    "06-03": [
+      "Karolína",
+      "Kevin"
+    ],
+    "06-04": [
+      "Lenka"
+    ],
+    "06-05": [
+      "Laura"
+    ],
+    "06-06": [
+      "Norbert"
+    ],
+    "06-07": [
+      "Róbert"
+    ],
+    "06-08": [
+      "Medard"
+    ],
+    "06-09": [
+      "Stanislava"
+    ],
+    "06-10": [
+      "Margaréta",
+      "Gréta"
+    ],
+    "06-11": [
+      "Jesika"
+    ],
+    "06-12": [
+      "Zlatko"
+    ],
+    "06-13": [
+      "Anton"
+    ],
+    "06-14": [
+      "Vasil"
+    ],
+    "06-15": [
+      "Vít"
+    ],
+    "06-16": [
+      "Bianka",
+      "Blanka"
+    ],
+    "06-17": [
+      "Adolf"
+    ],
+    "06-18": [
+      "Vratislav"
+    ],
+    "06-19": [
+      "Alfréd"
+    ],
+    "06-20": [
+      "Valéria"
+    ],
+    "06-21": [
+      "Alojz"
+    ],
+    "06-22": [
+      "Paulína",
+      "Paula",
+      "Pavla"
+    ],
+    "06-23": [
+      "Sidónia"
+    ],
+    "06-24": [
+      "Ján"
+    ],
+    "06-25": [
+      "Olívia",
+      "Tadeáš"
+    ],
+    "06-26": [
+      "Adriána"
+    ],
+    "06-27": [
+      "Ladislav",
+      "Ladislava"
+    ],
+    "06-28": [
+      "Beáta"
+    ],
+    "06-29": [
+      "Peter",
+      "Pavol",
+      "Petra"
+    ],
+    "06-30": [
+      "Melánia"
+    ],
+    "07-01": [
+      "Diana"
+    ],
+    "07-02": [
+      "Berta"
+    ],
+    "07-03": [
+      "Miloslav"
+    ],
+    "07-04": [
+      "Prokop"
+    ],
+    "07-05": [
+      "Cyril",
+      "Metod"
+    ],
+    "07-06": [
+      "Patrik",
+      "Patrícia"
+    ],
+    "07-07": [
+      "Oliver"
+    ],
+    "07-08": [
+      "Ivan"
+    ],
+    "07-09": [
+      "Lujza"
+    ],
+    "07-10": [
+      "Amália"
+    ],
+    "07-11": [
+      "Milota"
+    ],
+    "07-12": [
+      "Nina"
+    ],
+    "07-13": [
+      "Margita"
+    ],
+    "07-14": [
+      "Kamil",
+      "Lara"
+    ],
+    "07-15": [
+      "Henrich"
+    ],
+    "07-16": [
+      "Drahomír",
+      "Drahomíra"
+    ],
+    "07-17": [
+      "Bohuslav"
+    ],
+    "07-18": [
+      "Kamila"
+    ],
+    "07-19": [
+      "Šarlota",
+      "Dušana"
+    ],
+    "07-20": [
+      "Eliáš",
+      "Iľja",
+      "Eliána"
+    ],
+    "07-21": [
+      "Daniel"
+    ],
+    "07-22": [
+      "Magdaléna"
+    ],
+    "07-23": [
+      "Oľga"
+    ],
+    "07-24": [
+      "Vladimír"
+    ],
+    "07-25": [
+      "Jakub",
+      "Timur"
+    ],
+    "07-26": [
+      "Anna",
+      "Hana",
+      "Aneta"
+    ],
+    "07-27": [
+      "Božena"
+    ],
+    "07-28": [
+      "Krištof"
+    ],
+    "07-29": [
+      "Marta"
+    ],
+    "07-30": [
+      "Libuša"
+    ],
+    "07-31": [
+      "Ignác"
+    ],
+    "08-01": [
+      "Božidara"
+    ],
+    "08-02": [
+      "Gustáv"
+    ],
+    "08-03": [
+      "Jerguš"
+    ],
+    "08-04": [
+      "Dominik",
+      "Dominika"
+    ],
+    "08-05": [
+      "Hortenzia"
+    ],
+    "08-06": [
+      "Jozefína"
+    ],
+    "08-07": [
+      "Štefánia"
+    ],
+    "08-08": [
+      "Oskar"
+    ],
+    "08-09": [
+      "Ľubomíra"
+    ],
+    "08-10": [
+      "Vavrinec"
+    ],
+    "08-11": [
+      "Zuzana"
+    ],
+    "08-12": [
+      "Darina",
+      "Dárius",
+      "Dária"
+    ],
+    "08-13": [
+      "Ľubomír"
+    ],
+    "08-14": [
+      "Mojmír"
+    ],
+    "08-15": [
+      "Marcela"
+    ],
+    "08-16": [
+      "Leonard"
+    ],
+    "08-17": [
+      "Milica"
+    ],
+    "08-18": [
+      "Elena",
+      "Helena"
+    ],
+    "08-19": [
+      "Lýdia"
+    ],
+    "08-20": [
+      "Anabela",
+      "Bela"
+    ],
+    "08-21": [
+      "Jana",
+      "Johana",
+      "Noema"
+    ],
+    "08-22": [
+      "Tichomír"
+    ],
+    "08-23": [
+      "Filip"
+    ],
+    "08-24": [
+      "Bartolomej"
+    ],
+    "08-25": [
+      "Ľudovít"
+    ],
+    "08-26": [
+      "Samuel"
+    ],
+    "08-27": [
+      "Silvia"
+    ],
+    "08-28": [
+      "Augustín"
+    ],
+    "08-29": [
+      "Nikola",
+      "Nikolaj",
+      "Nikoleta"
+    ],
+    "08-30": [
+      "Ružena"
+    ],
+    "08-31": [
+      "Nora"
+    ],
+    "09-01": [
+      "Drahoslava"
+    ],
+    "09-02": [
+      "Linda",
+      "Rebeka"
+    ],
+    "09-03": [
+      "Belo"
+    ],
+    "09-04": [
+      "Rozália"
+    ],
+    "09-05": [
+      "Regína"
+    ],
+    "09-06": [
+      "Alica"
+    ],
+    "09-07": [
+      "Marianna"
+    ],
+    "09-08": [
+      "Miriama"
+    ],
+    "09-09": [
+      "Martina"
+    ],
+    "09-10": [
+      "Oleg"
+    ],
+    "09-11": [
+      "Bystrík"
+    ],
+    "09-12": [
+      "Mária",
+      "Mia"
+    ],
+    "09-13": [
+      "Ctibor",
+      "Tobiáš",
+      "Tobias"
+    ],
+    "09-14": [
+      "Ľudomil",
+      "Radka"
+    ],
+    "09-15": [
+      "Jolana"
+    ],
+    "09-16": [
+      "Ľudmila"
+    ],
+    "09-17": [
+      "Olympia",
+      "Melisa"
+    ],
+    "09-18": [
+      "Eugénia"
+    ],
+    "09-19": [
+      "Konštantín"
+    ],
+    "09-20": [
+      "Ľuboslav",
+      "Ľuboslava"
+    ],
+    "09-21": [
+      "Matúš"
+    ],
+    "09-22": [
+      "Móric"
+    ],
+    "09-23": [
+      "Zdenka"
+    ],
+    "09-24": [
+      "Ľubor",
+      "Ľuboš"
+    ],
+    "09-25": [
+      "Vladislav"
+    ],
+    "09-26": [
+      "Edita"
+    ],
+    "09-27": [
+      "Cyprián",
+      "Damián"
+    ],
+    "09-28": [
+      "Václav"
+    ],
+    "09-29": [
+      "Michal",
+      "Michael",
+      "Michaela"
+    ],
+    "09-30": [
+      "Jarolím"
+    ],
+    "10-01": [
+      "Arnold"
+    ],
+    "10-02": [
+      "Levoslav"
+    ],
+    "10-03": [
+      "Stela"
+    ],
+    "10-04": [
+      "František"
+    ],
+    "10-05": [
+      "Viera"
+    ],
+    "10-06": [
+      "Natália"
+    ],
+    "10-07": [
+      "Eliška",
+      "Elisa"
+    ],
+    "10-08": [
+      "Brigita"
+    ],
+    "10-09": [
+      "Dionýz"
+    ],
+    "10-10": [
+      "Slavomíra"
+    ],
+    "10-11": [
+      "Valentína"
+    ],
+    "10-12": [
+      "Maximilián",
+      "Maxim",
+      "Max"
+    ],
+    "10-13": [
+      "Koloman"
+    ],
+    "10-14": [
+      "Boris"
+    ],
+    "10-15": [
+      "Terézia",
+      "Tereza"
+    ],
+    "10-16": [
+      "Vladimíra"
+    ],
+    "10-17": [
+      "Hedviga"
+    ],
+    "10-18": [
+      "Lukáš"
+    ],
+    "10-19": [
+      "Kristián"
+    ],
+    "10-20": [
+      "Vendelín"
+    ],
+    "10-21": [
+      "Uršuľa"
+    ],
+    "10-22": [
+      "Sergej"
+    ],
+    "10-23": [
+      "Alojzia"
+    ],
+    "10-24": [
+      "Kvetoslava"
+    ],
+    "10-25": [
+      "Aurel"
+    ],
+    "10-26": [
+      "Demeter"
+    ],
+    "10-27": [
+      "Sabína"
+    ],
+    "10-28": [
+      "Dobromila"
+    ],
+    "10-29": [
+      "Klára",
+      "Kiara"
+    ],
+    "10-30": [
+      "Šimon",
+      "Simon",
+      "Simona"
+    ],
+    "10-31": [
+      "Aurélia"
+    ],
+    "11-01": [
+      "Denis",
+      "Denisa"
+    ],
+    "11-03": [
+      "Hubert"
+    ],
+    "11-04": [
+      "Karol"
+    ],
+    "11-05": [
+      "Imrich"
+    ],
+    "11-06": [
+      "Renáta"
+    ],
+    "11-07": [
+      "René"
+    ],
+    "11-08": [
+      "Bohumír"
+    ],
+    "11-09": [
+      "Teodor",
+      "Teo"
+    ],
+    "11-10": [
+      "Tibor"
+    ],
+    "11-11": [
+      "Martin",
+      "Maroš"
+    ],
+    "11-12": [
+      "Svätopluk",
+      "Jonáš"
+    ],
+    "11-13": [
+      "Stanislav"
+    ],
+    "11-14": [
+      "Irma"
+    ],
+    "11-15": [
+      "Leopold"
+    ],
+    "11-16": [
+      "Agnesa"
+    ],
+    "11-17": [
+      "Klaudia"
+    ],
+    "11-18": [
+      "Eugen"
+    ],
+    "11-19": [
+      "Alžbeta",
+      "Liliana"
+    ],
+    "11-20": [
+      "Félix"
+    ],
+    "11-21": [
+      "Elvíra"
+    ],
+    "11-22": [
+      "Cecília"
+    ],
+    "11-23": [
+      "Klement"
+    ],
+    "11-24": [
+      "Emília"
+    ],
+    "11-25": [
+      "Katarína"
+    ],
+    "11-26": [
+      "Kornel"
+    ],
+    "11-27": [
+      "Milan"
+    ],
+    "11-28": [
+      "Henrieta"
+    ],
+    "11-29": [
+      "Vratko"
+    ],
+    "11-30": [
+      "Andrej",
+      "Ondrej",
+      "Andreas"
+    ],
+    "12-01": [
+      "Edmund"
+    ],
+    "12-02": [
+      "Bibiána",
+      "Viviána"
+    ],
+    "12-03": [
+      "Oldrich"
+    ],
+    "12-04": [
+      "Barbora",
+      "Barbara"
+    ],
+    "12-05": [
+      "Oto"
+    ],
+    "12-06": [
+      "Mikuláš",
+      "Nikolas"
+    ],
+    "12-07": [
+      "Ambróz"
+    ],
+    "12-08": [
+      "Marína"
+    ],
+    "12-09": [
+      "Izabela"
+    ],
+    "12-10": [
+      "Radúz"
+    ],
+    "12-11": [
+      "Hilda"
+    ],
+    "12-12": [
+      "Otília"
+    ],
+    "12-13": [
+      "Lucia"
+    ],
+    "12-14": [
+      "Branislava",
+      "Bronislava"
+    ],
+    "12-15": [
+      "Ivica"
+    ],
+    "12-16": [
+      "Albína"
+    ],
+    "12-17": [
+      "Kornélia"
+    ],
+    "12-18": [
+      "Sláva",
+      "Slávka"
+    ],
+    "12-19": [
+      "Judita"
+    ],
+    "12-20": [
+      "Dagmara"
+    ],
+    "12-21": [
+      "Bohdan",
+      "Noel"
+    ],
+    "12-22": [
+      "Adela"
+    ],
+    "12-23": [
+      "Nadežda",
+      "Naďa"
+    ],
+    "12-24": [
+      "Adam",
+      "Eva"
+    ],
+    "12-26": [
+      "Štefan"
+    ],
+    "12-27": [
+      "Filoména"
+    ],
+    "12-28": [
+      "Ivana",
+      "Ivona"
+    ],
+    "12-29": [
+      "Milada",
+      "Nátan"
+    ],
+    "12-30": [
+      "Dávid"
+    ],
+    "12-31": [
+      "Silvester"
+    ]
+  }
+}
