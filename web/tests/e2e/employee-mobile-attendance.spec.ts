@@ -47,14 +47,22 @@ function julyAttendance(): AttendanceMockDay[] {
   });
 }
 
-for (const width of [360, 390]) {
-  test(`employee mobile attendance row fits and edits at ${width}px`, async ({ page }) => {
+for (const { width, height } of [
+  { width: 320, height: 568 },
+  { width: 360, height: 800 },
+  { width: 375, height: 812 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+]) {
+  test(`employee mobile attendance row fits and edits at ${width}x${height}`, async ({ page }) => {
     const days = julyAttendance();
     days[1].arrival_time = "07:45";
     days[1].departure_time = "15:30";
-    await page.setViewportSize({ width, height: 780 });
+    days[0].arrival_time_2 = "17:00";
+    days[0].departure_time_2 = "18:00";
+    await page.setViewportSize({ width, height });
     await page.addInitScript((value) => {
-      localStorage.setItem("dagmar.language", "cs");
+      localStorage.setItem("kajovodagmar.language.employee.v1", "cs");
       localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
     }, session);
     await page.route("**/api/v1/attendance?**", async (route) => {
@@ -67,6 +75,7 @@ for (const width of [360, 390]) {
           attendance_locked: false,
           shift_plan_locked: false,
           shift_plan_editable: true,
+          summary: { work_fund_minutes: 9600, work_fund_source: "calendar", planned_minutes: 0, worked_minutes: 0, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -9600, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
           days,
         }),
       });
@@ -79,15 +88,13 @@ for (const width of [360, 390]) {
     });
 
     await page.goto("/app");
-    await page.getByLabel("Language switcher").selectOption("cs");
+    await page.locator(".employee-topbar .language-switcher select").selectOption("cs");
     await expect(page.locator(".employee-day").first()).toBeVisible();
 
     const metrics = await page.evaluate(() => {
       const row = document.querySelector(".employee-day");
       const inputs = [...document.querySelectorAll<HTMLInputElement>(".employee-day:first-of-type .time-cell:not(.time-cell--mobile-hidden) input")];
-      const button = document.querySelector<HTMLButtonElement>(".employee-day:first-of-type .employee-day__status .icon-button");
       const inputRects = inputs.map((input) => input.getBoundingClientRect());
-      const buttonRect = button?.getBoundingClientRect();
       return {
         innerWidth: window.innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
@@ -99,27 +106,29 @@ for (const width of [360, 390]) {
         fontSize: getComputedStyle(inputs[0]).fontSize,
         inputWidths: inputRects.map((rect) => rect.width),
         inputGap: inputRects[1].left - inputRects[0].right,
-        alignTop: Math.abs(inputRects[0].top - (buttonRect?.top ?? 0)),
-        alignBottom: Math.abs(inputRects[0].bottom - (buttonRect?.bottom ?? 0)),
-        nameDay: document.querySelector(".employee-day:first-of-type .employee-day__date small")?.textContent,
+        alignTop: Math.abs(inputRects[0].top - inputRects[1].top),
+        alignBottom: Math.abs(inputRects[0].bottom - inputRects[1].bottom),
+        nameDay: document.querySelector(".employee-day:first-of-type .calendar-tag--nameday")?.textContent,
         weekendDate: document.querySelector(".employee-day--weekend .employee-day__date strong")?.textContent,
-        holidayText: document.querySelector(".employee-day--holiday .employee-day__date small")?.textContent,
+        holidayText: document.querySelector(".employee-day--holiday .calendar-tag--holiday")?.textContent,
+        headerHeight: document.querySelector(".employee-topbar")?.getBoundingClientRect().height ?? 0,
       };
     });
     expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.innerWidth);
     expect(metrics.bodyScrollWidth).toBeLessThanOrEqual(metrics.innerWidth);
     expect(metrics.rowWidth).toBeLessThanOrEqual(metrics.innerWidth);
     expect(metrics.visibleInputs).toBe(2);
-    expect(metrics.inputWidths.every((value) => value >= (width <= 360 ? 56 : 60) && value <= 70)).toBe(true);
+    expect(metrics.inputWidths.every((value) => value >= 56 && value < width / 2)).toBe(true);
     expect(metrics.inputGap).toBeGreaterThanOrEqual(3);
     expect(metrics.alignTop).toBeLessThanOrEqual(1);
     expect(metrics.alignBottom).toBeLessThanOrEqual(1);
     expect(metrics.inputMode).toBe("numeric");
     expect(metrics.enterKeyHint).toBe("done");
-    expect(metrics.fontSize).toBe("24px");
-    expect(metrics.nameDay).toBe("svátek má Jaroslava");
-    expect(metrics.holidayText).toBe("Cyril a Metoděj");
+    expect(metrics.fontSize).toBe("16px");
+    expect(metrics.nameDay).toContain("Jaroslava");
+    expect(metrics.holidayText).toContain("Cyrila a Metoděje");
     expect(metrics.weekendDate).toMatch(/^04\.\s?07\.\s?2026$/);
+    expect(metrics.headerHeight).toBeLessThanOrEqual(height * 0.15);
     await expect(page.locator(".employee-day").nth(1).locator("input[name=\"arrival_time\"]")).toHaveValue("07:45");
     await expect(page.locator(".employee-day").nth(1).locator("input[name=\"departure_time\"]")).toHaveValue("15:30");
 
@@ -144,6 +153,20 @@ for (const width of [360, 390]) {
     expect(focusedMetrics.scrollWidth).toBeLessThanOrEqual(width);
     expect(focusedMetrics.gap).toBeGreaterThanOrEqual(3);
     expect(focusedMetrics.overlap).toBe(0);
+
+    const intervalToggle = page.getByRole("button", { name: "Zobrazit další časový interval" }).first();
+    await intervalToggle.click();
+    await expect(page.locator(".employee-day").first().locator("input[name=\"arrival_time\"]")).toHaveValue("08:15");
+    await expect(page.locator(".employee-day").first().locator("input[name=\"arrival_time_2\"]")).toHaveValue("17:00");
+    expect(await page.locator(".employee-day").first().locator(".time-cell:not(.time-cell--mobile-hidden) input").count()).toBe(4);
+
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(page.locator(".employee-topbar")).toHaveCSS("position", "sticky");
+    expect(Math.abs((await page.locator(".employee-topbar").boundingBox())?.y ?? 0)).toBeLessThanOrEqual(1);
+
+    const nowbar = await page.locator(".employee-nowbar button").boundingBox();
+    const focused = await arrival.boundingBox();
+    if (nowbar && focused) expect(focused.y + focused.height).toBeLessThanOrEqual(nowbar.y);
   });
 }
 
@@ -153,7 +176,7 @@ test("employee can switch to editable shift plan and save planned time", async (
 
   await page.setViewportSize({ width: 390, height: 780 });
   await page.addInitScript((value) => {
-    localStorage.setItem("dagmar.language", "cs");
+    localStorage.setItem("kajovodagmar.language.employee.v1", "cs");
     localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
   }, session);
   await page.route("**/api/v1/attendance?**", async (route) => {
@@ -182,7 +205,7 @@ test("employee can switch to editable shift plan and save planned time", async (
   });
 
   await page.goto("/app");
-  await page.getByLabel("Language switcher").selectOption("cs");
+  await page.locator(".employee-topbar .language-switcher select").selectOption("cs");
   await page.getByRole("tab", { name: "Plán služeb" }).click();
   await expect(page.locator(".employee-day--plan").first()).toBeVisible();
   await expect(page.locator(".employee-nowbar")).toHaveCount(0);
@@ -207,7 +230,7 @@ test("employee shift plan is read-only when admin does not allow month editing",
 
   await page.setViewportSize({ width: 390, height: 780 });
   await page.addInitScript((value) => {
-    localStorage.setItem("dagmar.language", "cs");
+    localStorage.setItem("kajovodagmar.language.employee.v1", "cs");
     localStorage.setItem("kajovodagmar.portal.session.v1", JSON.stringify(value));
   }, session);
   await page.route("**/api/v1/attendance?**", async (route) => {
@@ -220,14 +243,15 @@ test("employee shift plan is read-only when admin does not allow month editing",
         attendance_locked: false,
         shift_plan_locked: false,
         shift_plan_editable: false,
+        summary: { work_fund_minutes: 9600, work_fund_source: "calendar", planned_minutes: 0, worked_minutes: 0, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -9600, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
         days,
       }),
     });
   });
 
   await page.goto("/app");
-  await page.getByLabel("Language switcher").selectOption("cs");
+  await page.locator(".employee-topbar .language-switcher select").selectOption("cs");
   await page.getByRole("tab", { name: "Plán služeb" }).click();
-  await expect(page.getByText("Plán služeb je pouze pro čtení")).toBeVisible();
+  await expect(page.getByTitle("Zápis plánu služeb není pro tento měsíc povolen")).toBeVisible();
   await expect(page.locator(".employee-day--plan").first().locator("input[name=\"planned_arrival_time\"]")).toBeDisabled();
 });

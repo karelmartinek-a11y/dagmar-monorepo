@@ -206,4 +206,52 @@ describe("employee time editing", () => {
     });
     await waitFor(() => expect((document.querySelector('input[name="planned_arrival_time"]') as HTMLInputElement | null)?.value).toBe(""));
   });
+
+  it("keeps the first interval visible and expands the second interval without changing data", async () => {
+    const days = buildDays();
+    days[0].arrival_time_2 = "17:00";
+    days[0].departure_time_2 = "18:00";
+    fetchMock.mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path.startsWith("/api/v1/attendance?")) return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
+      void init;
+      throw new Error(`Unhandled fetch ${path}`);
+    });
+    const user = userEvent.setup();
+    renderEmployeePage();
+
+    expect(await screen.findByDisplayValue("08:00")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("16:00")).toBeInTheDocument();
+    const toggle = screen.getByRole("button", { name: "Zobrazit další časový interval" });
+    const secondArrival = screen.getByDisplayValue("17:00").closest("label");
+    expect(secondArrival).toHaveClass("time-cell--mobile-hidden");
+    await user.click(toggle);
+    expect(secondArrival).not.toHaveClass("time-cell--mobile-hidden");
+    expect(screen.getByDisplayValue("17:00")).toHaveValue("17:00");
+    expect(document.querySelector(".employee-day")?.lastElementChild).toHaveClass("employee-day__total");
+  });
+
+  it("renders independent lock and fund icons including negative and zero deltas", async () => {
+    const days = buildDays();
+    fetchMock.mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path.startsWith("/api/v1/attendance?")) return jsonResponse({
+        employment_id: 41,
+        employment_label: "Testovací uživatel · Denní provoz",
+        attendance_locked: false,
+        shift_plan_locked: true,
+        shift_plan_editable: false,
+        summary: { work_fund_minutes: 480, work_fund_source: "calendar", planned_minutes: 420, worked_minutes: 480, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -60, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
+        days,
+      });
+      void init;
+      throw new Error(`Unhandled fetch ${path}`);
+    });
+    renderEmployeePage();
+
+    expect(await screen.findByTitle("Docházka je otevřená pro zápis")).toBeInTheDocument();
+    expect(screen.getByTitle("Plán služeb je uzamčený a pouze pro čtení")).toBeInTheDocument();
+    expect(screen.getByText("−1:00 h")).toBeInTheDocument();
+    expect(screen.getByText("0 h")).toBeInTheDocument();
+  });
 });
