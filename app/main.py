@@ -36,6 +36,7 @@ from app.api.v1.admin_shift_plan import router as admin_shift_plan_router
 from app.api.v1.admin_smtp import router as admin_smtp_router
 from app.api.v1.admin_users import router as admin_users_router
 from app.api.v1.attendance import router as attendance_router
+from app.api.v1.external_auth import router as external_auth_router
 from app.api.v1.integration import router as integration_router
 from app.api.v1.portal_auth import router as portal_auth_router
 from app.api.v1.public_instances import router as public_instances_router
@@ -77,6 +78,8 @@ def _deployed_backend_tag(settings: Settings) -> str:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    settings.ensure_canonical_domain()
+    settings.validate_external_auth()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -250,6 +253,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(attendance_router)
     app.include_router(shift_plan_router)
     app.include_router(public_instances_router)
+    app.include_router(external_auth_router)
 
     app.include_router(admin_auth_router, tags=["admin"])
     app.include_router(admin_export_router, tags=["admin"])

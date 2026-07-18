@@ -71,6 +71,20 @@ export type AttendanceMonth = z.infer<typeof attendanceMonthSchema>;
 
 export type PortalSession = PortalLogin & { selected_employment_id: number | null };
 
+export type ExternalProvider = "google" | "apple";
+export interface AuthMethod {
+  provider: ExternalProvider;
+  enabled: boolean;
+  linked: boolean;
+  identifier: string | null;
+  linked_at: string | null;
+  last_login_at: string | null;
+}
+export interface AuthMethods {
+  password_enabled: boolean;
+  methods: AuthMethod[];
+}
+
 export interface AdminUser {
   id: number;
   email: string;

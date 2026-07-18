@@ -6,6 +6,7 @@ from enum import StrEnum
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
@@ -371,6 +372,9 @@ class PortalUser(Base):
     employments: Mapped[list[Employment]] = relationship(
         "Employment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )
+    external_identities: Mapped[list[ExternalIdentity]] = relationship(
+        "ExternalIdentity", back_populates="portal_user", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class PortalUserResetToken(Base):
@@ -384,6 +388,95 @@ class PortalUserResetToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     user: Mapped[PortalUser] = relationship(back_populates="reset_tokens")
+
+
+class ExternalIdentity(Base):
+    __tablename__ = "external_identities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    portal_user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("portal_users.id", ondelete="CASCADE"), nullable=True
+    )
+    admin_username: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    issuer: Mapped[str] = mapped_column(String(255), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    portal_user: Mapped[PortalUser | None] = relationship("PortalUser", back_populates="external_identities")
+
+    __table_args__ = (
+        CheckConstraint(
+            "(account_type = 'employee' AND portal_user_id IS NOT NULL AND admin_username IS NULL) OR "
+            "(account_type = 'admin' AND portal_user_id IS NULL AND admin_username IS NOT NULL)",
+            name="ck_external_identity_account_target",
+        ),
+        CheckConstraint("provider IN ('google', 'apple')", name="ck_external_identity_provider"),
+        UniqueConstraint("provider", "issuer", "subject", name="uq_external_identity_subject"),
+        UniqueConstraint("portal_user_id", "provider", name="uq_external_identity_employee_provider"),
+        UniqueConstraint("admin_username", "provider", name="uq_external_identity_admin_provider"),
+        Index("ix_external_identity_portal_user", "portal_user_id"),
+        Index("ix_external_identity_admin", "admin_username"),
+    )
+
+
+class OAuthTransaction(Base):
+    __tablename__ = "oauth_transactions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    state_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    browser_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(16), nullable=False)
+    portal: Mapped[str] = mapped_column(String(16), nullable=False)
+    return_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    portal_user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("portal_users.id", ondelete="CASCADE"), nullable=True
+    )
+    admin_username: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    nonce: Mapped[str] = mapped_column(String(128), nullable=False)
+    code_verifier: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("provider IN ('google', 'apple')", name="ck_oauth_transaction_provider"),
+        CheckConstraint("purpose IN ('login', 'link')", name="ck_oauth_transaction_purpose"),
+        CheckConstraint("portal IN ('employee', 'admin')", name="ck_oauth_transaction_portal"),
+        Index("ix_oauth_transaction_expires", "expires_at"),
+        Index("ix_oauth_transaction_browser", "browser_hash"),
+    )
+
+
+class ExternalAuthAuditLog(Base):
+    __tablename__ = "external_auth_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    account_ref: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    event: Mapped[str] = mapped_column(String(48), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    subject_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_external_auth_audit_account", "account_type", "account_ref"),
+        Index("ix_external_auth_audit_created", "created_at"),
+    )
 
 
 class AuthLockoutState(Base):

@@ -112,6 +112,35 @@ def _to_login_employment_out(employment: Employment, today) -> LoginEmploymentOu
     )
 
 
+def issue_portal_login(user: PortalUser, db: Session) -> PortalLoginOut:
+    """Issue the existing Dagmar bearer login for an already verified employee."""
+    if not user.is_active or user.role != PortalUserRole.EMPLOYEE:
+        raise_api_error(403, "external_account_inactive", "Interní účet není aktivní.")
+    if not user.instance_id or user.instance is None:
+        raise_api_error(409, "portal_missing_instance_token", "Uživatel nemá připravený přístupový token.")
+    today = prague_today()
+    selection = select_login_employments(user, today)
+    if not selection.available:
+        raise_api_error(
+            403,
+            "portal_no_available_employment",
+            "Přihlášení není povoleno, protože uživatel nemá dostupný úvazek v povoleném přihlašovacím okně.",
+        )
+    token = issue_instance_token_once(db, user.instance)
+    if token is None:
+        token = rotate_instance_token(db, user.instance)
+    user.instance.last_seen_at = datetime.now(UTC)
+    db.add(user.instance)
+    st = _get_settings(db)
+    return PortalLoginOut(
+        instance_token=token,
+        display_name=user.name,
+        employment_id=selection.default.id if selection.default is not None else None,
+        available_employments=[_to_login_employment_out(item, today) for item in selection.available],
+        afternoon_cutoff=_minutes_to_hhmm(st.afternoon_cutoff_minutes),
+    )
+
+
 @router.post("/login", response_model=PortalLoginOut)
 def portal_login(payload: PortalLoginIn, db: Session = Depends(get_db)):
     email = payload.email.strip().lower()
@@ -143,35 +172,10 @@ def portal_login(payload: PortalLoginIn, db: Session = Depends(get_db)):
         user.password_hash = hash_password(payload.password).value
         db.add(user)
 
-    if not user.instance_id or user.instance is None:
-        raise_api_error(409, "portal_missing_instance_token", "Uživatel nemá připravený přístupový token.")
-
-    today = prague_today()
-    selection = select_login_employments(user, today)
-    if not selection.available:
-        raise_api_error(
-            403,
-            "portal_no_available_employment",
-            "Přihlášení není povoleno, protože uživatel nemá dostupný úvazek v povoleném přihlašovacím okně.",
-        )
-
-    token = issue_instance_token_once(db, user.instance)
-    if token is None:
-        token = rotate_instance_token(db, user.instance)
-    user.instance.last_seen_at = datetime.now(UTC)
-    db.add(user.instance)
+    login = issue_portal_login(user, db)
     clear_user_lockout(db, actor_type="portal", principal=email)
-
-    st = _get_settings(db)
     db.commit()
-
-    return PortalLoginOut(
-        instance_token=token,
-        display_name=user.name,
-        employment_id=selection.default.id if selection.default is not None else None,
-        available_employments=[_to_login_employment_out(item, today) for item in selection.available],
-        afternoon_cutoff=_minutes_to_hhmm(st.afternoon_cutoff_minutes),
-    )
+    return login
 
 
 @router.post("/reset", response_model=OkOut)

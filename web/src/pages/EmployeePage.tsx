@@ -3,6 +3,7 @@ import {
   KeyboardEvent,
   ReactNode,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +35,7 @@ import type { AttendanceDay, PortalSession } from "../api/types";
 import { Brand } from "../components/Brand";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Button, Field, Modal, StatusMessage } from "../components/Primitives";
+import { AccountMethods } from "../components/AccountMethods";
 import { useCurrentLanguage, useDateFormatter } from "../utils/format";
 import {
   asPragueDate,
@@ -103,14 +105,19 @@ function shortDaysHoursLabel(
 
 function EmployeeLogin({
   onLogin,
+  externalError,
 }: {
   onLogin: (session: PortalSession) => void;
+  externalError?: string;
 }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const providers = useQuery({ queryKey: ["external-providers"], queryFn: api.externalProviders, retry: false });
+  const queryError = new URLSearchParams(window.location.search).get("external_auth_error");
+  const externalMessage = externalError || (queryError ? "Externí přihlášení se nezdařilo. Účet musí být nejprve propojen po přihlášení heslem." : "");
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setPending(true);
@@ -149,6 +156,7 @@ function EmployeeLogin({
             <Field label={t("employee.login.email")}>
               <input
                 type="email"
+                aria-label={t("employee.login.email")}
                 required
                 autoComplete="username"
                 value={email}
@@ -158,6 +166,7 @@ function EmployeeLogin({
             <Field label={t("employee.login.password")}>
               <input
                 type="password"
+                aria-label={t("employee.login.password")}
                 required
                 autoComplete="current-password"
                 value={password}
@@ -178,6 +187,11 @@ function EmployeeLogin({
                 : t("employee.login.submit")}
             </Button>
           </form>
+          <div className="external-login" aria-label="Alternativní přihlášení">
+            <span>Pouze pro předem propojené účty</span>
+            {(["google", "apple"] as const).map((provider) => providers.data?.[provider] ? <a key={provider} className={`button external-login__button external-login__button--${provider}`} href={api.externalLoginUrl("employee", provider, "/app")}>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</a> : <button key={provider} className={`button external-login__button external-login__button--${provider}`} type="button" disabled>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</button>)}
+          </div>
+          {externalMessage && <StatusMessage kind="error" title="Externí přihlášení nebylo dokončeno">{externalMessage}</StatusMessage>}
         </div>
       </section>
     </main>
@@ -994,6 +1008,8 @@ export function EmployeePage() {
   const [session, setSession] = useState<PortalSession | null>(() =>
     loadPortalSession(),
   );
+  const [externalLoginError, setExternalLoginError] = useState("");
+  const externalResultStarted = useRef(false);
   const [month, setMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
@@ -1018,6 +1034,17 @@ export function EmployeePage() {
   });
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const qc = useQueryClient();
+  useEffect(() => {
+    if (session || externalResultStarted.current || new URLSearchParams(window.location.search).get("external_auth") !== "complete") return;
+    externalResultStarted.current = true;
+    api.consumeExternalLogin().then((login) => {
+      setSession(savePortalLogin(login));
+      window.history.replaceState({}, "", "/app");
+    }).catch((error) => {
+      setExternalLoginError(error instanceof Error ? error.message : "Výsledek externího přihlášení vypršel.");
+      window.history.replaceState({}, "", "/app?external_auth_error=result");
+    });
+  }, [session]);
   useEffect(() => {
     document.title = `${t("common.appName")} · ${t(session ? "employee.page.title" : "employee.login.title")}`;
   }, [session, t]);
@@ -1255,7 +1282,7 @@ export function EmployeePage() {
       }
     },
   });
-  if (!session) return <EmployeeLogin onLogin={setSession} />;
+  if (!session) return <EmployeeLogin onLogin={setSession} externalError={externalLoginError} />;
   const logout = () => {
     clearPortalSession();
     setSession(null);
@@ -1512,6 +1539,7 @@ export function EmployeePage() {
             </div>
           </header>
           <PanelToolbar session={session} onSession={setSession} />
+          <AccountMethods portal="employee" />
           {summary && (
             <EmployeeStatusStrip
               attendanceLocked={attendanceLocked}

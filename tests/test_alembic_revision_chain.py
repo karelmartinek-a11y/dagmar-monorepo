@@ -14,4 +14,4 @@ def test_alembic_revision_chain_resolves_head() -> None:
     script = ScriptDirectory.from_config(cfg)
     heads = script.get_heads()
 
-    assert heads == ["2026_07_17_0018"]
+    assert heads == ["2026_07_18_0019"]

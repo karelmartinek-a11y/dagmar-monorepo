@@ -63,6 +63,8 @@ export function AdminLoginPage() {
     next?.startsWith("/admin/") && !next.startsWith("//")
       ? next
       : "/admin/prehled";
+  const providers = useQuery({ queryKey: ["external-providers"], queryFn: api.externalProviders, retry: false });
+  const externalError = new URLSearchParams(location.search).get("external_auth_error");
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -109,6 +111,11 @@ export function AdminLoginPage() {
           {pending ? t("auth.admin.submitting") : t("auth.admin.submit")}
         </Button>
       </form>
+      <div className="external-login" aria-label="Alternativní přihlášení">
+        <span>Pouze pro předem propojené administrátorské účty</span>
+        {(["google", "apple"] as const).map((provider) => providers.data?.[provider] ? <a key={provider} className={`button external-login__button external-login__button--${provider}`} href={api.externalLoginUrl("admin", provider, safeNext)}>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</a> : <button key={provider} type="button" className={`button external-login__button external-login__button--${provider}`} disabled>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</button>)}
+      </div>
+      {externalError && <StatusMessage kind="error" title="Externí přihlášení nebylo dokončeno">Externí účet není propojen nebo bezpečnostní ověření vypršelo. Nejprve se přihlaste interním heslem a účet propojte v zabezpečení účtu.</StatusMessage>}
     </AuthFrame>
   );
 }
