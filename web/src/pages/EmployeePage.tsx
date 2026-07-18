@@ -33,6 +33,7 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError } from "../api/client";
 import type { AttendanceDay, PortalSession } from "../api/types";
 import { Brand } from "../components/Brand";
+import { ExternalLoginButtons } from "../components/ExternalLoginButtons";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Button, Field, Modal, StatusMessage } from "../components/Primitives";
 import { AccountMethods } from "../components/AccountMethods";
@@ -187,10 +188,11 @@ function EmployeeLogin({
                 : t("employee.login.submit")}
             </Button>
           </form>
-          <div className="external-login" aria-label="Alternativní přihlášení">
-            <span>Pouze pro předem propojené účty</span>
-            {(["google", "apple"] as const).map((provider) => providers.data?.[provider] ? <a key={provider} className={`button external-login__button external-login__button--${provider}`} href={api.externalLoginUrl("employee", provider, "/app")}>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</a> : <button key={provider} className={`button external-login__button external-login__button--${provider}`} type="button" disabled>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</button>)}
-          </div>
+          <ExternalLoginButtons
+            enabled={providers.data}
+            getUrl={(provider) => api.externalLoginUrl("employee", provider, "/app")}
+            accountLabel="Pouze pro předem propojené účty"
+          />
           {externalMessage && <StatusMessage kind="error" title="Externí přihlášení nebylo dokončeno">{externalMessage}</StatusMessage>}
         </div>
       </section>

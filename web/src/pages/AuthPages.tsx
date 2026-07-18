@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { Brand } from "../components/Brand";
+import { ExternalLoginButtons } from "../components/ExternalLoginButtons";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Button, Field, StatusMessage } from "../components/Primitives";
 
@@ -111,10 +112,11 @@ export function AdminLoginPage() {
           {pending ? t("auth.admin.submitting") : t("auth.admin.submit")}
         </Button>
       </form>
-      <div className="external-login" aria-label="Alternativní přihlášení">
-        <span>Pouze pro předem propojené administrátorské účty</span>
-        {(["google", "apple"] as const).map((provider) => providers.data?.[provider] ? <a key={provider} className={`button external-login__button external-login__button--${provider}`} href={api.externalLoginUrl("admin", provider, safeNext)}>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</a> : <button key={provider} type="button" className={`button external-login__button external-login__button--${provider}`} disabled>Přihlásit se přes {provider === "google" ? "Google" : "Apple"}</button>)}
-      </div>
+      <ExternalLoginButtons
+        enabled={providers.data}
+        getUrl={(provider) => api.externalLoginUrl("admin", provider, safeNext)}
+        accountLabel="Pouze pro předem propojené administrátorské účty"
+      />
       {externalError && <StatusMessage kind="error" title="Externí přihlášení nebylo dokončeno">Externí účet není propojen nebo bezpečnostní ověření vypršelo. Nejprve se přihlaste interním heslem a účet propojte v zabezpečení účtu.</StatusMessage>}
     </AuthFrame>
   );

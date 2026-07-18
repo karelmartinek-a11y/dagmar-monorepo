@@ -23,8 +23,13 @@ describe("external authentication UI", () => {
     renderApp(<EmployeePage />);
     expect(screen.getByLabelText("Pracovní e-mail")).toBeInTheDocument();
     expect(screen.getByLabelText("Heslo")).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "Přihlásit se přes Google" })).toHaveAttribute("href", expect.stringContaining("/api/v1/auth/employee/google/start"));
-    expect(screen.getByRole("link", { name: "Přihlásit se přes Apple" })).toBeInTheDocument();
+    const google = await screen.findByRole("link", { name: "Přihlásit se přes Google" });
+    const apple = screen.getByRole("link", { name: "Přihlásit se přes Apple" });
+    expect(google).toHaveAttribute("href", expect.stringContaining("/api/v1/auth/employee/google/start"));
+    expect(apple).toHaveAttribute("href", expect.stringContaining("/api/v1/auth/employee/apple/start"));
+    expect(google.querySelector("svg")).toBeInTheDocument();
+    expect(apple.querySelector("svg")).toBeInTheDocument();
+    expect(google.querySelector(".sr-only")).toHaveTextContent("Přihlásit se přes Google");
     expect(screen.getByText("Pouze pro předem propojené účty")).toBeInTheDocument();
   });
 
