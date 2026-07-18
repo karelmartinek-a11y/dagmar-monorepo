@@ -5,6 +5,7 @@ import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Literal
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
@@ -340,6 +341,8 @@ def admin_unlink(
 
 def _callback_error_path(transaction: OAuthTransaction | None, code: str) -> str:
     base = transaction.return_path if transaction else "/app"
+    if transaction and transaction.portal == "admin" and transaction.purpose == "login":
+        return f"/admin/login?{urlencode({'external_auth_error': code, 'next': base})}"
     separator = "&" if "?" in base else "?"
     return f"{base}{separator}external_auth_error={code}"
 
