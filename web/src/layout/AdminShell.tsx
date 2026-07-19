@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { CalendarCheck2, CalendarRange, Download, Gauge, KeyRound, Menu, PlugZap, Printer, Settings2, UsersRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -21,7 +22,12 @@ export function AdminShell() {
   ] as const;
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const logout = async () => { await api.adminLogout(); navigate("/admin/login", { replace: true }); };
+  const queryClient = useQueryClient();
+  const logout = async () => {
+    await api.adminLogout();
+    queryClient.removeQueries({ queryKey: ["admin-me"] });
+    navigate("/admin/login", { replace: true });
+  };
   return <div className="admin-layout">
     <aside className={`sidebar ${open ? "sidebar--open" : ""}`}>
       <div className="sidebar__head"><Brand compact /><Button className="sidebar__close" variant="quiet" aria-label={t("nav.menuClose")} onClick={() => setOpen(false)}><X /></Button></div>

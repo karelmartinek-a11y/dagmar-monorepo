@@ -5,13 +5,14 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
 import { Brand } from "../components/Brand";
 import { ExternalLoginButtons } from "../components/ExternalLoginButtons";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Button, Field, StatusMessage } from "../components/Primitives";
+import { normalizeAdminNextPath } from "../utils/adminAuth";
 
 function AuthFrame({
   title,
@@ -59,11 +60,9 @@ export function AdminLoginPage() {
   const [pending, setPending] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const next = new URLSearchParams(location.search).get("next");
-  const safeNext =
-    next?.startsWith("/admin/") && !next.startsWith("//")
-      ? next
-      : "/admin/prehled";
+  const safeNext = normalizeAdminNextPath(next);
   const providers = useQuery({ queryKey: ["external-providers"], queryFn: api.externalProviders, retry: false });
   const externalError = new URLSearchParams(location.search).get("external_auth_error");
   const submit = async (event: FormEvent) => {
@@ -72,6 +71,7 @@ export function AdminLoginPage() {
     setPending(true);
     try {
       await api.adminLogin(username, password);
+      queryClient.removeQueries({ queryKey: ["admin-me"] });
       navigate(safeNext, { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("auth.admin.fallbackError"));
