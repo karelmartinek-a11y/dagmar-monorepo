@@ -1,4 +1,4 @@
-"""Create the pre-Alembic schema that revision 0001 expects in E2E PostgreSQL."""
+"""Create the exact pre-Alembic schema required by the isolated local E2E database."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ def main() -> None:
     database_url = os.environ["DAGMAR_DATABASE_URL"]
     url = make_url(database_url)
     if os.getenv("DAGMAR_E2E_SEED") != "1" or url.host not in {"127.0.0.1", "localhost"} or "e2e" not in (url.database or ""):
-        raise SystemExit("Refusing to create a baseline outside an explicit local E2E database.")
+        raise SystemExit("Refusing to create the E2E schema outside an explicit local E2E database.")
     if url.get_backend_name() != "postgresql":
-        raise SystemExit("The legacy migration baseline must be validated with PostgreSQL.")
+        raise SystemExit("The E2E schema baseline is validated only with PostgreSQL.")
 
     metadata = sa.MetaData()
     client_type = sa.Enum("ANDROID", "WEB", name="client_type")

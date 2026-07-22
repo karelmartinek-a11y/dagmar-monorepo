@@ -33,7 +33,6 @@ API neumí:
 - [pagination-and-limits.md](./pagination-and-limits.md)
 - [examples.md](./examples.md)
 - [openapi.md](./openapi.md)
-- [changelog.md](./changelog.md)
 
 ## Interní správcovská část
 

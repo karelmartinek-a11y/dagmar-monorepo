@@ -230,7 +230,7 @@ def test_id_token_valid_and_private_relay_is_informational(monkeypatch) -> None:
     assert claims.email == "relay@privaterelay.appleid.com"
 
 
-def test_google_legacy_issuer_is_accepted(monkeypatch) -> None:
+def test_google_alternate_issuer_format_is_accepted(monkeypatch) -> None:
     token, jwk = _rsa_token(issuer="accounts.google.com")
     monkeypatch.setattr(service, "_token_request", lambda *args: (token, "https://jwks.test", "https://accounts.google.com"))
     monkeypatch.setattr(service, "_get_json", lambda *args, **kwargs: {"keys": [jwk]})

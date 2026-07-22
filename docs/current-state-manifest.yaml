@@ -1,0 +1,855 @@
+{
+  "backend_endpoints": [
+    {
+      "auth_mode": "public",
+      "handler": "app.main.health_compat",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/health"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_attendance.admin_get_month_attendance",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/attendance"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_attendance.admin_upsert_attendance",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/attendance"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_attendance.lock_month",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/attendance/lock"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_attendance.admin_get_attendance_matrix_month",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/attendance/month"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_attendance.unlock_month",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/attendance/unlock"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.external_auth.admin_methods",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/auth-methods"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.external_auth.admin_unlink",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/admin/auth-methods/{provider}"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.external_auth.admin_link",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/auth-methods/{provider}/link"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_auth.admin_csrf",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/csrf"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_shift_plan.admin_upsert_day_status",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/day-status"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employments.update_employment",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/employments/{employment_id}"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employments.delete_employment",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/admin/employments/{employment_id}"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_export.export_csv_or_zip",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/export"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_auth.admin_forgot_password",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/forgot-password"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_integrations.list_integration_clients",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/integrations/clients"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_integrations.create_integration_client",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/integrations/clients"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_integrations.get_integration_client_options",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/integrations/clients/options"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_integrations.get_integration_client_detail",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/integrations/clients/{client_id}"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_integrations.update_integration_client",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/integrations/clients/{client_id}"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_integrations.disable_integration_client",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/integrations/clients/{client_id}/disable"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_integrations.enable_integration_client",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/integrations/clients/{client_id}/enable"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_integrations.revoke_integration_client_secret",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/integrations/clients/{client_id}/revoke-secret"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_integrations.rotate_integration_client_secret",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/integrations/clients/{client_id}/rotate"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_locks.admin_set_locks",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/locks"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_auth.admin_login",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/login"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_auth.admin_logout",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/logout"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_auth.admin_logout_redirect",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/logout"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_auth.admin_me",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/me"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_settings.get_settings",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/settings"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_settings.set_settings",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/settings"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_shift_plan.admin_get_shift_plan_month",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/shift-plan"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_shift_plan.admin_upsert_shift_plan",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/shift-plan"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_shift_plan.admin_set_shift_plan_edit_permission",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/shift-plan/edit-permission"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_shift_plan.admin_set_shift_plan_selection",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/shift-plan/selection"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_smtp.get_smtp",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/smtp"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_smtp.set_smtp",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/smtp"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_smtp.test_smtp",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/smtp/test"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_users.list_users",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/users"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_users.create_user",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/users"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_users.update_user",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/users/{user_id}"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_users.delete_user",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/admin/users/{user_id}"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_users.list_user_employments",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/users/{user_id}/employments"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employments.create_employment",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/users/{user_id}/employments"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_users.send_reset_link",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/users/{user_id}/send-reset"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_users.set_user_password",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/users/{user_id}/set-password"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_users.unlock_user",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/users/{user_id}/unlock"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.attendance.get_month_attendance",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/attendance"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.attendance.upsert_attendance",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/attendance"
+    },
+    {
+      "auth_mode": "browser_redirect",
+      "handler": "app.api.v1.external_auth.apple_callback",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/auth/apple/callback"
+    },
+    {
+      "auth_mode": "browser_redirect",
+      "handler": "app.api.v1.external_auth.google_callback",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/auth/google/callback"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.external_auth.providers",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/auth/providers"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.external_auth.consume_login_result",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/auth/result"
+    },
+    {
+      "auth_mode": "browser_redirect",
+      "handler": "app.api.v1.external_auth.login_start",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/auth/{portal}/{provider}/start"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.main.health_v1",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/health"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.public_instances.register_instance",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/instances/register"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.public_instances.claim_instance_token",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/instances/{instance_id}/claim-token"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.public_instances.get_instance_status",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/instances/{instance_id}/status"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.integration_attendances",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/integration/attendances"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.create_integration_attendance",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/integration/attendances"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.patch_integration_attendance",
+      "methods": [
+        "PATCH"
+      ],
+      "path": "/api/v1/integration/attendances/{attendance_id}"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.delete_integration_attendance",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/integration/attendances/{attendance_id}"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.integration_employments",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/integration/employments"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.integration_health",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/integration/health"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.integration_locks",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/integration/locks"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.integration_openapi",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/integration/openapi.json"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.integration_punches",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/integration/punches"
+    },
+    {
+      "auth_mode": "integration_bearer",
+      "handler": "app.api.v1.integration.integration_shift_plan",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/integration/shift-plan"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.external_auth.employee_methods",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/portal/auth-methods"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.external_auth.employee_unlink",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/portal/auth-methods/{provider}"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.external_auth.employee_link",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/portal/auth-methods/{provider}/link"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.portal_auth.portal_login",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/portal/login"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.portal_auth.portal_reset",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/portal/reset"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.shift_plan.portal_upsert_shift_plan",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/shift-plan"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.shift_plan.portal_upsert_day_status",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/shift-plan/day-status"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.main.time_v1",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/time"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.main.version",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/version"
+    }
+  ],
+  "critical_invariants": [
+    {
+      "id": "canonical_domain",
+      "rule": "Only https://dagmar.hcasc.cz is valid in code, docs, config and examples.",
+      "tests": [
+        "tests/test_forbidden_domain.py",
+        "scripts/check_repo_invariants.py"
+      ]
+    },
+    {
+      "id": "employment_scope",
+      "rule": "Attendance, shift plan, locks and exports stay scoped by employment_id.",
+      "tests": [
+        "tests/test_integration_api.py",
+        "web/tests/employee-page-editing.test.tsx",
+        "web/tests/admin-pages.test.tsx"
+      ]
+    },
+    {
+      "id": "auth_modes",
+      "rule": "Admin uses session plus CSRF, employee uses bearer token, integrations use dgi_ bearer tokens.",
+      "tests": [
+        "tests/test_admin_auth.py",
+        "tests/test_integration_api.py",
+        "web/tests/api.test.ts"
+      ]
+    },
+    {
+      "id": "route_contract",
+      "rule": "Frontend routes and backend endpoints match the active runtime registration.",
+      "tests": [
+        "tests/test_current_state_manifest.py",
+        "python scripts/generate_current_state_manifest.py --check"
+      ]
+    },
+    {
+      "id": "clean_build_outputs",
+      "rule": "Validation and build commands do not rewrite tracked source files unexpectedly.",
+      "tests": [
+        "python scripts/check_repo_invariants.py",
+        "git diff --exit-code"
+      ]
+    }
+  ],
+  "frontend_backend_bindings": [
+    {
+      "backend_endpoints": [
+        "/api/v1/portal/login",
+        "/api/v1/portal/reset",
+        "/api/v1/attendance",
+        "/api/v1/shift-plan",
+        "/api/v1/shift-plan/day-status",
+        "/api/v1/auth/providers",
+        "/api/v1/auth/employee/{provider}/start",
+        "/api/v1/auth/result",
+        "/api/v1/portal/auth-methods",
+        "/api/v1/portal/auth-methods/{provider}"
+      ],
+      "feature": "employee_portal",
+      "frontend_routes": [
+        "/app",
+        "/reset"
+      ]
+    },
+    {
+      "backend_endpoints": [
+        "/api/v1/admin/login",
+        "/api/v1/admin/logout",
+        "/api/v1/admin/csrf",
+        "/api/v1/admin/me",
+        "/api/v1/admin/users",
+        "/api/v1/admin/users/{user_id}",
+        "/api/v1/admin/users/{user_id}/employments",
+        "/api/v1/admin/employments/{employment_id}",
+        "/api/v1/admin/attendance",
+        "/api/v1/admin/attendance/month",
+        "/api/v1/admin/attendance/lock",
+        "/api/v1/admin/attendance/unlock",
+        "/api/v1/admin/locks",
+        "/api/v1/admin/shift-plan",
+        "/api/v1/admin/day-status",
+        "/api/v1/admin/shift-plan/selection",
+        "/api/v1/admin/export",
+        "/api/v1/admin/settings",
+        "/api/v1/admin/smtp",
+        "/api/v1/admin/smtp/test",
+        "/api/v1/admin/integrations/clients",
+        "/api/v1/admin/integrations/clients/options",
+        "/api/v1/admin/integrations/clients/{client_id}",
+        "/api/v1/admin/integrations/clients/{client_id}/rotate",
+        "/api/v1/admin/integrations/clients/{client_id}/disable",
+        "/api/v1/admin/integrations/clients/{client_id}/enable",
+        "/api/v1/admin/integrations/clients/{client_id}/revoke-secret",
+        "/api/v1/admin/auth-methods",
+        "/api/v1/admin/auth-methods/{provider}",
+        "/api/v1/auth/admin/{provider}/start"
+      ],
+      "feature": "admin_console",
+      "frontend_routes": [
+        "/admin/login",
+        "/admin/prehled",
+        "/admin/users",
+        "/admin/dochazka",
+        "/admin/plan-sluzeb",
+        "/admin/export",
+        "/admin/tisky",
+        "/admin/tisky/preview",
+        "/admin/settings",
+        "/admin/ucet",
+        "/admin/integrace"
+      ]
+    },
+    {
+      "backend_endpoints": [
+        "/api/v1/integration/health",
+        "/api/v1/integration/employments",
+        "/api/v1/integration/shift-plan",
+        "/api/v1/integration/attendances",
+        "/api/v1/integration/attendances/{attendance_id}",
+        "/api/v1/integration/punches",
+        "/api/v1/integration/locks",
+        "/api/v1/integration/openapi.json"
+      ],
+      "feature": "integration_docs",
+      "frontend_routes": [
+        "/integration-api"
+      ]
+    }
+  ],
+  "frontend_routes": [
+    {
+      "component": "web/src/App.tsx",
+      "path": "/"
+    },
+    {
+      "component": "web/src/pages/EmployeePage.tsx",
+      "path": "/app"
+    },
+    {
+      "component": "web/src/pages/AuthPages.tsx",
+      "path": "/reset"
+    },
+    {
+      "component": "web/src/pages/IntegrationDocsPage.tsx",
+      "path": "/integration-api"
+    },
+    {
+      "component": "web/src/pages/AuthPages.tsx",
+      "path": "/admin/login"
+    },
+    {
+      "component": "web/src/App.tsx",
+      "path": "/admin"
+    },
+    {
+      "component": "web/src/pages/AdminOverviewPage.tsx",
+      "path": "/admin/prehled"
+    },
+    {
+      "component": "web/src/pages/AdminUsersPage.tsx",
+      "path": "/admin/users"
+    },
+    {
+      "component": "web/src/pages/AdminMatrixPages.tsx",
+      "path": "/admin/dochazka"
+    },
+    {
+      "component": "web/src/pages/AdminMatrixPages.tsx",
+      "path": "/admin/plan-sluzeb"
+    },
+    {
+      "component": "web/src/pages/AdminOperationsPages.tsx",
+      "path": "/admin/export"
+    },
+    {
+      "component": "web/src/pages/AdminOperationsPages.tsx",
+      "path": "/admin/tisky"
+    },
+    {
+      "component": "web/src/pages/AdminOperationsPages.tsx",
+      "path": "/admin/tisky/preview"
+    },
+    {
+      "component": "web/src/pages/AdminOperationsPages.tsx",
+      "path": "/admin/settings"
+    },
+    {
+      "component": "web/src/pages/AdminAccountPage.tsx",
+      "path": "/admin/ucet"
+    },
+    {
+      "component": "web/src/pages/AdminOperationsPages.tsx",
+      "path": "/admin/integrace"
+    }
+  ],
+  "generated_from": [
+    "app/main.py",
+    "app/api/v1/",
+    "web/src/App.tsx",
+    "web/src/api/client.ts",
+    ".github/workflows/ci-cd.yml"
+  ],
+  "main_components": [
+    "app/main.py",
+    "app/config.py",
+    "app/services/external_auth.py",
+    "app/services/attendance_reminders.py",
+    "web/src/api/client.ts",
+    "web/src/pages/EmployeePage.tsx",
+    "web/src/pages/AdminMatrixPages.tsx",
+    "web/src/pages/AdminOperationsPages.tsx",
+    "web/src/pages/AdminUsersPage.tsx",
+    "web/src/pages/AdminOverviewPage.tsx",
+    "web/src/pages/AdminAccountPage.tsx",
+    "web/src/pages/IntegrationDocsPage.tsx"
+  ],
+  "main_services": [
+    "employee_attendance",
+    "employee_shift_plan",
+    "admin_user_management",
+    "admin_attendance_matrix",
+    "admin_shift_plan_matrix",
+    "admin_exports_and_prints",
+    "admin_settings_and_smtp",
+    "integration_clients",
+    "external_auth_linking",
+    "public_instance_registration"
+  ],
+  "production": {
+    "api_base_path": "/api/v1",
+    "backend_bind": "127.0.0.1:8101",
+    "deploy_workflow": ".github/workflows/ci-cd.yml",
+    "domain": "https://dagmar.hcasc.cz",
+    "postgres_bind": "127.0.0.1:5433"
+  }
+}

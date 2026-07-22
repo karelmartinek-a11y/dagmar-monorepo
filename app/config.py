@@ -199,7 +199,7 @@ class Settings(BaseModel):
             return self.apple_callback_url or f"{self.public_base_url.rstrip('/')}/api/v1/auth/apple/callback"
         raise ValueError("Nepodporovaný poskytovatel.")
 
-    # Compatibility aliases for legacy code
+    # Property aliases used by call sites that access settings in attribute-style uppercase form.
     @property
     def DATABASE_URL(self) -> str:
         return self.database_url

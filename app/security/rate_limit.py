@@ -118,5 +118,5 @@ def limit_attendance_put(route_limit: str | None = None):
 
 
 def rate_limit(spec: str):
-    """Generic helper matching legacy name."""
+    """Generic helper used by modules that resolve the limiter lazily."""
     return limiter.limit(spec)

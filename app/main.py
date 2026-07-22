@@ -61,18 +61,14 @@ def _now_ms() -> int:
 
 
 def _deployed_backend_tag(settings: Settings) -> str:
-    candidates = [
-        Path("/opt/dagmar/backend/backend-version.json"),
-        Path("/srv/hcasc/_repos/dagmar-monorepo/backend-version.json"),
-    ]
-    for candidate in candidates:
-        try:
-            data = json.loads(candidate.read_text(encoding="utf-8"))
-            tag = data.get("backend_commit")
-            if isinstance(tag, str) and tag.strip():
-                return tag.strip()
-        except Exception:
-            continue
+    candidate = Path("/opt/dagmar/backend/backend-version.json")
+    try:
+        data = json.loads(candidate.read_text(encoding="utf-8"))
+        tag = data.get("backend_commit")
+        if isinstance(tag, str) and tag.strip():
+            return tag.strip()
+    except Exception:
+        pass
     return settings.deploy_tag
 
 

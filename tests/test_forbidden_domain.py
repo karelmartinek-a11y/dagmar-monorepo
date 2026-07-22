@@ -31,6 +31,7 @@ TEXT_SUFFIXES = {
 BACKEND_ALLOWED = {
     Path("AGENTS.md"),
     Path("app/config.py"),
+    Path("scripts/check_repo_invariants.py"),
     Path("tests/test_forbidden_domain.py"),
 }
 FRONTEND_ALLOWED = {
@@ -44,7 +45,6 @@ SKIP_DIRS = {
     "dist",
     "build",
     "__pycache__",
-    "docs",
     "web",
 }
 

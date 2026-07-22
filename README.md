@@ -1,20 +1,30 @@
 # KájovoDagmar
 
-Produkční zdrojový kód docházkového systému KájovoDagmar pro `https://dagmar.hcasc.cz`.
+Produkční monorepozitář docházkového systému KájovoDagmar pro `https://dagmar.hcasc.cz`.
 
 ## Struktura
 
-- `app/` — FastAPI backend
-- `alembic/` — verzované databázové migrace
-- `tests/` — backendové testy
-- `web/` — čistý Vite/React/TypeScript frontend
-- `docs/` — provozní, integrační a forenzní dokumentace
+- `app/` FastAPI backend
+- `alembic/` databázové migrace
+- `tests/` backendové a repozitářové regresní kontroly
+- `scripts/` validační a údržbové skripty
+- `web/` Vite, React a TypeScript frontend
+- `docs/` aktuální technická a provozní dokumentace
+- `ops/` Nginx a systemd konfigurace
 
-## Zdroj pravdy
+## Aktuální kontrakt
 
-Historie původních projektů zůstává dohledatelná v git historii. Generační hranice nového frontendu je popsána v `docs/ui-redesign/forensic-inventory/boundary.json`.
+- kanonická doména: `https://dagmar.hcasc.cz`
+- API base path: `/api/v1/`
+- backend bind: `127.0.0.1:8101`
+- PostgreSQL publish address: `127.0.0.1:5433`
+- admin autentizace: session cookie + CSRF
+- zaměstnanecká autentizace: bearer token
+- integrační autentizace: samostatný `dgi_` bearer token
 
-## Lokální práce
+Aktuální technický přehled je v [docs/SSOT_CURRENT.md](docs/SSOT_CURRENT.md) a strojově čitelný manifest v [docs/current-state-manifest.yaml](docs/current-state-manifest.yaml).
+
+## Lokální ověření
 
 ### Backend
 
@@ -25,6 +35,8 @@ python3.11 -m venv .venv
 .venv/bin/ruff check app tests scripts
 .venv/bin/mypy app
 .venv/bin/alembic heads
+.venv/bin/python scripts/check_repo_invariants.py
+.venv/bin/python scripts/generate_current_state_manifest.py --check
 ```
 
 ### Frontend
@@ -32,22 +44,10 @@ python3.11 -m venv .venv
 ```bash
 cd web
 npm ci
+npm run check:branding
 npm run lint
 npm run typecheck
 npm test
 npm run build
 npm run test:e2e
 ```
-
-Skutečné integrační E2E se spouští v CI proti izolovanému PostgreSQL a lokálnímu FastAPI; seed skript odmítne jakoukoli databázi, která není explicitní lokální E2E cíl.
-
-## Produkční invarianty
-
-- kanonická doména zůstává `dagmar.hcasc.cz`
-- API base path zůstává `/api/v1/`
-- backend bind zůstává `127.0.0.1:8101`
-- PostgreSQL zůstává publikovaná jen na `127.0.0.1:5433`
-- admin zůstává na session cookie + CSRF
-- zaměstnanecká část zůstává na bearer tokenu
-
-Detaily k čistě strukturálním změnám jsou v `docs/monorepo-migration.md`.

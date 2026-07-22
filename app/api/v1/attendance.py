@@ -122,7 +122,7 @@ def _month_is_locked(employment_id: int, year: int, month: int, db: Session) -> 
     return is_month_locked(db, lock_type=LockType.ATTENDANCE, employment_id=employment_id, year=year, month=month)
 
 
-def _enforce_user_forensic_rules(
+def _enforce_portal_attendance_entry_rules(
     *,
     day: dt.date,
     arrival: str | None,
@@ -300,7 +300,7 @@ def upsert_attendance(
         )
     ).scalar_one_or_none()
 
-    _enforce_user_forensic_rules(
+    _enforce_portal_attendance_entry_rules(
         day=day,
         arrival=arrival,
         departure=departure,

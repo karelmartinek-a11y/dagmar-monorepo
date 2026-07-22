@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+from scripts.generate_current_state_manifest import MANIFEST_PATH, build_manifest
+
+ROOT = Path(__file__).resolve().parents[1]
+APP_TSX = ROOT / "web/src/App.tsx"
+API_LITERAL_RE = re.compile(r"(?P<quote>['\"`])(?P<path>/api/v1[^'\"`\s]*)")
+ROUTE_RE = re.compile(r'<Route path="([^"]+)"')
+REMOVED_PATHS = [
+    ROOT / "AUDIT_SOURCE_CODE_FORENSIC.md",
+    ROOT / "docs/backend-puls-audit-2026-02-20.md",
+    ROOT / "docs/backend-source-audit.md",
+    ROOT / "docs/historical-frontend-refactor-report.md",
+    ROOT / "docs/monorepo-migration.md",
+    ROOT / "docs/integration-api/changelog.md",
+    ROOT / "docs/ui-redesign/forensic-inventory",
+]
+
+
+def _manifest() -> dict[str, object]:
+    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _backend_route_patterns(manifest: dict[str, object]) -> list[re.Pattern[str]]:
+    patterns: list[re.Pattern[str]] = []
+    for endpoint in manifest["backend_endpoints"]:
+        path = endpoint["path"]
+        escaped = re.escape(path).replace(r"\{", "{").replace(r"\}", "}")
+        escaped = re.sub(r"\{[^/]+\}", r"[^/]+", escaped)
+        patterns.append(re.compile(f"^{escaped}$"))
+    return patterns
+
+
+def _normalize_frontend_api_path(path: str) -> str:
+    path = path.split("?", 1)[0]
+    path = re.sub(r"\$\{[^}]+\}", "{param}", path)
+    return path
+
+
+def test_current_state_manifest_matches_generator() -> None:
+    expected = build_manifest()
+    assert _manifest() == expected
+
+
+def test_frontend_routes_are_unique_and_match_manifest() -> None:
+    manifest_routes = [item["path"] for item in _manifest()["frontend_routes"]]
+    assert manifest_routes == sorted(set(manifest_routes), key=manifest_routes.index)
+
+    route_paths = [path for path in ROUTE_RE.findall(APP_TSX.read_text(encoding="utf-8")) if path != "*"]
+    normalized = []
+    for path in route_paths:
+        if path.startswith("/"):
+            normalized.append(path)
+        elif path:
+            normalized.append(f"/admin/{path}")
+    assert sorted(set(normalized)) == sorted(set(manifest_routes))
+
+
+def test_manifest_frontend_backend_bindings_reference_active_endpoints() -> None:
+    manifest = _manifest()
+    patterns = _backend_route_patterns(manifest)
+    for binding in manifest["frontend_backend_bindings"]:
+        for path in binding["backend_endpoints"]:
+            normalized = re.sub(r"\{[^/]+\}", "{param}", path)
+            candidate = re.sub(r"\{param\}", "value", normalized)
+            assert any(pattern.match(candidate) for pattern in patterns), path
+
+
+def test_frontend_api_literals_map_to_backend_routes() -> None:
+    manifest = _manifest()
+    patterns = _backend_route_patterns(manifest)
+    hits: set[str] = set()
+    for path in (ROOT / "web/src").rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in {".ts", ".tsx"}:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for match in API_LITERAL_RE.finditer(text):
+            raw = match.group("path")
+            normalized = _normalize_frontend_api_path(raw)
+            if "${" in raw:
+                continue
+            hits.add(normalized)
+    unmatched = sorted(path for path in hits if not any(pattern.match(path) for pattern in patterns))
+    assert unmatched == []
+
+
+def test_removed_historical_artifacts_are_absent() -> None:
+    for path in REMOVED_PATHS:
+        assert not path.exists(), path.relative_to(ROOT)

@@ -47,13 +47,15 @@ jobs:
       - name: Alembic revision chain
         run: |
           test "$(alembic heads | wc -l)" -eq 1
-          python scripts/create_legacy_e2e_baseline.py
+          python scripts/create_e2e_schema_baseline.py
           alembic upgrade head
           alembic current
       - name: Backend tests
         run: pytest -q
-      - name: Clean-generation boundary
-        run: python scripts/check_clean_frontend_generation.py
+      - name: Repository invariants
+        run: |
+          python scripts/check_repo_invariants.py
+          python scripts/generate_current_state_manifest.py --check
 
   web:
     runs-on: ubuntu-latest
@@ -92,7 +94,7 @@ jobs:
       - name: Prepare real backend
         run: |
           pip install -e .
-          python scripts/create_legacy_e2e_baseline.py
+          python scripts/create_e2e_schema_baseline.py
           alembic upgrade head
           python scripts/seed_e2e.py
           export DAGMAR_ADMIN_PASSWORD_HASH="$(python -c 'from app.security.passwords import hash_password; print(hash_password("AdminE2E-Strong-123").value)')"
@@ -202,11 +204,11 @@ jobs:
             PREV_BACK=$(readlink -f "$CURRENT_BACK" 2>/dev/null || true)
             PREV_WEB=$(readlink -f "$CURRENT_WEB" 2>/dev/null || true)
             if [ -d "$CURRENT_BACK" ] && [ ! -L "$CURRENT_BACK" ]; then
-              PREV_BACK="$RELEASES/legacy-$STAMP"
+              PREV_BACK="$RELEASES/preswitch-$STAMP"
               mv "$CURRENT_BACK" "$PREV_BACK"
             fi
             if [ -d "$CURRENT_WEB" ] && [ ! -L "$CURRENT_WEB" ]; then
-              PREV_WEB="$WEB_RELEASES/legacy-$STAMP"
+              PREV_WEB="$WEB_RELEASES/preswitch-$STAMP"
               mv "$CURRENT_WEB" "$PREV_WEB"
             fi
 

@@ -25,7 +25,7 @@ class PasswordVerification:
     needs_rehash: bool = False
 
 
-_LEGACY_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def hash_password(password: str) -> PasswordHash:
@@ -36,14 +36,14 @@ def hash_password(password: str) -> PasswordHash:
     return PasswordHash(_pwd_context.hash(password))
 
 
-def _is_legacy_sha256_hash(password_hash: str) -> bool:
-    return bool(_LEGACY_SHA256_RE.fullmatch(password_hash))
+def _is_plain_sha256_hash(password_hash: str) -> bool:
+    return bool(_SHA256_HEX_RE.fullmatch(password_hash))
 
 
 def verify_password_details(password: str, password_hash: str) -> PasswordVerification:
     if not password_hash:
         return PasswordVerification(valid=False)
-    if _is_legacy_sha256_hash(password_hash):
+    if _is_plain_sha256_hash(password_hash):
         computed_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
         return PasswordVerification(
             valid=constant_time_equals(computed_hash, password_hash),
@@ -65,7 +65,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 def is_password_hash_outdated(password_hash: str) -> bool:
     if not password_hash:
         return False
-    if _is_legacy_sha256_hash(password_hash):
+    if _is_plain_sha256_hash(password_hash):
         return True
     try:
         return bool(_pwd_context.needs_update(password_hash))
