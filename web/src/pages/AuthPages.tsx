@@ -115,9 +115,9 @@ export function AdminLoginPage() {
       <ExternalLoginButtons
         enabled={providers.data}
         getUrl={(provider) => api.externalLoginUrl("admin", provider, safeNext)}
-        accountLabel="Pouze pro předem propojené administrátorské účty"
+        portal="admin"
       />
-      {externalError && <StatusMessage kind="error" title="Externí přihlášení nebylo dokončeno">Externí účet není propojen nebo bezpečnostní ověření vypršelo. Nejprve se přihlaste interním heslem a účet propojte v zabezpečení účtu.</StatusMessage>}
+      {externalError && <StatusMessage kind="error" title={t("auth.external.failedTitle")}>{t("auth.external.adminFailed")}</StatusMessage>}
     </AuthFrame>
   );
 }

@@ -17,7 +17,7 @@ export function AdminShell() {
     ["/admin/dochazka", t("nav.attendance"), CalendarCheck2], ["/admin/plan-sluzeb", t("nav.shiftPlan"), CalendarRange],
     ["/admin/export", t("nav.export"), Download], ["/admin/tisky", t("nav.prints"), Printer],
     ["/admin/settings", t("nav.settings"), Settings2],
-    ["/admin/ucet", "Zabezpečení účtu", KeyRound],
+    ["/admin/ucet", t("account.title"), KeyRound],
     ["/admin/integrace", t("nav.integrations"), PlugZap],
   ] as const;
   const [open, setOpen] = useState(false);

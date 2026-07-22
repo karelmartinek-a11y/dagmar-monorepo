@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AccountMethods } from "../src/components/AccountMethods";
 import { AdminLoginPage } from "../src/pages/AuthPages";
 import { EmployeePage } from "../src/pages/EmployeePage";
+import { i18n } from "../src/i18n";
 
 function renderApp(node: React.ReactNode, path = "/app") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -40,6 +41,15 @@ describe("external authentication UI", () => {
     expect(screen.getByLabelText("Heslo")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Přihlásit se přes Google" })).toBeDisabled());
     expect(screen.getByRole("button", { name: "Přihlásit se přes Apple" })).toBeDisabled();
+  });
+
+  it("renders the employee external sign-in in Hindi without Czech fallback text", async () => {
+    await i18n.changeLanguage("hi");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ google: true, apple: true }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    renderApp(<EmployeePage />);
+    expect(await screen.findByText("केवल पहले से जुड़े खातों के लिए")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Google से लॉग इन करें" })).toBeInTheDocument();
+    expect(screen.queryByText("Pouze pro předem propojené účty")).not.toBeInTheDocument();
   });
 
   it("requires a password before link and shows masked linked identity", async () => {

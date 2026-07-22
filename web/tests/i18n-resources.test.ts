@@ -30,6 +30,16 @@ describe("i18n resources", () => {
     expect(flattenKeys(resources.hi.translation.auth.hero).sort()).toEqual(
       flattenKeys(resources.cs.translation.auth.hero).sort(),
     );
+    expect(flattenKeys(resources.hi.translation.auth.external).sort()).toEqual(
+      flattenKeys(resources.cs.translation.auth.external).filter((key) => !key.includes("admin")).sort(),
+    );
+    expect(flattenKeys(resources.hi.translation.account).filter((key) => !key.includes("admin")).sort()).toEqual(
+      flattenKeys(resources.cs.translation.account).filter((key) => !key.includes("admin")).sort(),
+    );
+    expect(flattenKeys(resources.hi.translation.common).sort()).toEqual(
+      flattenKeys(resources.cs.translation.common).sort(),
+    );
+    expect(resources.hi.translation.nav.skipToContent).toBeDefined();
     expect("adminOps" in resources.hi.translation).toBe(false);
     expect("integrationDocs" in resources.hi.translation).toBe(false);
   });

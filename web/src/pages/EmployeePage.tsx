@@ -118,7 +118,7 @@ function EmployeeLogin({
   const [pending, setPending] = useState(false);
   const providers = useQuery({ queryKey: ["external-providers"], queryFn: api.externalProviders, retry: false });
   const queryError = new URLSearchParams(window.location.search).get("external_auth_error");
-  const externalMessage = externalError || (queryError ? "Externí přihlášení se nezdařilo. Účet musí být nejprve propojen po přihlášení heslem." : "");
+  const externalMessage = externalError || (queryError ? t("auth.external.employeeFailed") : "");
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setPending(true);
@@ -191,9 +191,9 @@ function EmployeeLogin({
           <ExternalLoginButtons
             enabled={providers.data}
             getUrl={(provider) => api.externalLoginUrl("employee", provider, "/app")}
-            accountLabel="Pouze pro předem propojené účty"
+            portal="employee"
           />
-          {externalMessage && <StatusMessage kind="error" title="Externí přihlášení nebylo dokončeno">{externalMessage}</StatusMessage>}
+          {externalMessage && <StatusMessage kind="error" title={t("auth.external.failedTitle")}>{externalMessage}</StatusMessage>}
         </div>
       </section>
     </main>
@@ -1043,10 +1043,10 @@ export function EmployeePage() {
       setSession(savePortalLogin(login));
       window.history.replaceState({}, "", "/app");
     }).catch((error) => {
-      setExternalLoginError(error instanceof Error ? error.message : "Výsledek externího přihlášení vypršel.");
+      setExternalLoginError(error instanceof Error ? error.message : t("auth.external.resultExpired"));
       window.history.replaceState({}, "", "/app?external_auth_error=result");
     });
-  }, [session]);
+  }, [session, t]);
   useEffect(() => {
     document.title = `${t("common.appName")} · ${t(session ? "employee.page.title" : "employee.login.title")}`;
   }, [session, t]);

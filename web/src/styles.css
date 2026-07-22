@@ -213,7 +213,7 @@ a { color: inherit; }
   --employee-amber:#f6bd5d;
   --employee-violet:#c29cff;
 }
-html[lang="hi"] .employee-app,html[lang="hi"] .auth-page { font-family:"Noto Sans Devanagari","Montserrat",sans-serif; }
+html[lang="hi"] .employee-app,html[lang="hi"] .auth-page { font-family:"Noto Sans Devanagari","Montserrat",sans-serif; font-size:106%; line-height:1.4; }
 .employee-topbar { height:54px;padding-top:env(safe-area-inset-top); }
 .employee-topbar__actions>.button,.employee-topbar__actions>.language-switcher,.employee-topbar .employee-mode-switch { height:var(--employee-control-height);min-height:var(--employee-control-height);border-width:1px;border-radius:9px; }
 .employee-topbar__actions>.button { padding:0 .72rem; }

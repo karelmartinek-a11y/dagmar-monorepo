@@ -1,4 +1,5 @@
 import type { ExternalProvider } from "../api/types";
+import { useTranslation } from "react-i18next";
 
 const providers: ExternalProvider[] = ["google", "apple"];
 
@@ -28,18 +29,20 @@ function ProviderLogo({ provider }: { provider: ExternalProvider }) {
 export function ExternalLoginButtons({
   enabled,
   getUrl,
-  accountLabel,
+  portal,
 }: {
   enabled: Partial<Record<ExternalProvider, boolean>> | undefined;
   getUrl: (provider: ExternalProvider) => string;
-  accountLabel: string;
+  portal: "employee" | "admin";
 }) {
+  const { t } = useTranslation();
   return (
-    <div className="external-login" aria-label="Alternativní přihlášení">
-      <span>{accountLabel}</span>
+    <div className="external-login" aria-label={t("auth.external.alternative") }>
+      <span>{t(portal === "employee" ? "auth.external.employeeOnly" : "auth.external.adminOnly")}</span>
       <div className="external-login__actions">
         {providers.map((provider) => {
-          const label = `Přihlásit se přes ${provider === "google" ? "Google" : "Apple"}`;
+          const providerName = provider === "google" ? "Google" : "Apple";
+          const label = t("auth.external.signInWith", { provider: providerName });
           const content = <><ProviderLogo provider={provider} /><span className="sr-only">{label}</span></>;
           return enabled?.[provider] ? (
             <a
@@ -57,7 +60,7 @@ export function ExternalLoginButtons({
               type="button"
               className={`button external-login__button external-login__button--${provider}`}
               aria-label={label}
-              title={`${label} — poskytovatel není nakonfigurován`}
+              title={t("auth.external.unavailable", { provider: providerName })}
               disabled
             >
               {content}
