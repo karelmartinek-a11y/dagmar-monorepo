@@ -1,7 +1,5 @@
 # Pravidla pracovního fondu a měsíčních součtů
 
-Datum ověření: 17. 7. 2026
-
 ## Autoritativní zdroje
 
 - MPSV: https://mpsv.gov.cz/zamestnanci-info

@@ -56,6 +56,11 @@ jobs:
         run: |
           python scripts/check_repo_invariants.py
           python scripts/generate_current_state_manifest.py --check
+      - name: Verify clean tree after backend checks
+        run: |
+          git diff --exit-code
+          git status --short
+          test -z "$(git status --short)"
 
   web:
     runs-on: ubuntu-latest
@@ -121,6 +126,11 @@ jobs:
       - name: Browser, accessibility and visual tests
         working-directory: web
         run: npm run test:e2e
+      - name: Verify clean tree after web checks
+        run: |
+          git diff --exit-code
+          git status --short
+          test -z "$(git status --short)"
       - name: Package exact web artifact
         run: tar -C web/dist -czf web-release.tgz .
       - uses: actions/upload-artifact@v6

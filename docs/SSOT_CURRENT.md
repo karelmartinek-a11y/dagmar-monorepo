@@ -1,37 +1,111 @@
 # SSOT CURRENT
 
-## Monorepo
+## Rozsah
 
-Repozitář obsahuje FastAPI backend v `app/`, Alembic migrace v `alembic/`, backendové a repozitářové testy v `tests/`, validační skripty v `scripts/`, frontend ve `web/`, aktuální dokumentaci v `docs/` a provozní konfiguraci v `ops/`.
+Tento dokument popisuje pouze současný implementovaný stav monorepozitáře `karelmartinek-a11y/dagmar-monorepo`. Pokud se text rozchází s aktivním kódem, přednost má aktuální kód, routery, migrace a produkční chování.
+
+## Struktura monorepa
+
+- `app/` FastAPI backend
+- `alembic/` Alembic migrace
+- `tests/` backendové a repozitářové regresní testy
+- `scripts/` validační, generační a provozní skripty
+- `web/` Vite, React a TypeScript frontend
+- `web/tests/` frontendové unit a E2E testy
+- `docs/` aktuální technická a provozní dokumentace
+- `.github/workflows/` GitHub CI/CD a produkční deploy
+- `ops/` Nginx a systemd konfigurace
 
 ## Produkční runtime
 
-Produkční doména je `https://dagmar.hcasc.cz`. API běží pod `/api/v1/`. Backend naslouchá na `127.0.0.1:8101`. PostgreSQL je publikovaná pouze na `127.0.0.1:5433`. Reverse proxy a TLS obsluhuje Nginx. Nasazení řídí `.github/workflows/ci-cd.yml`.
+- produkční doména: `https://dagmar.hcasc.cz`
+- aktivní API namespace: `/api/v1/`
+- backend bind: `127.0.0.1:8101`
+- PostgreSQL publish address: `127.0.0.1:5433`
+- reverse proxy a TLS: Nginx
+- nasazení řídí `.github/workflows/ci-cd.yml`
+- časová autorita: `Europe/Prague`
 
-## Frontend routes
+## Frontend routy
 
-Aktivní veřejné routy jsou `/`, `/app`, `/reset`, `/integration-api`, `/admin/login`, `/admin`, `/admin/prehled`, `/admin/users`, `/admin/dochazka`, `/admin/plan-sluzeb`, `/admin/export`, `/admin/tisky`, `/admin/tisky/preview`, `/admin/settings`, `/admin/ucet` a `/admin/integrace`. Routing definuje `web/src/App.tsx`.
+Aktivní routy definuje [web/src/App.tsx](/Users/karelmartinek/Developer/dagmar-monorepo/web/src/App.tsx):
 
-## Backend routes
+- `/`
+- `/app`
+- `/reset`
+- `/integration-api`
+- `/admin/login`
+- `/admin`
+- `/admin/prehled`
+- `/admin/users`
+- `/admin/dochazka`
+- `/admin/plan-sluzeb`
+- `/admin/export`
+- `/admin/tisky`
+- `/admin/tisky/preview`
+- `/admin/settings`
+- `/admin/ucet`
+- `/admin/integrace`
 
-Aktivní API registruje `app/main.py` z routerů v `app/api/v1/`. Zaměstnanecká část používá `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/attendance`, `/api/v1/shift-plan` a `/api/v1/shift-plan/day-status`. Administrace používá `/api/v1/admin/*` endpointy pro login, CSRF, přehled, uživatele, úvazky, docházku, zámky, plán služeb, export, nastavení, SMTP a integrační klienty. Veřejná integrační dokumentace běží na `/integration-api` a integrační API na `/api/v1/integration/*`. Zdravotní a verzační endpointy jsou `/api/v1/health`, `/api/health`, `/api/version` a `/api/v1/time`.
+## Backend endpointy a auth model
 
-## Authentication
+Aktivní API registruje [app/main.py](/Users/karelmartinek/Developer/dagmar-monorepo/app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
-Administrace používá session cookie `dagmar_admin_session` a CSRF hlavičku `X-CSRF-Token`. Zaměstnanecká část používá bearer token vrácený z `app/api/v1/portal_auth.py` jako `instance_token`. Integrační API používá samostatné bearer tokeny s prefixem `dgi_`. Externí Google a Apple login v `app/api/v1/external_auth.py` ověřuje pouze už propojené interní účty.
+- veřejné endpointy zahrnují `/api/v1/health`, `/api/health`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`
+- zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status` a `/api/v1/portal/auth-methods*`
+- administrace používá session cookie `dagmar_admin_session`, CSRF hlavičku `X-CSRF-Token` a `/api/v1/admin/*` endpointy pro login, uživatele, úvazky, docházku, plán služeb, zámky, exporty, SMTP, nastavení a integrační klienty
+- integrační API používá bearer tokeny s prefixem `dgi_` a běží na `/api/v1/integration/*`
+- veřejná integrační dokumentace je dostupná na `/integration-api`
 
-## Permissions And Data Scope
+## Scope dat a hlavní invarianty
 
-Docházka, plán služeb, zámky a exporty jsou v backendu i frontendu vázané na `employment_id`. Zaměstnanec po loginu vybírá aktivní úvazek z `available_employments`. Admin endpointy vyžadují session autentizaci. Integrační endpointy vynucují scopes a filtrovaný rozsah zaměstnanců a úvazků.
+- docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
+- zaměstnanec po loginu dostává bearer `instance_token`, `employment_id` a `available_employments`
+- zaměstnanec může pracovat jen s úvazkem, ke kterému má přístup
+- integrační klienti mají scope a datový rozsah filtrovaný podle zaměstnanců a úvazků
+- externí Google a Apple login slouží jen k ověření již propojeného interního účtu
 
-## Main Components
+## Hlavní komponenty
 
-`app/main.py` skládá aplikaci, middleware a routery. `app/config.py` drží runtime konfiguraci a doménové invarianty. `app/services/` obsahuje pracovní logiku pro docházku, externí auth, zámky, čas v Praze a připomínky. `web/src/pages/EmployeePage.tsx` obsluhuje zaměstnaneckou část. `web/src/pages/AdminMatrixPages.tsx`, `web/src/pages/AdminOperationsPages.tsx`, `web/src/pages/AdminUsersPage.tsx`, `web/src/pages/AdminOverviewPage.tsx` a `web/src/pages/AdminAccountPage.tsx` obsluhují administraci. `web/src/api/client.ts` je jediný sdílený HTTP klient frontendu.
+- `app/main.py` skládá aplikaci, middleware, health a version endpointy a registruje routery
+- `app/config.py` drží runtime konfiguraci a doménové invarianty
+- `app/services/attendance_reminders.py` zajišťuje background připomínky
+- `app/services/external_auth.py` zajišťuje Google a Apple auth toky
+- `web/src/api/client.ts` je sdílený frontendový HTTP klient
+- `web/src/pages/EmployeePage.tsx` obsluhuje zaměstnaneckou část
+- `web/src/pages/AdminOverviewPage.tsx`, `web/src/pages/AdminUsersPage.tsx`, `web/src/pages/AdminMatrixPages.tsx`, `web/src/pages/AdminOperationsPages.tsx` a `web/src/pages/AdminAccountPage.tsx` obsluhují administraci
+- `web/src/pages/IntegrationDocsPage.tsx` obsluhuje veřejnou integrační dokumentaci
 
-## Shared Change Rules
+## Povinné změnové uzavření
 
-Při změně API se současně upravuje backend, frontend, testy, manifest a relevantní dokumentace. Při změně sdílených frontendových částí se ověřují všichni spotřebitelé v `web/src/pages/` a `web/src/components/`. Při změně autentizace se ověřují session cookie, CSRF, bearer tokeny, oprávnění a chybové stavy.
+Při změně API se současně upravuje backend, frontend, testy, manifest a relevantní dokumentace. Při změně sdílených částí se ověřují všichni konzumenti. Při změně autentizace se ověřují session cookie, CSRF, bearer tokeny, oprávnění a chybové stavy.
 
-## Regression Checks
+## Povinné kontroly
 
-Povinné kontroly jsou `pytest`, `ruff check app tests scripts`, `mypy app`, `python scripts/check_repo_invariants.py`, `python scripts/generate_current_state_manifest.py --check`, `npm run check:branding`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` a `npm run test:e2e`. Testy `tests/test_current_state_manifest.py`, `tests/test_forbidden_domain.py`, `tests/test_admin_auth.py`, `tests/test_integration_api.py`, `web/tests/api.test.ts`, `web/tests/admin-pages.test.tsx`, `web/tests/employee-page-editing.test.tsx` a Playwright scénáře v `web/tests/e2e/` chrání hlavní kontrakty.
+Backend a repozitář:
+
+```bash
+python -m compileall -q app
+ruff check app tests scripts
+mypy app
+alembic heads
+pytest -q
+python scripts/check_repo_invariants.py
+python scripts/generate_current_state_manifest.py --check
+git diff --exit-code
+git status --short
+```
+
+Frontend z `web/`:
+
+```bash
+npm ci
+npm run check:branding
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:e2e
+git diff --exit-code
+git status --short
+```

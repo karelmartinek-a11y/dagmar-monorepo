@@ -46,6 +46,18 @@ FRONTEND_COMPONENTS = {
     "/admin/integrace": "web/src/pages/AdminOperationsPages.tsx",
 }
 
+REPOSITORY_LAYOUT = [
+    {"path": "app/", "purpose": "FastAPI backend"},
+    {"path": "alembic/", "purpose": "Alembic migrations"},
+    {"path": "tests/", "purpose": "Backend and repository regression tests"},
+    {"path": "scripts/", "purpose": "Validation, generation and operations scripts"},
+    {"path": "web/", "purpose": "Vite, React and TypeScript frontend"},
+    {"path": "web/tests/", "purpose": "Frontend unit and end-to-end tests"},
+    {"path": "docs/", "purpose": "Current technical and operational documentation"},
+    {"path": ".github/workflows/", "purpose": "GitHub CI/CD and production deploy"},
+    {"path": "ops/", "purpose": "Nginx and systemd configuration"},
+]
+
 
 def _build_app():
     os.environ["DAGMAR_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
@@ -120,12 +132,25 @@ def build_manifest() -> dict[str, object]:
             "web/src/api/client.ts",
             ".github/workflows/ci-cd.yml",
         ],
+        "repository_layout": REPOSITORY_LAYOUT,
         "production": {
             "domain": "https://dagmar.hcasc.cz",
-            "api_base_path": "/api/v1",
+            "api_base_path": "/api/v1/",
             "backend_bind": "127.0.0.1:8101",
             "postgres_bind": "127.0.0.1:5433",
             "deploy_workflow": ".github/workflows/ci-cd.yml",
+        },
+        "runtime_invariants": {
+            "canonical_domain": "https://dagmar.hcasc.cz",
+            "api_namespace": "/api/v1/",
+            "backend_bind": "127.0.0.1:8101",
+            "postgres_bind": "127.0.0.1:5433",
+            "admin_auth": "session_cookie_plus_csrf",
+            "employee_auth": "bearer_instance_token",
+            "integration_auth": "dgi_bearer_token",
+            "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
+            "timezone": "Europe/Prague",
+            "reverse_proxy_tls": "nginx",
         },
         "frontend_routes": [
             {"path": path, "component": FRONTEND_COMPONENTS.get(path, "web/src/App.tsx")}

@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_SUFFIXES = {
     ".md",
+    ".rst",
+    ".adoc",
     ".py",
     ".toml",
     ".yaml",
@@ -19,6 +21,7 @@ TEXT_SUFFIXES = {
     ".ts",
     ".js",
     ".mjs",
+    ".sh",
     ".html",
     ".css",
 }
@@ -38,6 +41,57 @@ FORBIDDEN_REFERENCES = {
     "dochazka.hcasc.cz": {"app/config.py", "tests/test_forbidden_domain.py", "scripts/check_repo_invariants.py"},
 }
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+KEY_DOCS = {
+    Path("README.md"): [
+        "`app/`",
+        "`web/`",
+        "`web/tests/`",
+        "`alembic/`",
+        "`tests/`",
+        "`scripts/`",
+        "`docs/`",
+        "https://dagmar.hcasc.cz",
+        "/api/v1/",
+        "git diff --exit-code",
+        "git status --short",
+    ],
+    Path("docs/SSOT_CURRENT.md"): [
+        "`app/`",
+        "`web/`",
+        "`web/tests/`",
+        "`alembic/`",
+        "`tests/`",
+        "`scripts/`",
+        "`docs/`",
+        "`ops/`",
+        "https://dagmar.hcasc.cz",
+        "/api/v1/",
+        "git diff --exit-code",
+        "git status --short",
+    ],
+    Path("AGENTS.md"): [
+        "karelmartinek-a11y/dagmar-monorepo",
+        "`app/`",
+        "`web/`",
+        "`web/tests/`",
+        "`alembic/`",
+        "`tests/`",
+        "`scripts/`",
+        "`docs/`",
+        "`ops/`",
+        "https://dagmar.hcasc.cz",
+        "/api/v1/",
+        "Každá změna, včetně malé opravy, musí být před commitem uzavřena napříč všemi dotčenými artefakty.",
+        "Git historie je jediným místem pro historii odstraněných funkcí.",
+        "git diff --exit-code",
+        "git status --short",
+        "Povinný závěrečný report",
+    ],
+}
+LEGACY_LAYOUT_PATTERNS = (
+    re.compile(r"`backend/`"),
+    re.compile(r"`frontend/`"),
+)
 
 
 def _text_files() -> list[Path]:
@@ -83,11 +137,27 @@ def _validate_local_links(failures: list[str]) -> None:
                 failures.append(f"broken markdown link in {path.relative_to(ROOT)} -> {target}")
 
 
+def _validate_key_docs(failures: list[str]) -> None:
+    for rel, required_snippets in KEY_DOCS.items():
+        path = ROOT / rel
+        if not path.exists():
+            failures.append(f"missing key documentation file: {rel}")
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for snippet in required_snippets:
+            if snippet not in text:
+                failures.append(f"missing required snippet {snippet!r} in {rel}")
+        for pattern in LEGACY_LAYOUT_PATTERNS:
+            if pattern.search(text):
+                failures.append(f"legacy top-level layout reference in {rel}: {pattern.pattern}")
+
+
 def main() -> int:
     failures: list[str] = []
     _validate_removed_paths(failures)
     _validate_forbidden_references(failures)
     _validate_local_links(failures)
+    _validate_key_docs(failures)
     if failures:
         print("Repository invariant check failed:")
         for failure in failures:

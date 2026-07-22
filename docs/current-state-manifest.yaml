@@ -846,10 +846,60 @@
     "public_instance_registration"
   ],
   "production": {
-    "api_base_path": "/api/v1",
+    "api_base_path": "/api/v1/",
     "backend_bind": "127.0.0.1:8101",
     "deploy_workflow": ".github/workflows/ci-cd.yml",
     "domain": "https://dagmar.hcasc.cz",
     "postgres_bind": "127.0.0.1:5433"
+  },
+  "repository_layout": [
+    {
+      "path": "app/",
+      "purpose": "FastAPI backend"
+    },
+    {
+      "path": "alembic/",
+      "purpose": "Alembic migrations"
+    },
+    {
+      "path": "tests/",
+      "purpose": "Backend and repository regression tests"
+    },
+    {
+      "path": "scripts/",
+      "purpose": "Validation, generation and operations scripts"
+    },
+    {
+      "path": "web/",
+      "purpose": "Vite, React and TypeScript frontend"
+    },
+    {
+      "path": "web/tests/",
+      "purpose": "Frontend unit and end-to-end tests"
+    },
+    {
+      "path": "docs/",
+      "purpose": "Current technical and operational documentation"
+    },
+    {
+      "path": ".github/workflows/",
+      "purpose": "GitHub CI/CD and production deploy"
+    },
+    {
+      "path": "ops/",
+      "purpose": "Nginx and systemd configuration"
+    }
+  ],
+  "runtime_invariants": {
+    "admin_auth": "session_cookie_plus_csrf",
+    "api_namespace": "/api/v1/",
+    "backend_bind": "127.0.0.1:8101",
+    "canonical_domain": "https://dagmar.hcasc.cz",
+    "employee_auth": "bearer_instance_token",
+    "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
+    "integration_auth": "dgi_bearer_token",
+    "postgres_bind": "127.0.0.1:5433",
+    "reverse_proxy_tls": "nginx",
+    "timezone": "Europe/Prague"
   }
 }

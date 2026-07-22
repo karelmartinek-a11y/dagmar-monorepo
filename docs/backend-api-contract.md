@@ -3,7 +3,7 @@
 Verze: 2026-06-12  
 Base path: `/api/v1`
 
-Tento kontrakt je sdílený mezi backendem a frontendem. Docházka, plán služeb, zámky i exporty jsou vedené podle `employment_id`. Klient po přihlášení pracuje s Bearer tokenem a dostupnými úvazky; autentizační identifikátor instance se do login response už nevrací.
+Tento kontrakt je sdílený mezi backendem a frontendem. Docházka, plán služeb, zámky i exporty jsou vedené podle `employment_id`. Klient po přihlášení pracuje s Bearer tokenem a dostupnými úvazky; interní `instance_id` se do login response nevrací, ale autorizační bearer `instance_token` ano.
 
 ## 1) Portal auth
 
