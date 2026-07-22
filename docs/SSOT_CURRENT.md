@@ -28,7 +28,7 @@ Tento dokument popisuje pouze současný implementovaný stav monorepozitáře `
 
 ## Frontend routy
 
-Aktivní routy definuje [web/src/App.tsx](/Users/karelmartinek/Developer/dagmar-monorepo/web/src/App.tsx):
+Aktivní routy definuje [web/src/App.tsx](../web/src/App.tsx):
 
 - `/`
 - `/app`
@@ -49,7 +49,7 @@ Aktivní routy definuje [web/src/App.tsx](/Users/karelmartinek/Developer/dagmar-
 
 ## Backend endpointy a auth model
 
-Aktivní API registruje [app/main.py](/Users/karelmartinek/Developer/dagmar-monorepo/app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
+Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
 - veřejné endpointy zahrnují `/api/v1/health`, `/api/health`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`
 - zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status` a `/api/v1/portal/auth-methods*`
