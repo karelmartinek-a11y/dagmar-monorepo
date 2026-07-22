@@ -489,8 +489,8 @@ export const resources = {
           conflictConfirm: "Nahradit údaje",
         },
         locks: {
-          unlockRow: "{{label}}: odemknout",
-          lockRow: "{{label}}: zamknout",
+          unlockRow: "{{label}}: uzamčeno, kliknutím odemknete",
+          lockRow: "{{label}}: odemčeno, kliknutím uzamknete",
           unlockMonth: "Odemknout všechny úvazky v měsíci",
           lockMonth: "Uzamknout všechny úvazky v měsíci",
           unlockBatch: "Odemknout vybrané měsíce",
@@ -1266,8 +1266,8 @@ export const resources = {
           conflictConfirm: "Replace values",
         },
         locks: {
-          unlockRow: "{{label}}: unlock",
-          lockRow: "{{label}}: lock",
+          unlockRow: "{{label}}: locked, click to unlock",
+          lockRow: "{{label}}: unlocked, click to lock",
           unlockMonth: "Unlock all employments in the month",
           lockMonth: "Lock all employments in the month",
           unlockBatch: "Unlock selected months",
@@ -2034,8 +2034,8 @@ export const resources = {
           conflictConfirm: "Nahradiť údaje",
         },
         locks: {
-          unlockRow: "{{label}}: odomknúť",
-          lockRow: "{{label}}: zamknúť",
+          unlockRow: "{{label}}: uzamknuté, kliknutím odomknete",
+          lockRow: "{{label}}: odomknuté, kliknutím zamknete",
           unlockMonth: "Odomknúť všetky úväzky v mesiaci",
           lockMonth: "Zamknúť všetky úväzky v mesiaci",
           unlockBatch: "Odomknúť vybrané mesiace",
@@ -2819,8 +2819,8 @@ export const resources = {
           conflictConfirm: "Werte ersetzen",
         },
         locks: {
-          unlockRow: "{{label}}: entsperren",
-          lockRow: "{{label}}: sperren",
+          unlockRow: "{{label}}: gesperrt, zum Entsperren klicken",
+          lockRow: "{{label}}: entsperrt, zum Sperren klicken",
           unlockMonth: "Alle Beschäftigungen des Monats entsperren",
           lockMonth: "Alle Beschäftigungen des Monats sperren",
           unlockBatch: "Ausgewählte Monate entsperren",

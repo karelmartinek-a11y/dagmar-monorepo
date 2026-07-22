@@ -1582,6 +1582,20 @@ export function EmployeePage() {
               }
             </StatusMessage>
           )}
+          {view === "plan" && query.data && (shiftPlanLocked || !query.data.shift_plan_editable) && (
+            <StatusMessage
+              kind="error"
+              title={
+                shiftPlanLocked
+                  ? t("employee.statusSystem.planLocked")
+                  : t("employee.statusSystem.planReadonly")
+              }
+            >
+              {shiftPlanLocked
+                ? t("common.errors.shift_plan_month_locked")
+                : t("common.errors.shift_plan_edit_forbidden")}
+            </StatusMessage>
+          )}
           {query.isPending && (
             <StatusMessage
               kind="loading"

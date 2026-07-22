@@ -260,6 +260,7 @@ test("employee shift plan is read-only when admin does not allow month editing",
   await page.goto("/app");
   await page.locator(".employee-topbar .language-switcher select").selectOption("cs");
   await page.getByRole("tab", { name: "Plán služeb" }).click();
+  await expect(page.getByRole("alert").getByText("Zápis plánu služeb není pro tento měsíc povolen")).toBeVisible();
   await expect(page.getByTitle("Zápis plánu služeb není pro tento měsíc povolen")).toBeVisible();
   await expect(page.locator(".employee-day--plan").first().locator("input[name=\"planned_arrival_time\"]")).toBeDisabled();
 });

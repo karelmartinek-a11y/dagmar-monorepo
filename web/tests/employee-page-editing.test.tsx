@@ -254,4 +254,29 @@ describe("employee time editing", () => {
     expect(screen.getByText("−1:00 h")).toBeInTheDocument();
     expect(screen.getByText("0 h")).toBeInTheDocument();
   });
+
+  it("shows a visible shift plan read-only explanation on the mobile plan view", async () => {
+    const days = buildDays();
+    fetchMock.mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path.startsWith("/api/v1/attendance?")) return jsonResponse({
+        employment_id: 41,
+        employment_label: "Testovací uživatel · Denní provoz",
+        attendance_locked: false,
+        shift_plan_locked: false,
+        shift_plan_editable: false,
+        summary: { work_fund_minutes: 480, work_fund_source: "calendar", planned_minutes: 420, worked_minutes: 480, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -60, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
+        days,
+      });
+      void init;
+      throw new Error(`Unhandled fetch ${path}`);
+    });
+
+    const user = userEvent.setup();
+    renderEmployeePage();
+
+    await user.click(await screen.findByRole("tab", { name: "Plán služeb" }));
+    expect((await screen.findAllByText("Zápis plánu služeb není pro tento měsíc povolen")).length).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue("08:00")).toBeDisabled();
+  });
 });

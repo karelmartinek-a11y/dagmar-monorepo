@@ -126,7 +126,7 @@ describe("admin pages", () => {
     });
     await waitFor(() => expect(screen.queryByRole("button", { name: "Uzamknout vybrané měsíce" })).not.toBeInTheDocument());
     expect(await screen.findByText(/Uzamčení bylo provedeno pro 1 měsíčních zámků/i)).toBeInTheDocument();
-    expect((await screen.findAllByRole("button", { name: /Aktivní úvazek: odemknout/i })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole("button", { name: /Aktivní úvazek: uzamčeno, kliknutím odemknete/i })).length).toBeGreaterThan(0);
   });
 
   it("shows SMTP test progress and success target in Czech", async () => {
