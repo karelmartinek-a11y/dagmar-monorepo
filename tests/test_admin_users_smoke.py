@@ -957,6 +957,50 @@ def test_admin_bulk_lock_endpoint_updates_multiple_months_transactionally() -> N
         assert {(row.year, row.month) for row in locks} == {(2026, 5), (2026, 6)}
 
 
+def test_admin_bulk_lock_endpoint_applies_only_to_employment_month_overlaps() -> None:
+    client, session_local = _build_client()
+    with session_local() as db:
+        may_user = _create_user(db, email="bulk-may-only@example.com")
+        june_user = _create_user(db, email="bulk-june-only@example.com")
+        may_employment = _add_employment(db, may_user, start_date=date(2026, 5, 1), end_date=date(2026, 5, 31))
+        june_employment = _add_employment(db, june_user, start_date=date(2026, 6, 1), end_date=None)
+        may_employment_id = may_employment.id
+        june_employment_id = june_employment.id
+
+    response = client.put(
+        "/api/v1/admin/locks",
+        json={
+            "lock_type": "attendance",
+            "locked": True,
+            "employment_ids": [may_employment_id, june_employment_id],
+            "months": [
+                {"year": 2026, "month": 5},
+                {"year": 2026, "month": 6},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["updated_count"] == 2
+    assert payload["month_count"] == 2
+
+    with session_local() as db:
+        locks = db.execute(
+            select(AttendanceLock).where(
+                AttendanceLock.employment_id.in_([may_employment_id, june_employment_id]),
+                AttendanceLock.year == 2026,
+                AttendanceLock.month.in_([5, 6]),
+            )
+        ).scalars().all()
+        assert {
+            (row.employment_id, row.year, row.month)
+            for row in locks
+        } == {
+            (may_employment_id, 2026, 5),
+            (june_employment_id, 2026, 6),
+        }
+
+
 def test_employment_delete_with_related_data_returns_409_until_confirmed() -> None:
     client, session_local = _build_client()
     with session_local() as db:

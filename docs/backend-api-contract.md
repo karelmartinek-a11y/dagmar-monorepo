@@ -168,6 +168,24 @@ Lock/unlock:
 { "employment_id": 17, "year": 2026, "month": 3 }
 ```
 
+### PUT `/api/v1/admin/locks`
+
+Hromadné zamknutí nebo odemknutí z administračních matic docházky a plánu služeb.
+
+```json
+{
+  "lock_type": "attendance",
+  "locked": true,
+  "employment_ids": [17, 18],
+  "months": [
+    { "year": 2026, "month": 3 },
+    { "year": 2026, "month": 4 }
+  ]
+}
+```
+
+Endpoint aplikuje změnu jen na ty kombinace `employment_id × měsíc`, které skutečně leží v období platnosti daného úvazku. Pokud ve zvoleném rozsahu neleží žádný vybraný úvazek, vrací `409 employment_period_mismatch`.
+
 ## 6) Admin – Shift plan
 
 ### GET `/api/v1/admin/shift-plan?year=2026&month=3`

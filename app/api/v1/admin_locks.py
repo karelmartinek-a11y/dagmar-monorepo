@@ -100,30 +100,32 @@ def admin_set_locks(
     if missing_ids:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.", employment_ids=missing_ids)
 
-    invalid_months: list[dict[str, int]] = []
-    for employment_id in uniq_ids:
-        employment = employment_by_id[employment_id]
-        for item in months:
-            month_start, month_end = _month_range(item)
-            if employment_overlaps_month(employment, month_start, month_end):
-                continue
-            invalid_months.append({"employment_id": employment_id, "year": item.year, "month": item.month})
-    if invalid_months:
+    target_rows_by_month: list[tuple[LockMonthIn, list[tuple[int, str | None]]]] = []
+    updated_count = 0
+    for item in months:
+        month_start, month_end = _month_range(item)
+        month_rows = [
+            (
+                employment.id,
+                employment.user.instance_id if employment.user is not None else None,
+            )
+            for employment_id in uniq_ids
+            for employment in [employment_by_id[employment_id]]
+            if employment_overlaps_month(employment, month_start, month_end)
+        ]
+        if not month_rows:
+            continue
+        target_rows_by_month.append((item, month_rows))
+        updated_count += len(month_rows)
+
+    if not target_rows_by_month:
         raise_api_error(
             409,
             "employment_period_mismatch",
-            "Vybraný měsíc neleží v období platnosti některého zvoleného úvazku.",
-            invalid_months=invalid_months,
+            "Vybrané období neleží v platnosti žádného zvoleného úvazku.",
         )
 
-    rows = [
-        (
-            employment.id,
-            employment.user.instance_id if employment.user is not None else None,
-        )
-        for employment in (employment_by_id[employment_id] for employment_id in uniq_ids)
-    ]
-    for item in months:
+    for item, rows in target_rows_by_month:
         set_month_lock_state_bulk(
             db,
             lock_type=body.lock_type,
@@ -136,7 +138,7 @@ def admin_set_locks(
     db.commit()
     return AdminLockSetOut(
         ok=True,
-        updated_count=len(rows) * len(months),
+        updated_count=updated_count,
         lock_type=body.lock_type,
         year=months[0].year if len(months) == 1 else None,
         month=months[0].month if len(months) == 1 else None,

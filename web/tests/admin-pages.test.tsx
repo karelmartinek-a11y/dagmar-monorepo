@@ -41,8 +41,9 @@ describe("admin pages", () => {
     vi.unstubAllGlobals();
   });
 
-  it("locks all loaded attendance employments even when active-only filter is enabled", async () => {
+  it("locks only attendance employments that overlap the selected range and closes the dialog on success", async () => {
     const calls: Array<{ path: string; body?: string | null }> = [];
+    let firstEmploymentLocked = false;
     fetchMock.mockImplementation(async (input, init) => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
@@ -59,8 +60,8 @@ describe("admin pages", () => {
               start_date: "2026-01-01",
               end_date: null,
               is_active_in_month: true,
-              locked: true,
-              attendance_locked: true,
+              locked: firstEmploymentLocked,
+              attendance_locked: firstEmploymentLocked,
               shift_plan_locked: false,
               days: [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", planned_status: null, is_within_employment_period: true }],
             },
@@ -81,7 +82,20 @@ describe("admin pages", () => {
         });
       }
       if (path === "/api/v1/admin/csrf") return jsonResponse({ csrf_token: "csrf-token" });
-      if (path === "/api/v1/admin/locks") return jsonResponse({ ok: true });
+      if (path === "/api/v1/admin/locks") {
+        const payload = JSON.parse(typeof init?.body === "string" ? init.body : "{}");
+        if (payload.employment_ids.includes(1)) firstEmploymentLocked = Boolean(payload.locked);
+        return jsonResponse({
+          ok: true,
+          updated_count: 1,
+          lock_type: payload.lock_type,
+          year: 2026,
+          month: 7,
+          locked: payload.locked,
+          month_count: 1,
+          months: payload.months,
+        });
+      }
       throw new Error(`Unhandled fetch ${path}`);
     });
 
@@ -104,12 +118,15 @@ describe("admin pages", () => {
         .filter((call) => call.path === "/api/v1/admin/locks")
         .map((call) => JSON.parse(call.body ?? "{}"));
       expect(payloads).toContainEqual(expect.objectContaining({
-        employment_ids: [1, 2],
+        employment_ids: [1],
         lock_type: "attendance",
         locked: true,
         months: [{ year: 2026, month: 7 }],
       }));
     });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Uzamknout vybrané měsíce" })).not.toBeInTheDocument());
+    expect(await screen.findByText(/Uzamčení bylo provedeno pro 1 měsíčních zámků/i)).toBeInTheDocument();
+    expect((await screen.findAllByRole("button", { name: /Aktivní úvazek: odemknout/i })).length).toBeGreaterThan(0);
   });
 
   it("shows SMTP test progress and success target in Czech", async () => {

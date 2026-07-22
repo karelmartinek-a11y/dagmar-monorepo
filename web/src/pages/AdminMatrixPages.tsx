@@ -1,4 +1,4 @@
-import { KeyboardEvent, useMemo, useRef, useState } from "react";
+import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownAZ, ArrowUpAZ, Check, ChevronDown, Filter, Lock, Save, Unlock, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,7 @@ type PlanMonth = { year: number; month: number; employee_plan_edit_default: bool
 type DayStatusDraft = { employment_id: number; date: string; status: string | null; confirm_delete_conflicts?: boolean };
 type SelectionDirection = "asc" | "desc";
 type SelectionItem = { id: number; display_label: string; employment_type: string; start_date: string; end_date: string | null; is_active_in_month: boolean };
+type BulkLockResult = { ok: boolean; updated_count: number; lock_type: LockKind; year: number | null; month: number | null; locked: boolean; month_count: number; months: LockMonthSelection[] };
 
 function monthInputValue(value: LockMonthSelection) {
   return `${String(value.year).padStart(4, "0")}-${String(value.month).padStart(2, "0")}`;
@@ -55,6 +56,27 @@ function buildMonthSelections(from: LockMonthSelection, to: LockMonthSelection) 
     }
   }
   return months;
+}
+
+function monthSelectionWindow(value: LockMonthSelection) {
+  const start = `${String(value.year).padStart(4, "0")}-${String(value.month).padStart(2, "0")}-01`;
+  const endYear = value.month === 12 ? value.year + 1 : value.year;
+  const endMonth = value.month === 12 ? 1 : value.month + 1;
+  const endExclusive = `${String(endYear).padStart(4, "0")}-${String(endMonth).padStart(2, "0")}-01`;
+  return { start, endExclusive };
+}
+
+function employmentOverlapsMonthSelection(item: Pick<SelectionItem, "start_date" | "end_date">, month: LockMonthSelection) {
+  const { start, endExclusive } = monthSelectionWindow(month);
+  if (item.start_date >= endExclusive) return false;
+  if (item.end_date && item.end_date < start) return false;
+  return true;
+}
+
+function filterEmploymentIdsForMonths(items: SelectionItem[], months: LockMonthSelection[]) {
+  return items
+    .filter((item) => months.some((month) => employmentOverlapsMonthSelection(item, month)))
+    .map((item) => item.id);
 }
 
 function RowLockButton({
@@ -123,7 +145,8 @@ function LockBatchModal({
   label,
   description,
   pending,
-  employmentCount,
+  error,
+  selectedEmployments,
   initialMonth,
   onClose,
   onConfirm,
@@ -132,29 +155,70 @@ function LockBatchModal({
   label: string;
   description: string;
   pending: boolean;
-  employmentCount: number;
+  error: ApiError | null;
+  selectedEmployments: SelectionItem[];
   initialMonth: LockMonthSelection;
   onClose: () => void;
-  onConfirm: (months: LockMonthSelection[]) => void;
+  onConfirm: (months: LockMonthSelection[], employmentIds: number[]) => void;
 }) {
   const { t } = useTranslation();
+  const dialogRef = useRef<HTMLElement | null>(null);
   const [from, setFrom] = useState(monthInputValue(initialMonth));
   const [to, setTo] = useState(monthInputValue(initialMonth));
   const start = parseMonthInputValue(from);
   const end = parseMonthInputValue(to);
-  const months = start && end ? buildMonthSelections(start, end) : [];
-  const invalid = !start || !end || months.length === 0;
+  const months = useMemo(() => (start && end ? buildMonthSelections(start, end) : []), [end, start]);
+  const impactedEmploymentIds = useMemo(() => filterEmploymentIdsForMonths(selectedEmployments, months), [months, selectedEmployments]);
+  const invalidRange = !start || !end || months.length === 0;
+  const noEligibleEmployments = !invalidRange && impactedEmploymentIds.length === 0;
+  const invalid = invalidRange || noEligibleEmployments;
   const confirm = () => {
     if (invalid) return;
-    onConfirm(months);
+    onConfirm(months, impactedEmploymentIds);
   };
 
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+    const focusable = () => Array.from(
+      dialog.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'),
+    ).filter((item) => !item.hasAttribute("disabled"));
+    focusable()[0]?.focus();
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape" && !pending) {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previous?.focus();
+    };
+  }, [onClose, pending]);
+
   return <div className="modal-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !pending && onClose()}>
-    <section className="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="lock-batch-title">
+    <section ref={dialogRef} className="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="lock-batch-title">
       <span className="modal__signal" aria-hidden="true">{action === "lock" ? <Lock /> : <Unlock />}</span>
       <h2 id="lock-batch-title">{label}</h2>
       <div>
         <p>{description}</p>
+        {pending && <StatusMessage kind="loading" title={t("common.status.processing")}>{t("adminMatrix.locks.processingBody")}</StatusMessage>}
+        {error && <StatusMessage kind="error" title={t("adminMatrix.locks.failedTitle")}>{error.requestId ? t("adminMatrix.locks.requestId", { requestId: error.requestId, message: error.message }) : error.message}</StatusMessage>}
         <div className="form-grid">
           <Field label={t("adminMatrix.locks.fromMonth")} hint={t("adminMatrix.locks.fromMonthHint")}>
             <input type="month" value={from} onChange={(event) => setFrom(event.target.value)} />
@@ -164,9 +228,11 @@ function LockBatchModal({
           </Field>
         </div>
         <p>
-          {invalid
+          {invalidRange
             ? t("adminMatrix.locks.invalidRange")
-            : t("adminMatrix.locks.rangeSummary", { monthCount: months.length, employmentCount })}
+            : noEligibleEmployments
+              ? t("adminMatrix.locks.noEligibleRange")
+              : t("adminMatrix.locks.rangeSummary", { monthCount: months.length, employmentCount: impactedEmploymentIds.length })}
         </p>
       </div>
       <footer>
@@ -407,6 +473,7 @@ export function AdminAttendancePage() {
   const [selectionDirection, setSelectionDirection] = useState<SelectionDirection>("asc");
   const [activeOnly, setActiveOnly] = useState(false);
   const [lockDialog, setLockDialog] = useState<null | { action: "lock" | "unlock" }>(null);
+  const [lockNotice, setLockNotice] = useState<string | null>(null);
   const qc = useQueryClient();
   const query = useQuery({ queryKey: ["admin-attendance", month.getFullYear(), month.getMonth() + 1], queryFn: () => api.admin<{ year: number; month: number; rows: AttendanceMatrixRow[] }>(`/api/v1/admin/attendance/month?year=${month.getFullYear()}&month=${month.getMonth() + 1}`) });
   const attendanceMutation = useMutation({
@@ -416,15 +483,35 @@ export function AdminAttendancePage() {
       setEditing(null);
     },
   });
-  const lockMutation = useMutation({
-    mutationFn: (body: { employmentIds: number[]; locked: boolean; lockType: LockKind; months: LockMonthSelection[] }) => api.admin("/api/v1/admin/locks", {
+  const lockMutation = useMutation<BulkLockResult, ApiError, { employmentIds: number[]; locked: boolean; lockType: LockKind; months: LockMonthSelection[] }>({
+    mutationFn: (body) => api.admin("/api/v1/admin/locks", {
       method: "PUT",
       body: JSON.stringify({ employment_ids: body.employmentIds, lock_type: body.lockType, locked: body.locked, months: body.months }),
     }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-attendance"] });
-      qc.invalidateQueries({ queryKey: ["shift-plan"] });
+    onMutate: () => {
+      setLockNotice(null);
+    },
+    onSuccess: async (result, variables) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-attendance"] }),
+        qc.invalidateQueries({ queryKey: ["shift-plan"] }),
+      ]);
+      setLockNotice(t(result.locked ? "adminMatrix.locks.lockSuccessBody" : "adminMatrix.locks.unlockSuccessBody", {
+        updatedCount: result.updated_count,
+        employmentCount: variables.employmentIds.length,
+        monthCount: result.month_count,
+      }));
       setLockDialog(null);
+    },
+    onError: (error, variables) => {
+      console.error("Bulk attendance lock operation failed", {
+        status: error.status,
+        code: error.code,
+        requestId: error.requestId,
+        employmentCount: variables.employmentIds.length,
+        monthCount: variables.months.length,
+        locked: variables.locked,
+      });
     },
   });
 
@@ -437,6 +524,10 @@ export function AdminAttendancePage() {
     is_active_in_month: row.is_active_in_month,
   })), [query.data?.rows]);
   const effectiveSelectedIds = useMemo(() => selectedIds ?? selectionItems.map((item) => item.id), [selectedIds, selectionItems]);
+  const selectedEmploymentItems = useMemo(
+    () => selectionItems.filter((item) => effectiveSelectedIds.includes(item.id)),
+    [effectiveSelectedIds, selectionItems],
+  );
   const rows = useMemo(() => {
     const filtered = (query.data?.rows ?? []).filter((row) => {
       if (!effectiveSelectedIds.includes(row.employment_id)) return false;
@@ -447,7 +538,7 @@ export function AdminAttendancePage() {
   }, [activeOnly, effectiveSelectedIds, query.data?.rows, search, selectionDirection]);
   const days = rows[0]?.days ?? query.data?.rows[0]?.days ?? [];
   return <div className="page">
-    <header className="page-heading"><div><p>{t("adminMatrix.attendance.eyebrow")}</p><h1>{t("adminMatrix.attendance.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelectedIds(null); }} />{query.data && <MonthLockActions pending={lockMutation.isPending} onLockAll={() => setLockDialog({ action: "lock" })} onUnlockAll={() => setLockDialog({ action: "unlock" })} />}</div></header>
+    <header className="page-heading"><div><p>{t("adminMatrix.attendance.eyebrow")}</p><h1>{t("adminMatrix.attendance.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelectedIds(null); setLockNotice(null); lockMutation.reset(); }} />{query.data && <MonthLockActions pending={lockMutation.isPending} onLockAll={() => { setLockNotice(null); lockMutation.reset(); setLockDialog({ action: "lock" }); }} onUnlockAll={() => { setLockNotice(null); lockMutation.reset(); setLockDialog({ action: "unlock" }); }} />}</div></header>
     <Panel className="panel--overflow-visible" title={t("adminMatrix.attendance.selectionTitle")} actions={<EmploymentSelectionDropdown
       items={selectionItems}
       selectedIds={effectiveSelectedIds}
@@ -476,17 +567,19 @@ export function AdminAttendancePage() {
       </div>
       {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminMatrix.attendance.loading")} /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title={t("adminMatrix.attendance.loadFailed")}>{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title={t("adminMatrix.attendance.empty")} /></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => { const header = dayHeader(day, language); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__sticky-right">{t("adminMatrix.common.employment")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.employment_label} locked={row.attendance_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.attendance_locked, lockType: "attendance", months: [{ year: month.getFullYear(), month: month.getMonth() + 1 }] })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const disabled = row.attendance_locked || !day.is_within_employment_period || Boolean(day.planned_status); return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || attendanceMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => attendanceMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => !disabled && setEditing({ employmentId: row.employment_id, date: day.date })}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.planned_status && <small>{statusLabels[day.planned_status] ?? day.planned_status}</small>}</button>}</td>; })}<td className="matrix__sticky-right"><MatrixLabelCell label={row.employment_label} locked={row.attendance_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.attendance_locked, lockType: "attendance", months: [{ year: month.getFullYear(), month: month.getMonth() + 1 }] })} /></td></tr>)}</tbody></table></div>}
     </Panel>
-    {(attendanceMutation.error || lockMutation.error) && <StatusMessage kind="error" title={t("adminMatrix.attendance.actionFailed")}>{(attendanceMutation.error ?? lockMutation.error)?.message}</StatusMessage>}
+    {lockNotice && <StatusMessage kind="success" title={t("adminMatrix.locks.updatedTitle")}>{lockNotice}</StatusMessage>}
+    {(attendanceMutation.error || (lockMutation.error && !lockDialog)) && <StatusMessage kind="error" title={t("adminMatrix.attendance.actionFailed")}>{(attendanceMutation.error ?? lockMutation.error)?.message}</StatusMessage>}
     {lockDialog && <LockBatchModal
       action={lockDialog.action}
       label={t(lockDialog.action === "lock" ? "adminMatrix.locks.lockBatch" : "adminMatrix.locks.unlockBatch")}
       description={t("adminMatrix.locks.batchDescription", { label: String(t("adminMatrix.attendance.title")).toLowerCase() })}
       pending={lockMutation.isPending}
-      employmentCount={query.data?.rows.length ?? 0}
+      error={lockMutation.error}
+      selectedEmployments={selectedEmploymentItems}
       initialMonth={{ year: month.getFullYear(), month: month.getMonth() + 1 }}
-      onClose={() => setLockDialog(null)}
-      onConfirm={(months) => lockMutation.mutate({
-        employmentIds: query.data?.rows.map((row) => row.employment_id) ?? [],
+      onClose={() => { lockMutation.reset(); setLockDialog(null); }}
+      onConfirm={(months, employmentIds) => lockMutation.mutate({
+        employmentIds,
         locked: lockDialog.action === "lock",
         lockType: "attendance",
         months,
@@ -507,6 +600,7 @@ export function AdminShiftPlanPage() {
   const [selectionDirection, setSelectionDirection] = useState<SelectionDirection>("asc");
   const [activeOnly, setActiveOnly] = useState(false);
   const [lockDialog, setLockDialog] = useState<null | { action: "lock" | "unlock" }>(null);
+  const [lockNotice, setLockNotice] = useState<string | null>(null);
   const qc = useQueryClient();
   const query = useQuery({ queryKey: ["shift-plan", month.getFullYear(), month.getMonth() + 1], queryFn: () => api.admin<PlanMonth>(`/api/v1/admin/shift-plan?year=${month.getFullYear()}&month=${month.getMonth() + 1}`) });
   const timeMutation = useMutation({
@@ -536,19 +630,43 @@ export function AdminShiftPlanPage() {
       setSelection(null);
     },
   });
-  const lockMutation = useMutation({
-    mutationFn: (body: { employmentIds: number[]; locked: boolean; lockType: LockKind; months: LockMonthSelection[] }) => api.admin("/api/v1/admin/locks", {
+  const lockMutation = useMutation<BulkLockResult, ApiError, { employmentIds: number[]; locked: boolean; lockType: LockKind; months: LockMonthSelection[] }>({
+    mutationFn: (body) => api.admin("/api/v1/admin/locks", {
       method: "PUT",
       body: JSON.stringify({ employment_ids: body.employmentIds, lock_type: body.lockType, locked: body.locked, months: body.months }),
     }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["shift-plan"] });
-      qc.invalidateQueries({ queryKey: ["admin-attendance"] });
+    onMutate: () => {
+      setLockNotice(null);
+    },
+    onSuccess: async (result, variables) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["shift-plan"] }),
+        qc.invalidateQueries({ queryKey: ["admin-attendance"] }),
+      ]);
+      setLockNotice(t(result.locked ? "adminMatrix.locks.lockSuccessBody" : "adminMatrix.locks.unlockSuccessBody", {
+        updatedCount: result.updated_count,
+        employmentCount: variables.employmentIds.length,
+        monthCount: result.month_count,
+      }));
       setLockDialog(null);
+    },
+    onError: (error, variables) => {
+      console.error("Bulk shift plan lock operation failed", {
+        status: error.status,
+        code: error.code,
+        requestId: error.requestId,
+        employmentCount: variables.employmentIds.length,
+        monthCount: variables.months.length,
+        locked: variables.locked,
+      });
     },
   });
 
   const activeSelection = useMemo(() => selection ?? query.data?.selected_employment_ids ?? [], [query.data?.selected_employment_ids, selection]);
+  const selectedEmploymentItems = useMemo(
+    () => (query.data?.available_employments ?? []).filter((item) => activeSelection.includes(item.id)),
+    [activeSelection, query.data?.available_employments],
+  );
   const rows = useMemo(() => {
     const filtered = (query.data?.rows ?? []).filter((row) => activeSelection.includes(row.employment_id) && (!activeOnly || row.is_active_in_month));
     return sortByLabel(filtered, selectionDirection, (row) => row.display_label);
@@ -560,7 +678,7 @@ export function AdminShiftPlanPage() {
   });
 
   return <div className="page">
-    <header className="page-heading"><div><p>{t("adminMatrix.shiftPlan.eyebrow")}</p><h1>{t("adminMatrix.shiftPlan.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelection(null); setEditing(null); setStatusMenu(null); }} />{query.data && <MonthLockActions pending={lockMutation.isPending} onLockAll={() => setLockDialog({ action: "lock" })} onUnlockAll={() => setLockDialog({ action: "unlock" })} />}</div></header>
+    <header className="page-heading"><div><p>{t("adminMatrix.shiftPlan.eyebrow")}</p><h1>{t("adminMatrix.shiftPlan.title")}</h1></div><div className="month-control-group"><MonthControl value={month} onChange={(value) => { setMonth(value); setSelection(null); setEditing(null); setStatusMenu(null); setLockNotice(null); lockMutation.reset(); }} />{query.data && <MonthLockActions pending={lockMutation.isPending} onLockAll={() => { setLockNotice(null); lockMutation.reset(); setLockDialog({ action: "lock" }); }} onUnlockAll={() => { setLockNotice(null); lockMutation.reset(); setLockDialog({ action: "unlock" }); }} />}</div></header>
     {query.data && <Panel className="panel--overflow-visible" title={t("adminMatrix.shiftPlan.selectionTitle")} actions={<EmploymentSelectionDropdown
       items={query.data.available_employments}
       selectedIds={activeSelection}
@@ -581,18 +699,20 @@ export function AdminShiftPlanPage() {
     <Panel>
       {query.isPending ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminMatrix.shiftPlan.loading")} /></div> : query.error ? <div className="panel-body"><StatusMessage kind="error" title={t("adminMatrix.shiftPlan.loadFailed")}>{query.error.message}</StatusMessage></div> : rows.length === 0 ? <div className="panel-body"><StatusMessage kind="empty" title={t("adminMatrix.shiftPlan.empty")}>{t("adminMatrix.shiftPlan.emptyBody")}</StatusMessage></div> : <div className="data-table-wrap"><table className="data-table matrix matrix--calendar matrix--with-tail"><thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => { const header = dayHeader(day, language); return <th key={day.date} className={`matrix__day-head matrix__day-head--${header.tone}`}><strong>{header.date.getDate()}.</strong><span>{header.weekday}</span>{header.holiday && <small>{header.holiday}</small>}</th>; })}<th className="matrix__summary-head">{t("adminMatrix.common.completed")}</th><th className="matrix__sticky-right">{t("adminMatrix.common.employment")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id} className={row.is_active_in_month ? "" : "inactive"}><td className="matrix__sticky-left"><MatrixLabelCell label={row.display_label} locked={row.shift_plan_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.shift_plan_locked, lockType: "shift_plan", months: [{ year: month.getFullYear(), month: month.getMonth() + 1 }] })} /></td>{row.days.map((day) => { const isEditing = editing?.employmentId === row.employment_id && editing.date === day.date; const menuOpen = statusMenu?.employmentId === row.employment_id && statusMenu.date === day.date; const disabled = row.shift_plan_locked || !day.is_within_employment_period; return <td key={day.date} className={`day-cell day-cell--${getCalendarDayTone(asPragueDate(day.date))} ${disabled ? "day-cell--readonly" : ""}`} onContextMenu={(event) => { if (disabled) return; event.preventDefault(); setStatusMenu({ employmentId: row.employment_id, date: day.date }); setEditing(null); }}>{isEditing ? <TimeRangeEditor initialArrival={day.arrival_time} initialDeparture={day.departure_time} disabled={disabled || timeMutation.isPending} onCancel={() => setEditing(null)} onSave={(draft) => timeMutation.mutate({ employment_id: row.employment_id, date: day.date, ...draft })} /> : <button type="button" className="day-cell__button" disabled={disabled} onClick={() => { if (disabled) return; setEditing({ employmentId: row.employment_id, date: day.date }); setStatusMenu(null); }}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? "–"}</span>{day.status && <small>{statusLabels[day.status] ?? day.status}</small>}</button>}{menuOpen && <div className="matrix-menu"><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: null })}>{t("adminMatrix.common.workday")}</button><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: "HOLIDAY" })}>{t("adminMatrix.common.holiday")}</button><button type="button" onClick={() => statusMutation.mutate({ employment_id: row.employment_id, date: day.date, status: "OFF" })}>{t("adminMatrix.common.off")}</button></div>}</td>; })}<td className="matrix__summary"><ShiftPlanSummaryCell row={row} /></td><td className="matrix__sticky-right"><MatrixLabelCell label={row.display_label} locked={row.shift_plan_locked} pending={lockMutation.isPending} onToggle={() => lockMutation.mutate({ employmentIds: [row.employment_id], locked: !row.shift_plan_locked, lockType: "shift_plan", months: [{ year: month.getFullYear(), month: month.getMonth() + 1 }] })} /></td></tr>)}</tbody></table></div>}
     </Panel>
-    {(timeMutation.error || selectionMutation.error || statusMutation.error || lockMutation.error) && !conflict && <StatusMessage kind="error" title={t("adminMatrix.shiftPlan.saveFailed")}>{(timeMutation.error ?? selectionMutation.error ?? statusMutation.error ?? lockMutation.error)?.message}</StatusMessage>}
+    {lockNotice && <StatusMessage kind="success" title={t("adminMatrix.locks.updatedTitle")}>{lockNotice}</StatusMessage>}
+    {(timeMutation.error || selectionMutation.error || statusMutation.error || (lockMutation.error && !lockDialog)) && !conflict && <StatusMessage kind="error" title={t("adminMatrix.shiftPlan.saveFailed")}>{(timeMutation.error ?? selectionMutation.error ?? statusMutation.error ?? lockMutation.error)?.message}</StatusMessage>}
     {conflict && <Modal title={t("adminMatrix.shiftPlan.conflictTitle")} description={t("adminMatrix.shiftPlan.conflictBody")} confirmLabel={t("adminMatrix.shiftPlan.conflictConfirm")} danger onClose={() => setConflict(null)} onConfirm={() => statusMutation.mutate({ ...conflict, confirm_delete_conflicts: true })} />}
     {lockDialog && <LockBatchModal
       action={lockDialog.action}
       label={t(lockDialog.action === "lock" ? "adminMatrix.locks.lockBatch" : "adminMatrix.locks.unlockBatch")}
       description={t("adminMatrix.locks.batchDescription", { label: String(t("adminMatrix.shiftPlan.title")).toLowerCase() })}
       pending={lockMutation.isPending}
-      employmentCount={query.data?.rows.length ?? 0}
+      error={lockMutation.error}
+      selectedEmployments={selectedEmploymentItems}
       initialMonth={{ year: month.getFullYear(), month: month.getMonth() + 1 }}
-      onClose={() => setLockDialog(null)}
-      onConfirm={(months) => lockMutation.mutate({
-        employmentIds: query.data?.rows.map((row) => row.employment_id) ?? [],
+      onClose={() => { lockMutation.reset(); setLockDialog(null); }}
+      onConfirm={(months, employmentIds) => lockMutation.mutate({
+        employmentIds,
         locked: lockDialog.action === "lock",
         lockType: "shift_plan",
         months,
