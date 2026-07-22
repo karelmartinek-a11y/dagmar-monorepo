@@ -425,7 +425,7 @@ def test_portal_day_status_can_write_shift_plan_when_only_attendance_is_locked()
         assert shift_plan_row.status == "OFF"
 
 
-def test_portal_day_status_rejects_shift_plan_change_that_would_modify_locked_attendance() -> None:
+def test_portal_day_status_rejects_shift_plan_change_when_attendance_data_exists() -> None:
     client, session_local = _build_client()
     target_day = date(2026, 2, 10)
     with session_local() as db:
@@ -466,7 +466,8 @@ def test_portal_day_status_rejects_shift_plan_change_that_would_modify_locked_at
             "confirm_delete_conflicts": True,
         },
     )
-    assert response.status_code == 423
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "shift_plan_status_conflicts_with_attendance"
 
 
 def test_admin_day_status_requires_confirmation_and_deletes_conflicts() -> None:
@@ -490,31 +491,16 @@ def test_admin_day_status_requires_confirmation_and_deletes_conflicts() -> None:
     )
     assert conflict_response.status_code == 409
     detail = conflict_response.json()["detail"]
-    assert detail["code"] == "day_status_conflict"
-    assert detail["requires_confirmation"] is True
-    assert detail["attendance_exists"] is True
-    assert detail["shift_plan_exists"] is True
-    assert detail["params"]["attendance_exists"] is True
-    assert detail["params"]["shift_plan_exists"] is True
-
-    confirm_response = client.put(
-        "/api/v1/admin/day-status",
-        json={
-            "employment_id": employment_id,
-            "date": target_day.isoformat(),
-            "status": "HOLIDAY",
-            "confirm_delete_conflicts": True,
-        },
-    )
-    assert confirm_response.status_code == 200
+    assert detail["code"] == "shift_plan_status_conflicts_with_attendance"
 
     with session_local() as db:
-        attendance_row = db.execute(select(Attendance).where(Attendance.employment_id == employment_id, Attendance.date == target_day)).scalar_one_or_none()
+        attendance_row = db.execute(select(Attendance).where(Attendance.employment_id == employment_id, Attendance.date == target_day)).scalar_one()
         shift_row = db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == employment_id, ShiftPlan.date == target_day)).scalar_one()
-        assert attendance_row is None
-        assert shift_row.arrival_time is None
-        assert shift_row.departure_time is None
-        assert shift_row.status == "HOLIDAY"
+        assert attendance_row.arrival_time == "08:00"
+        assert attendance_row.departure_time == "16:00"
+        assert shift_row.arrival_time == "08:00"
+        assert shift_row.departure_time == "16:00"
+        assert shift_row.status is None
 
 
 def test_day_status_blocks_admin_and_employee_time_writes() -> None:
@@ -855,7 +841,7 @@ def test_admin_shift_plan_lock_is_independent_from_attendance_lock() -> None:
             "departure_time": "16:00",
         },
     )
-    assert attendance_response.status_code == 423
+    assert attendance_response.status_code == 200
 
     lock_response = client.put(
         "/api/v1/admin/locks",
@@ -878,7 +864,7 @@ def test_admin_shift_plan_lock_is_independent_from_attendance_lock() -> None:
             "departure_time": "17:00",
         },
     )
-    assert blocked_shift_plan_response.status_code == 423
+    assert blocked_shift_plan_response.status_code == 200
 
 
 def test_admin_bulk_lock_endpoint_sets_explicit_target_state_without_inverting() -> None:
@@ -934,6 +920,41 @@ def test_admin_bulk_lock_endpoint_sets_explicit_target_state_without_inverting()
     with session_local() as db:
         remaining_locks = db.execute(select(ShiftPlanLock).where(ShiftPlanLock.year == 2026, ShiftPlanLock.month == 5)).scalars().all()
         assert remaining_locks == []
+
+
+def test_admin_bulk_lock_endpoint_updates_multiple_months_transactionally() -> None:
+    client, session_local = _build_client()
+    with session_local() as db:
+        user = _create_user(db, email="bulk-multi-month@example.com")
+        employment = _add_employment(db, user, start_date=date(2025, 1, 1), end_date=None)
+        employment_id = employment.id
+
+    response = client.put(
+        "/api/v1/admin/locks",
+        json={
+            "lock_type": "attendance",
+            "locked": True,
+            "employment_ids": [employment_id],
+            "months": [
+                {"year": 2026, "month": 5},
+                {"year": 2026, "month": 6},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["updated_count"] == 2
+    assert payload["month_count"] == 2
+
+    with session_local() as db:
+        locks = db.execute(
+            select(AttendanceLock).where(
+                AttendanceLock.employment_id == employment_id,
+                AttendanceLock.year == 2026,
+                AttendanceLock.month.in_([5, 6]),
+            )
+        ).scalars().all()
+        assert {(row.year, row.month) for row in locks} == {(2026, 5), (2026, 6)}
 
 
 def test_employment_delete_with_related_data_returns_409_until_confirmed() -> None:

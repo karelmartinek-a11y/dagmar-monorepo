@@ -393,6 +393,14 @@
       "path": "/api/v1/attendance"
     },
     {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.attendance.upsert_attendance_status",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/attendance/day-status"
+    },
+    {
       "auth_mode": "browser_redirect",
       "handler": "app.api.v1.external_auth.apple_callback",
       "methods": [
@@ -667,6 +675,7 @@
         "/api/v1/portal/login",
         "/api/v1/portal/reset",
         "/api/v1/attendance",
+        "/api/v1/attendance/day-status",
         "/api/v1/shift-plan",
         "/api/v1/shift-plan/day-status",
         "/api/v1/auth/providers",

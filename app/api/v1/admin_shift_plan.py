@@ -30,13 +30,11 @@ from app.services.day_status import (
     day_status_label,
     get_day_status,
     normalize_day_status,
-    set_day_status,
+    set_shift_plan_status,
 )
 from app.services.employment_access import employment_label, employment_overlaps_month
 from app.services.locks import (
     LockType,
-    ensure_month_unlocked,
-    is_month_locked,
     load_locked_employment_ids,
 )
 from app.services.shift_plan_editing import (
@@ -182,10 +180,6 @@ def _get_employment(employment_id: int, db: Session) -> Employment:
     if employment is None:
         raise HTTPException(status_code=404, detail="Uvazek nenalezen.")
     return employment
-
-
-def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
-    ensure_month_unlocked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment_id, year=year, month=month)
 
 
 def _load_available_employment_rows(db: Session) -> list[SimpleNamespace]:
@@ -429,7 +423,6 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise_api_error(409, "employment_period_mismatch", "Datum nelezi v obdobi platnosti vybraneho uvazku.")
-    _ensure_month_not_locked(employment.id, day.year, day.month, db)
 
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)
@@ -498,7 +491,6 @@ def admin_upsert_day_status(
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise_api_error(409, "employment_period_mismatch", "Datum nelezi v obdobi platnosti vybraneho uvazku.")
-    _ensure_month_not_locked(employment.id, day.year, day.month, db)
 
     try:
         status = normalize_day_status(body.status)
@@ -508,24 +500,22 @@ def admin_upsert_day_status(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     conflicts = collect_day_status_conflicts(db, employment_id=employment.id, day=day)
-    if status is not None and conflicts.attendance_exists and is_month_locked(
-        db,
-        lock_type=LockType.ATTENDANCE,
-        employment_id=employment.id,
-        year=day.year,
-        month=day.month,
-    ):
-        raise_api_error(423, "attendance_month_locked", "Docházka za zvolené období je uzamčena.")
+    if status is not None and conflicts.attendance_exists:
+        raise_api_error(
+            409,
+            "shift_plan_status_conflicts_with_attendance",
+            "Nejprve odstraňte docházková data nebo celodenní docházkový stav pro tento den.",
+        )
 
-    conflicts = set_day_status(
+    conflicts = set_shift_plan_status(
         db,
         employment=employment,
         day=day,
         status=status,
-        confirm_delete_conflicts=body.confirm_delete_conflicts,
+        confirm_reset_existing_plan=body.confirm_delete_conflicts,
         instance_id=employment.user.instance_id if employment.user else None,
     )
-    if status is not None and conflicts.has_conflicts and not body.confirm_delete_conflicts:
+    if status is not None and conflicts.shift_plan_exists and not body.confirm_delete_conflicts:
         raise HTTPException(status_code=409, detail=conflicts.to_detail(employment_id=employment.id, day=day, next_status=status))
 
     db.commit()

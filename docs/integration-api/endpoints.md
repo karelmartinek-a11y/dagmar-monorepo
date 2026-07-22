@@ -114,7 +114,7 @@ Request body:
 ## Zámky a konflikty
 
 - write operace nikdy neobcházejí zamčené měsíce
-- zamčené období vrací `409 attendance_locked`
+- zamčené období vrací `423 attendance_locked`
 - zastaralé `expected_updated_at` vrací `409 conflict`
 - write operace respektují stejný datový rozsah jako read endpointy
 

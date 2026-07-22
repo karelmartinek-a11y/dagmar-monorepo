@@ -97,6 +97,7 @@ describe("admin pages", () => {
     expect(screen.queryByText("Neaktivní úvazek")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Uzamknout všechny úvazky v měsíci" }));
+    await user.click(await screen.findByRole("button", { name: "Uzamknout vybrané měsíce" }));
 
     await waitFor(() => {
       const payloads = calls
@@ -106,6 +107,7 @@ describe("admin pages", () => {
         employment_ids: [1, 2],
         lock_type: "attendance",
         locked: true,
+        months: [{ year: 2026, month: 7 }],
       }));
     });
   });

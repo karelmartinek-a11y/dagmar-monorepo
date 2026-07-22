@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,7 +14,14 @@ from app.api.deps import PortalUserAuth, require_portal_user_auth
 from app.api.errors import raise_api_error
 from app.db.models import Attendance, Employment, ShiftPlan
 from app.db.session import get_db
-from app.services.day_status import day_status_label, get_day_status
+from app.services.day_status import (
+    DAY_STATUS_PARAGRAPH,
+    DAY_STATUS_SICKNESS,
+    collect_day_status_conflicts,
+    day_status_label,
+    get_day_status,
+    set_attendance_status,
+)
 from app.services.employment_access import employment_label
 from app.services.locks import LockType, ensure_month_unlocked, is_month_locked
 from app.services.month_summary import build_month_summary
@@ -78,6 +85,18 @@ class AttendanceUpsertIn(BaseModel):
     departure_time: str | None = Field(None, description="HH:MM or null")
     arrival_time_2: str | None = Field(None, description="HH:MM or null")
     departure_time_2: str | None = Field(None, description="HH:MM or null")
+
+
+class AttendanceStatusUpsertIn(BaseModel):
+    employment_id: int = Field(..., ge=1)
+    date: str = Field(..., description="YYYY-MM-DD")
+    status: str | None = Field(
+        None,
+        description="SICKNESS | PARAGRAPH | null",
+        pattern="^(SICKNESS|PARAGRAPH)?$",
+        examples=["SICKNESS", "PARAGRAPH"],
+    )
+    confirm_delete_conflicts: bool = False
 
 
 def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
@@ -347,3 +366,64 @@ def upsert_attendance(
         planned_minutes=0,
         planned_state="empty",
     )
+
+
+@router.put("/api/v1/attendance/day-status", response_model=dict[str, bool])
+def upsert_attendance_status(
+    body: AttendanceStatusUpsertIn,
+    db: Session = Depends(get_db),
+    auth: PortalUserAuth = Depends(require_portal_user_auth),
+) -> dict[str, bool]:
+    try:
+        day = dt.date.fromisoformat(body.date)
+    except ValueError:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_date_format", "Invalid date format, expected YYYY-MM-DD")
+
+    employment = _require_accessible_employment(body.employment_id, auth, db)
+    _ensure_day_in_employment_period(employment, day)
+    _ensure_month_not_locked(employment.id, day.year, day.month, db)
+
+    if body.status not in (None, DAY_STATUS_SICKNESS, DAY_STATUS_PARAGRAPH):
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_day_status", "Neplatný stav dne.")
+
+    conflicts = collect_day_status_conflicts(db, employment_id=employment.id, day=day)
+    if body.status is not None and conflicts.shift_plan_exists:
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "attendance_status_conflicts_with_shift_plan",
+            "Nejprve odstraňte data plánu služeb nebo celodenní stav plánu služeb pro tento den.",
+        )
+
+    conflicts = set_attendance_status(
+        db,
+        employment=employment,
+        day=day,
+        status=body.status,
+        confirm_reset_existing_attendance=body.confirm_delete_conflicts,
+        instance_id=auth.instance.id,
+    )
+    if body.status is not None and conflicts.attendance_exists and not body.confirm_delete_conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "day_status_conflict",
+                "message": "V tomto dni už existuje docházka. Potvrzením budou stávající docházková data smazána.",
+                "employment_id": employment.id,
+                "date": day.isoformat(),
+                "next_status": body.status,
+                "requires_confirmation": True,
+                "attendance_exists": True,
+                "shift_plan_exists": False,
+                "params": {
+                    "employment_id": employment.id,
+                    "date": day.isoformat(),
+                    "next_status": body.status,
+                    "requires_confirmation": True,
+                    "attendance_exists": True,
+                    "shift_plan_exists": False,
+                },
+            },
+        )
+
+    db.commit()
+    return {"ok": True}

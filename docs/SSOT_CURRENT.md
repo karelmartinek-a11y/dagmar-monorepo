@@ -52,7 +52,7 @@ Aktivní routy definuje [web/src/App.tsx](../web/src/App.tsx):
 Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
 - veřejné endpointy zahrnují `/api/v1/health`, `/api/health`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`
-- zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status` a `/api/v1/portal/auth-methods*`
+- zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/attendance/day-status`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status` a `/api/v1/portal/auth-methods*`
 - administrace používá session cookie `dagmar_admin_session`, CSRF hlavičku `X-CSRF-Token` a `/api/v1/admin/*` endpointy pro login, uživatele, úvazky, docházku, plán služeb, zámky, exporty, SMTP, nastavení a integrační klienty
 - integrační API používá bearer tokeny s prefixem `dgi_` a běží na `/api/v1/integration/*`
 - veřejná integrační dokumentace je dostupná na `/integration-api`

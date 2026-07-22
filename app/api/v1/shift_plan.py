@@ -5,25 +5,19 @@ import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ...api.errors import raise_api_error
-from ...db.models import Attendance, Employment, ShiftPlan
+from ...db.models import Employment, ShiftPlan
 from ...db.session import get_db
 from ...services.day_status import (
-    DAY_STATUS_HOLIDAY,
-    DAY_STATUS_OFF,
-    DAY_STATUS_PARAGRAPH,
-    DAY_STATUS_SICKNESS,
     collect_day_status_conflicts,
     day_status_label,
     get_day_status,
-    get_shift_plan_day,
     normalize_day_status,
-    set_day_status,
+    set_shift_plan_status,
 )
-from ...services.locks import LockType, ensure_month_unlocked, is_month_locked
+from ...services.locks import LockType, ensure_month_unlocked
 from ...services.shift_plan_editing import can_employee_edit_shift_plan
 from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
@@ -37,9 +31,9 @@ class PortalDayStatusUpsertIn(BaseModel):
     date: str = Field(..., description="YYYY-MM-DD")
     status: str | None = Field(
         None,
-        description="HOLIDAY | OFF | SICKNESS | PARAGRAPH | null",
-        pattern="^(HOLIDAY|OFF|SICKNESS|PARAGRAPH)?$",
-        examples=["HOLIDAY", "SICKNESS"],
+        description="HOLIDAY | OFF | null",
+        pattern="^(HOLIDAY|OFF)?$",
+        examples=["HOLIDAY", "OFF"],
     )
     confirm_delete_conflicts: bool = False
 
@@ -108,12 +102,6 @@ def portal_upsert_shift_plan(
             day_status=blocked_status,
         )
     if status_value is not None:
-        if status_value in {DAY_STATUS_SICKNESS, DAY_STATUS_PARAGRAPH}:
-            raise_api_error(
-                status.HTTP_400_BAD_REQUEST,
-                "shift_plan_status_forbidden",
-                "NEMOC a PARAGRAF lze evidovat pouze v docházce.",
-            )
         arrival = None
         departure = None
 
@@ -164,83 +152,33 @@ def portal_upsert_day_status(
     except ValueError:
         raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_day_status", "Neplatný stav dne.")
 
-    attendance = db.execute(
-        select(Attendance).where(
-            Attendance.employment_id == employment.id,
-            Attendance.date == day,
-        )
-    ).scalar_one_or_none()
     conflicts = collect_day_status_conflicts(db, employment_id=employment.id, day=day)
-    if status_value is not None and conflicts.attendance_exists and is_month_locked(
-        db,
-        lock_type=LockType.ATTENDANCE,
-        employment_id=employment.id,
-        year=day.year,
-        month=day.month,
-    ):
-        raise_api_error(status.HTTP_423_LOCKED, "attendance_month_locked", "Docházka za zvolené období je uzamčena.")
+    if status_value is not None and conflicts.attendance_exists:
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "shift_plan_status_conflicts_with_attendance",
+            "Nejprve odstraňte docházková data nebo celodenní docházkový stav pro tento den.",
+        )
 
     if status_value is None:
-        if attendance is not None and attendance.status:
-            attendance.status = None
-            attendance.instance_id = auth.instance.id
-            if not any([attendance.arrival_time, attendance.departure_time, attendance.arrival_time_2, attendance.departure_time_2]):
-                db.delete(attendance)
-        conflicts = set_day_status(
+        conflicts = set_shift_plan_status(
             db,
             employment=employment,
             day=day,
             status=None,
-            confirm_delete_conflicts=body.confirm_delete_conflicts,
+            confirm_reset_existing_plan=body.confirm_delete_conflicts,
             instance_id=auth.instance.id,
         )
-    elif status_value in {DAY_STATUS_SICKNESS, DAY_STATUS_PARAGRAPH}:
-        plan = get_shift_plan_day(db, employment_id=employment.id, day=day)
-        has_conflicts = bool(
-            (attendance and (attendance.arrival_time or attendance.departure_time or attendance.arrival_time_2 or attendance.departure_time_2))
-            or (plan and (plan.arrival_time or plan.departure_time or plan.status in {DAY_STATUS_HOLIDAY, DAY_STATUS_OFF}))
-        )
-        if has_conflicts and not body.confirm_delete_conflicts:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=conflicts.to_detail(employment_id=employment.id, day=day, next_status=status_value),
-            )
-        if plan is not None:
-            db.delete(plan)
-        if attendance is None:
-            attendance = Attendance(
-                employment_id=employment.id,
-                instance_id=auth.instance.id,
-                date=day,
-                status=status_value,
-            )
-            db.add(attendance)
-        else:
-            attendance.instance_id = auth.instance.id
-            attendance.arrival_time = None
-            attendance.departure_time = None
-            attendance.arrival_time_2 = None
-            attendance.departure_time_2 = None
-            attendance.status = status_value
     else:
-        if attendance is not None and attendance.status:
-            if not body.confirm_delete_conflicts:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=conflicts.to_detail(employment_id=employment.id, day=day, next_status=status_value),
-                )
-            attendance.status = None
-            if not any([attendance.arrival_time, attendance.departure_time, attendance.arrival_time_2, attendance.departure_time_2]):
-                db.delete(attendance)
-        conflicts = set_day_status(
+        conflicts = set_shift_plan_status(
             db,
             employment=employment,
             day=day,
             status=status_value,
-            confirm_delete_conflicts=body.confirm_delete_conflicts,
+            confirm_reset_existing_plan=body.confirm_delete_conflicts,
             instance_id=auth.instance.id,
         )
-    if status_value is not None and conflicts.has_conflicts and not body.confirm_delete_conflicts:
+    if status_value is not None and conflicts.shift_plan_exists and not body.confirm_delete_conflicts:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=conflicts.to_detail(employment_id=employment.id, day=day, next_status=status_value),

@@ -17,7 +17,6 @@ from app.services.day_status import day_status_label, get_day_status
 from app.services.employment_access import employment_label
 from app.services.locks import (
     LockType,
-    ensure_month_unlocked,
     is_month_locked,
     load_locked_employment_ids,
     set_month_lock_state,
@@ -118,10 +117,6 @@ def _employment_active_in_month(employment: Employment, start: dt.date, end: dt.
         return False
     month_end = end - dt.timedelta(days=1)
     return employment.start_date <= month_end and (employment.end_date is None or employment.end_date >= start)
-
-
-def _ensure_month_not_locked(employment_id: int, year: int, month: int, db: Session) -> None:
-    ensure_month_unlocked(db, lock_type=LockType.ATTENDANCE, employment_id=employment_id, year=year, month=month)
 
 
 @router.get("/api/v1/admin/attendance/month", response_model=AttendanceMatrixMonthOut)
@@ -311,7 +306,6 @@ def admin_upsert_attendance(
 
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise_api_error(409, "employment_period_mismatch", "Datum neleží v období platnosti vybraného úvazku.")
-    _ensure_month_not_locked(employment.id, day.year, day.month, db)
     blocked_status = get_day_status(db, employment_id=employment.id, day=day)
     if blocked_status is not None:
         raise_api_error(

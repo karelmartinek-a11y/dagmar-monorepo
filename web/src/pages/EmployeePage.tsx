@@ -1246,14 +1246,24 @@ export function EmployeePage() {
       status: string;
       confirmed?: boolean;
     }) => {
+      const statusScope: "attendance" | "shift_plan" =
+        status === "SICKNESS" || status === "PARAGRAPH"
+          ? "attendance"
+          : status === "HOLIDAY" || status === "OFF"
+            ? "shift_plan"
+            : day.attendance_status
+              ? "attendance"
+              : "shift_plan";
       const payload = {
         employment_id: employmentId,
         date: day.date,
         status: status || null,
         confirm_delete_conflicts: confirmed,
+        status_scope: statusScope,
       };
       try {
-        await api.savePortalStatus(payload);
+        if (statusScope === "attendance") await api.savePortalAttendanceStatus(payload);
+        else await api.savePortalStatus(payload);
         return { saved: true, queued: false, conflict: false };
       } catch (error) {
         if (error instanceof ApiError && error.offline) {
@@ -1265,7 +1275,7 @@ export function EmployeePage() {
           setQueueCount((await listOperations()).length);
           return { saved: false, queued: true, conflict: false };
         }
-        if (error instanceof ApiError && error.conflict && !confirmed) {
+        if (error instanceof ApiError && error.code === "day_status_conflict" && !confirmed) {
           setStatusConflict({ day, status });
           return { saved: false, queued: false, conflict: true };
         }

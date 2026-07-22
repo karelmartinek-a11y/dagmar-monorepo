@@ -102,27 +102,33 @@ def collect_day_status_conflicts(db: Session, *, employment_id: int, day: date) 
     )
 
 
-def set_day_status(
+def get_attendance_day(db: Session, *, employment_id: int, day: date) -> Attendance | None:
+    return db.execute(
+        select(Attendance).where(
+            Attendance.employment_id == employment_id,
+            Attendance.date == day,
+        )
+    ).scalar_one_or_none()
+
+
+def set_shift_plan_status(
     db: Session,
     *,
     employment: Employment,
     day: date,
     status: str | None,
-    confirm_delete_conflicts: bool,
+    confirm_reset_existing_plan: bool,
     instance_id: str | None,
 ) -> DayStatusConflicts:
     normalized_status = normalize_day_status(status)
+    if normalized_status not in {None, DAY_STATUS_HOLIDAY, DAY_STATUS_OFF}:
+        raise ValueError("invalid_shift_plan_status")
+
     conflicts = collect_day_status_conflicts(db, employment_id=employment.id, day=day)
-    if normalized_status is not None and conflicts.has_conflicts and not confirm_delete_conflicts:
+    if normalized_status is not None and conflicts.shift_plan_exists and not confirm_reset_existing_plan:
         return conflicts
 
     plan = get_shift_plan_day(db, employment_id=employment.id, day=day)
-    attendance = db.execute(
-        select(Attendance).where(
-            Attendance.employment_id == employment.id,
-            Attendance.date == day,
-        )
-    ).scalar_one_or_none()
 
     if normalized_status is None:
         if plan is not None and not plan.arrival_time and not plan.departure_time:
@@ -131,9 +137,6 @@ def set_day_status(
             plan.status = None
             plan.instance_id = instance_id
         return conflicts
-
-    if attendance is not None:
-        db.delete(attendance)
 
     if plan is None:
         plan = ShiftPlan(
@@ -150,5 +153,55 @@ def set_day_status(
         plan.arrival_time = None
         plan.departure_time = None
         plan.status = normalized_status
+
+    return conflicts
+
+
+def set_attendance_status(
+    db: Session,
+    *,
+    employment: Employment,
+    day: date,
+    status: str | None,
+    confirm_reset_existing_attendance: bool,
+    instance_id: str | None,
+) -> DayStatusConflicts:
+    normalized_status = normalize_day_status(status)
+    if normalized_status not in {None, DAY_STATUS_SICKNESS, DAY_STATUS_PARAGRAPH}:
+        raise ValueError("invalid_attendance_status")
+
+    conflicts = collect_day_status_conflicts(db, employment_id=employment.id, day=day)
+    if normalized_status is not None and conflicts.attendance_exists and not confirm_reset_existing_attendance:
+        return conflicts
+
+    attendance = get_attendance_day(db, employment_id=employment.id, day=day)
+
+    if normalized_status is None:
+        if attendance is not None:
+            attendance.status = None
+            attendance.instance_id = instance_id
+            if not any([attendance.arrival_time, attendance.departure_time, attendance.arrival_time_2, attendance.departure_time_2]):
+                db.delete(attendance)
+        return conflicts
+
+    if attendance is None:
+        attendance = Attendance(
+            employment_id=employment.id,
+            instance_id=instance_id,
+            date=day,
+            arrival_time=None,
+            departure_time=None,
+            arrival_time_2=None,
+            departure_time_2=None,
+            status=normalized_status,
+        )
+        db.add(attendance)
+    else:
+        attendance.instance_id = instance_id
+        attendance.arrival_time = None
+        attendance.departure_time = None
+        attendance.arrival_time_2 = None
+        attendance.departure_time_2 = None
+        attendance.status = normalized_status
 
     return conflicts

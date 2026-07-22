@@ -1,6 +1,8 @@
 # ruff: noqa: B008
 from __future__ import annotations
 
+import datetime as dt
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -11,15 +13,22 @@ from app.api.errors import raise_api_error
 from app.db.models import Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
+from app.services.employment_access import employment_overlaps_month
 from app.services.locks import LockType, set_month_lock_state_bulk
 
 router = APIRouter(tags=["admin"])
 
 
-class AdminLockSetIn(BaseModel):
-    lock_type: LockType
+class LockMonthIn(BaseModel):
     year: int = Field(..., ge=2000, le=2100)
     month: int = Field(..., ge=1, le=12)
+
+
+class AdminLockSetIn(BaseModel):
+    lock_type: LockType
+    year: int | None = Field(default=None, ge=2000, le=2100)
+    month: int | None = Field(default=None, ge=1, le=12)
+    months: list[LockMonthIn] = Field(default_factory=list)
     locked: bool
     employment_ids: list[int] = Field(default_factory=list)
 
@@ -28,9 +37,39 @@ class AdminLockSetOut(BaseModel):
     ok: bool = True
     updated_count: int = 0
     lock_type: LockType
-    year: int
-    month: int
+    year: int | None = None
+    month: int | None = None
     locked: bool
+    month_count: int = 0
+    months: list[LockMonthIn] = Field(default_factory=list)
+
+
+def _normalize_months(body: AdminLockSetIn) -> list[LockMonthIn]:
+    requested = body.months[:]
+    if body.year is not None or body.month is not None:
+        if body.year is None or body.month is None:
+            raise_api_error(400, "invalid_lock_months", "Year a month musí být zadané společně.")
+        requested.append(LockMonthIn(year=body.year, month=body.month))
+    uniq: list[LockMonthIn] = []
+    seen: set[tuple[int, int]] = set()
+    for item in requested:
+        key = (item.year, item.month)
+        if key in seen:
+            continue
+        seen.add(key)
+        uniq.append(item)
+    if not uniq:
+        raise_api_error(400, "lock_months_required", "Vyberte alespoň jeden měsíc.")
+    return uniq
+
+
+def _month_range(item: LockMonthIn) -> tuple[dt.date, dt.date]:
+    start = dt.date(item.year, item.month, 1)
+    if item.month == 12:
+        end = dt.date(item.year + 1, 1, 1)
+    else:
+        end = dt.date(item.year, item.month + 1, 1)
+    return start, end
 
 
 @router.put("/api/v1/admin/locks", response_model=AdminLockSetOut)
@@ -41,6 +80,7 @@ def admin_set_locks(
     db: Session = Depends(get_db),
 ) -> AdminLockSetOut:
     uniq_ids = list(dict.fromkeys(body.employment_ids))
+    months = _normalize_months(body)
     if not uniq_ids:
         raise_api_error(400, "employment_ids_required", "Vyberte alespoň jeden úvazek.")
 
@@ -60,6 +100,22 @@ def admin_set_locks(
     if missing_ids:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.", employment_ids=missing_ids)
 
+    invalid_months: list[dict[str, int]] = []
+    for employment_id in uniq_ids:
+        employment = employment_by_id[employment_id]
+        for item in months:
+            month_start, month_end = _month_range(item)
+            if employment_overlaps_month(employment, month_start, month_end):
+                continue
+            invalid_months.append({"employment_id": employment_id, "year": item.year, "month": item.month})
+    if invalid_months:
+        raise_api_error(
+            409,
+            "employment_period_mismatch",
+            "Vybraný měsíc neleží v období platnosti některého zvoleného úvazku.",
+            invalid_months=invalid_months,
+        )
+
     rows = [
         (
             employment.id,
@@ -67,21 +123,24 @@ def admin_set_locks(
         )
         for employment in (employment_by_id[employment_id] for employment_id in uniq_ids)
     ]
-    set_month_lock_state_bulk(
-        db,
-        lock_type=body.lock_type,
-        employment_rows=rows,
-        year=body.year,
-        month=body.month,
-        locked=body.locked,
-        locked_by=getattr(admin, "username", None),
-    )
+    for item in months:
+        set_month_lock_state_bulk(
+            db,
+            lock_type=body.lock_type,
+            employment_rows=rows,
+            year=item.year,
+            month=item.month,
+            locked=body.locked,
+            locked_by=getattr(admin, "username", None),
+        )
     db.commit()
     return AdminLockSetOut(
         ok=True,
-        updated_count=len(rows),
+        updated_count=len(rows) * len(months),
         lock_type=body.lock_type,
-        year=body.year,
-        month=body.month,
+        year=months[0].year if len(months) == 1 else None,
+        month=months[0].month if len(months) == 1 else None,
         locked=body.locked,
+        month_count=len(months),
+        months=months,
     )

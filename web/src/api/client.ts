@@ -119,6 +119,9 @@ export const api = {
   savePortalStatus: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
     "/api/v1/shift-plan/day-status", { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),
+  savePortalAttendanceStatus: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
+    "/api/v1/attendance/day-status", { method: "PUT", body: JSON.stringify(payload) }, "portal",
+  ),
   saveShiftPlan: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
     "/api/v1/shift-plan", { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),

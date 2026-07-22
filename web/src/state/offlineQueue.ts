@@ -6,7 +6,7 @@ export type QueuedOperation = {
   id?: number;
   kind: "attendance" | "day-status" | "shift-plan";
   employment_id: number;
-  payload: Record<string, unknown>;
+  payload: Record<string, unknown> & { status_scope?: "attendance" | "shift_plan" };
   created_at: string;
   attempts: number;
   last_error: string | null;
@@ -36,7 +36,10 @@ export async function flushOperations(allowedEmploymentIds?: ReadonlySet<number>
     }
     try {
       if (operation.kind === "attendance") await api.saveAttendance(operation.payload);
-      else if (operation.kind === "day-status") await api.savePortalStatus(operation.payload);
+      else if (operation.kind === "day-status") {
+        if (operation.payload.status_scope === "attendance") await api.savePortalAttendanceStatus(operation.payload);
+        else await api.savePortalStatus(operation.payload);
+      }
       else await api.saveShiftPlan(operation.payload);
       await db.delete("operations", operation.id!);
       completed += 1;

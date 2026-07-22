@@ -493,6 +493,15 @@ export const resources = {
           lockRow: "{{label}}: zamknout",
           unlockMonth: "Odemknout všechny úvazky v měsíci",
           lockMonth: "Uzamknout všechny úvazky v měsíci",
+          unlockBatch: "Odemknout vybrané měsíce",
+          lockBatch: "Uzamknout vybrané měsíce",
+          batchDescription: "Operace změní zámek pro oblast {{label}} u všech aktuálně načtených úvazků v zadaném rozsahu měsíců.",
+          fromMonth: "Od měsíce",
+          fromMonthHint: "Stejný měsíc znamená jednorázovou operaci pro jeden měsíc.",
+          toMonth: "Do měsíce",
+          toMonthHint: "Rozsah zahrnuje všechny měsíce mezi počátkem a koncem včetně.",
+          rangeSummary: "Bude upraveno {{monthCount}} měsíců pro {{employmentCount}} úvazků.",
+          invalidRange: "Vyplňte platný počáteční i koncový měsíc.",
           mixedMonth: "Smíšený stav, kliknutím zamknete všechny úvazky",
           unlockMonthTitle: "Odemknout měsíc",
           lockMonthTitle: "Uzamknout měsíc",
@@ -778,6 +787,10 @@ export const resources = {
         shift_plan_month_locked: "Plán služeb za zvolené období je uzamčen.",
         shift_plan_edit_forbidden: "Zadávání plánu služeb není pro tento úvazek a měsíc povoleno.",
         shift_plan_status_forbidden: "Nemoc a paragraf lze evidovat pouze v docházce.",
+        shift_plan_status_conflicts_with_attendance:
+          "Pro tento den nejdřív odstraňte docházková data nebo docházkový celodenní stav.",
+        attendance_status_conflicts_with_shift_plan:
+          "Pro tento den nejdřív odstraňte data plánu služeb nebo celodenní stav plánu služeb.",
         attendance_future_entry_forbidden: "Budoucí docházku nelze zadat.",
         attendance_future_time_forbidden:
           "Pro dnešní den nelze zadat čas v budoucnosti.",
@@ -1250,6 +1263,15 @@ export const resources = {
           lockRow: "{{label}}: lock",
           unlockMonth: "Unlock all employments in the month",
           lockMonth: "Lock all employments in the month",
+          unlockBatch: "Unlock selected months",
+          lockBatch: "Lock selected months",
+          batchDescription: "The operation changes the {{label}} lock for all currently loaded employments across the selected month range.",
+          fromMonth: "From month",
+          fromMonthHint: "The same month applies the change to a single month.",
+          toMonth: "To month",
+          toMonthHint: "The range includes every month between the start and end, inclusive.",
+          rangeSummary: "{{monthCount}} months will be updated for {{employmentCount}} employments.",
+          invalidRange: "Enter a valid start and end month.",
           mixedMonth: "Mixed state, click to lock all employments",
           unlockMonthTitle: "Unlock month",
           lockMonthTitle: "Lock month",
@@ -1532,6 +1554,10 @@ export const resources = {
         shift_plan_month_locked: "The shift plan for the selected period is locked.",
         shift_plan_edit_forbidden: "Shift plan entry is not allowed for this employment and month.",
         shift_plan_status_forbidden: "Sickness and care leave can only be recorded in attendance.",
+        shift_plan_status_conflicts_with_attendance:
+          "Remove attendance data or the attendance full-day status for this day first.",
+        attendance_status_conflicts_with_shift_plan:
+          "Remove shift plan data or the shift plan full-day status for this day first.",
         attendance_future_entry_forbidden:
           "Future attendance cannot be entered.",
         attendance_future_time_forbidden:
@@ -1998,6 +2024,15 @@ export const resources = {
           lockRow: "{{label}}: zamknúť",
           unlockMonth: "Odomknúť všetky úväzky v mesiaci",
           lockMonth: "Zamknúť všetky úväzky v mesiaci",
+          unlockBatch: "Odomknúť vybrané mesiace",
+          lockBatch: "Zamknúť vybrané mesiace",
+          batchDescription: "Operácia zmení zámok pre oblasť {{label}} pri všetkých aktuálne načítaných úväzkoch v zadanom rozsahu mesiacov.",
+          fromMonth: "Od mesiaca",
+          fromMonthHint: "Rovnaký mesiac znamená jednorazovú operáciu pre jeden mesiac.",
+          toMonth: "Do mesiaca",
+          toMonthHint: "Rozsah zahŕňa všetky mesiace medzi začiatkom a koncom vrátane.",
+          rangeSummary: "Upraví sa {{monthCount}} mesiacov pre {{employmentCount}} úväzkov.",
+          invalidRange: "Vyplňte platný počiatočný aj koncový mesiac.",
           mixedMonth: "Zmiešaný stav, kliknutím zamknete všetky úväzky",
           unlockMonthTitle: "Odomknúť mesiac",
           lockMonthTitle: "Zamknúť mesiac",
@@ -2280,6 +2315,10 @@ export const resources = {
         shift_plan_month_locked: "Plán služieb za zvolené obdobie je uzamknutý.",
         shift_plan_edit_forbidden: "Zadávanie plánu služieb nie je pre tento úväzok a mesiac povolené.",
         shift_plan_status_forbidden: "Nemoc a paragraf možno evidovať iba v dochádzke.",
+        shift_plan_status_conflicts_with_attendance:
+          "Pre tento deň najprv odstráňte dochádzkové dáta alebo celodenný dochádzkový stav.",
+        attendance_status_conflicts_with_shift_plan:
+          "Pre tento deň najprv odstráňte dáta plánu služieb alebo celodenný stav plánu služieb.",
         attendance_future_entry_forbidden: "Budúcu dochádzku nemožno zadať.",
         attendance_future_time_forbidden:
           "Pre dnešný deň nemožno zadať čas v budúcnosti.",
@@ -2763,6 +2802,15 @@ export const resources = {
           lockRow: "{{label}}: sperren",
           unlockMonth: "Alle Beschäftigungen des Monats entsperren",
           lockMonth: "Alle Beschäftigungen des Monats sperren",
+          unlockBatch: "Ausgewählte Monate entsperren",
+          lockBatch: "Ausgewählte Monate sperren",
+          batchDescription: "Die Aktion ändert die Sperre für den Bereich {{label}} für alle aktuell geladenen Beschäftigungen im gewählten Monatsbereich.",
+          fromMonth: "Von Monat",
+          fromMonthHint: "Derselbe Monat führt die Aktion nur für einen Monat aus.",
+          toMonth: "Bis Monat",
+          toMonthHint: "Der Bereich umfasst alle Monate zwischen Start und Ende einschließlich.",
+          rangeSummary: "{{monthCount}} Monate werden für {{employmentCount}} Beschäftigungen aktualisiert.",
+          invalidRange: "Geben Sie einen gültigen Start- und Endmonat ein.",
           mixedMonth:
             "Gemischter Zustand, klicken Sie zum Sperren aller Beschäftigungen",
           unlockMonthTitle: "Monat entsperren",
@@ -3055,6 +3103,10 @@ export const resources = {
         shift_plan_month_locked: "Der Dienstplan für den gewählten Zeitraum ist gesperrt.",
         shift_plan_edit_forbidden: "Die Dienstplaneingabe ist für diese Beschäftigung und diesen Monat nicht erlaubt.",
         shift_plan_status_forbidden: "Krankheit und Pflegefreistellung können nur in der Zeiterfassung erfasst werden.",
+        shift_plan_status_conflicts_with_attendance:
+          "Entfernen Sie für diesen Tag zuerst Zeiterfassungsdaten oder den ganztägigen Zeiterfassungsstatus.",
+        attendance_status_conflicts_with_shift_plan:
+          "Entfernen Sie für diesen Tag zuerst Dienstplandaten oder den ganztägigen Dienstplanstatus.",
         attendance_future_entry_forbidden:
           "Zukünftige Zeiterfassung kann nicht eingetragen werden.",
         attendance_future_time_forbidden:
@@ -3324,6 +3376,10 @@ export const resources = {
           "इस अनुबंध और महीने के लिए शिफ़्ट योजना दर्ज करने की अनुमति नहीं है।",
         shift_plan_status_forbidden:
           "बीमारी और देखभाल अवकाश केवल उपस्थिति में दर्ज किए जा सकते हैं।",
+        shift_plan_status_conflicts_with_attendance:
+          "इस दिन के लिए पहले उपस्थिति डेटा या पूरे दिन की उपस्थिति स्थिति हटाएँ।",
+        attendance_status_conflicts_with_shift_plan:
+          "इस दिन के लिए पहले शिफ़्ट योजना डेटा या पूरे दिन की शिफ़्ट योजना स्थिति हटाएँ।",
         day_status_conflict:
           "इस दिन उपस्थिति या शिफ़्ट योजना मौजूद है; पुष्टि आवश्यक है।",
         portal_account_locked:

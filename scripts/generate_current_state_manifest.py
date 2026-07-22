@@ -165,6 +165,7 @@ def build_manifest() -> dict[str, object]:
                     "/api/v1/portal/login",
                     "/api/v1/portal/reset",
                     "/api/v1/attendance",
+                    "/api/v1/attendance/day-status",
                     "/api/v1/shift-plan",
                     "/api/v1/shift-plan/day-status",
                     "/api/v1/auth/providers",
