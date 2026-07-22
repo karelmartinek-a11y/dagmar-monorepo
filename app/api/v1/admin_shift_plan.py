@@ -17,8 +17,6 @@ from app.db.models import (
     Employment,
     PortalUser,
     ShiftPlan,
-    ShiftPlanEmploymentEditPermission,
-    ShiftPlanMonthEditPolicy,
     ShiftPlanMonthInstance,
 )
 from app.db.session import get_db
@@ -36,10 +34,6 @@ from app.services.employment_access import employment_label, employment_overlaps
 from app.services.locks import (
     LockType,
     load_locked_employment_ids,
-)
-from app.services.shift_plan_editing import (
-    get_employment_edit_overrides,
-    get_month_employee_edit_default,
 )
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
@@ -80,15 +74,12 @@ class ShiftPlanRowOut(BaseModel):
     is_active_in_month: bool
     shift_plan_locked: bool = False
     attendance_locked: bool = False
-    employee_plan_edit_allowed: bool = False
-    employee_plan_edit_override: bool | None = None
     days: list[ShiftPlanDayOut]
 
 
 class ShiftPlanMonthOut(BaseModel):
     year: int
     month: int
-    employee_plan_edit_default: bool = False
     selected_employment_ids: list[int] = []
     available_employments: list[ActiveEmploymentOut] = []
     rows: list[ShiftPlanRowOut] = []
@@ -108,13 +99,6 @@ class ShiftPlanUpsertIn(BaseModel):
     status: str | None = Field(
         None, description="HOLIDAY | OFF | null", pattern="^(HOLIDAY|OFF)?$", examples=["HOLIDAY", "OFF"]
     )
-
-
-class ShiftPlanEditPermissionIn(BaseModel):
-    year: int = Field(..., ge=2000, le=2100)
-    month: int = Field(..., ge=1, le=12)
-    employment_id: int | None = Field(None, ge=1)
-    allow_employee_edits: bool
 
 
 class DayStatusUpsertIn(BaseModel):
@@ -235,8 +219,6 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
     start, end = _month_range(year, month)
     available_employments = _load_available_employment_rows(db)
     available_out = [_to_active_employment_out(cast(Employment, item), start, end) for item in available_employments]
-    edit_default = get_month_employee_edit_default(db, year=year, month=month)
-    edit_overrides = get_employment_edit_overrides(db, year=year, month=month)
     active_default_ids = [
         item.id for item in available_employments if _employment_is_active_in_month(cast(Employment, item), start, end)
     ]
@@ -259,7 +241,6 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         return ShiftPlanMonthOut(
             year=year,
             month=month,
-            employee_plan_edit_default=edit_default,
             selected_employment_ids=[],
             available_employments=available_out,
             rows=[],
@@ -335,8 +316,6 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 is_active_in_month=_employment_is_active_in_month(cast(Employment, employment), start, end),
                 shift_plan_locked=employment.id in shift_plan_locked_ids,
                 attendance_locked=employment.id in attendance_locked_ids,
-                employee_plan_edit_allowed=edit_overrides.get(employment.id, edit_default),
-                employee_plan_edit_override=edit_overrides.get(employment.id),
                 days=days,
             )
         )
@@ -344,63 +323,10 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
     return ShiftPlanMonthOut(
         year=year,
         month=month,
-        employee_plan_edit_default=edit_default,
         selected_employment_ids=selected_ids,
         available_employments=available_out,
         rows=rows,
     )
-
-
-@router.put("/api/v1/admin/shift-plan/edit-permission", response_model=OkOut)
-def admin_set_shift_plan_edit_permission(
-    body: ShiftPlanEditPermissionIn,
-    admin=Depends(require_admin),
-    _: None = Depends(require_csrf),
-    db: Session = Depends(get_db),
-) -> OkOut:
-    if body.employment_id is None:
-        policy = db.execute(
-            select(ShiftPlanMonthEditPolicy).where(
-                ShiftPlanMonthEditPolicy.year == body.year,
-                ShiftPlanMonthEditPolicy.month == body.month,
-            )
-        ).scalar_one_or_none()
-        if policy is None:
-            policy = ShiftPlanMonthEditPolicy(
-                year=body.year,
-                month=body.month,
-                allow_employee_edits=body.allow_employee_edits,
-                updated_by=_admin_username(admin),
-            )
-            db.add(policy)
-        else:
-            policy.allow_employee_edits = body.allow_employee_edits
-            policy.updated_by = _admin_username(admin)
-        db.commit()
-        return OkOut(ok=True)
-
-    _get_employment(body.employment_id, db)
-    permission = db.execute(
-        select(ShiftPlanEmploymentEditPermission).where(
-            ShiftPlanEmploymentEditPermission.employment_id == body.employment_id,
-            ShiftPlanEmploymentEditPermission.year == body.year,
-            ShiftPlanEmploymentEditPermission.month == body.month,
-        )
-    ).scalar_one_or_none()
-    if permission is None:
-        permission = ShiftPlanEmploymentEditPermission(
-            employment_id=body.employment_id,
-            year=body.year,
-            month=body.month,
-            allow_employee_edits=body.allow_employee_edits,
-            updated_by=_admin_username(admin),
-        )
-        db.add(permission)
-    else:
-        permission.allow_employee_edits = body.allow_employee_edits
-        permission.updated_by = _admin_username(admin)
-    db.commit()
-    return OkOut(ok=True)
 
 
 @router.put("/api/v1/admin/shift-plan", response_model=OkOut)

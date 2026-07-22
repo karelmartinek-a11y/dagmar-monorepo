@@ -32,14 +32,14 @@ from app.db.models import (
     PortalUserResetToken,
     PortalUserRole,
     ShiftPlan,
-    ShiftPlanEmploymentEditPermission,
+    ShiftPlanAutoLockRun,
     ShiftPlanLock,
-    ShiftPlanMonthEditPolicy,
     ShiftPlanMonthInstance,
 )
 from app.security.csrf import require_csrf
 from app.security.passwords import hash_password
 from app.services.employment_access import add_calendar_months
+from app.services.shift_plan_auto_lock import AUTO_LOCKED_BY, auto_lock_current_shift_plan_month
 
 
 def _build_client() -> tuple[TestClient, sessionmaker[Session]]:
@@ -638,7 +638,7 @@ def test_shift_plan_defaults_to_active_employments_and_keeps_inactive_available_
     assert payload["rows"][1]["days"][9]["arrival_time"] is None
 
 
-def test_employee_shift_plan_editing_respects_admin_month_and_employment_permissions() -> None:
+def test_employee_shift_plan_editing_allows_updates_when_month_is_unlocked() -> None:
     client, session_local = _build_client()
     target_day = date(2026, 5, 12)
     with session_local() as db:
@@ -656,42 +656,7 @@ def test_employee_shift_plan_editing_respects_admin_month_and_employment_permiss
         headers=headers,
     )
     assert attendance_response.status_code == 200
-    assert attendance_response.json()["shift_plan_editable"] is False
-
-    denied_response = client.put(
-        "/api/v1/shift-plan",
-        headers=headers,
-        json={
-            "employment_id": employment_id,
-            "date": target_day.isoformat(),
-            "arrival_time": "08:15",
-            "departure_time": "16:45",
-        },
-    )
-    assert denied_response.status_code == 403
-    denied_detail = denied_response.json()["detail"]
-    assert denied_detail["code"] == "shift_plan_edit_forbidden"
-    assert denied_detail["message"]
-
-    global_allow_response = client.put(
-        "/api/v1/admin/shift-plan/edit-permission",
-        json={"year": 2026, "month": 5, "allow_employee_edits": True},
-    )
-    assert global_allow_response.status_code == 200
-
-    admin_month_response = client.get("/api/v1/admin/shift-plan?year=2026&month=5")
-    assert admin_month_response.status_code == 200
-    admin_payload = admin_month_response.json()
-    assert admin_payload["employee_plan_edit_default"] is True
-    assert admin_payload["rows"][0]["employee_plan_edit_allowed"] is True
-    assert admin_payload["rows"][0]["employee_plan_edit_override"] is None
-
-    editable_attendance_response = client.get(
-        f"/api/v1/attendance?employment_id={employment_id}&year=2026&month=5",
-        headers=headers,
-    )
-    assert editable_attendance_response.status_code == 200
-    assert editable_attendance_response.json()["shift_plan_editable"] is True
+    assert attendance_response.json()["shift_plan_locked"] is False
 
     save_response = client.put(
         "/api/v1/shift-plan",
@@ -711,13 +676,26 @@ def test_employee_shift_plan_editing_respects_admin_month_and_employment_permiss
         assert shift_row.arrival_time == "08:15"
         assert shift_row.departure_time == "16:45"
 
-    employment_deny_response = client.put(
-        "/api/v1/admin/shift-plan/edit-permission",
-        json={"year": 2026, "month": 5, "employment_id": employment_id, "allow_employee_edits": False},
-    )
-    assert employment_deny_response.status_code == 200
+    admin_month_response = client.get("/api/v1/admin/shift-plan?year=2026&month=5")
+    assert admin_month_response.status_code == 200
+    admin_payload = admin_month_response.json()
+    assert "employee_plan_edit_default" not in admin_payload
+    assert "employee_plan_edit_allowed" not in admin_payload["rows"][0]
+    assert "employee_plan_edit_override" not in admin_payload["rows"][0]
 
-    blocked_by_override_response = client.put(
+    lock_response = client.put(
+        "/api/v1/admin/locks",
+        json={
+            "lock_type": "shift_plan",
+            "year": 2026,
+            "month": 5,
+            "employment_ids": [employment_id],
+            "locked": True,
+        },
+    )
+    assert lock_response.status_code == 200
+
+    blocked_response = client.put(
         "/api/v1/shift-plan",
         headers=headers,
         json={
@@ -727,13 +705,112 @@ def test_employee_shift_plan_editing_respects_admin_month_and_employment_permiss
             "departure_time": "17:00",
         },
     )
-    assert blocked_by_override_response.status_code == 403
+    assert blocked_response.status_code == 423
 
     with session_local() as db:
-        month_policy = db.execute(select(ShiftPlanMonthEditPolicy)).scalar_one()
-        employment_policy = db.execute(select(ShiftPlanEmploymentEditPermission)).scalar_one()
-        assert month_policy.allow_employee_edits is True
-        assert employment_policy.allow_employee_edits is False
+        month_lock = db.execute(
+            select(ShiftPlanLock).where(
+                ShiftPlanLock.employment_id == employment_id,
+                ShiftPlanLock.year == 2026,
+                ShiftPlanLock.month == 5,
+            )
+        ).scalar_one()
+        assert month_lock.locked_by == "admin"
+
+
+def test_shift_plan_auto_lock_locks_only_active_employments_once_per_month() -> None:
+    _, session_local = _build_client()
+    with session_local() as db:
+        active_user = _create_user(db, email="auto-lock-active@example.com", name="Aktivní Uživatel")
+        inactive_user = _create_user(
+            db,
+            email="auto-lock-user-inactive@example.com",
+            name="Neaktivní Uživatel",
+            is_active=False,
+        )
+        ended_user = _create_user(db, email="auto-lock-ended@example.com", name="Ukončený Uživatel")
+        inactive_employment = _add_employment(
+            db,
+            active_user,
+            start_date=date(2025, 1, 1),
+            title="Neaktivní úvazek",
+        )
+        inactive_employment.is_active = False
+        active_employment = _add_employment(
+            db,
+            active_user,
+            start_date=date(2025, 1, 1),
+            title="Aktivní úvazek",
+        )
+        _add_employment(
+            db,
+            inactive_user,
+            start_date=date(2025, 1, 1),
+            title="Neaktivní uživatel",
+        )
+        _add_employment(
+            db,
+            ended_user,
+            start_date=date(2025, 1, 1),
+            end_date=date(2026, 6, 30),
+            title="Skončený úvazek",
+        )
+        db.commit()
+
+        first_result = auto_lock_current_shift_plan_month(
+            db,
+            now=datetime(2026, 7, 1, 1, 0, tzinfo=UTC),
+        )
+        assert first_result.year == 2026
+        assert first_result.month == 7
+        assert first_result.already_processed is False
+        assert first_result.locked_count == 1
+
+        first_lock = db.execute(
+            select(ShiftPlanLock).where(
+                ShiftPlanLock.employment_id == active_employment.id,
+                ShiftPlanLock.year == 2026,
+                ShiftPlanLock.month == 7,
+            )
+        ).scalar_one()
+        assert first_lock.locked_by == AUTO_LOCKED_BY
+
+        skipped_lock = db.execute(
+            select(ShiftPlanLock).where(
+                ShiftPlanLock.employment_id == inactive_employment.id,
+                ShiftPlanLock.year == 2026,
+                ShiftPlanLock.month == 7,
+            )
+        ).scalar_one_or_none()
+        assert skipped_lock is None
+
+        db.delete(first_lock)
+        db.commit()
+
+        second_result = auto_lock_current_shift_plan_month(
+            db,
+            now=datetime(2026, 7, 1, 5, 0, tzinfo=UTC),
+        )
+        assert second_result.already_processed is True
+        assert second_result.locked_count == 1
+
+        run = db.execute(
+            select(ShiftPlanAutoLockRun).where(
+                ShiftPlanAutoLockRun.year == 2026,
+                ShiftPlanAutoLockRun.month == 7,
+            )
+        ).scalar_one()
+        assert run.locked_count == 1
+        assert (
+            db.execute(
+                select(ShiftPlanLock).where(
+                    ShiftPlanLock.employment_id == active_employment.id,
+                    ShiftPlanLock.year == 2026,
+                    ShiftPlanLock.month == 7,
+                )
+            ).scalar_one_or_none()
+            is None
+        )
 
 
 def test_admin_attendance_matrix_month_returns_all_employments_without_cell_requests() -> None:

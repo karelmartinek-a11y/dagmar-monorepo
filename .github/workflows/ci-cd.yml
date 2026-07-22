@@ -199,6 +199,11 @@ jobs:
             rsync -a "$REPO/app/" "$BACK_RELEASE/app/"
             rsync -a "$REPO/alembic/" "$BACK_RELEASE/alembic/"
             install -m 0644 "$REPO/pyproject.toml" "$REPO/README.md" "$REPO/alembic.ini" "$REPO/gunicorn.conf.py" "$BACK_RELEASE/"
+            install -m 0644 \
+              "$REPO/ops/systemd/dagmar-backend.service" \
+              "$REPO/ops/systemd/dagmar-shift-plan-month-auto-lock.service" \
+              "$REPO/ops/systemd/dagmar-shift-plan-month-auto-lock.timer" \
+              /etc/systemd/system/
             python3 -m venv "$BACK_RELEASE/.venv"
             "$BACK_RELEASE/.venv/bin/pip" install --upgrade pip
             "$BACK_RELEASE/.venv/bin/pip" install "$BACK_RELEASE"
@@ -209,6 +214,8 @@ jobs:
             test -r /etc/dagmar/backend.env
             cd "$BACK_RELEASE"
             "$BACK_RELEASE/.venv/bin/alembic" -c "$BACK_RELEASE/alembic.ini" upgrade head
+            systemctl daemon-reload
+            systemctl enable --now dagmar-shift-plan-month-auto-lock.timer
             nginx -t
 
             PREV_BACK=$(readlink -f "$CURRENT_BACK" 2>/dev/null || true)

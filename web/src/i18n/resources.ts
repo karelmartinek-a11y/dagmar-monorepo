@@ -376,9 +376,6 @@ export const resources = {
           loading: "Načítám docházku",
           lockedTitle: "Měsíc je uzamčen",
           lockedBody: "Záznamy jsou dostupné pouze pro čtení.",
-          planReadonlyTitle: "Plán služeb je pouze pro čtení",
-          planReadonlyBody:
-            "Zadávání plánu služeb pro tento úvazek a měsíc musí povolit administrátor.",
           conflictTitle: "Změnit stav dne a odstranit kolidující data?",
           conflictBody:
             "Den {{date}} obsahuje docházku nebo plán, který se zvoleným stavem koliduje.",
@@ -402,7 +399,6 @@ export const resources = {
           planStart: "Začátek",
           planEnd: "Konec",
           planStatus: "Stav plánu směny",
-          planStatusReadonly: "Editace plánu není povolena",
           plannedPrefix: "plán {{time}}",
           placeholder: "0:00",
           dailyTotal: "Denní součet",
@@ -422,7 +418,6 @@ export const resources = {
           attendanceLocked: "Docházka je uzamčená a pouze pro čtení",
           planOpen: "Plán služeb je otevřený pro zápis",
           planLocked: "Plán služeb je uzamčený a pouze pro čtení",
-          planReadonly: "Zápis plánu služeb není pro tento měsíc povolen",
           planBalance: "Plán proti pracovnímu fondu: {{delta}}",
           workedBalance: "Odpracováno proti průběžnému fondu: {{delta}}",
           exact: "Fond je přesně splněn",
@@ -792,7 +787,6 @@ export const resources = {
           "Nové heslo nesplňuje bezpečnostní požadavky.",
         attendance_month_locked: "Docházka za zvolené období je uzamčena.",
         shift_plan_month_locked: "Plán služeb za zvolené období je uzamčen.",
-        shift_plan_edit_forbidden: "Zadávání plánu služeb není pro tento úvazek a měsíc povoleno.",
         shift_plan_status_forbidden: "Nemoc a paragraf lze evidovat pouze v docházce.",
         shift_plan_status_conflicts_with_attendance:
           "Pro tento den nejdřív odstraňte docházková data nebo docházkový celodenní stav.",
@@ -1155,9 +1149,6 @@ export const resources = {
           loading: "Loading attendance",
           lockedTitle: "The month is locked",
           lockedBody: "Records are available in read-only mode.",
-          planReadonlyTitle: "The shift plan is read-only",
-          planReadonlyBody:
-            "An administrator must allow shift plan entry for this employment and month.",
           conflictTitle: "Change the day status and remove conflicting data?",
           conflictBody:
             "Day {{date}} contains attendance or a plan that conflicts with the selected status.",
@@ -1178,7 +1169,6 @@ export const resources = {
           planStart: "Start",
           planEnd: "End",
           planStatus: "Shift plan status",
-          planStatusReadonly: "Plan editing is not allowed",
           plannedPrefix: "plan {{time}}",
           placeholder: "0:00",
           dailyTotal: "Daily total",
@@ -1198,7 +1188,6 @@ export const resources = {
           attendanceLocked: "Attendance is locked and read-only",
           planOpen: "The shift plan is open for entry",
           planLocked: "The shift plan is locked and read-only",
-          planReadonly: "Shift plan entry is not allowed for this month",
           planBalance: "Plan against work fund: {{delta}}",
           workedBalance: "Worked against progressive fund: {{delta}}",
           exact: "The work fund is met exactly",
@@ -1566,7 +1555,6 @@ export const resources = {
         attendance_month_locked:
           "Attendance for the selected period is locked.",
         shift_plan_month_locked: "The shift plan for the selected period is locked.",
-        shift_plan_edit_forbidden: "Shift plan entry is not allowed for this employment and month.",
         shift_plan_status_forbidden: "Sickness and care leave can only be recorded in attendance.",
         shift_plan_status_conflicts_with_attendance:
           "Remove attendance data or the attendance full-day status for this day first.",
@@ -1923,9 +1911,6 @@ export const resources = {
           loading: "Načítavam dochádzku",
           lockedTitle: "Mesiac je uzamknutý",
           lockedBody: "Záznamy sú dostupné iba na čítanie.",
-          planReadonlyTitle: "Plán služieb je iba na čítanie",
-          planReadonlyBody:
-            "Zadávanie plánu služieb pre tento úväzok a mesiac musí povoliť administrátor.",
           conflictTitle: "Zmeniť stav dňa a odstrániť kolidujúce dáta?",
           conflictBody:
             "Deň {{date}} obsahuje dochádzku alebo plán, ktorý koliduje so zvoleným stavom.",
@@ -1946,7 +1931,6 @@ export const resources = {
           planStart: "Začiatok",
           planEnd: "Koniec",
           planStatus: "Stav plánu zmeny",
-          planStatusReadonly: "Úprava plánu nie je povolená",
           plannedPrefix: "plán {{time}}",
           placeholder: "0:00",
           dailyTotal: "Denný súčet",
@@ -1966,7 +1950,6 @@ export const resources = {
           attendanceLocked: "Dochádzka je zamknutá a iba na čítanie",
           planOpen: "Plán služieb je otvorený na zápis",
           planLocked: "Plán služieb je zamknutý a iba na čítanie",
-          planReadonly: "Zápis plánu služieb nie je pre tento mesiac povolený",
           planBalance: "Plán voči pracovnému fondu: {{delta}}",
           workedBalance: "Odpracované voči priebežnému fondu: {{delta}}",
           exact: "Pracovný fond je splnený presne",
@@ -2334,7 +2317,6 @@ export const resources = {
           "Nové heslo nespĺňa bezpečnostné požiadavky.",
         attendance_month_locked: "Dochádzka za zvolené obdobie je uzamknutá.",
         shift_plan_month_locked: "Plán služieb za zvolené obdobie je uzamknutý.",
-        shift_plan_edit_forbidden: "Zadávanie plánu služieb nie je pre tento úväzok a mesiac povolené.",
         shift_plan_status_forbidden: "Nemoc a paragraf možno evidovať iba v dochádzke.",
         shift_plan_status_conflicts_with_attendance:
           "Pre tento deň najprv odstráňte dochádzkové dáta alebo celodenný dochádzkový stav.",
@@ -2703,9 +2685,6 @@ export const resources = {
           loading: "Zeiterfassung wird geladen",
           lockedTitle: "Der Monat ist gesperrt",
           lockedBody: "Einträge sind nur lesbar verfügbar.",
-          planReadonlyTitle: "Der Dienstplan ist schreibgeschützt",
-          planReadonlyBody:
-            "Ein Administrator muss die Dienstplanbearbeitung für diese Beschäftigung und diesen Monat freigeben.",
           conflictTitle:
             "Tagesstatus ändern und widersprüchliche Daten entfernen?",
           conflictBody:
@@ -2730,7 +2709,6 @@ export const resources = {
           planStart: "Beginn",
           planEnd: "Ende",
           planStatus: "Status des Dienstplans",
-          planStatusReadonly: "Die Planbearbeitung ist nicht erlaubt",
           plannedPrefix: "Plan {{time}}",
           placeholder: "0:00",
           dailyTotal: "Tagessumme",
@@ -2750,7 +2728,6 @@ export const resources = {
           attendanceLocked: "Die Zeiterfassung ist gesperrt und schreibgeschützt",
           planOpen: "Der Dienstplan ist zur Eingabe geöffnet",
           planLocked: "Der Dienstplan ist gesperrt und schreibgeschützt",
-          planReadonly: "Die Dienstplaneingabe ist für diesen Monat nicht erlaubt",
           planBalance: "Plan gegenüber Arbeitsfonds: {{delta}}",
           workedBalance: "Geleistet gegenüber laufendem Fonds: {{delta}}",
           exact: "Der Arbeitsfonds ist genau erfüllt",
@@ -3129,7 +3106,6 @@ export const resources = {
         attendance_month_locked:
           "Die Zeiterfassung für den gewählten Zeitraum ist gesperrt.",
         shift_plan_month_locked: "Der Dienstplan für den gewählten Zeitraum ist gesperrt.",
-        shift_plan_edit_forbidden: "Die Dienstplaneingabe ist für diese Beschäftigung und diesen Monat nicht erlaubt.",
         shift_plan_status_forbidden: "Krankheit und Pflegefreistellung können nur in der Zeiterfassung erfasst werden.",
         shift_plan_status_conflicts_with_attendance:
           "Entfernen Sie für diesen Tag zuerst Zeiterfassungsdaten oder den ganztägigen Zeiterfassungsstatus.",
@@ -3329,9 +3305,6 @@ export const resources = {
           loading: "उपस्थिति लोड हो रही है",
           lockedTitle: "महीना लॉक है",
           lockedBody: "रिकॉर्ड केवल पढ़ने के लिए उपलब्ध हैं।",
-          planReadonlyTitle: "शिफ़्ट योजना केवल पढ़ने के लिए है",
-          planReadonlyBody:
-            "इस अनुबंध और महीने के लिए योजना दर्ज करने की अनुमति प्रशासक देगा।",
           conflictTitle: "दिन की स्थिति बदलकर विरोधी डेटा हटाएँ?",
           conflictBody: "{{date}} के रिकॉर्ड चुनी गई स्थिति से टकराते हैं।",
           conflictConfirm: "स्थिति बदलें और विरोध हटाएँ",
@@ -3351,7 +3324,6 @@ export const resources = {
           planStart: "शुरू",
           planEnd: "समाप्त",
           planStatus: "शिफ़्ट योजना की स्थिति",
-          planStatusReadonly: "योजना संपादन की अनुमति नहीं है",
           plannedPrefix: "योजना {{time}}",
           placeholder: "0:00",
           dailyTotal: "दिन का कुल",
@@ -3371,7 +3343,6 @@ export const resources = {
           attendanceLocked: "उपस्थिति लॉक है और केवल पढ़ी जा सकती है",
           planOpen: "शिफ़्ट योजना दर्ज करने के लिए खुली है",
           planLocked: "शिफ़्ट योजना लॉक है और केवल पढ़ी जा सकती है",
-          planReadonly: "इस महीने शिफ़्ट योजना दर्ज करने की अनुमति नहीं है",
           planBalance: "कार्य लक्ष्य के विरुद्ध योजना: {{delta}}",
           workedBalance: "प्रगतिशील लक्ष्य के विरुद्ध काम: {{delta}}",
           exact: "कार्य लक्ष्य ठीक पूरा हुआ",
@@ -3400,8 +3371,6 @@ export const resources = {
         invalid_day_status: "दिन की स्थिति मान्य नहीं है।",
         shift_plan_blocked_by_day_status:
           "पूरे दिन की स्थिति वाले दिन में शिफ़्ट योजना दर्ज नहीं की जा सकती।",
-        shift_plan_edit_forbidden:
-          "इस अनुबंध और महीने के लिए शिफ़्ट योजना दर्ज करने की अनुमति नहीं है।",
         shift_plan_status_forbidden:
           "बीमारी और देखभाल अवकाश केवल उपस्थिति में दर्ज किए जा सकते हैं।",
         shift_plan_status_conflicts_with_attendance:

@@ -87,7 +87,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, days });
       }
       if (path === "/api/v1/attendance") {
         throw new Error("Attendance save should not be called");
@@ -113,7 +113,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, days });
       }
       if (path === "/api/v1/attendance") {
         const payload = JSON.parse(String(init?.body ?? "{}")) as { arrival_time: string | null };
@@ -149,7 +149,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, days });
       }
       if (path === "/api/v1/shift-plan") {
         throw new Error("Shift plan save should not be called");
@@ -176,7 +176,7 @@ describe("employee time editing", () => {
       const path = String(input);
       calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
       if (path.startsWith("/api/v1/attendance?")) {
-        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
+        return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, days });
       }
       if (path === "/api/v1/shift-plan") {
         const payload = JSON.parse(String(init?.body ?? "{}")) as { arrival_time: string | null };
@@ -213,7 +213,7 @@ describe("employee time editing", () => {
     days[0].departure_time_2 = "18:00";
     fetchMock.mockImplementation(async (input, init) => {
       const path = String(input);
-      if (path.startsWith("/api/v1/attendance?")) return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, shift_plan_editable: true, days });
+      if (path.startsWith("/api/v1/attendance?")) return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", locked: false, attendance_locked: false, shift_plan_locked: false, days });
       void init;
       throw new Error(`Unhandled fetch ${path}`);
     });
@@ -240,7 +240,6 @@ describe("employee time editing", () => {
         employment_label: "Testovací uživatel · Denní provoz",
         attendance_locked: false,
         shift_plan_locked: true,
-        shift_plan_editable: false,
         summary: { work_fund_minutes: 480, work_fund_source: "calendar", planned_minutes: 420, worked_minutes: 480, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -60, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
         days,
       });
@@ -263,8 +262,7 @@ describe("employee time editing", () => {
         employment_id: 41,
         employment_label: "Testovací uživatel · Denní provoz",
         attendance_locked: false,
-        shift_plan_locked: false,
-        shift_plan_editable: false,
+        shift_plan_locked: true,
         summary: { work_fund_minutes: 480, work_fund_source: "calendar", planned_minutes: 420, worked_minutes: 480, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -60, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
         days,
       });
@@ -276,7 +274,7 @@ describe("employee time editing", () => {
     renderEmployeePage();
 
     await user.click(await screen.findByRole("tab", { name: "Plán služeb" }));
-    expect((await screen.findAllByText("Zápis plánu služeb není pro tento měsíc povolen")).length).toBeGreaterThan(0);
+    expect(screen.getByTitle("Plán služeb je uzamčený a pouze pro čtení")).toBeInTheDocument();
     expect(screen.getByDisplayValue("08:00")).toBeDisabled();
   });
 });

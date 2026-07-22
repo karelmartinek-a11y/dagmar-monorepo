@@ -266,14 +266,6 @@
     },
     {
       "auth_mode": "admin_session_csrf",
-      "handler": "app.api.v1.admin_shift_plan.admin_set_shift_plan_edit_permission",
-      "methods": [
-        "PUT"
-      ],
-      "path": "/api/v1/admin/shift-plan/edit-permission"
-    },
-    {
-      "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.admin_shift_plan.admin_set_shift_plan_selection",
       "methods": [
         "PUT"

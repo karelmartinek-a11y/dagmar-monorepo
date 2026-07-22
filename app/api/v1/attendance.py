@@ -26,7 +26,6 @@ from app.services.employment_access import employment_label
 from app.services.locks import LockType, ensure_month_unlocked, is_month_locked
 from app.services.month_summary import build_month_summary
 from app.services.prague_time import prague_minutes_since_midnight, prague_today
-from app.services.shift_plan_editing import can_employee_edit_shift_plan
 from app.utils.timeparse import parse_hhmm_or_none
 
 router = APIRouter(tags=["attendance"])
@@ -73,7 +72,6 @@ class AttendanceMonthOut(BaseModel):
     locked: bool = False
     attendance_locked: bool = False
     shift_plan_locked: bool = False
-    shift_plan_editable: bool = False
     days: list[AttendanceDayOut]
     summary: AttendanceMonthSummaryOut
 
@@ -260,7 +258,6 @@ def get_month_attendance(
         locked=attendance_locked,
         attendance_locked=attendance_locked,
         shift_plan_locked=shift_plan_locked,
-        shift_plan_editable=can_employee_edit_shift_plan(db, employment_id=employment.id, year=year, month=month),
         days=days,
         summary=AttendanceMonthSummaryOut(
             work_fund_minutes=month_summary.work_fund_minutes,

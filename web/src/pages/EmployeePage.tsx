@@ -578,12 +578,10 @@ function DayCard({
 function PlanDayCard({
   day,
   shiftPlanLocked,
-  editable,
   onSave,
 }: {
   day: AttendanceDay;
   shiftPlanLocked: boolean;
-  editable: boolean;
   onSave: (day: AttendanceDay, values: PlanValues, status: string) => void;
 }) {
   const { t } = useTranslation();
@@ -621,7 +619,6 @@ function PlanDayCard({
   const statusValue = day.planned_status ?? "";
   const disabled =
     shiftPlanLocked ||
-    !editable ||
     !day.is_within_employment_period ||
     statusValue === "HOLIDAY" ||
     statusValue === "OFF";
@@ -768,15 +765,9 @@ function PlanDayCard({
         <button
           type="button"
           className="icon-button"
-          disabled={
-            shiftPlanLocked || !editable || !day.is_within_employment_period
-          }
+          disabled={shiftPlanLocked || !day.is_within_employment_period}
           aria-label={`${fullDate.format(date)} ${t("employee.dayCard.planStatus")}`}
-          title={
-            editable
-              ? t("employee.dayCard.planStatus")
-              : t("employee.dayCard.planStatusReadonly")
-          }
+          title={t("employee.dayCard.planStatus")}
           onClick={() => setStatusOpen((open) => !open)}
         >
           <MoreVertical />
@@ -926,14 +917,12 @@ function StatusIcon({
 function EmployeeStatusStrip({
   attendanceLocked,
   shiftPlanLocked,
-  shiftPlanEditable,
   planBalance,
   workedBalance,
   showWorkedBalance,
 }: {
   attendanceLocked: boolean;
   shiftPlanLocked: boolean;
-  shiftPlanEditable: boolean;
   planBalance: number;
   workedBalance: number | null;
   showWorkedBalance: boolean;
@@ -941,9 +930,7 @@ function EmployeeStatusStrip({
   const { t } = useTranslation();
   const planLabel = shiftPlanLocked
     ? t("employee.statusSystem.planLocked")
-    : shiftPlanEditable
-      ? t("employee.statusSystem.planOpen")
-      : t("employee.statusSystem.planReadonly");
+    : t("employee.statusSystem.planOpen");
   const planDelta = signedDelta(planBalance);
   const workedDelta =
     workedBalance === null ? null : signedDelta(workedBalance);
@@ -964,9 +951,9 @@ function EmployeeStatusStrip({
       />
       <StatusIcon
         id="plan"
-        tone={shiftPlanLocked || !shiftPlanEditable ? "danger" : "success"}
+        tone={shiftPlanLocked ? "danger" : "success"}
         icon={
-          shiftPlanLocked || !shiftPlanEditable ? (
+          shiftPlanLocked ? (
             <CalendarX2 />
           ) : (
             <CalendarCheck2 />
@@ -1556,7 +1543,6 @@ export function EmployeePage() {
             <EmployeeStatusStrip
               attendanceLocked={attendanceLocked}
               shiftPlanLocked={shiftPlanLocked}
-              shiftPlanEditable={query.data?.shift_plan_editable ?? false}
               planBalance={summary.plan_balance_minutes}
               workedBalance={workedBalance}
               showWorkedBalance={Boolean(summary.worked_balance_mode)}
@@ -1582,18 +1568,12 @@ export function EmployeePage() {
               }
             </StatusMessage>
           )}
-          {view === "plan" && query.data && (shiftPlanLocked || !query.data.shift_plan_editable) && (
+          {view === "plan" && query.data && shiftPlanLocked && (
             <StatusMessage
               kind="error"
-              title={
-                shiftPlanLocked
-                  ? t("employee.statusSystem.planLocked")
-                  : t("employee.statusSystem.planReadonly")
-              }
+              title={t("employee.statusSystem.planLocked")}
             >
-              {shiftPlanLocked
-                ? t("common.errors.shift_plan_month_locked")
-                : t("common.errors.shift_plan_edit_forbidden")}
+              {t("common.errors.shift_plan_month_locked")}
             </StatusMessage>
           )}
           {query.isPending && (
@@ -1638,7 +1618,6 @@ export function EmployeePage() {
                       key={day.date}
                       day={day}
                       shiftPlanLocked={shiftPlanLocked}
-                      editable={query.data.shift_plan_editable ?? false}
                       onSave={(d, values, status) =>
                         planMutation.mutate({ day: d, values, status })
                       }

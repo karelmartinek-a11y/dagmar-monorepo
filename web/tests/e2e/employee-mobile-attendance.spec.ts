@@ -74,7 +74,6 @@ for (const { width, height } of [
           employment_label: "Testovací uživatel · Denní provoz",
           attendance_locked: false,
           shift_plan_locked: false,
-          shift_plan_editable: true,
           summary: { work_fund_minutes: 9600, work_fund_source: "calendar", planned_minutes: 0, worked_minutes: 0, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -9600, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
           days,
         }),
@@ -196,7 +195,6 @@ test("employee can switch to editable shift plan and save planned time", async (
         employment_label: "Testovací uživatel · Denní provoz",
         attendance_locked: false,
         shift_plan_locked: false,
-        shift_plan_editable: true,
         days,
       }),
     });
@@ -233,7 +231,7 @@ test("employee can switch to editable shift plan and save planned time", async (
   await expect(plannedArrival).toHaveValue("08:15");
 });
 
-test("employee shift plan is read-only when admin does not allow month editing", async ({ page }) => {
+test("employee shift plan is read-only when the month is locked", async ({ page }) => {
   const days = julyAttendance();
 
   await page.setViewportSize({ width: 390, height: 780 });
@@ -249,8 +247,7 @@ test("employee shift plan is read-only when admin does not allow month editing",
         employment_id: 41,
         employment_label: "Testovací uživatel · Denní provoz",
         attendance_locked: false,
-        shift_plan_locked: false,
-        shift_plan_editable: false,
+        shift_plan_locked: true,
         summary: { work_fund_minutes: 9600, work_fund_source: "calendar", planned_minutes: 0, worked_minutes: 0, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -9600, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
         days,
       }),
@@ -260,7 +257,6 @@ test("employee shift plan is read-only when admin does not allow month editing",
   await page.goto("/app");
   await page.locator(".employee-topbar .language-switcher select").selectOption("cs");
   await page.getByRole("tab", { name: "Plán služeb" }).click();
-  await expect(page.getByRole("alert").getByText("Zápis plánu služeb není pro tento měsíc povolen")).toBeVisible();
-  await expect(page.getByTitle("Zápis plánu služeb není pro tento měsíc povolen")).toBeVisible();
+  await expect(page.getByTitle("Plán služeb je uzamčený a pouze pro čtení")).toBeVisible();
   await expect(page.locator(".employee-day--plan").first().locator("input[name=\"planned_arrival_time\"]")).toBeDisabled();
 });

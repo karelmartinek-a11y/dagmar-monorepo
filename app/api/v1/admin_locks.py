@@ -19,6 +19,14 @@ from app.services.locks import LockType, set_month_lock_state_bulk
 router = APIRouter(tags=["admin"])
 
 
+def _admin_username(admin: object) -> str | None:
+    if isinstance(admin, dict):
+        value = admin.get("username")
+    else:
+        value = getattr(admin, "username", None)
+    return value if isinstance(value, str) and value else None
+
+
 class LockMonthIn(BaseModel):
     year: int = Field(..., ge=2000, le=2100)
     month: int = Field(..., ge=1, le=12)
@@ -133,7 +141,7 @@ def admin_set_locks(
             year=item.year,
             month=item.month,
             locked=body.locked,
-            locked_by=getattr(admin, "username", None),
+            locked_by=_admin_username(admin),
         )
     db.commit()
     return AdminLockSetOut(

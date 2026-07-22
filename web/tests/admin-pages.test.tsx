@@ -216,7 +216,6 @@ describe("admin pages", () => {
         return jsonResponse({
           year: 2026,
           month: 7,
-          employee_plan_edit_default: true,
           selected_employment_ids: [17],
           available_employments: [{ id: 17, display_label: "Dagmar Kájová · HPP", employment_type: "HPP", start_date: "2026-01-01", end_date: null, is_active_in_month: true }],
           rows: [{
@@ -232,8 +231,6 @@ describe("admin pages", () => {
             locked: false,
             attendance_locked: false,
             shift_plan_locked: false,
-            employee_plan_edit_allowed: true,
-            employee_plan_edit_override: null,
             days: [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", status: null, is_within_employment_period: true }],
           }],
         });

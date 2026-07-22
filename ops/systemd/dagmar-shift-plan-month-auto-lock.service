@@ -1,0 +1,18 @@
+[Unit]
+Description=KájovoDagmar shift plan month auto-lock
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dagmar
+Group=dagmar
+WorkingDirectory=/opt/dagmar/backend
+EnvironmentFile=/etc/dagmar/backend.env
+ExecStart=/opt/dagmar/backend/.venv/bin/python -m app.jobs.shift_plan_month_auto_lock
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/dagmar
+

@@ -18,7 +18,6 @@ from ...services.day_status import (
     set_shift_plan_status,
 )
 from ...services.locks import LockType, ensure_month_unlocked
-from ...services.shift_plan_editing import can_employee_edit_shift_plan
 from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
 from .attendance import _require_accessible_employment
@@ -76,12 +75,6 @@ def portal_upsert_shift_plan(
 
     _ensure_day_in_employment_period(employment, day)
     ensure_month_unlocked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=day.year, month=day.month)
-    if not can_employee_edit_shift_plan(db, employment_id=employment.id, year=day.year, month=day.month):
-        raise_api_error(
-            status.HTTP_403_FORBIDDEN,
-            "shift_plan_edit_forbidden",
-            "Zadávání plánu služeb není pro tento úvazek a měsíc povoleno.",
-        )
 
     try:
         arrival = parse_hhmm_or_none(body.arrival_time)
