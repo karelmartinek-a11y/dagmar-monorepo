@@ -22,6 +22,7 @@ function DocumentTitle() {
       if (pathname === "/admin/tisky") return "adminOps.prints.title";
       if (pathname === "/admin/tisky/preview") return "adminOps.prints.previewTitle";
       if (pathname === "/admin/settings") return "adminOps.settings.title";
+      if (pathname === "/admin/ucet") return "account.title";
       if (pathname === "/admin/integrace") return "adminOps.integrations.title";
       return "auth.notFound.title";
     })();

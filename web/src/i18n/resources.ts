@@ -662,6 +662,11 @@ export const resources = {
           revokeTitle: "Odvolat aktivní token?",
           revokeDescription:
             "Klient nebude moci API použít, dokud nevytvoříte nový token rotací.",
+          statuses: {
+            active: "Aktivní",
+            disabled: "Deaktivovaná",
+            revoked: "Revokovaná",
+          },
           actions: {
             rotate: "Rotovat token",
             enable: "Povolit",
@@ -1410,6 +1415,11 @@ export const resources = {
           revokeTitle: "Revoke active token?",
           revokeDescription:
             "The client will not be able to use the API until you create a new token by rotation.",
+          statuses: {
+            active: "Active",
+            disabled: "Disabled",
+            revoked: "Revoked",
+          },
           actions: {
             rotate: "Rotate token",
             enable: "Enable",
@@ -2153,6 +2163,11 @@ export const resources = {
           revokeTitle: "Odvolať aktívny token?",
           revokeDescription:
             "Klient nebude môcť API používať, kým nevytvoríte nový token rotáciou.",
+          statuses: {
+            active: "Aktívny",
+            disabled: "Deaktivovaný",
+            revoked: "Odvolaný",
+          },
           actions: {
             rotate: "Rotovať token",
             enable: "Povoliť",
@@ -2921,6 +2936,11 @@ export const resources = {
           revokeTitle: "Aktives Token widerrufen?",
           revokeDescription:
             "Der Client kann die API nicht verwenden, bis Sie durch Rotation ein neues Token erstellen.",
+          statuses: {
+            active: "Aktiv",
+            disabled: "Deaktiviert",
+            revoked: "Widerrufen",
+          },
           actions: {
             rotate: "Token rotieren",
             enable: "Aktivieren",
