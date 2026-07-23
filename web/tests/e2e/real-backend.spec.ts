@@ -40,7 +40,7 @@ test.describe("real backend workflows", () => {
     await expect(page.getByRole("heading", { name: "Přihlášení zaměstnance" })).toBeVisible();
   });
 
-  test("admin session, protected routes, export and print preview", async ({ page }) => {
+  test("admin session, protected routes, export and shift-plan print preview", async ({ page }) => {
     await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [languageStorageKey, "cs"]);
     await page.goto("/admin/login");
     await page.getByLabel("Přihlašovací jméno administrátora").fill(adminUsername);
@@ -60,8 +60,10 @@ test.describe("real backend workflows", () => {
     const download = await downloadPromise;
     expect(await download.failure()).toBeNull();
 
-    await page.goto("/admin/tisky/preview");
-    await expect(page.getByRole("heading", { name: "Náhled sestavy" })).toBeVisible();
+    await page.goto("/admin/tisky");
+    await page.getByLabel("Typ sestavy").selectOption("shift_plan");
+    await page.getByRole("button", { name: "Otevřít náhled" }).click();
+    await expect(page.getByRole("heading", { name: "Náhled plánu směn" })).toBeVisible();
     await page.getByRole("button", { name: "Odhlásit administraci" }).click();
     await expect(page.getByRole("heading", { name: "Vstup do administrace" })).toBeVisible();
   });

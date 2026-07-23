@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import ADMIN_IDENTITY_EMAIL, Settings, get_settings
 from app.db.models import Base, Employment, IntegrationClient, PortalUser, PortalUserRole
 from app.security.passwords import hash_password
+from app.security.rate_limit import limiter
 
 
 def _build_client(tmp_path: Path) -> tuple[TestClient, sessionmaker[Session]]:
@@ -32,6 +33,7 @@ def _build_client(tmp_path: Path) -> tuple[TestClient, sessionmaker[Session]]:
 
     db_session_module._engine = None
     db_session_module._SessionLocal = None
+    limiter.reset()
 
     from app.main import create_app
 

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminAttendancePage, AdminShiftPlanPage } from "../src/pages/AdminMatrixPages";
-import { AdminPrintPreviewPage, AdminSettingsPage } from "../src/pages/AdminOperationsPages";
+import { AdminPrintPreviewPage, AdminPrintsPage, AdminSettingsPage } from "../src/pages/AdminOperationsPages";
 
 function jsonResponse(payload: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(payload), {
@@ -35,6 +35,7 @@ describe("admin pages", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("print", vi.fn());
+    vi.stubGlobal("URL", { createObjectURL: vi.fn(() => "blob:test"), revokeObjectURL: vi.fn() });
   });
 
   afterEach(() => {
@@ -317,5 +318,108 @@ describe("admin pages", () => {
     expect(screen.getByText("Rozdíl vůči fondu")).toBeInTheDocument();
     expect(screen.getByText("Sváteční hodiny")).toBeInTheDocument();
     expect(screen.getByText("Vytištěno Dagmar Kájovo osobní asistentkou")).toBeInTheDocument();
+  });
+
+  it("prepares shift-plan preview with active employment selection only", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const path = String(input);
+      if (path === "/api/v1/admin/users") {
+        return jsonResponse({ users: [] });
+      }
+      if (path === "/api/v1/admin/shift-plan?year=2026&month=7") {
+        return jsonResponse({
+          year: 2026,
+          month: 7,
+          selected_employment_ids: [17],
+          available_employments: [
+            { id: 17, user_id: 4, user_name: "Dagmar Kájová", title: "Osobní asistence", employment_type: "HPP", display_label: "Dagmar Kájová - HPP - Osobní asistence", start_date: "2026-01-01", end_date: null, is_active_in_month: true },
+            { id: 18, user_id: 5, user_name: "Zaniklý úvazek", title: "Sezónní výpomoc", employment_type: "DPP_DPC", display_label: "Zaniklý úvazek - DPP/DPČ - Sezónní výpomoc", start_date: "2026-01-01", end_date: "2026-06-30", is_active_in_month: false },
+          ],
+          rows: [],
+        });
+      }
+      throw new Error(`Unhandled fetch ${path}`);
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<AdminPrintsPage />, ["/admin/tisky"]);
+
+    await user.selectOptions(await screen.findByLabelText("Typ sestavy"), "shift_plan");
+    expect(await screen.findByText("1 úvazků ve výběru")).toBeInTheDocument();
+    expect(screen.getByText("Zaniklý úvazek - DPP/DPČ - Sezónní výpomoc").closest("label")?.querySelector("input")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Otevřít náhled" })).toBeEnabled();
+  });
+
+  it("renders shift-plan preview and downloads PDF through admin blob fetch", async () => {
+    fetchMock.mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path === "/api/v1/admin/csrf") return jsonResponse({ csrf_token: "csrf-token" });
+      if (path === "/api/v1/admin/export/shift-plan/report" && init?.method === "POST") {
+        return jsonResponse({
+          year: 2026,
+          month: 7,
+          month_label: "červenec 2026",
+          generated_at_iso: "2026-07-23T10:00:00+02:00",
+          generated_at_label: "23.07.2026 10:00",
+          page_count: 2,
+          legend: ["V buňce je vždy plánovaný čas směny nebo celodenní stav.", "Dovolená = celodenní stav z plánu směn."],
+          day_headers: [
+            { date_iso: "2026-07-01", day_number: 1, weekday_short: "St", tone: "work", holiday_label: null },
+            { date_iso: "2026-07-02", day_number: 2, weekday_short: "Čt", tone: "work", holiday_label: null },
+          ],
+          pages: [
+            {
+              page_number: 1,
+              employments: [
+                {
+                  employment_id: 17,
+                  display_label: "Dagmar Kájová - HPP - Osobní asistence",
+                  user_name: "Dagmar Kájová",
+                  title: "Osobní asistence",
+                  employment_type: "HPP",
+                  start_date: "2026-01-01",
+                  end_date: null,
+                  is_active_in_month: true,
+                  planned_minutes_total: 480,
+                  planned_total_label: "8 h",
+                  scheduled_days: 1,
+                  holiday_days: 0,
+                  off_days: 1,
+                  cells: [
+                    { date_iso: "2026-07-01", day_number: 1, weekday_short: "St", holiday_label: null, tone: "work", is_within_employment_period: true, arrival_time: "08:00", departure_time: "16:00", status: null, status_label: null, interval_label: "08:00-16:00", duration_label: "8 h" },
+                    { date_iso: "2026-07-02", day_number: 2, weekday_short: "Čt", holiday_label: null, tone: "work", is_within_employment_period: true, arrival_time: null, departure_time: null, status: "OFF", status_label: "Volno", interval_label: "Volno", duration_label: "" },
+                  ],
+                },
+              ],
+            },
+            { page_number: 2, employments: [] },
+          ],
+        });
+      }
+      if (path === "/api/v1/admin/export/shift-plan/pdf" && init?.method === "POST") {
+        return new Response(new Blob(["%PDF-test"], { type: "application/pdf" }), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": 'attachment; filename="plan_smen_2026-07.pdf"',
+          },
+        });
+      }
+      throw new Error(`Unhandled fetch ${path}`);
+    });
+
+    const appendSpy = vi.spyOn(document.body, "append");
+    const user = userEvent.setup();
+    renderWithProviders(<AdminPrintPreviewPage />, ["/admin/tisky/preview?month=2026-07&type=shift_plan&employments=17,18"]);
+
+    expect(await screen.findByRole("heading", { name: "Náhled plánu směn" })).toBeInTheDocument();
+    expect(await screen.findByText("Strana 1 z 2")).toBeInTheDocument();
+    expect(await screen.findByText("Dagmar Kájová")).toBeInTheDocument();
+    expect(await screen.findByText("08:00-16:00")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Stáhnout PDF" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/admin/export/shift-plan/pdf", expect.any(Object)));
+    expect(appendSpy).toHaveBeenCalled();
   });
 });

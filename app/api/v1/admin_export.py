@@ -9,15 +9,29 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import distinct, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from ...db.models import Attendance, Employment, ShiftPlan
 from ...db.session import get_db
+from ...security.csrf import require_csrf
+from ...services.shift_plan_reports import (
+    build_shift_plan_report,
+    render_shift_plan_report_pdf,
+    report_to_payload,
+    shift_plan_pdf_filename,
+)
 from ...utils.slugify import filename_safe
 from ..deps import require_admin
 
 router = APIRouter(tags=["admin"])
+
+
+class ShiftPlanReportRequestIn(BaseModel):
+    year: int = Field(..., ge=2000, le=2100)
+    month: int = Field(..., ge=1, le=12)
+    employment_ids: list[int] = Field(default_factory=list)
 
 
 def _month_range(month_yyyy_mm: str) -> tuple[date, date]:
@@ -205,4 +219,49 @@ def export_csv_or_zip(
         _iter_bytes(zip_bytes),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
+    )
+
+
+@router.post("/api/v1/admin/export/shift-plan/report")
+def export_shift_plan_report_payload(
+    body: ShiftPlanReportRequestIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+):
+    try:
+        report = build_shift_plan_report(
+            db,
+            year=body.year,
+            month=body.month,
+            employment_ids=body.employment_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return report_to_payload(report)
+
+
+@router.post("/api/v1/admin/export/shift-plan/pdf")
+def export_shift_plan_pdf(
+    body: ShiftPlanReportRequestIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+):
+    try:
+        report = build_shift_plan_report(
+            db,
+            year=body.year,
+            month=body.month,
+            employment_ids=body.employment_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    pdf_bytes = render_shift_plan_report_pdf(report)
+    filename = shift_plan_pdf_filename(year=body.year, month=body.month)
+    return StreamingResponse(
+        _iter_bytes(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

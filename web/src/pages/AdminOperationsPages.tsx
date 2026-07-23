@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Copy, Download, KeyRound, LoaderCircle, Plus, Power, Printer, RefreshCw, Save, Send, ShieldOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -33,7 +33,7 @@ function loadAttendanceMonth(year: number, month: number) {
 }
 
 function loadShiftPlanMonth(year: number, month: number) {
-  return api.admin<{ year: number; month: number; selected_employment_ids: number[]; rows: Array<{ employment_id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; status: string | null }> }> }>(`/api/v1/admin/shift-plan?year=${year}&month=${month}`);
+  return api.admin<{ year: number; month: number; selected_employment_ids: number[]; available_employments: Array<{ id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; start_date: string; end_date: string | null; is_active_in_month: boolean }>; rows: Array<{ employment_id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; status: string | null }> }> }>(`/api/v1/admin/shift-plan?year=${year}&month=${month}`);
 }
 
 function monthParts(month: string): [number, number] {
@@ -228,6 +228,69 @@ function filteredEmployments(users: AdminUser[]) {
   return users.flatMap((user) => (user.employments ?? []).map((employment) => ({ ...employment, user_name: user.name })));
 }
 
+type PrintReportType = "attendance" | "shift_plan";
+type AttendancePrintKind = "summary" | "detail";
+type ShiftPlanReportResponse = {
+  year: number;
+  month: number;
+  month_label: string;
+  generated_at_iso: string;
+  generated_at_label: string;
+  page_count: number;
+  legend: string[];
+  day_headers: Array<{ date_iso: string; day_number: number; weekday_short: string; tone: string; holiday_label: string | null }>;
+  pages: Array<{
+    page_number: number;
+    employments: Array<{
+      employment_id: number;
+      display_label: string;
+      user_name: string;
+      title: string;
+      employment_type: string;
+      start_date: string;
+      end_date: string | null;
+      is_active_in_month: boolean;
+      planned_minutes_total: number;
+      planned_total_label: string;
+      scheduled_days: number;
+      holiday_days: number;
+      off_days: number;
+      cells: Array<{
+        date_iso: string;
+        day_number: number;
+        weekday_short: string;
+        holiday_label: string | null;
+        tone: string;
+        is_within_employment_period: boolean;
+        arrival_time: string | null;
+        departure_time: string | null;
+        status: string | null;
+        status_label: string | null;
+        interval_label: string;
+        duration_label: string;
+      }>;
+    }>;
+  }>;
+};
+
+function parseSelectedIds(raw: string | null): number[] {
+  return (raw ?? "")
+    .split(",")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}
+
 export function AdminExportPage() {
   const { t } = useTranslation();
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -242,15 +305,46 @@ export function AdminPrintsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [kind, setKind] = useState<"summary" | "detail">("summary");
+  const [reportType, setReportType] = useState<PrintReportType>("attendance");
+  const [kind, setKind] = useState<AttendancePrintKind>("summary");
   const [scope, setScope] = useState<"all" | "selected">("all");
   const [selectedEmploymentIds, setSelectedEmploymentIds] = useState<number[]>([]);
   const users = useQuery({ queryKey: ["admin-users"], queryFn: () => api.admin<{ users: AdminUser[] }>("/api/v1/admin/users") });
-  const employments = filteredEmployments(users.data?.users ?? []);
-  const toggleEmployment = (employmentId: number, checked: boolean) => setSelectedEmploymentIds((current) => checked ? [...current, employmentId] : current.filter((item) => item !== employmentId));
-  const selectedQuery = scope === "selected" && selectedEmploymentIds.length > 0 ? `&employments=${selectedEmploymentIds.join(",")}` : "";
+  const [year, monthNumber] = monthParts(month);
+  const shiftPlanMonth = useQuery({
+    queryKey: ["admin-prints-shift-plan", year, monthNumber],
+    queryFn: () => loadShiftPlanMonth(year, monthNumber),
+  });
+  const attendanceEmployments = filteredEmployments(users.data?.users ?? []);
+  const shiftPlanEmployments = useMemo(
+    () => shiftPlanMonth.data?.available_employments ?? [],
+    [shiftPlanMonth.data?.available_employments],
+  );
+  const effectiveShiftPlanSelection = useMemo(
+    () => shiftPlanEmployments.filter((item) => item.is_active_in_month).map((item) => item.id),
+    [shiftPlanEmployments],
+  );
 
-  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.prints.eyebrow")}</p><h1>{t("adminOps.prints.title")}</h1></div></header><div className="split"><Panel title={t("adminOps.prints.document")}><div className="panel-body form-grid"><Field label={t("adminOps.prints.reportType")}><select value={kind} onChange={(e) => setKind(e.target.value as "summary" | "detail")}><option value="summary">{t("adminOps.prints.summary")}</option><option value="detail">{t("adminOps.prints.detail")}</option></select></Field><Field label={t("adminOps.prints.month")}><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field><Field label={t("adminOps.prints.scope")}><select value={scope} onChange={(e) => setScope(e.target.value as "all" | "selected")}><option value="all">{t("adminOps.prints.allProfiles")}</option><option value="selected">{t("adminOps.prints.selectedProfiles")}</option></select></Field>{scope === "selected" && <div className="full admin-chip-grid">{employments.map((employment) => <label key={employment.id} className={`admin-chip admin-chip--checkbox ${selectedEmploymentIds.includes(employment.id) ? "admin-chip--active" : ""}`}><input type="checkbox" checked={selectedEmploymentIds.includes(employment.id)} onChange={(event) => toggleEmployment(employment.id, event.target.checked)} /><strong>{employment.user_name}</strong><span>{employment.title}</span><small>{employment.employment_type}</small></label>)}</div>}<div className="full action-row"><Button disabled={scope === "selected" && selectedEmploymentIds.length === 0} onClick={() => navigate(`/admin/tisky/preview?month=${month}&kind=${kind}${selectedQuery}`)}><Printer />{t("adminOps.prints.openPreview")}</Button></div></div></Panel><Panel title={t("adminOps.prints.previewContains")}><div className="panel-body stack"><p>{kind === "summary" ? t("adminOps.prints.summaryDescription") : t("adminOps.prints.detailDescription")}</p><p>{t("adminOps.prints.previewHelp")}</p></div></Panel></div></div>;
+  useEffect(() => {
+    if (reportType !== "shift_plan") return;
+    setSelectedEmploymentIds((current) => {
+      const allowed = new Set(shiftPlanEmployments.map((item) => item.id));
+      const filtered = current.filter((item) => allowed.has(item));
+      if (filtered.length > 0) return filtered;
+      return effectiveShiftPlanSelection;
+    });
+  }, [effectiveShiftPlanSelection, reportType, shiftPlanEmployments]);
+
+  const toggleEmployment = (employmentId: number, checked: boolean) => {
+    setSelectedEmploymentIds((current) => checked ? [...current.filter((item) => item !== employmentId), employmentId] : current.filter((item) => item !== employmentId));
+  };
+
+  const selectedQuery = selectedEmploymentIds.length > 0 ? `&employments=${selectedEmploymentIds.join(",")}` : "";
+  const previewTarget = reportType === "shift_plan"
+    ? `/admin/tisky/preview?month=${month}&type=shift_plan${selectedQuery}`
+    : `/admin/tisky/preview?month=${month}&type=attendance&kind=${kind}${scope === "selected" && selectedEmploymentIds.length > 0 ? selectedQuery : ""}`;
+
+  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.prints.eyebrow")}</p><h1>{t("adminOps.prints.title")}</h1></div></header><div className="split"><Panel title={t("adminOps.prints.document")}><div className="panel-body form-grid"><Field label={t("adminOps.prints.reportType")}><select value={reportType} onChange={(e) => setReportType(e.target.value as PrintReportType)}><option value="attendance">{t("adminOps.prints.attendanceType")}</option><option value="shift_plan">{t("adminOps.prints.shiftPlanType")}</option></select></Field>{reportType === "attendance" && <Field label={t("adminOps.prints.reportVariant")}><select value={kind} onChange={(e) => setKind(e.target.value as AttendancePrintKind)}><option value="summary">{t("adminOps.prints.summary")}</option><option value="detail">{t("adminOps.prints.detail")}</option></select></Field>}<Field label={t("adminOps.prints.month")}><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>{reportType === "attendance" && <Field label={t("adminOps.prints.scope")}><select value={scope} onChange={(e) => setScope(e.target.value as "all" | "selected")}><option value="all">{t("adminOps.prints.allProfiles")}</option><option value="selected">{t("adminOps.prints.selectedProfiles")}</option></select></Field>}{reportType === "shift_plan" && <div className="full stack"><div className="action-row"><Button type="button" variant="quiet" onClick={() => setSelectedEmploymentIds(effectiveShiftPlanSelection)}>{t("adminOps.prints.selectAllEmployments")}</Button><Button type="button" variant="quiet" onClick={() => setSelectedEmploymentIds([])}>{t("adminOps.prints.clearEmployments")}</Button><span className="badge">{t("adminOps.prints.selectedEmploymentsCount", { count: selectedEmploymentIds.length })}</span></div>{shiftPlanMonth.isPending ? <StatusMessage kind="loading" title={t("adminOps.prints.loadingShiftPlanEmployments")} /> : shiftPlanMonth.error ? <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{shiftPlanMonth.error.message}</StatusMessage> : <div className="admin-chip-grid">{shiftPlanEmployments.map((employment) => <label key={employment.id} className={`admin-chip admin-chip--checkbox ${selectedEmploymentIds.includes(employment.id) ? "admin-chip--active" : ""} ${employment.is_active_in_month ? "" : "admin-chip--disabled"}`}><input type="checkbox" checked={selectedEmploymentIds.includes(employment.id)} disabled={!employment.is_active_in_month} onChange={(event) => toggleEmployment(employment.id, event.target.checked)} /><strong>{employment.user_name}</strong><span>{employment.title}</span><small>{employment.display_label}</small></label>)}</div>}</div>}{reportType === "attendance" && scope === "selected" && <div className="full admin-chip-grid">{attendanceEmployments.map((employment) => <label key={employment.id} className={`admin-chip admin-chip--checkbox ${selectedEmploymentIds.includes(employment.id) ? "admin-chip--active" : ""}`}><input type="checkbox" checked={selectedEmploymentIds.includes(employment.id)} onChange={(event) => toggleEmployment(employment.id, event.target.checked)} /><strong>{employment.user_name}</strong><span>{employment.title}</span><small>{employment.employment_type}</small></label>)}</div>}<div className="full action-row"><Button disabled={(reportType === "attendance" && scope === "selected" && selectedEmploymentIds.length === 0) || (reportType === "shift_plan" && selectedEmploymentIds.length === 0)} onClick={() => navigate(previewTarget)}><Printer />{t("adminOps.prints.openPreview")}</Button></div></div></Panel><Panel title={t("adminOps.prints.previewContains")}><div className="panel-body stack"><p>{reportType === "shift_plan" ? t("adminOps.prints.shiftPlanDescription") : kind === "summary" ? t("adminOps.prints.summaryDescription") : t("adminOps.prints.detailDescription")}</p><p>{reportType === "shift_plan" ? t("adminOps.prints.shiftPlanPreviewHelp") : t("adminOps.prints.previewHelp")}</p></div></Panel></div></div>;
 }
 
 export function AdminPrintPreviewPage() {
@@ -260,13 +354,32 @@ export function AdminPrintPreviewPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const month = params.get("month") ?? new Date().toISOString().slice(0, 7);
-  const kind = (params.get("kind") as "summary" | "detail" | null) ?? "summary";
-  const selectedEmploymentIds = (params.get("employments") ?? "").split(",").filter(Boolean).map(Number);
+  const reportType = (params.get("type") as PrintReportType | null) ?? "attendance";
+  const kind = (params.get("kind") as AttendancePrintKind | null) ?? "summary";
+  const selectedEmploymentIds = parseSelectedIds(params.get("employments"));
   const [year, monthNumber] = monthParts(month);
   const monthLabel = formatPrintMonth(month, locale);
-  const attendance = useQuery({ queryKey: ["print-attendance", month], queryFn: () => loadAttendanceMonth(year, monthNumber) });
-  const shiftPlan = useQuery({ queryKey: ["print-plan", month], queryFn: () => loadShiftPlanMonth(year, monthNumber) });
+  const attendance = useQuery({ queryKey: ["print-attendance", month], queryFn: () => loadAttendanceMonth(year, monthNumber), enabled: reportType === "attendance" });
+  const shiftPlan = useQuery({ queryKey: ["print-plan", month], queryFn: () => loadShiftPlanMonth(year, monthNumber), enabled: reportType === "attendance" });
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => api.admin<Settings>("/api/v1/admin/settings") });
+  const shiftPlanReport = useQuery({
+    queryKey: ["shift-plan-print-report", year, monthNumber, selectedEmploymentIds.join(",")],
+    queryFn: () => api.admin<ShiftPlanReportResponse>("/api/v1/admin/export/shift-plan/report", {
+      method: "POST",
+      body: JSON.stringify({ year, month: monthNumber, employment_ids: selectedEmploymentIds }),
+    }),
+    enabled: reportType === "shift_plan" && selectedEmploymentIds.length > 0,
+  });
+  const pdfMutation = useMutation({
+    mutationFn: async () => {
+      const result = await api.adminBlob("/api/v1/admin/export/shift-plan/pdf", {
+        method: "POST",
+        body: JSON.stringify({ year, month: monthNumber, employment_ids: selectedEmploymentIds }),
+      });
+      triggerBlobDownload(result.blob, result.filename ?? `plan_smen_${month}.pdf`);
+      return result;
+    },
+  });
   const rows = useMemo(() => {
     if (!attendance.data || !shiftPlan.data) return [];
     const allowedIds = selectedEmploymentIds.length > 0 ? new Set(selectedEmploymentIds) : null;
@@ -275,11 +388,15 @@ export function AdminPrintPreviewPage() {
   }, [attendance.data, locale, selectedEmploymentIds, settings.data?.afternoon_cutoff, shiftPlan.data, t]);
 
   return <div className="page">
-    <header className="page-heading no-print"><div><p>{t("adminOps.prints.previewEyebrow")}</p><h1>{t("adminOps.prints.previewTitle")}</h1></div><Button onClick={() => window.print()}><Printer />{t("adminOps.prints.printPdf")}</Button></header>
-    {(attendance.isPending || shiftPlan.isPending || settings.isPending) && <StatusMessage kind="loading" title={t("adminOps.prints.preparing")} />}
-    {(attendance.error || shiftPlan.error || settings.error) && <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{(attendance.error ?? shiftPlan.error ?? settings.error)?.message}</StatusMessage>}
-    {attendance.data && shiftPlan.data && settings.data && kind === "summary" && <article className="print-sheet"><header className="print-sheet__header"><div><h1>KájovoDagmar</h1><p>{t("adminOps.prints.summary")} · {month}</p></div><strong>{rows.length}</strong></header><table><thead><tr><th>{t("users.title")}</th><th>{t("adminMatrix.summary.plan")}</th><th>{t("employee.metrics.worked")}</th><th>{t("employee.statuses.HOLIDAY")}</th><th>{t("employee.statuses.OFF")}</th><th>{t("adminOps.prints.preview.afternoonShifts")}</th><th>{t("adminOps.prints.preview.filledDays")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id}><td>{row.user_name}<br /><small>{row.label}</small></td><td>{formatHours(row.plannedMinutes)}</td><td>{formatHours(row.actualMinutes)}</td><td>{t("adminOps.prints.preview.dayCountShort", { count: row.holidayDays })}</td><td>{t("adminOps.prints.preview.dayCountShort", { count: row.offDays })}</td><td>{row.afternoonShifts}</td><td>{t("adminOps.prints.preview.filledDaysCount", { count: row.filledDays })}</td></tr>)}</tbody></table><footer><p>{t("adminOps.prints.preview.generatedAt")} {formatDateTime.format(new Date())}</p></footer></article>}
-    {attendance.data && shiftPlan.data && settings.data && kind === "detail" && rows.map((row) => <article key={row.employment_id} className="print-sheet print-sheet--page print-sheet--attendance-detail"><header className="print-form__header"><div className="print-form__title"><p className="print-sheet__eyebrow">{t("adminOps.prints.preview.attendanceSheet")}</p><h1>{row.user_name}</h1><p>{row.employment_title}</p></div><div className="print-form__period"><span>{t("adminOps.export.month")}</span><strong>{monthLabel}</strong><small>{row.employment_type} · {row.label}</small></div></header><section className="print-form__summary-line"><div><span>{t("employee.metrics.plannedHours")}</span><strong>{formatHours(row.plannedMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.calendarFund")}</span><strong>{formatHours(row.calendarMinutes)}</strong></div><div><span>{t("employee.metrics.worked")}</span><strong>{formatHours(row.actualMinutes)}</strong></div><div><span>{t("employee.statuses.HOLIDAY")}</span><strong>{formatHours(row.vacationMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.accountedHours")}</span><strong>{formatHours(row.actualMinutesWithVacation)}</strong></div></section><table className="print-attendance-table"><thead><tr><th>{t("adminOps.prints.preview.table.date")}</th><th>{t("adminOps.prints.preview.table.day")}</th><th>{t("adminOps.prints.preview.table.shiftPlan")}</th><th>{t("adminOps.prints.preview.table.arrival1")}</th><th>{t("adminOps.prints.preview.table.departure1")}</th><th>{t("adminOps.prints.preview.table.arrival2")}</th><th>{t("adminOps.prints.preview.table.departure2")}</th><th>{t("adminOps.prints.preview.table.worked")}</th><th>{t("adminOps.prints.preview.table.pause")}</th><th>{t("adminOps.prints.preview.table.daytime")}</th><th>{t("adminOps.prints.preview.table.afternoon")}</th><th>{t("adminOps.prints.preview.table.weekend")}</th><th>{t("adminOps.prints.preview.table.holiday")}</th><th>{t("adminOps.prints.preview.table.night")}</th><th>{t("adminOps.prints.preview.table.dayMode")}</th></tr></thead><tbody>{row.dayRows.map(({ day, planDay, buckets }) => { const date = asPragueDate(day.date); return <tr key={day.date} className={`print-day print-day--${getCalendarDayTone(date)}`}><td>{formatPrintDate(day.date, locale)}</td><td>{getWeekdayLongLabel(date, locale)}</td><td>{planDay?.status === "HOLIDAY" ? t("adminMatrix.statuses.HOLIDAY") : planDay?.status === "OFF" ? t("adminMatrix.statuses.OFF") : formatRange(planDay?.arrival_time, planDay?.departure_time)}</td><td>{day.arrival_time ?? "–"}</td><td>{day.departure_time ?? "–"}</td><td>{day.arrival_time_2 ?? "–"}</td><td>{day.departure_time_2 ?? "–"}</td><td>{formatHours(buckets.actualMinutes)}</td><td>{formatHours(buckets.pauseMinutes)}</td><td>{formatHours(Math.max(0, buckets.actualMinutes - buckets.weekendMinutes - buckets.holidayMinutes))}</td><td>{formatHours(buckets.afternoonMinutes)}</td><td>{formatHours(buckets.weekendMinutes)}</td><td>{formatHours(buckets.holidayMinutes)}</td><td>{formatHours(buckets.nightMinutes)}</td><td>{buckets.note || buckets.status}</td></tr>; })}</tbody></table><footer className="print-summary print-summary--detail"><div><span>{t("adminOps.prints.preview.calendarFund")}</span><strong>{formatHours(row.calendarMinutes)}</strong></div><div><span>{t("employee.metrics.plannedHours")}</span><strong>{formatHours(row.plannedMinutes)}</strong></div><div><span>{t("employee.metrics.worked")}</span><strong>{formatHours(row.actualMinutes)}</strong></div><div><span>{t("employee.statuses.HOLIDAY")}</span><strong>{formatHours(row.vacationMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.accountedHours")}</span><strong>{formatHours(row.actualMinutesWithVacation)}</strong></div><div><span>{t("adminOps.prints.preview.balanceVsCalendar")}</span><strong>{formatHours(row.balanceMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.pauseHours")}</span><strong>{formatHours(row.pauseMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.afternoonHours")}</span><strong>{formatHours(row.afternoonMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.nightHours")}</span><strong>{formatHours(row.nightMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.weekendHours")}</span><strong>{formatHours(row.weekendMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.holidayHours")}</span><strong>{formatHours(row.holidayMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.filledDays")}</span><strong>{row.filledDays}</strong></div><div><span>{t("adminOps.prints.preview.scheduledDays")}</span><strong>{row.scheduledDays}</strong></div><div><span>{t("adminOps.prints.preview.offDays")}</span><strong>{t("adminOps.prints.preview.dayCountShort", { count: row.offDays })}</strong></div><div><span>{t("adminOps.settings.afternoonCutoff")}</span><strong>{settings.data.afternoon_cutoff}</strong></div></footer><footer className="print-sheet__footer-note">{t("adminOps.prints.preview.footerNote")}</footer></article>)}
+    <header className="page-heading no-print"><div><p>{t("adminOps.prints.previewEyebrow")}</p><h1>{reportType === "shift_plan" ? t("adminOps.prints.shiftPlanPreviewTitle") : t("adminOps.prints.previewTitle")}</h1></div><div className="page-actions">{reportType === "shift_plan" && <Button type="button" onClick={() => pdfMutation.mutate()} disabled={pdfMutation.isPending || selectedEmploymentIds.length === 0}><Download />{pdfMutation.isPending ? t("adminOps.prints.generatingPdf") : t("adminOps.prints.downloadPdf")}</Button>}<Button type="button" onClick={() => window.print()}><Printer />{t("adminOps.prints.printPdf")}</Button></div></header>
+    {reportType === "attendance" && (attendance.isPending || shiftPlan.isPending || settings.isPending) && <StatusMessage kind="loading" title={t("adminOps.prints.preparing")} />}
+    {reportType === "attendance" && (attendance.error || shiftPlan.error || settings.error) && <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{(attendance.error ?? shiftPlan.error ?? settings.error)?.message}</StatusMessage>}
+    {reportType === "shift_plan" && shiftPlanReport.isPending && <StatusMessage kind="loading" title={t("adminOps.prints.preparing")} />}
+    {reportType === "shift_plan" && shiftPlanReport.error && <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{shiftPlanReport.error.message}</StatusMessage>}
+    {pdfMutation.error && <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{pdfMutation.error.message}</StatusMessage>}
+    {attendance.data && shiftPlan.data && settings.data && reportType === "attendance" && kind === "summary" && <article className="print-sheet"><header className="print-sheet__header"><div><h1>KájovoDagmar</h1><p>{t("adminOps.prints.summary")} · {month}</p></div><strong>{rows.length}</strong></header><table><thead><tr><th>{t("users.title")}</th><th>{t("adminMatrix.summary.plan")}</th><th>{t("employee.metrics.worked")}</th><th>{t("employee.statuses.HOLIDAY")}</th><th>{t("employee.statuses.OFF")}</th><th>{t("adminOps.prints.preview.afternoonShifts")}</th><th>{t("adminOps.prints.preview.filledDays")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id}><td>{row.user_name}<br /><small>{row.label}</small></td><td>{formatHours(row.plannedMinutes)}</td><td>{formatHours(row.actualMinutes)}</td><td>{t("adminOps.prints.preview.dayCountShort", { count: row.holidayDays })}</td><td>{t("adminOps.prints.preview.dayCountShort", { count: row.offDays })}</td><td>{row.afternoonShifts}</td><td>{t("adminOps.prints.preview.filledDaysCount", { count: row.filledDays })}</td></tr>)}</tbody></table><footer><p>{t("adminOps.prints.preview.generatedAt")} {formatDateTime.format(new Date())}</p></footer></article>}
+    {attendance.data && shiftPlan.data && settings.data && reportType === "attendance" && kind === "detail" && rows.map((row) => <article key={row.employment_id} className="print-sheet print-sheet--page print-sheet--attendance-detail"><header className="print-form__header"><div className="print-form__title"><p className="print-sheet__eyebrow">{t("adminOps.prints.preview.attendanceSheet")}</p><h1>{row.user_name}</h1><p>{row.employment_title}</p></div><div className="print-form__period"><span>{t("adminOps.export.month")}</span><strong>{monthLabel}</strong><small>{row.employment_type} · {row.label}</small></div></header><section className="print-form__summary-line"><div><span>{t("employee.metrics.plannedHours")}</span><strong>{formatHours(row.plannedMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.calendarFund")}</span><strong>{formatHours(row.calendarMinutes)}</strong></div><div><span>{t("employee.metrics.worked")}</span><strong>{formatHours(row.actualMinutes)}</strong></div><div><span>{t("employee.statuses.HOLIDAY")}</span><strong>{formatHours(row.vacationMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.accountedHours")}</span><strong>{formatHours(row.actualMinutesWithVacation)}</strong></div></section><table className="print-attendance-table"><thead><tr><th>{t("adminOps.prints.preview.table.date")}</th><th>{t("adminOps.prints.preview.table.day")}</th><th>{t("adminOps.prints.preview.table.shiftPlan")}</th><th>{t("adminOps.prints.preview.table.arrival1")}</th><th>{t("adminOps.prints.preview.table.departure1")}</th><th>{t("adminOps.prints.preview.table.arrival2")}</th><th>{t("adminOps.prints.preview.table.departure2")}</th><th>{t("adminOps.prints.preview.table.worked")}</th><th>{t("adminOps.prints.preview.table.pause")}</th><th>{t("adminOps.prints.preview.table.daytime")}</th><th>{t("adminOps.prints.preview.table.afternoon")}</th><th>{t("adminOps.prints.preview.table.weekend")}</th><th>{t("adminOps.prints.preview.table.holiday")}</th><th>{t("adminOps.prints.preview.table.night")}</th><th>{t("adminOps.prints.preview.table.dayMode")}</th></tr></thead><tbody>{row.dayRows.map(({ day, planDay, buckets }) => { const date = asPragueDate(day.date); return <tr key={day.date} className={`print-day print-day--${getCalendarDayTone(date)}`}><td>{formatPrintDate(day.date, locale)}</td><td>{getWeekdayLongLabel(date, locale)}</td><td>{planDay?.status === "HOLIDAY" ? t("adminMatrix.statuses.HOLIDAY") : planDay?.status === "OFF" ? t("adminMatrix.statuses.OFF") : formatRange(planDay?.arrival_time, planDay?.departure_time)}</td><td>{day.arrival_time ?? "–"}</td><td>{day.departure_time ?? "–"}</td><td>{day.arrival_time_2 ?? "–"}</td><td>{day.departure_time_2 ?? "–"}</td><td>{formatHours(buckets.actualMinutes)}</td><td>{formatHours(buckets.pauseMinutes)}</td><td>{formatHours(Math.max(0, buckets.actualMinutes - buckets.weekendMinutes - buckets.holidayMinutes))}</td><td>{formatHours(buckets.afternoonMinutes)}</td><td>{formatHours(buckets.weekendMinutes)}</td><td>{formatHours(buckets.holidayMinutes)}</td><td>{formatHours(buckets.nightMinutes)}</td><td>{buckets.note || buckets.status}</td></tr>; })}</tbody></table><footer className="print-summary print-summary--detail"><div><span>{t("adminOps.prints.preview.calendarFund")}</span><strong>{formatHours(row.calendarMinutes)}</strong></div><div><span>{t("employee.metrics.plannedHours")}</span><strong>{formatHours(row.plannedMinutes)}</strong></div><div><span>{t("employee.metrics.worked")}</span><strong>{formatHours(row.actualMinutes)}</strong></div><div><span>{t("employee.statuses.HOLIDAY")}</span><strong>{formatHours(row.vacationMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.accountedHours")}</span><strong>{formatHours(row.actualMinutesWithVacation)}</strong></div><div><span>{t("adminOps.prints.preview.balanceVsCalendar")}</span><strong>{formatHours(row.balanceMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.pauseHours")}</span><strong>{formatHours(row.pauseMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.afternoonHours")}</span><strong>{formatHours(row.afternoonMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.nightHours")}</span><strong>{formatHours(row.nightMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.weekendHours")}</span><strong>{formatHours(row.weekendMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.holidayHours")}</span><strong>{formatHours(row.holidayMinutes)}</strong></div><div><span>{t("adminOps.prints.preview.filledDays")}</span><strong>{row.filledDays}</strong></div><div><span>{t("adminOps.prints.preview.scheduledDays")}</span><strong>{row.scheduledDays}</strong></div><div><span>{t("adminOps.prints.preview.offDays")}</span><strong>{t("adminOps.prints.preview.dayCountShort", { count: row.offDays })}</strong></div><div><span>{t("adminOps.settings.afternoonCutoff")}</span><strong>{settings.data.afternoon_cutoff}</strong></div></footer><footer className="print-sheet__footer-note">{t("adminOps.prints.preview.footerNote")}</footer></article>)}
+    {reportType === "shift_plan" && shiftPlanReport.data && shiftPlanReport.data.pages.map((page) => <article key={page.page_number} className="print-sheet print-sheet--page print-sheet--shift-plan"><header className="print-form__header print-form__header--shift-plan"><div className="print-form__title"><p className="print-sheet__eyebrow">{t("adminOps.prints.shiftPlanType")}</p><h1>{t("adminOps.prints.shiftPlanPreviewTitle")}</h1><p>{t("adminOps.prints.shiftPlanPageHint", { page: page.page_number, pages: shiftPlanReport.data.page_count })}</p></div><div className="print-form__period"><span>{t("adminOps.export.month")}</span><strong>{shiftPlanReport.data.month_label}</strong><small>{t("adminOps.prints.preview.generatedAt")} {shiftPlanReport.data.generated_at_label}</small></div></header><table className="print-shift-plan-table"><thead><tr><th>{t("adminMatrix.common.employment")}</th><th>{t("adminOps.prints.shiftPlanTotal")}</th>{shiftPlanReport.data.day_headers.map((day) => <th key={day.date_iso} className={`print-day-head print-day-head--${day.tone}`}><strong>{day.day_number}.</strong><span>{day.weekday_short}</span>{day.holiday_label && <small>{day.holiday_label}</small>}</th>)}</tr></thead><tbody>{page.employments.map((employment) => <tr key={employment.employment_id}><td className="print-shift-plan-table__employment"><strong>{employment.user_name}</strong><span>{employment.display_label}</span><small>{employment.employment_type} · {employment.title}</small></td><td className="print-shift-plan-table__summary"><strong>{employment.planned_total_label}</strong><span>{t("adminOps.prints.shiftPlanScheduledDays", { count: employment.scheduled_days })}</span><small>{t("adminOps.prints.shiftPlanStatusSummary", { holidayDays: employment.holiday_days, offDays: employment.off_days })}</small></td>{employment.cells.map((cell) => <td key={cell.date_iso} className={`print-shift-plan-cell print-shift-plan-cell--${cell.tone} ${cell.is_within_employment_period ? "" : "print-shift-plan-cell--inactive"}`}><strong>{cell.interval_label}</strong>{cell.duration_label && <span>{cell.duration_label}</span>}{cell.status_label && <small>{cell.status_label}</small>}</td>)}</tr>)}</tbody></table><footer className="print-shift-plan-legend"><strong>{t("adminOps.prints.shiftPlanLegendTitle")}</strong><ul>{shiftPlanReport.data.legend.map((item) => <li key={item}>{item}</li>)}</ul></footer></article>)}
   </div>;
 }
 

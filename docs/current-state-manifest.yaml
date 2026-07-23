@@ -114,6 +114,22 @@
     },
     {
       "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_export.export_shift_plan_pdf",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/export/shift-plan/pdf"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_export.export_shift_plan_report_payload",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/export/shift-plan/report"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.admin_auth.admin_forgot_password",
       "methods": [
         "POST"

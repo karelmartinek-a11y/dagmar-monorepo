@@ -84,6 +84,35 @@ export async function request<T>(
   return schema ? schema.parse(payload) : payload as T;
 }
 
+export async function requestBlob(
+  path: string,
+  options: RequestInit = {},
+  mode: Mode = "public",
+): Promise<{ blob: Blob; filename: string | null; contentType: string | null }> {
+  const headers = new Headers(options.headers);
+  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  if (mode === "portal" && portalToken) headers.set("Authorization", `Bearer ${portalToken}`);
+  const method = (options.method ?? "GET").toUpperCase();
+  if (mode === "admin" && !["GET", "HEAD", "OPTIONS"].includes(method)) headers.set("X-CSRF-Token", await csrf());
+  let response: Response;
+  try {
+    response = await fetch(path, { ...options, headers, credentials: mode === "admin" ? "include" : "same-origin" });
+  } catch {
+    throw new ApiError(i18n.t("common.status.networkOffline"), 0, "offline", null);
+  }
+  if (!response.ok) {
+    if (response.status === 403 && mode === "admin") csrfToken = null;
+    throw await responseError(response);
+  }
+  const disposition = response.headers.get("content-disposition");
+  const match = disposition ? /filename="([^"]+)"/i.exec(disposition) : null;
+  return {
+    blob: await response.blob(),
+    filename: match?.[1] ?? null,
+    contentType: response.headers.get("content-type"),
+  };
+}
+
 export const api = {
   portalLogin: (email: string, password: string): Promise<PortalLogin> => request(
     "/api/v1/portal/login", { method: "POST", body: JSON.stringify({ email, password }) }, "public", portalLoginSchema,
@@ -136,4 +165,5 @@ export const api = {
     return result;
   },
   admin: <T>(path: string, options: RequestInit = {}) => request<T>(path, options, "admin"),
+  adminBlob: (path: string, options: RequestInit = {}) => requestBlob(path, options, "admin"),
 };

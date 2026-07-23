@@ -247,3 +247,18 @@ Vrací CSV pro konkrétní úvazek.
 
 ### GET `/api/v1/admin/export?month=2026-03&bulk=true`
 Vrací ZIP pro všechny relevantní úvazky v měsíci.
+
+### POST `/api/v1/admin/export/shift-plan/report`
+Vstup:
+```json
+{
+  "year": 2026,
+  "month": 7,
+  "employment_ids": [17, 18, 19]
+}
+```
+
+Vrací normalizovanou tiskovou sestavu plánu směn pro náhled v administraci. Výběr je vázaný na `employment_id`, vyžaduje administrátorskou session a CSRF a stránkuje deterministicky po nejvýše pěti úvazcích na stranu.
+
+### POST `/api/v1/admin/export/shift-plan/pdf`
+Používá stejný request body jako `report` endpoint a vrací skutečný soubor `application/pdf` s názvem `plan_smen_YYYY-MM.pdf`.
