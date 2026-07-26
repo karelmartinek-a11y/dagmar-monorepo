@@ -17,6 +17,7 @@ test.describe("real backend workflows", () => {
     await page.getByLabel("Heslo").fill(employeePassword);
     await page.getByRole("button", { name: "Otevřít docházku" }).click();
     await expect(page.getByRole("heading", { name: "Měsíční docházka" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
     const arrival = page.locator(".employee-day").first().locator('input[name="arrival_time"]:enabled');
     await arrival.click();
