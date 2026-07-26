@@ -19,10 +19,11 @@ test.describe("real backend workflows", () => {
     await expect(page.getByRole("heading", { name: "Měsíční docházka" })).toBeVisible();
 
     const arrival = page.locator('input[name="arrival_time"]:enabled').first();
-    await arrival.dblclick();
+    await arrival.click();
     await arrival.fill("0815");
+    await expect(arrival).toHaveValue("0815");
     const savedAttendance = page.waitForResponse(response => response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/v1/attendance" && response.ok());
-    await arrival.blur();
+    await arrival.press("Enter");
     await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
     await savedAttendance;
     await expect(arrival).toHaveValue("08:15");
