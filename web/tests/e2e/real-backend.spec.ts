@@ -20,10 +20,10 @@ test.describe("real backend workflows", () => {
 
     const arrival = page.locator('input[name="arrival_time"]:enabled').first();
     await arrival.click();
+    await arrival.press("Enter");
     await arrival.fill("0815");
     await expect(arrival).toHaveValue("0815");
     const savedAttendance = page.waitForResponse(response => response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/v1/attendance" && response.ok());
-    await arrival.press("Enter");
     await arrival.press("Enter");
     await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
     await savedAttendance;
