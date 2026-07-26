@@ -23,6 +23,7 @@ test.describe("real backend workflows", () => {
     const attendanceNow = new Date();
     const attendanceDate = `${attendanceNow.getFullYear()}-${String(attendanceNow.getMonth() + 1).padStart(2, "0")}-${String(attendanceNow.getDate()).padStart(2, "0")}`;
     const savedAttendance = await page.request.put("/api/v1/attendance", {
+      headers: { Authorization: `Bearer ${await page.evaluate(() => (JSON.parse(window.localStorage.getItem("kajovodagmar.portal.session.v1") ?? "null") as { instance_token: string }).instance_token)}` },
       data: {
         employment_id: portalSession.selected_employment_id,
         date: attendanceDate,
