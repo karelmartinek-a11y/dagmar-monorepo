@@ -149,14 +149,14 @@ def portal_get_group_shift_plan_month(
     rows: list[GroupShiftPlanRowOut] = []
     for member in sorted(group.members, key=lambda item: (item.employment.user.name.lower(), item.employment_id)):
         employment = member.employment
-        def day_out(day: dt.date) -> GroupShiftPlanDayOut:
-            plan = by_key.get((employment.id, day))
+        def day_out(day: dt.date, *, current_employment: Employment = employment) -> GroupShiftPlanDayOut:
+            plan = by_key.get((current_employment.id, day))
             return GroupShiftPlanDayOut(
                 date=day.isoformat(),
                 arrival_time=plan.arrival_time if plan else None,
                 departure_time=plan.departure_time if plan else None,
                 status=plan.status if plan else None,
-                is_within_employment_period=day >= employment.start_date and (employment.end_date is None or day <= employment.end_date),
+                is_within_employment_period=day >= current_employment.start_date and (current_employment.end_date is None or day <= current_employment.end_date),
             )
         rows.append(GroupShiftPlanRowOut(
             employment_id=employment.id,
