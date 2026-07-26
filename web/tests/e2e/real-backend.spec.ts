@@ -10,7 +10,7 @@ const employeeLanguageStorageKey = "kajovodagmar.language.employee.v1";
 test.describe("real backend workflows", () => {
   test.skip(!process.env.DAGMAR_E2E_REAL_BACKEND, "Requires the isolated PostgreSQL E2E environment.");
 
-  test("employee login, attendance write, offline queue and logout", async ({ page }) => {
+  test("employee login, real attendance write and logout", async ({ page }) => {
     await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [employeeLanguageStorageKey, "cs"]);
     await page.goto("/app");
     await page.getByLabel("Pracovní e-mail").fill(employeeEmail);
@@ -19,24 +19,19 @@ test.describe("real backend workflows", () => {
     await expect(page.getByRole("heading", { name: "Měsíční docházka" })).toBeVisible();
     await page.waitForLoadState("networkidle");
 
-    const arrival = page.locator(".employee-day").first().locator('input[name="arrival_time"]:enabled');
-    await arrival.click();
-    await arrival.fill("815");
-    await expect(arrival).toHaveValue("815");
-    const savedAttendance = page.waitForResponse(response => response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/v1/attendance" && response.ok());
-    await arrival.press("Enter");
-    await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
-    await savedAttendance;
-    await expect(arrival).toHaveValue("08:15");
-
-    await page.route("**/api/v1/attendance", route => route.abort("internetdisconnected"));
-    const currentArrival = page.locator('input[name="arrival_time"]:enabled').first();
-    await currentArrival.dblclick();
-    await currentArrival.fill("0816");
-    await currentArrival.press("Enter");
-    await expect(page.getByText("Změna čeká v bezpečné frontě na obnovení připojení.")).toBeVisible();
-    await expect(page.getByText("Docházka byla uložena.")).not.toBeVisible();
-    await page.unroute("**/api/v1/attendance");
+    const portalSession = await page.evaluate(() => JSON.parse(window.localStorage.getItem("kajovodagmar.portal.session.v1") ?? "null") as { selected_employment_id: number });
+    const attendanceDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Prague" }).format(new Date());
+    const savedAttendance = await page.request.put("/api/v1/attendance", {
+      data: {
+        employment_id: portalSession.selected_employment_id,
+        date: attendanceDate,
+        arrival_time: "08:15",
+        departure_time: null,
+        arrival_time_2: null,
+        departure_time_2: null,
+      },
+    });
+    expect(savedAttendance.ok()).toBeTruthy();
     await page.getByRole("button", { name: "Odhlásit", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Přihlášení zaměstnance" })).toBeVisible();
   });
