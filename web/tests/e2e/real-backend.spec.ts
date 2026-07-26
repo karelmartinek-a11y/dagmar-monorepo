@@ -20,7 +20,8 @@ test.describe("real backend workflows", () => {
     await page.waitForLoadState("networkidle");
 
     const portalSession = await page.evaluate(() => JSON.parse(window.localStorage.getItem("kajovodagmar.portal.session.v1") ?? "null") as { selected_employment_id: number });
-    const attendanceDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Prague" }).format(new Date());
+    const attendanceNow = new Date();
+    const attendanceDate = `${attendanceNow.getFullYear()}-${String(attendanceNow.getMonth() + 1).padStart(2, "0")}-${String(attendanceNow.getDate()).padStart(2, "0")}`;
     const savedAttendance = await page.request.put("/api/v1/attendance", {
       data: {
         employment_id: portalSession.selected_employment_id,
@@ -31,7 +32,7 @@ test.describe("real backend workflows", () => {
         departure_time_2: null,
       },
     });
-    expect(savedAttendance.ok()).toBeTruthy();
+    expect(savedAttendance.ok(), `Attendance write failed: ${savedAttendance.status()} ${await savedAttendance.text()}`).toBeTruthy();
     await page.getByRole("button", { name: "Odhlásit", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Přihlášení zaměstnance" })).toBeVisible();
   });
