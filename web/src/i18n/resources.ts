@@ -381,6 +381,20 @@ export const resources = {
             "Den {{date}} obsahuje docházku nebo plán, který se zvoleným stavem koliduje.",
           conflictConfirm: "Změnit stav a odstranit konflikty",
         },
+        groupPlan: {
+          eyebrow: "Sdílený přehled",
+          title: "Skupinový plán směn",
+          legendLabel: "Legenda skupinového plánu",
+          ownLegend: "Můj úvazek · lze upravit",
+          colleagueLegend: "Kolegové · pouze čtení",
+          lockedLegend: "Zamčeno",
+          groupLabel: "Skupina úvazků",
+          empty: "Nemáte dostupnou žádnou skupinu úvazků.",
+          emptyBody: "Administrátor vás může přidat do skupiny pro sdílený plán směn.",
+          choose: "Vyberte skupinu",
+          shift: "Směna",
+          help: "Upravovat lze pouze vlastní odemčené úvazky. Plány kolegů zůstávají pouze pro čtení.",
+        },
         quickNow: {
           label: "Rychlý zápis aktuálního času",
           button: "TEĎ",
@@ -788,6 +802,7 @@ export const resources = {
         employment_not_found: "Úvazek nebyl nalezen.",
         employment_period_mismatch:
           "Datum neleží v období platnosti vybraného úvazku.",
+        employment_not_active: "Vybraný úvazek už není aktivní a jeho plán směn nelze měnit.",
         invalid_day_status: "Neplatný stav dne.",
         shift_plan_blocked_by_day_status:
           "Do dne s celodenním stavem nelze zapisovat plán směny.",
@@ -1172,6 +1187,9 @@ export const resources = {
           conflictBody:
             "Day {{date}} contains attendance or a plan that conflicts with the selected status.",
           conflictConfirm: "Change status and remove conflicts",
+        },
+        groupPlan: {
+          eyebrow: "Shared overview", title: "Group shift plan", legendLabel: "Group shift plan legend", ownLegend: "My employment · editable", colleagueLegend: "Colleagues · read-only", lockedLegend: "Locked", groupLabel: "Employment group", empty: "No employment group is available.", emptyBody: "An administrator can add you to a group for a shared shift plan.", choose: "Choose a group", shift: "Shift", help: "Only your own unlocked employments can be edited. Colleagues' plans remain read-only.",
         },
         quickNow: { label: "Quick entry of the current time", button: "NOW" },
         dayCard: {
@@ -1575,6 +1593,7 @@ export const resources = {
         employment_not_found: "The employment was not found.",
         employment_period_mismatch:
           "The date is outside the selected employment period.",
+        employment_not_active: "The selected employment is no longer active and its shift plan cannot be changed.",
         invalid_day_status: "Invalid day status.",
         shift_plan_blocked_by_day_status:
           "A shift plan cannot be written into a day with a full-day status.",
@@ -1953,6 +1972,9 @@ export const resources = {
           conflictBody:
             "Deň {{date}} obsahuje dochádzku alebo plán, ktorý koliduje so zvoleným stavom.",
           conflictConfirm: "Zmeniť stav a odstrániť konflikty",
+        },
+        groupPlan: {
+          eyebrow: "Zdieľaný prehľad", title: "Skupinový plán služieb", legendLabel: "Legenda skupinového plánu", ownLegend: "Môj úväzok · možno upraviť", colleagueLegend: "Kolegovia · iba na čítanie", lockedLegend: "Uzamknuté", groupLabel: "Skupina úväzkov", empty: "Nemáte dostupnú žiadnu skupinu úväzkov.", emptyBody: "Administrátor vás môže pridať do skupiny pre zdieľaný plán služieb.", choose: "Vyberte skupinu", shift: "Smena", help: "Upravovať možno iba vlastné odomknuté úväzky. Plány kolegov zostávajú iba na čítanie.",
         },
         quickNow: { label: "Rýchly zápis aktuálneho času", button: "TERAZ" },
         dayCard: {
@@ -2356,6 +2378,7 @@ export const resources = {
         employment_not_found: "Úväzok nebol nájdený.",
         employment_period_mismatch:
           "Dátum neleží v období platnosti vybraného úväzku.",
+        employment_not_active: "Vybraný úväzok už nie je aktívny a jeho plán služieb nemožno meniť.",
         invalid_day_status: "Neplatný stav dňa.",
         shift_plan_blocked_by_day_status:
           "Do dňa s celodenným stavom nie je možné zapisovať plán služby.",
@@ -2747,6 +2770,9 @@ export const resources = {
           conflictBody:
             "Der Tag {{date}} enthält Zeiterfassung oder einen Plan, der mit dem gewählten Status kollidiert.",
           conflictConfirm: "Status ändern und Konflikte entfernen",
+        },
+        groupPlan: {
+          eyebrow: "Gemeinsame Übersicht", title: "Gruppen-Dienstplan", legendLabel: "Legende des Gruppen-Dienstplans", ownLegend: "Meine Beschäftigung · bearbeitbar", colleagueLegend: "Kollegen · nur lesbar", lockedLegend: "Gesperrt", groupLabel: "Beschäftigungsgruppe", empty: "Keine Beschäftigungsgruppe verfügbar.", emptyBody: "Ein Administrator kann Sie zu einer Gruppe für einen gemeinsamen Dienstplan hinzufügen.", choose: "Gruppe auswählen", shift: "Schicht", help: "Nur eigene nicht gesperrte Beschäftigungen können bearbeitet werden. Pläne von Kollegen bleiben schreibgeschützt.",
         },
         quickNow: {
           label: "Schneller Eintrag der aktuellen Zeit",
@@ -3144,7 +3170,7 @@ export const resources = {
           "Dieser Eintrag gehört zu einem anderen Konto. Melden Sie sich mit dem ursprünglichen Benutzer an.",
         offlineUnknown: "Unbekannter Synchronisierungsfehler",
       },
-      apiErrors: {
+        apiErrors: {
         admin_login_missing_credentials:
           "Geben Sie Benutzername und Passwort des Administrators ein.",
         admin_login_invalid_payload:
@@ -3163,6 +3189,7 @@ export const resources = {
         employment_not_found: "Die Beschäftigung wurde nicht gefunden.",
         employment_period_mismatch:
           "Das Datum liegt außerhalb des gewählten Beschäftigungszeitraums.",
+        employment_not_active: "Die ausgewählte Beschäftigung ist nicht mehr aktiv und ihr Dienstplan kann nicht geändert werden.",
         invalid_day_status: "Ungültiger Tagesstatus.",
         shift_plan_blocked_by_day_status:
           "Für einen Tag mit ganztägigem Status kann kein Dienstplan gespeichert werden.",
@@ -3385,6 +3412,9 @@ export const resources = {
           conflictBody: "{{date}} के रिकॉर्ड चुनी गई स्थिति से टकराते हैं।",
           conflictConfirm: "स्थिति बदलें और विरोध हटाएँ",
         },
+        groupPlan: {
+          eyebrow: "साझा अवलोकन", title: "समूह शिफ़्ट योजना", legendLabel: "समूह शिफ़्ट योजना की कुंजी", ownLegend: "मेरा रोजगार · संपादन योग्य", colleagueLegend: "सहकर्मी · केवल पढ़ने योग्य", lockedLegend: "लॉक", groupLabel: "रोजगार समूह", empty: "कोई रोजगार समूह उपलब्ध नहीं है।", emptyBody: "व्यवस्थापक आपको साझा शिफ़्ट योजना वाले समूह में जोड़ सकता है।", choose: "समूह चुनें", shift: "शिफ़्ट", help: "केवल आपके अपने अनलॉक किए गए रोजगार संपादित किए जा सकते हैं। सहकर्मियों की योजनाएँ केवल पढ़ने योग्य रहती हैं।",
+        },
         quickNow: { label: "वर्तमान समय तुरंत दर्ज करें", button: "अभी" },
         dayCard: {
           wholeDayAbsence: "पूरे दिन की अनुपस्थिति",
@@ -3444,6 +3474,7 @@ export const resources = {
       apiErrors: {
         employment_period_mismatch:
           "तारीख चुने गए कार्य अनुबंध की अवधि से बाहर है।",
+        employment_not_active: "चुना गया रोजगार अब सक्रिय नहीं है और इसकी शिफ़्ट योजना बदली नहीं जा सकती।",
         invalid_day_status: "दिन की स्थिति मान्य नहीं है।",
         shift_plan_blocked_by_day_status:
           "पूरे दिन की स्थिति वाले दिन में शिफ़्ट योजना दर्ज नहीं की जा सकती।",

@@ -40,6 +40,32 @@ test.describe("real backend workflows", () => {
     await expect(page.getByRole("heading", { name: "Přihlášení zaměstnance" })).toBeVisible();
   });
 
+  test("employee edits only the own unlocked group-plan row", async ({ page }) => {
+    await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [employeeLanguageStorageKey, "cs"]);
+    await page.goto("/app");
+    await page.getByLabel("Pracovní e-mail").fill(employeeEmail);
+    await page.getByLabel("Heslo").fill(employeePassword);
+    await page.getByRole("button", { name: "Otevřít docházku" }).click();
+    await expect(page.getByRole("heading", { name: "Měsíční docházka" })).toBeVisible();
+    await page.getByRole("tab", { name: "Skupinový plán směn" }).click();
+    await expect(page.getByRole("heading", { name: "Skupinový plán směn" })).toBeVisible();
+
+    const ownRow = page.locator("tr").filter({ hasText: "Testovací zaměstnanec" });
+    const colleagueRow = page.locator("tr").filter({ hasText: "Kolega E2E" });
+    await expect(ownRow).toHaveCount(1);
+    await expect(colleagueRow).toHaveCount(1);
+    const ownStart = ownRow.locator('input[name="planned_arrival_time"]').first();
+    const colleagueStart = colleagueRow.locator('input[name="planned_arrival_time"]').first();
+    await expect(ownStart).toBeEnabled();
+    await expect(colleagueStart).toBeDisabled();
+    await ownStart.fill("0815");
+    await ownStart.press("Enter");
+    await expect(page.getByText("Plán služeb byl uložen.")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Plán služeb" }).click();
+    await expect(page.locator('input[name="planned_arrival_time"]').first()).toHaveValue("08:15");
+  });
+
   test("admin session, protected routes, export and shift-plan print preview", async ({ page }) => {
     await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [languageStorageKey, "cs"]);
     await page.goto("/admin/login");

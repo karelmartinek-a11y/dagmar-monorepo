@@ -95,6 +95,15 @@ def _ensure_day_in_employment_period(employment: Employment, day: dt.date) -> No
         )
 
 
+def _require_active_employment_for_edit(employment: Employment) -> None:
+    if not employment.is_active:
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "employment_not_active",
+            "Vybraný úvazek už není aktivní a jeho plán směn nelze měnit.",
+        )
+
+
 def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
     start = dt.date(year, month, 1)
     end = dt.date(year + 1, 1, 1) if month == 12 else dt.date(year, month + 1, 1)
@@ -175,6 +184,7 @@ def portal_upsert_shift_plan(
     auth: PortalUserAuth = Depends(require_portal_user_auth),
 ) -> OkOut:
     employment = _require_accessible_employment(body.employment_id, auth, db)
+    _require_active_employment_for_edit(employment)
 
     try:
         day = parse_yyyy_mm_dd(body.date)
@@ -239,6 +249,7 @@ def portal_upsert_day_status(
     auth: PortalUserAuth = Depends(require_portal_user_auth),
 ) -> OkOut:
     employment = _require_accessible_employment(body.employment_id, auth, db)
+    _require_active_employment_for_edit(employment)
 
     try:
         day = parse_yyyy_mm_dd(body.date)

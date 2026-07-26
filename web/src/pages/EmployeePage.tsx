@@ -11,7 +11,6 @@ import {
   BriefcaseBusiness,
   CalendarCheck2,
   CalendarDays,
-  CalendarRange,
   CalendarX2,
   CheckCircle2,
   ChevronDown,
@@ -26,12 +25,13 @@ import {
   MoreVertical,
   Plane,
   TimerReset,
+  UsersRound,
   Wifi,
   WifiOff,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "../api/client";
-import type { AttendanceDay, PortalSession } from "../api/types";
+import type { AttendanceDay, GroupShiftPlanMonth, PortalSession } from "../api/types";
 import { Brand } from "../components/Brand";
 import { ExternalLoginButtons } from "../components/ExternalLoginButtons";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
@@ -808,6 +808,107 @@ function PlanDayCard({
   );
 }
 
+function GroupPlanDayEditor({
+  employmentId,
+  day,
+  editable,
+  locked,
+  onSave,
+}: {
+  employmentId: number;
+  day: GroupShiftPlanMonth["rows"][number]["days"][number];
+  editable: boolean;
+  locked: boolean;
+  onSave: (payload: { employment_id: number; date: string; arrival_time: string | null; departure_time: string | null; status: string | null }) => void;
+}) {
+  const { t } = useTranslation();
+  const [arrival, setArrival] = useState(day.arrival_time ?? "");
+  const [departure, setDeparture] = useState(day.departure_time ?? "");
+  const [status, setStatus] = useState(day.status ?? "");
+  const [invalid, setInvalid] = useState<"arrival" | "departure" | null>(null);
+  const disabled = !editable || locked || !day.is_within_employment_period;
+  useEffect(() => {
+    setArrival(day.arrival_time ?? "");
+    setDeparture(day.departure_time ?? "");
+    setStatus(day.status ?? "");
+    setInvalid(null);
+  }, [day]);
+  const save = (nextArrival = arrival, nextDeparture = departure, nextStatus = status) => {
+    const normalizedArrival = normalizeTimeInput(nextArrival);
+    const normalizedDeparture = normalizeTimeInput(nextDeparture);
+    if (normalizedArrival === null && nextArrival.trim() !== "") {
+      setInvalid("arrival");
+      return;
+    }
+    if (normalizedDeparture === null && nextDeparture.trim() !== "") {
+      setInvalid("departure");
+      return;
+    }
+    setInvalid(null);
+    const payload = {
+      employment_id: employmentId,
+      date: day.date,
+      arrival_time: nextStatus ? null : normalizedArrival,
+      departure_time: nextStatus ? null : normalizedDeparture,
+      status: nextStatus || null,
+    };
+    if (payload.arrival_time === day.arrival_time && payload.departure_time === day.departure_time && payload.status === day.status) return;
+    onSave(payload);
+  };
+  return (
+    <div className={`group-plan-cell ${disabled ? "group-plan-cell--readonly" : ""}`}>
+      <TimeCell
+        field="planned_arrival_time"
+        label={t("employee.dayCard.planStart")}
+        planned={null}
+        value={arrival}
+        editing={false}
+        invalid={invalid === "arrival"}
+        disabled={disabled || Boolean(status)}
+        mobileHidden={false}
+        onEdit={() => undefined}
+        onChange={setArrival}
+        onBlur={() => save()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
+        }}
+      />
+      <TimeCell
+        field="planned_departure_time"
+        label={t("employee.dayCard.planEnd")}
+        planned={null}
+        value={departure}
+        editing={false}
+        invalid={invalid === "departure"}
+        disabled={disabled || Boolean(status)}
+        mobileHidden={false}
+        onEdit={() => undefined}
+        onChange={setDeparture}
+        onBlur={() => save()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
+        }}
+      />
+      <select
+        aria-label={`${day.date} ${t("employee.dayCard.planStatus")}`}
+        value={status}
+        disabled={disabled}
+        onChange={(event) => {
+          const nextStatus = event.target.value;
+          setStatus(nextStatus);
+          setArrival(nextStatus ? "" : arrival);
+          setDeparture(nextStatus ? "" : departure);
+          save(nextStatus ? "" : arrival, nextStatus ? "" : departure, nextStatus);
+        }}
+      >
+        <option value="">Směna</option>
+        <option value="HOLIDAY">Dovolená</option>
+        <option value="OFF">Volno</option>
+      </select>
+    </div>
+  );
+}
+
 function TimeCell({
   field,
   label,
@@ -1234,6 +1335,30 @@ export function EmployeePage() {
       setNotice(t("employee.notices.shiftPlanSaved"));
     },
   });
+  const groupPlanMutation = useMutation({
+    mutationFn: async (payload: { employment_id: number; date: string; arrival_time: string | null; departure_time: string | null; status: string | null }) => {
+      try {
+        await api.saveShiftPlan(payload);
+        return { queued: false };
+      } catch (error) {
+        if (error instanceof ApiError && error.offline) {
+          await queueOperation({ kind: "shift-plan", employment_id: payload.employment_id, payload });
+          setQueueCount((await listOperations()).length);
+          return { queued: true };
+        }
+        throw error;
+      }
+    },
+    onSuccess: (result) => {
+      if (result.queued) {
+        setNotice(t("employee.notices.shiftPlanQueued"));
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ["group-shift-plan"] });
+      qc.invalidateQueries({ queryKey: ["attendance"] });
+      setNotice(t("employee.notices.shiftPlanSaved"));
+    },
+  });
   const statusMutation = useMutation({
     mutationFn: async ({
       day,
@@ -1288,6 +1413,7 @@ export function EmployeePage() {
       if (result.saved) {
         setStatusConflict(null);
         qc.invalidateQueries({ queryKey: ["attendance"] });
+        qc.invalidateQueries({ queryKey: ["group-shift-plan"] });
         setNotice(t("employee.notices.statusSaved"));
       }
     },
@@ -1376,7 +1502,7 @@ export function EmployeePage() {
               onClick={() => setView("attendance")}
               title={t("employee.page.attendanceTab")}
             >
-              <CalendarDays />
+              <TimerReset />
               <span>{t("employee.page.attendanceTab")}</span>
             </button>
             <button
@@ -1387,7 +1513,7 @@ export function EmployeePage() {
               onClick={() => setView("group-plan")}
               title="Skupinový plán směn"
             >
-              <CalendarRange />
+              <UsersRound />
               <span>Skupinový plán směn</span>
             </button>
             <button
@@ -1398,7 +1524,7 @@ export function EmployeePage() {
               onClick={() => setView("plan")}
               title={t("employee.page.planTab")}
             >
-              <CalendarRange />
+              <CalendarCheck2 />
               <span>{t("employee.page.planTab")}</span>
             </button>
           </div>
@@ -1560,20 +1686,31 @@ export function EmployeePage() {
             </div>
           </header>
           <PanelToolbar session={session} onSession={setSession} />
-          {view === "group-plan" && <section className="panel">
+          {view === "group-plan" && <section className="panel group-plan-panel" aria-labelledby="group-plan-heading">
             <div className="panel-body stack">
-              <Field label="Skupina úvazků">
+              <div className="group-plan-heading">
+                <div>
+                  <p className="eyebrow">{t("employee.groupPlan.eyebrow")}</p>
+                  <h2 id="group-plan-heading">{t("employee.groupPlan.title")}</h2>
+                </div>
+                <div className="group-plan-legend" aria-label={t("employee.groupPlan.legendLabel")}>
+                  <span><strong className="group-plan-legend__swatch group-plan-legend__swatch--own" />{t("employee.groupPlan.ownLegend")}</span>
+                  <span><strong className="group-plan-legend__swatch group-plan-legend__swatch--other" />{t("employee.groupPlan.colleagueLegend")}</span>
+                  <span><Lock size={14} />{t("employee.groupPlan.lockedLegend")}</span>
+                </div>
+              </div>
+              <Field label={t("employee.groupPlan.groupLabel")}>
                 <select value={selectedGroupId ?? ""} onChange={(event) => setSelectedGroupId(event.target.value ? Number(event.target.value) : null)} disabled={groupsQuery.isPending}>
-                  <option value="">Vyberte skupinu</option>
+                  <option value="">{t("employee.groupPlan.choose")}</option>
                   {(groupsQuery.data ?? []).map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
                 </select>
               </Field>
               {groupsQuery.isPending && <StatusMessage kind="loading" title="Načítám skupiny" />}
-              {groupsQuery.data && groupsQuery.data.length === 0 && <StatusMessage kind="empty" title="Nemáte dostupnou žádnou skupinu úvazků.">Administrátor vás může přidat do skupiny pro sdílený plán směn.</StatusMessage>}
+              {groupsQuery.data && groupsQuery.data.length === 0 && <StatusMessage kind="empty" title={t("employee.groupPlan.empty")}>{t("employee.groupPlan.emptyBody")}</StatusMessage>}
               {groupPlanQuery.isPending && <StatusMessage kind="loading" title="Načítám skupinový plán směn" />}
               {groupPlanQuery.error && <StatusMessage kind="error" title="Skupinový plán nelze načíst">{groupPlanQuery.error.message}</StatusMessage>}
-              {groupPlanQuery.data && <div className="data-table-wrap"><table className="data-table matrix matrix--calendar"><thead><tr><th>Úvazek</th>{groupPlanQuery.data.rows[0]?.days.map((day) => <th key={day.date}>{asPragueDate(day.date).getDate()}.</th>)}</tr></thead><tbody>{groupPlanQuery.data.rows.map((row) => <tr key={row.employment_id}><th scope="row">{row.display_label}{row.is_own_employment ? " (můj úvazek)" : ""}{row.shift_plan_locked ? " · zamčeno" : ""}</th>{row.days.map((day) => <td key={day.date} className={day.is_within_employment_period ? "" : "day-cell--readonly"}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? ""}</span>{day.status && <small>{day.status === "HOLIDAY" ? "Dovolená" : "Volno"}</small>}</td>)}</tr>)}</tbody></table></div>}
-              <p>Vlastní úvazky upravíte v záložce Plán směn; plány kolegů jsou vždy pouze pro čtení.</p>
+              {groupPlanQuery.data && <div className="data-table-wrap group-plan-table-wrap"><table className="data-table matrix matrix--calendar group-plan-table"><thead><tr><th className="matrix__sticky-left">Úvazek</th>{groupPlanQuery.data.rows[0]?.days.map((day) => { const date = asPragueDate(day.date); return <th key={day.date} className={`matrix__day-head matrix__day-head--${getCalendarDayTone(date)}`}><strong>{date.getDate()}.</strong><span>{new Intl.DateTimeFormat("cs-CZ", { weekday: "short" }).format(date)}</span></th>; })}</tr></thead><tbody>{groupPlanQuery.data.rows.map((row) => <tr key={row.employment_id} className={row.is_own_employment ? "group-plan-row--own" : "group-plan-row--other"}><th scope="row" className="matrix__sticky-left"><span className="group-plan-row-label"><strong>{row.display_label}</strong>{row.is_own_employment && <em>MOJE</em>}{row.shift_plan_locked && <small><Lock size={12} /> Zamčeno</small>}</span></th>{row.days.map((day) => <td key={day.date} className={`group-plan-day ${day.is_within_employment_period ? "" : "day-cell--readonly"}`}><GroupPlanDayEditor employmentId={row.employment_id} day={day} editable={row.is_own_employment} locked={row.shift_plan_locked} onSave={(payload) => groupPlanMutation.mutate(payload)} /></td>)}</tr>)}</tbody></table></div>}
+              <p className="group-plan-help">{t("employee.groupPlan.help")}</p>
             </div>
           </section>}
           <AccountMethods portal="employee" />
@@ -1598,10 +1735,10 @@ export function EmployeePage() {
               {notice}
             </StatusMessage>
           )}
-          {(mutation.error || statusMutation.error || planMutation.error) && (
+          {(mutation.error || statusMutation.error || planMutation.error || groupPlanMutation.error) && (
             <StatusMessage kind="error" title={t("employee.errors.saveFailed")}>
               {
-                (mutation.error || statusMutation.error || planMutation.error)
+                (mutation.error || statusMutation.error || planMutation.error || groupPlanMutation.error)
                   ?.message
               }
             </StatusMessage>

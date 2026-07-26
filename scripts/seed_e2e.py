@@ -12,6 +12,8 @@ from sqlalchemy.engine import make_url
 from app.db.models import (
     ClientType,
     Employment,
+    EmploymentGroup,
+    EmploymentGroupMember,
     Instance,
     InstanceStatus,
     PortalUser,
@@ -62,6 +64,37 @@ def main() -> None:
                     is_active=True,
                 )
             )
+        db.commit()
+        own_employment = db.execute(select(Employment).where(Employment.user_id == user.id).order_by(Employment.id.asc())).scalars().first()
+        if own_employment is None:
+            raise SystemExit("E2E user has no employment")
+        group = db.execute(select(EmploymentGroup).where(EmploymentGroup.name == "E2E skupina")).scalars().first()
+        if group is None:
+            colleague = PortalUser(
+                email="colleague.e2e@example.test",
+                name="Kolega E2E",
+                role=PortalUserRole.EMPLOYEE,
+                is_active=True,
+            )
+            db.add(colleague)
+            db.flush()
+            colleague_employment = Employment(
+                user_id=colleague.id,
+                title="E2E kolega",
+                employment_type="HPP",
+                start_date=date(today.year - 1, 1, 1),
+                end_date=None,
+                is_active=True,
+            )
+            db.add(colleague_employment)
+            db.flush()
+            group = EmploymentGroup(name="E2E skupina")
+            db.add(group)
+            db.flush()
+            db.add_all([
+                EmploymentGroupMember(group_id=group.id, employment_id=own_employment.id),
+                EmploymentGroupMember(group_id=group.id, employment_id=colleague_employment.id),
+            ])
         db.commit()
 
 
