@@ -21,10 +21,10 @@ test.describe("real backend workflows", () => {
     const arrival = page.locator('input[name="arrival_time"]:enabled').first();
     await arrival.dblclick();
     await arrival.fill("0815");
-    const refreshedAttendance = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/v1/attendance");
+    const savedAttendance = page.waitForResponse(response => response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/v1/attendance" && response.ok());
     await arrival.press("Enter");
     await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
-    await refreshedAttendance;
+    await savedAttendance;
     await expect(arrival).toHaveValue("08:15");
 
     await page.route("**/api/v1/attendance", route => route.abort("internetdisconnected"));
