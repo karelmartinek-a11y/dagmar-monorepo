@@ -27,6 +27,7 @@ from app.api.integration_common import (
 )
 from app.api.v1.admin_attendance import router as admin_attendance_router
 from app.api.v1.admin_auth import router as admin_auth_router
+from app.api.v1.admin_employment_groups import router as admin_employment_groups_router
 from app.api.v1.admin_employments import router as admin_employments_router
 from app.api.v1.admin_export import router as admin_export_router
 from app.api.v1.admin_integrations import router as admin_integrations_router
@@ -259,6 +260,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_settings_router, tags=["admin"])
     app.include_router(admin_users_router, tags=["admin"])
     app.include_router(admin_employments_router, tags=["admin"])
+    app.include_router(admin_employment_groups_router, tags=["admin"])
     app.include_router(admin_integrations_router, tags=["admin"])
     app.include_router(admin_smtp_router, tags=["admin"])
     app.include_router(portal_auth_router, tags=["portal"])

@@ -128,6 +128,9 @@ class Employment(Base):
     shift_plan_month_employments: Mapped[list[ShiftPlanMonthInstance]] = relationship(
         "ShiftPlanMonthInstance", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
     )
+    employment_group_memberships: Mapped[list[EmploymentGroupMember]] = relationship(
+        "EmploymentGroupMember", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     __table_args__ = (
         Index("ix_employments_user_id", "user_id"),
@@ -135,6 +138,41 @@ class Employment(Base):
         Index("ix_employments_end_date", "end_date"),
         Index("ix_employments_is_active", "is_active"),
     )
+
+
+class EmploymentGroup(Base):
+    """Administratively managed group of employments used only for shift-plan sharing."""
+
+    __tablename__ = "employment_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    members: Mapped[list[EmploymentGroupMember]] = relationship(
+        "EmploymentGroupMember", back_populates="group", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+    __table_args__ = (Index("ix_employment_groups_name_ci", func.lower(name), unique=True),)
+
+
+class EmploymentGroupMember(Base):
+    __tablename__ = "employment_group_members"
+
+    group_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("employment_groups.id", ondelete="CASCADE"), primary_key=True
+    )
+    employment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("employments.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    group: Mapped[EmploymentGroup] = relationship("EmploymentGroup", back_populates="members")
+    employment: Mapped[Employment] = relationship("Employment", back_populates="employment_group_memberships")
+
+    __table_args__ = (Index("ix_employment_group_members_employment", "employment_id"),)
 
 
 class Attendance(Base):

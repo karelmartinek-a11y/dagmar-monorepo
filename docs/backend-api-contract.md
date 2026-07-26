@@ -240,7 +240,24 @@ Response 200:
 }
 ```
 
-## 7) Admin – Export
+## 7) Skupiny úvazků a skupinový plán směn
+
+Skupina je trvalý vztah M:N nad `employment_id`; obsahuje nejméně dva různé úvazky. Jeden úvazek může být v libovolném počtu skupin. Pokud odebrání nebo smazání úvazku sníží skupinu pod dva členy, skupina se v téže transakci odstraní.
+
+Administrátorské endpointy používají administrátorskou session a CSRF:
+
+- `GET /api/v1/admin/employment-groups`
+- `POST /api/v1/admin/employment-groups` s `{ "name": "Ranní tým", "employment_ids": [17, 18] }`
+- `PUT /api/v1/admin/employment-groups/{group_id}` pro přejmenování
+- `PUT /api/v1/admin/employment-groups/{group_id}/members` pro atomickou náhradu členů
+- `DELETE /api/v1/admin/employment-groups/{group_id}/members` pro odebrání členů; odpověď obsahuje `group_deleted`
+- `DELETE /api/v1/admin/employment-groups/{group_id}`
+
+Zaměstnanecké endpointy používají bearer token. `GET /api/v1/shift-plan/groups` vrací pouze skupiny, ve kterých má aktuální uživatel vlastní úvazek. `GET /api/v1/shift-plan/groups/{group_id}?year=2026&month=3` vrací výhradně plán směn členů skupiny, bez docházky nebo interních údajů. Neoprávněná a neexistující skupina vracejí shodně `404 group_not_found`.
+
+Zápis směny nadále probíhá jediným kanonickým endpointem `PUT /api/v1/shift-plan`; backend ověřuje vlastnictví `employment_id`, platnost úvazku a zámek plánu směn. Členství ve skupině proto neopravňuje k úpravě směny kolegy.
+
+## 8) Admin – Export
 
 ### GET `/api/v1/admin/export?month=2026-03&employment_id=17`
 Vrací CSV pro konkrétní úvazek.

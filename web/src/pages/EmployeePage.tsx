@@ -1004,7 +1004,8 @@ export function EmployeePage() {
   );
   const [queueCount, setQueueCount] = useState(0);
   const [notice, setNotice] = useState("");
-  const [view, setView] = useState<"attendance" | "plan">("attendance");
+  const [view, setView] = useState<"attendance" | "plan" | "group-plan">("attendance");
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [savedCell, setSavedCell] = useState<{
     date: string;
     field: TimeField;
@@ -1048,6 +1049,16 @@ export function EmployeePage() {
     queryFn: () =>
       api.attendance(employmentId!, month.getFullYear(), month.getMonth() + 1),
     enabled: !!employmentId,
+    retry: false,
+  });
+  const groupsQuery = useQuery({ queryKey: ["shift-plan-groups"], queryFn: api.shiftPlanGroups, enabled: !!session, retry: false });
+  useEffect(() => {
+    if (selectedGroupId === null && groupsQuery.data?.length === 1) setSelectedGroupId(groupsQuery.data[0].id);
+  }, [groupsQuery.data, selectedGroupId]);
+  const groupPlanQuery = useQuery({
+    queryKey: ["group-shift-plan", selectedGroupId, month.getFullYear(), month.getMonth() + 1],
+    queryFn: () => api.groupShiftPlan(selectedGroupId!, month.getFullYear(), month.getMonth() + 1),
+    enabled: view === "group-plan" && selectedGroupId !== null,
     retry: false,
   });
   useEffect(() => {
@@ -1371,6 +1382,17 @@ export function EmployeePage() {
             <button
               type="button"
               role="tab"
+              aria-selected={view === "group-plan"}
+              className={view === "group-plan" ? "active" : ""}
+              onClick={() => setView("group-plan")}
+              title="Skupinový plán směn"
+            >
+              <CalendarRange />
+              <span>Skupinový plán směn</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={view === "plan"}
               className={view === "plan" ? "active" : ""}
               onClick={() => setView("plan")}
@@ -1538,8 +1560,24 @@ export function EmployeePage() {
             </div>
           </header>
           <PanelToolbar session={session} onSession={setSession} />
+          {view === "group-plan" && <section className="panel">
+            <div className="panel-body stack">
+              <Field label="Skupina úvazků">
+                <select value={selectedGroupId ?? ""} onChange={(event) => setSelectedGroupId(event.target.value ? Number(event.target.value) : null)} disabled={groupsQuery.isPending}>
+                  <option value="">Vyberte skupinu</option>
+                  {(groupsQuery.data ?? []).map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+                </select>
+              </Field>
+              {groupsQuery.isPending && <StatusMessage kind="loading" title="Načítám skupiny" />}
+              {groupsQuery.data && groupsQuery.data.length === 0 && <StatusMessage kind="empty" title="Nemáte dostupnou žádnou skupinu úvazků.">Administrátor vás může přidat do skupiny pro sdílený plán směn.</StatusMessage>}
+              {groupPlanQuery.isPending && <StatusMessage kind="loading" title="Načítám skupinový plán směn" />}
+              {groupPlanQuery.error && <StatusMessage kind="error" title="Skupinový plán nelze načíst">{groupPlanQuery.error.message}</StatusMessage>}
+              {groupPlanQuery.data && <div className="data-table-wrap"><table className="data-table matrix matrix--calendar"><thead><tr><th>Úvazek</th>{groupPlanQuery.data.rows[0]?.days.map((day) => <th key={day.date}>{asPragueDate(day.date).getDate()}.</th>)}</tr></thead><tbody>{groupPlanQuery.data.rows.map((row) => <tr key={row.employment_id}><th scope="row">{row.display_label}{row.is_own_employment ? " (můj úvazek)" : ""}{row.shift_plan_locked ? " · zamčeno" : ""}</th>{row.days.map((day) => <td key={day.date} className={day.is_within_employment_period ? "" : "day-cell--readonly"}><strong>{day.arrival_time ?? "–"}</strong><span>{day.departure_time ?? ""}</span>{day.status && <small>{day.status === "HOLIDAY" ? "Dovolená" : "Volno"}</small>}</td>)}</tr>)}</tbody></table></div>}
+              <p>Vlastní úvazky upravíte v záložce Plán směn; plány kolegů jsou vždy pouze pro čtení.</p>
+            </div>
+          </section>}
           <AccountMethods portal="employee" />
-          {summary && (
+          {view !== "group-plan" && summary && (
             <EmployeeStatusStrip
               attendanceLocked={attendanceLocked}
               shiftPlanLocked={shiftPlanLocked}
@@ -1576,18 +1614,18 @@ export function EmployeePage() {
               {t("common.errors.shift_plan_month_locked")}
             </StatusMessage>
           )}
-          {query.isPending && (
+          {view !== "group-plan" && query.isPending && (
             <StatusMessage
               kind="loading"
               title={t("employee.errors.loading")}
             />
           )}{" "}
-          {query.error && (
+          {view !== "group-plan" && query.error && (
             <StatusMessage kind="error" title={t("employee.errors.loadFailed")}>
               {query.error.message}
             </StatusMessage>
           )}
-          {query.data && (
+          {view !== "group-plan" && query.data && (
             <>
               <section
                 className="ledger employee-ledger"

@@ -5,10 +5,11 @@ import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload
 
 from ...api.errors import raise_api_error
-from ...db.models import Employment, ShiftPlan
+from ...db.models import Employment, EmploymentGroup, EmploymentGroupMember, ShiftPlan
 from ...db.session import get_db
 from ...services.day_status import (
     collect_day_status_conflicts,
@@ -17,7 +18,8 @@ from ...services.day_status import (
     normalize_day_status,
     set_shift_plan_status,
 )
-from ...services.locks import LockType, ensure_month_unlocked
+from ...services.employment_access import employment_label
+from ...services.locks import LockType, ensure_month_unlocked, is_month_locked
 from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
 from .attendance import _require_accessible_employment
@@ -51,6 +53,39 @@ class OkOut(BaseModel):
     ok: bool = True
 
 
+class GroupOptionOut(BaseModel):
+    id: int
+    name: str
+
+
+class GroupListOut(BaseModel):
+    groups: list[GroupOptionOut]
+
+
+class GroupShiftPlanDayOut(BaseModel):
+    date: str
+    arrival_time: str | None = None
+    departure_time: str | None = None
+    status: str | None = None
+    is_within_employment_period: bool
+
+
+class GroupShiftPlanRowOut(BaseModel):
+    employment_id: int
+    display_label: str
+    is_own_employment: bool
+    shift_plan_locked: bool
+    days: list[GroupShiftPlanDayOut]
+
+
+class GroupShiftPlanMonthOut(BaseModel):
+    group_id: int
+    group_name: str
+    year: int
+    month: int
+    rows: list[GroupShiftPlanRowOut]
+
+
 def _ensure_day_in_employment_period(employment: Employment, day: dt.date) -> None:
     if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
         raise_api_error(
@@ -58,6 +93,76 @@ def _ensure_day_in_employment_period(employment: Employment, day: dt.date) -> No
             "employment_period_mismatch",
             "Zvolené datum neleží v období platnosti vybraného úvazku.",
         )
+
+
+def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
+    start = dt.date(year, month, 1)
+    end = dt.date(year + 1, 1, 1) if month == 12 else dt.date(year, month + 1, 1)
+    return start, end
+
+
+def _accessible_group(db: Session, *, group_id: int, auth: PortalUserAuth) -> EmploymentGroup:
+    group = db.execute(
+        select(EmploymentGroup)
+        .options(joinedload(EmploymentGroup.members).joinedload(EmploymentGroupMember.employment).joinedload(Employment.user))
+        .where(EmploymentGroup.id == group_id)
+    ).unique().scalars().first()
+    if group is None or not any(member.employment.user_id == auth.user.id for member in group.members):
+        # Deliberately indistinguishable for absent and unauthorized groups.
+        raise_api_error(status.HTTP_404_NOT_FOUND, "group_not_found", "Skupina nebyla nalezena.")
+    return group
+
+
+@router.get("/api/v1/shift-plan/groups", response_model=GroupListOut)
+def portal_list_shift_plan_groups(
+    db: Session = Depends(get_db), auth: PortalUserAuth = Depends(require_portal_user_auth)
+) -> GroupListOut:
+    groups = db.execute(
+        select(EmploymentGroup)
+        .join(EmploymentGroupMember)
+        .join(Employment)
+        .where(Employment.user_id == auth.user.id)
+        .distinct()
+        .order_by(EmploymentGroup.name.asc(), EmploymentGroup.id.asc())
+    ).scalars().all()
+    return GroupListOut(groups=[GroupOptionOut(id=group.id, name=group.name) for group in groups])
+
+
+@router.get("/api/v1/shift-plan/groups/{group_id}", response_model=GroupShiftPlanMonthOut)
+def portal_get_group_shift_plan_month(
+    group_id: int,
+    year: int = 0,
+    month: int = 0,
+    db: Session = Depends(get_db),
+    auth: PortalUserAuth = Depends(require_portal_user_auth),
+) -> GroupShiftPlanMonthOut:
+    if year < 2000 or year > 2100 or month < 1 or month > 12:
+        raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_month", "Neplatný měsíc.")
+    group = _accessible_group(db, group_id=group_id, auth=auth)
+    start, end = _month_range(year, month)
+    employment_ids = [member.employment_id for member in group.members]
+    plans = db.execute(
+        select(ShiftPlan).where(ShiftPlan.employment_id.in_(employment_ids), ShiftPlan.date >= start, ShiftPlan.date < end)
+    ).scalars().all()
+    by_key = {(plan.employment_id, plan.date): plan for plan in plans}
+    days = [start + dt.timedelta(days=index) for index in range((end - start).days)]
+    rows: list[GroupShiftPlanRowOut] = []
+    for member in sorted(group.members, key=lambda item: (item.employment.user.name.lower(), item.employment_id)):
+        employment = member.employment
+        rows.append(GroupShiftPlanRowOut(
+            employment_id=employment.id,
+            display_label=employment_label(employment, employment.user.name),
+            is_own_employment=employment.user_id == auth.user.id,
+            shift_plan_locked=is_month_locked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=year, month=month),
+            days=[GroupShiftPlanDayOut(
+                date=day.isoformat(),
+                arrival_time=by_key.get((employment.id, day)).arrival_time if by_key.get((employment.id, day)) else None,
+                departure_time=by_key.get((employment.id, day)).departure_time if by_key.get((employment.id, day)) else None,
+                status=by_key.get((employment.id, day)).status if by_key.get((employment.id, day)) else None,
+                is_within_employment_period=day >= employment.start_date and (employment.end_date is None or day <= employment.end_date),
+            ) for day in days],
+        ))
+    return GroupShiftPlanMonthOut(group_id=group.id, group_name=group.name, year=year, month=month, rows=rows)
 
 
 @router.put("/api/v1/shift-plan", response_model=OkOut)

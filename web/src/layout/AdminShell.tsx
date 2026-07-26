@@ -15,6 +15,7 @@ export function AdminShell() {
   const nav = [
     ["/admin/prehled", t("nav.overview"), Gauge], ["/admin/users", t("nav.users"), UsersRound],
     ["/admin/dochazka", t("nav.attendance"), CalendarCheck2], ["/admin/plan-sluzeb", t("nav.shiftPlan"), CalendarRange],
+    ["/admin/skupiny-uvazku", "Skupiny úvazků", UsersRound],
     ["/admin/export", t("nav.export"), Download], ["/admin/tisky", t("nav.prints"), Printer],
     ["/admin/settings", t("nav.settings"), Settings2],
     ["/admin/ucet", t("account.title"), KeyRound],

@@ -89,6 +89,54 @@
       "path": "/api/v1/admin/day-status"
     },
     {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_employment_groups.admin_list_employment_groups",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/employment-groups"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employment_groups.admin_create_employment_group",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/employment-groups"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employment_groups.admin_update_employment_group",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/employment-groups/{group_id}"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employment_groups.admin_delete_employment_group",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/admin/employment-groups/{group_id}"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employment_groups.admin_replace_employment_group_members",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/employment-groups/{group_id}/members"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_employment_groups.admin_remove_employment_group_members",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/admin/employment-groups/{group_id}/members"
+    },
+    {
       "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.admin_employments.update_employment",
       "methods": [
@@ -617,6 +665,22 @@
       "path": "/api/v1/shift-plan/day-status"
     },
     {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.shift_plan.portal_list_shift_plan_groups",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/shift-plan/groups"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.shift_plan.portal_get_group_shift_plan_month",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/shift-plan/groups/{group_id}"
+    },
+    {
       "auth_mode": "public",
       "handler": "app.main.time_v1",
       "methods": [
@@ -686,6 +750,8 @@
         "/api/v1/attendance/day-status",
         "/api/v1/shift-plan",
         "/api/v1/shift-plan/day-status",
+        "/api/v1/shift-plan/groups",
+        "/api/v1/shift-plan/groups/{group_id}",
         "/api/v1/auth/providers",
         "/api/v1/auth/employee/{provider}/start",
         "/api/v1/auth/result",
@@ -716,6 +782,9 @@
         "/api/v1/admin/shift-plan",
         "/api/v1/admin/day-status",
         "/api/v1/admin/shift-plan/selection",
+        "/api/v1/admin/employment-groups",
+        "/api/v1/admin/employment-groups/{group_id}",
+        "/api/v1/admin/employment-groups/{group_id}/members",
         "/api/v1/admin/export",
         "/api/v1/admin/settings",
         "/api/v1/admin/smtp",
@@ -738,6 +807,7 @@
         "/admin/users",
         "/admin/dochazka",
         "/admin/plan-sluzeb",
+        "/admin/skupiny-uvazku",
         "/admin/export",
         "/admin/tisky",
         "/admin/tisky/preview",
@@ -803,6 +873,10 @@
     {
       "component": "web/src/pages/AdminMatrixPages.tsx",
       "path": "/admin/plan-sluzeb"
+    },
+    {
+      "component": "web/src/pages/AdminEmploymentGroupsPage.tsx",
+      "path": "/admin/skupiny-uvazku"
     },
     {
       "component": "web/src/pages/AdminOperationsPages.tsx",

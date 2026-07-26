@@ -28,6 +28,7 @@ from app.db.models import (
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.employment_access import employment_type_is_valid
+from app.services.employment_groups import remove_groups_for_employment
 
 router = APIRouter(tags=["admin-employments"])
 
@@ -559,6 +560,7 @@ def delete_employment(
     if related_count > 0:
         delete_summary = _delete_all_related_records(employment.id, db)
 
+    remove_groups_for_employment(db, employment.id)
     db.delete(employment)
     db.commit()
     if delete_summary is not None:

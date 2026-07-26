@@ -154,6 +154,10 @@ export const api = {
   saveShiftPlan: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
     "/api/v1/shift-plan", { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),
+  shiftPlanGroups: () => request<{ groups: Array<{ id: number; name: string }> }>("/api/v1/shift-plan/groups", {}, "portal").then((result) => result.groups),
+  groupShiftPlan: (groupId: number, year: number, month: number) => request<import("./types").GroupShiftPlanMonth>(
+    `/api/v1/shift-plan/groups/${groupId}?year=${year}&month=${month}`, {}, "portal",
+  ),
   adminMe: () => request<{ authenticated: boolean; username: string | null }>("/api/v1/admin/me", {}, "admin"),
   adminLogin: async (username: string, password: string) => {
     csrfToken = null;

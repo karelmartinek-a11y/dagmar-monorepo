@@ -43,6 +43,7 @@ Pokud se dokumentace, komentáře, testy nebo manifest rozcházejí s funkčním
 - zaměstnanecká část používá bearer token
 - integrační API používá samostatné bearer tokeny s prefixem `dgi_`
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
+- skupiny úvazků jsou vztah M:N nad `employment_id`, mají nejméně dva členy a sdílejí pouze plán směn
 - časová autorita je `Europe/Prague`
 - reverse proxy a TLS obsluhuje Nginx
 
@@ -147,6 +148,7 @@ git status --short
 - Před commitem zkontroluj diff, staging a nepřítomnost tajných údajů.
 - Commit message musí být věcná a popisovat skutečný logický celek změny.
 - Po pushi ověř GitHub Actions a případné selhání oprav bez přenášení práce na uživatele.
+- Pokud GitHub Actions nebo GitHub deploy právě běží, není to blocker a práce se nesmí ukončit v tomto mezistavu; je nutné počkat na dokončení a podle výsledku pokračovat dle těchto instrukcí a konkrétní situace.
 - Při nasazení ověř cílový commit, průběh deploye, health endpoint, version endpoint a relevantní uživatelské scénáře.
 - Produkční validaci prováděj jen v mezích dostupných oprávnění; interní serverové kroky musí být podložené autorizovaným přístupem nebo důkazy z deploy workflow.
 

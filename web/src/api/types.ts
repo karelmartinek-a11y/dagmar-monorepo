@@ -68,6 +68,36 @@ export type PortalLogin = z.infer<typeof portalLoginSchema>;
 export type AttendanceDay = z.infer<typeof attendanceDaySchema>;
 export type AttendanceMonth = z.infer<typeof attendanceMonthSchema>;
 
+export interface EmploymentGroupMember {
+  employment_id: number;
+  user_name: string;
+  title: string;
+  employment_type: string;
+  display_label: string;
+  start_date: string;
+  end_date: string | null;
+}
+
+export interface EmploymentGroup {
+  id: number;
+  name: string;
+  members: EmploymentGroupMember[];
+}
+
+export interface GroupShiftPlanMonth {
+  group_id: number;
+  group_name: string;
+  year: number;
+  month: number;
+  rows: Array<{
+    employment_id: number;
+    display_label: string;
+    is_own_employment: boolean;
+    shift_plan_locked: boolean;
+    days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean }>;
+  }>;
+}
+
 export type PortalSession = PortalLogin & { selected_employment_id: number | null };
 
 export type ExternalProvider = "google" | "apple";
