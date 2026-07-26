@@ -31,7 +31,7 @@ def normalize_member_ids(values: Iterable[int]) -> list[int]:
 
 
 def _load_employments(db: Session, member_ids: list[int]) -> list[Employment]:
-    employments = db.execute(select(Employment).where(Employment.id.in_(member_ids))).scalars().all()
+    employments = list(db.execute(select(Employment).where(Employment.id.in_(member_ids))).scalars().all())
     if len(employments) != len(member_ids):
         raise EmploymentGroupError("employment_not_found", "Jeden nebo více úvazků nebylo nalezeno.")
     return employments
@@ -45,11 +45,11 @@ def get_group(db: Session, group_id: int, *, lock: bool = False) -> EmploymentGr
 
 
 def list_groups(db: Session) -> list[EmploymentGroup]:
-    return db.execute(
+    return list(db.execute(
         select(EmploymentGroup)
         .options(selectinload(EmploymentGroup.members).selectinload(EmploymentGroupMember.employment).selectinload(Employment.user))
         .order_by(EmploymentGroup.name.asc(), EmploymentGroup.id.asc())
-    ).scalars().all()
+    ).scalars().all())
 
 
 def _ensure_unique_name(db: Session, name: str, *, excluding_id: int | None = None) -> None:

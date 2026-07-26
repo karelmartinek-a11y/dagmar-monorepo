@@ -149,18 +149,21 @@ def portal_get_group_shift_plan_month(
     rows: list[GroupShiftPlanRowOut] = []
     for member in sorted(group.members, key=lambda item: (item.employment.user.name.lower(), item.employment_id)):
         employment = member.employment
+        def day_out(day: dt.date) -> GroupShiftPlanDayOut:
+            plan = by_key.get((employment.id, day))
+            return GroupShiftPlanDayOut(
+                date=day.isoformat(),
+                arrival_time=plan.arrival_time if plan else None,
+                departure_time=plan.departure_time if plan else None,
+                status=plan.status if plan else None,
+                is_within_employment_period=day >= employment.start_date and (employment.end_date is None or day <= employment.end_date),
+            )
         rows.append(GroupShiftPlanRowOut(
             employment_id=employment.id,
             display_label=employment_label(employment, employment.user.name),
             is_own_employment=employment.user_id == auth.user.id,
             shift_plan_locked=is_month_locked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=year, month=month),
-            days=[GroupShiftPlanDayOut(
-                date=day.isoformat(),
-                arrival_time=by_key.get((employment.id, day)).arrival_time if by_key.get((employment.id, day)) else None,
-                departure_time=by_key.get((employment.id, day)).departure_time if by_key.get((employment.id, day)) else None,
-                status=by_key.get((employment.id, day)).status if by_key.get((employment.id, day)) else None,
-                is_within_employment_period=day >= employment.start_date and (employment.end_date is None or day <= employment.end_date),
-            ) for day in days],
+            days=[day_out(day) for day in days],
         ))
     return GroupShiftPlanMonthOut(group_id=group.id, group_name=group.name, year=year, month=month, rows=rows)
 
