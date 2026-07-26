@@ -22,8 +22,7 @@ test.describe("real backend workflows", () => {
     await arrival.dblclick();
     await arrival.fill("0815");
     const savedAttendance = page.waitForResponse(response => response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/v1/attendance" && response.ok());
-    await arrival.press("Enter");
-    await arrival.press("Enter");
+    await arrival.blur();
     await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
     await savedAttendance;
     await expect(arrival).toHaveValue("08:15");
