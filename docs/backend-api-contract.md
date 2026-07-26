@@ -255,7 +255,7 @@ Administrátorské endpointy používají administrátorskou session a CSRF:
 
 Zaměstnanecké endpointy používají bearer token. `GET /api/v1/shift-plan/groups` vrací pouze skupiny, ve kterých má aktuální uživatel vlastní úvazek. `GET /api/v1/shift-plan/groups/{group_id}?year=2026&month=3` vrací výhradně plán směn členů skupiny, bez docházky nebo interních údajů. Neoprávněná a neexistující skupina vracejí shodně `404 group_not_found`.
 
-Zápis směny nadále probíhá jediným kanonickým endpointem `PUT /api/v1/shift-plan`; backend ověřuje vlastnictví `employment_id`, platnost úvazku a zámek plánu směn. Členství ve skupině proto neopravňuje k úpravě směny kolegy.
+Zápis směny nadále probíhá jediným kanonickým endpointem `PUT /api/v1/shift-plan`; backend ověřuje vlastnictví `employment_id`, aktivitu a platnost úvazku a zámek plánu směn. Stejný endpoint používá i editace vlastního řádku ve skupinovém pohledu. Členství ve skupině proto neopravňuje k úpravě směny kolegy a žádná zápisová operace nemění stav zámku.
 
 ## 8) Admin – Export
 

@@ -26,6 +26,8 @@ from app.db.models import (
     Base,
     ClientType,
     Employment,
+    EmploymentGroup,
+    EmploymentGroupMember,
     Instance,
     InstanceStatus,
     PortalUser,
@@ -716,6 +718,76 @@ def test_employee_shift_plan_editing_allows_updates_when_month_is_unlocked() -> 
             )
         ).scalar_one()
         assert month_lock.locked_by == "admin"
+
+
+def test_group_shift_plan_uses_own_shift_contract_and_never_changes_locks() -> None:
+    client, session_local = _build_client()
+    target_day = date(2026, 5, 12)
+    with session_local() as db:
+        own_user = _create_user(db, email="group-own@example.com", name="Vlastní Uživatel")
+        colleague = _create_user(db, email="group-colleague@example.com", name="Kolega")
+        own = _add_employment(db, own_user, start_date=date(2025, 1, 1), title="Recepce")
+        other = _add_employment(db, colleague, start_date=date(2025, 1, 1), title="Zázemí")
+        group = EmploymentGroup(name="Společná směna")
+        db.add(group)
+        db.flush()
+        db.add_all([
+            EmploymentGroupMember(group_id=group.id, employment_id=own.id),
+            EmploymentGroupMember(group_id=group.id, employment_id=other.id),
+        ])
+        db.commit()
+        group_id, own_id, other_id = group.id, own.id, other.id
+
+    login_response = _portal_login(client, "group-own@example.com")
+    assert login_response.status_code == 200
+    headers = {"Authorization": f"Bearer {login_response.json()['instance_token']}"}
+
+    group_response = client.get(
+        f"/api/v1/shift-plan/groups/{group_id}?year=2026&month=5",
+        headers=headers,
+    )
+    assert group_response.status_code == 200
+    assert {row["employment_id"] for row in group_response.json()["rows"]} == {own_id, other_id}
+    assert next(row for row in group_response.json()["rows"] if row["employment_id"] == own_id)["shift_plan_locked"] is False
+
+    create_response = client.put(
+        "/api/v1/shift-plan",
+        headers=headers,
+        json={"employment_id": own_id, "date": target_day.isoformat(), "arrival_time": "08:15", "departure_time": "16:45"},
+    )
+    assert create_response.status_code == 200
+    update_response = client.put(
+        "/api/v1/shift-plan",
+        headers=headers,
+        json={"employment_id": own_id, "date": target_day.isoformat(), "arrival_time": "09:00", "departure_time": "17:00"},
+    )
+    assert update_response.status_code == 200
+    forbidden_response = client.put(
+        "/api/v1/shift-plan",
+        headers=headers,
+        json={"employment_id": other_id, "date": target_day.isoformat(), "arrival_time": "10:00", "departure_time": "18:00"},
+    )
+    assert forbidden_response.status_code == 404
+
+    with session_local() as db:
+        own_plan = db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == own_id, ShiftPlan.date == target_day)).scalar_one()
+        assert (own_plan.arrival_time, own_plan.departure_time) == ("09:00", "17:00")
+        db.add(ShiftPlanLock(employment_id=own_id, instance_id="admin", year=2026, month=5, locked_by="admin"))
+        db.commit()
+
+    blocked_response = client.put(
+        "/api/v1/shift-plan",
+        headers=headers,
+        json={"employment_id": own_id, "date": target_day.isoformat(), "arrival_time": "07:00", "departure_time": "15:00"},
+    )
+    assert blocked_response.status_code == 423
+    assert blocked_response.json()["detail"]["code"] == "shift_plan_month_locked"
+
+    with session_local() as db:
+        lock = db.execute(select(ShiftPlanLock).where(ShiftPlanLock.employment_id == own_id, ShiftPlanLock.year == 2026, ShiftPlanLock.month == 5)).scalar_one()
+        plan = db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == own_id, ShiftPlan.date == target_day)).scalar_one()
+        assert lock.locked_by == "admin"
+        assert (plan.arrival_time, plan.departure_time) == ("09:00", "17:00")
 
 
 def test_shift_plan_auto_lock_locks_only_active_employments_once_per_month() -> None:

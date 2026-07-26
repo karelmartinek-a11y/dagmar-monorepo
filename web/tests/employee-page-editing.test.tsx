@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EmployeePage } from "../src/pages/EmployeePage";
@@ -276,5 +276,40 @@ describe("employee time editing", () => {
     await user.click(await screen.findByRole("tab", { name: "Plán služeb" }));
     expect(screen.getByTitle("Plán služeb je uzamčený a pouze pro čtení")).toBeInTheDocument();
     expect(screen.getByDisplayValue("08:00")).toBeDisabled();
+  });
+
+  it("edits only the own unlocked row in the group plan and refreshes both views", async () => {
+    const days = buildDays();
+    const groupDays = [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", status: null, is_within_employment_period: true }];
+    const calls: Array<{ path: string; body?: string | null }> = [];
+    fetchMock.mockImplementation(async (input, init) => {
+      const path = String(input);
+      calls.push({ path, body: typeof init?.body === "string" ? init.body : null });
+      if (path.startsWith("/api/v1/attendance?")) return jsonResponse({ employment_id: 41, employment_label: "Testovací uživatel · Denní provoz", attendance_locked: false, shift_plan_locked: false, days });
+      if (path === "/api/v1/shift-plan/groups") return jsonResponse({ groups: [{ id: 8, name: "Společná směna" }] });
+      if (path.startsWith("/api/v1/shift-plan/groups/8")) return jsonResponse({ group_id: 8, group_name: "Společná směna", year: 2026, month: 7, rows: [
+        { employment_id: 41, display_label: "Testovací uživatel - HPP - Denní provoz", is_own_employment: true, shift_plan_locked: false, days: groupDays },
+        { employment_id: 52, display_label: "Kolega - HPP - Zázemí", is_own_employment: false, shift_plan_locked: false, days: [{ ...groupDays[0], arrival_time: "09:00", departure_time: "17:00" }] },
+      ] });
+      if (path === "/api/v1/shift-plan") return jsonResponse({ ok: true });
+      throw new Error(`Unhandled fetch ${path}`);
+    });
+
+    const user = userEvent.setup();
+    renderEmployeePage();
+    await user.click(await screen.findByRole("tab", { name: "Skupinový plán směn" }));
+    const ownRow = screen.getByRole("row", { name: /Testovací uživatel/ });
+    const colleagueRow = screen.getByRole("row", { name: /Kolega/ });
+    expect(within(ownRow).getByDisplayValue("08:00")).toBeEnabled();
+    expect(within(colleagueRow).getByDisplayValue("09:00")).toBeDisabled();
+
+    const ownArrival = within(ownRow).getByDisplayValue("08:00");
+    await user.clear(ownArrival);
+    await user.type(ownArrival, "0830");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(calls.map((call) => call.path)).toContain("/api/v1/shift-plan"));
+    expect(JSON.parse(calls.find((call) => call.path === "/api/v1/shift-plan")?.body ?? "{}")).toEqual(expect.objectContaining({ employment_id: 41, date: "2026-07-01", arrival_time: "08:30" }));
+    expect(screen.getByRole("tab", { name: "Docházka" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Plán služeb" })).toBeInTheDocument();
   });
 });
