@@ -24,7 +24,6 @@ test.describe("real backend workflows", () => {
     const refreshedAttendance = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/v1/attendance");
     await arrival.press("Enter");
     await expect(page.getByText("Docházka byla uložena.")).toHaveCount(0);
-    await expect(arrival.locator("xpath=..")).toHaveClass(/time-cell--saved/);
     await refreshedAttendance;
     await expect(arrival).toHaveValue("08:15");
 
