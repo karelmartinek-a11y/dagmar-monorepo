@@ -10,7 +10,14 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
-from app.db.models import Attendance, Employment, ShiftPlan
+from app.api.v1.attendance import (
+    AttendanceDayOut,
+    AttendanceMonthOut,
+    AttendanceMonthSummaryOut,
+    attendance_day_out,
+    attendance_summary_out,
+)
+from app.db.models import Attendance, Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.day_status import day_status_label, get_day_status
@@ -21,30 +28,10 @@ from app.services.locks import (
     load_locked_employment_ids,
     set_month_lock_state,
 )
+from app.services.month_summary import build_month_summaries, build_month_summary
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
 router = APIRouter(tags=["admin"])
-
-
-class AttendanceDayOut(BaseModel):
-    date: str
-    arrival_time: str | None = None
-    departure_time: str | None = None
-    arrival_time_2: str | None = None
-    departure_time_2: str | None = None
-    planned_arrival_time: str | None = None
-    planned_departure_time: str | None = None
-    planned_status: str | None = None
-    is_within_employment_period: bool
-
-
-class AttendanceMonthOut(BaseModel):
-    employment_id: int
-    employment_label: str
-    locked: bool = False
-    attendance_locked: bool = False
-    shift_plan_locked: bool = False
-    days: list[AttendanceDayOut]
 
 
 class AttendanceMatrixRowOut(BaseModel):
@@ -63,6 +50,7 @@ class AttendanceMatrixRowOut(BaseModel):
     attendance_locked: bool = False
     shift_plan_locked: bool = False
     days: list[AttendanceDayOut]
+    summary: AttendanceMonthSummaryOut
 
 
 class AttendanceMatrixMonthOut(BaseModel):
@@ -136,24 +124,6 @@ def admin_get_attendance_matrix_month(
     )
     employment_ids = [employment.id for employment in employments]
 
-    attendance_rows = db.execute(
-        select(Attendance)
-        .where(Attendance.employment_id.in_(employment_ids))
-        .where(Attendance.date >= start)
-        .where(Attendance.date < end)
-        .order_by(Attendance.employment_id.asc(), Attendance.date.asc())
-    ).scalars().all()
-    attendance_by_key = {(row.employment_id, row.date): row for row in attendance_rows}
-
-    plan_rows = db.execute(
-        select(ShiftPlan)
-        .where(ShiftPlan.employment_id.in_(employment_ids))
-        .where(ShiftPlan.date >= start)
-        .where(ShiftPlan.date < end)
-        .order_by(ShiftPlan.employment_id.asc(), ShiftPlan.date.asc())
-    ).scalars().all()
-    plan_by_key = {(row.employment_id, row.date): row for row in plan_rows}
-
     attendance_locked_ids = load_locked_employment_ids(
         db,
         lock_type=LockType.ATTENDANCE,
@@ -168,30 +138,13 @@ def admin_get_attendance_matrix_month(
         year=year,
         month=month,
     )
+    summaries = build_month_summaries(db, employments=employments, year=year, month=month)
 
     rows: list[AttendanceMatrixRowOut] = []
     for employment in employments:
         user = employment.user
-        days: list[AttendanceDayOut] = []
-        cur = start
-        while cur < end:
-            attendance = attendance_by_key.get((employment.id, cur))
-            plan = plan_by_key.get((employment.id, cur))
-            days.append(
-                AttendanceDayOut(
-                    date=cur.isoformat(),
-                    arrival_time=attendance.arrival_time if attendance else None,
-                    departure_time=attendance.departure_time if attendance else None,
-                    arrival_time_2=attendance.arrival_time_2 if attendance else None,
-                    departure_time_2=attendance.departure_time_2 if attendance else None,
-                    planned_arrival_time=plan.arrival_time if plan else None,
-                    planned_departure_time=plan.departure_time if plan else None,
-                    planned_status=plan.status if plan else None,
-                    is_within_employment_period=employment.start_date <= cur
-                    and (employment.end_date is None or cur <= employment.end_date),
-                )
-            )
-            cur = cur + dt.timedelta(days=1)
+        summary = summaries[employment.id]
+        days = [attendance_day_out(item, employment) for item in summary.day_summaries]
 
         rows.append(
             AttendanceMatrixRowOut(
@@ -211,6 +164,7 @@ def admin_get_attendance_matrix_month(
                 attendance_locked=employment.id in attendance_locked_ids,
                 shift_plan_locked=employment.id in shift_plan_locked_ids,
                 days=days,
+                summary=attendance_summary_out(summary),
             )
         )
 
@@ -226,44 +180,8 @@ def admin_get_month_attendance(
     db: Session = Depends(get_db),
 ) -> AttendanceMonthOut:
     employment = _get_employment(employment_id, db)
-    start, end = _month_range(year, month)
-
-    rows = db.execute(
-        select(Attendance)
-        .where(Attendance.employment_id == employment.id)
-        .where(Attendance.date >= start)
-        .where(Attendance.date < end)
-        .order_by(Attendance.date.asc())
-    ).scalars().all()
-    by_date: dict[dt.date, Attendance] = {r.date: r for r in rows}
-
-    plan_rows = db.execute(
-        select(ShiftPlan)
-        .where(ShiftPlan.employment_id == employment.id)
-        .where(ShiftPlan.date >= start)
-        .where(ShiftPlan.date < end)
-    ).scalars().all()
-    plan_by_date: dict[dt.date, ShiftPlan] = {r.date: r for r in plan_rows}
-
-    days: list[AttendanceDayOut] = []
-    cur = start
-    while cur < end:
-        row = by_date.get(cur)
-        plan = plan_by_date.get(cur)
-        days.append(
-            AttendanceDayOut(
-                date=cur.isoformat(),
-                arrival_time=row.arrival_time if row else None,
-                departure_time=row.departure_time if row else None,
-                arrival_time_2=row.arrival_time_2 if row else None,
-                departure_time_2=row.departure_time_2 if row else None,
-                planned_arrival_time=plan.arrival_time if plan else None,
-                planned_departure_time=plan.departure_time if plan else None,
-                planned_status=plan.status if plan else None,
-                is_within_employment_period=employment.start_date <= cur and (employment.end_date is None or cur <= employment.end_date),
-            )
-        )
-        cur = cur + dt.timedelta(days=1)
+    summary = build_month_summary(db, employment=employment, year=year, month=month)
+    days = [attendance_day_out(item, employment) for item in summary.day_summaries]
 
     attendance_locked = is_month_locked(
         db,
@@ -287,6 +205,7 @@ def admin_get_month_attendance(
         locked=attendance_locked,
         attendance_locked=attendance_locked,
         shift_plan_locked=shift_plan_locked,
+        summary=attendance_summary_out(summary),
     )
 
 

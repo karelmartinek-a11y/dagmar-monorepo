@@ -38,6 +38,7 @@ import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Button, Field, Modal, StatusMessage } from "../components/Primitives";
 import { AccountMethods } from "../components/AccountMethods";
 import { useCurrentLanguage, useDateFormatter } from "../utils/format";
+import { formatHours } from "../utils/timeMath";
 import {
   asPragueDate,
   getCalendarDayInfo,
@@ -65,43 +66,16 @@ const pragueDateTime = new Intl.DateTimeFormat("en-CA", {
   minute: "2-digit",
   hour12: false,
 });
-const durationMinutes = (start: string | null, end: string | null) => {
-  if (!start || !end) return 0;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  return Math.max(0, eh * 60 + em - (sh * 60 + sm));
-};
-const dayMinutes = (day: AttendanceDay) =>
-  durationMinutes(day.arrival_time, day.departure_time) +
-  durationMinutes(day.arrival_time_2 ?? null, day.departure_time_2 ?? null);
 const themeKey = "kajovodagmar.employee.theme.v1";
 
-function hoursLabel(
-  minutes: number,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  return t("employee.units.hoursMinutes", {
-    hours: Math.floor(minutes / 60),
-    minutes: minutes % 60,
-  });
-}
-function shortHoursLabel(
-  minutes: number,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  return t("employee.units.shortHours", {
-    hours: Math.floor(minutes / 60),
-    minutes: String(minutes % 60).padStart(2, "0"),
-  });
-}
 function shortDaysHoursLabel(
   days: number,
-  minutes: number,
+  hours: number,
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
   return days > 0
-    ? `${t("employee.units.daysShort", { count: days })} / ${shortHoursLabel(minutes, t)}`
-    : shortHoursLabel(minutes, t);
+    ? `${t("employee.units.daysShort", { count: days })} / ${formatHours(hours)}`
+    : formatHours(hours);
 }
 
 function EmployeeLogin({
@@ -565,11 +539,8 @@ function DayCard({
       </div>
       <div className="employee-day__total">
         <span>{t("employee.dayCard.dailyTotal")}</span>
-        <strong>
-          {day.worked_state === "incomplete"
-            ? t("employee.dayCard.incomplete")
-            : shortHoursLabel(day.worked_minutes ?? dayMinutes(day), t)}
-        </strong>
+        <strong>{formatHours(day.worked_hours)}</strong>
+        {day.worked_state === "incomplete" && <small>{t("employee.dayCard.incomplete")}</small>}
       </div>
     </article>
   );
@@ -791,18 +762,8 @@ function PlanDayCard({
       </div>
       <div className="employee-day__total">
         <span>{t("employee.dayCard.dailyPlanTotal")}</span>
-        <strong>
-          {day.planned_state === "incomplete"
-            ? t("employee.dayCard.incomplete")
-            : shortHoursLabel(
-                day.planned_minutes ??
-                  durationMinutes(
-                    day.planned_arrival_time,
-                    day.planned_departure_time,
-                  ),
-                t,
-              )}
-        </strong>
+        <strong>{formatHours(day.planned_hours)}</strong>
+        {day.planned_state === "incomplete" && <small>{t("employee.dayCard.incomplete")}</small>}
       </div>
     </article>
   );
@@ -979,11 +940,9 @@ function TimeCell({
   );
 }
 
-function signedDelta(minutes: number): string {
-  if (minutes === 0) return "0 h";
-  const sign = minutes > 0 ? "+" : "−";
-  const absolute = Math.abs(minutes);
-  return `${sign}${Math.floor(absolute / 60)}:${String(absolute % 60).padStart(2, "0")} h`;
+function signedDelta(hours: number): string {
+  if (hours === 0) return formatHours(0);
+  return `${hours > 0 ? "+" : "−"}${formatHours(Math.abs(hours))}`;
 }
 
 function StatusIcon({
@@ -1423,19 +1382,8 @@ export function EmployeePage() {
     clearPortalSession();
     setSession(null);
   };
-  const actualMinutes =
-    query.data?.summary?.worked_minutes ??
-    query.data?.days.reduce((total, day) => total + dayMinutes(day), 0) ??
-    0;
-  const plannedMinutes =
-    query.data?.summary?.planned_minutes ??
-    query.data?.days.reduce(
-      (total, day) =>
-        total +
-        durationMinutes(day.planned_arrival_time, day.planned_departure_time),
-      0,
-    ) ??
-    0;
+  const actualHours = query.data?.summary.worked_hours ?? 0;
+  const plannedHours = query.data?.summary.planned_hours ?? 0;
   const holidayDays =
     query.data?.summary?.vacation_days ??
     query.data?.days.filter((day) => day.planned_status === "HOLIDAY").length ??
@@ -1449,7 +1397,7 @@ export function EmployeePage() {
         day.departure_time_2,
     ).length ?? 0;
   const summary = query.data?.summary;
-  const workedBalance = summary?.worked_balance_minutes ?? null;
+  const workedBalance = summary?.worked_balance_hours ?? null;
   const attendanceLocked = Boolean(query.data?.attendance_locked);
   const shiftPlanLocked = Boolean(query.data?.shift_plan_locked);
   const showProcessingStatus = Boolean(queueCount || !isOnline);
@@ -1585,27 +1533,27 @@ export function EmployeePage() {
               <MetricPill
                 icon={<BriefcaseBusiness />}
                 label={t("employee.metrics.workFund")}
-                value={shortHoursLabel(summary?.work_fund_minutes ?? 0, t)}
+                value={formatHours(summary?.work_fund_hours ?? 0)}
                 title={t("employee.metrics.workFundDetail", {
-                  hours: hoursLabel(summary?.work_fund_minutes ?? 0, t),
+                  hours: formatHours(summary?.work_fund_hours ?? 0),
                 })}
                 className="employee-pill--fund"
               />
               <MetricPill
                 icon={<CalendarDays />}
                 label={t("employee.metrics.shiftPlan")}
-                value={shortHoursLabel(plannedMinutes, t)}
+                value={formatHours(plannedHours)}
                 title={t("employee.metrics.plannedDetail", {
-                  hours: hoursLabel(plannedMinutes, t),
+                  hours: formatHours(plannedHours),
                 })}
                 className="employee-pill--plan"
               />
               <MetricPill
                 icon={<BriefcaseBusiness />}
                 label={t("employee.metrics.worked")}
-                value={shortHoursLabel(actualMinutes, t)}
+                value={formatHours(actualHours)}
                 title={t("employee.metrics.workedDetail", {
-                  hours: hoursLabel(actualMinutes, t),
+                  hours: formatHours(actualHours),
                   days: filledDays,
                 })}
                 className="employee-pill--worked"
@@ -1615,7 +1563,7 @@ export function EmployeePage() {
                 label={t("employee.metrics.holiday")}
                 value={shortDaysHoursLabel(
                   holidayDays,
-                  summary?.vacation_minutes ?? 0,
+                  summary?.vacation_hours ?? 0,
                   t,
                 )}
                 title={t("employee.metrics.vacationDays", {
@@ -1637,30 +1585,27 @@ export function EmployeePage() {
               <MetricPill
                 icon={<Plane />}
                 label={t("employee.metrics.paragraph")}
-                value={shortHoursLabel(summary?.paragraph_minutes ?? 0, t)}
+                value={formatHours(summary?.paragraph_hours ?? 0)}
                 title={t("employee.metrics.paragraphDetail", {
-                  hours: hoursLabel(summary?.paragraph_minutes ?? 0, t),
+                  hours: formatHours(summary?.paragraph_hours ?? 0),
                 })}
                 className="employee-pill--absence"
               />
               <MetricPill
                 icon={<Plane />}
                 label={t("employee.metrics.afternoon")}
-                value={shortHoursLabel(summary?.afternoon_minutes ?? 0, t)}
+                value={formatHours(summary?.afternoon_hours ?? 0)}
                 title={t("employee.metrics.afternoonDetail", {
-                  hours: hoursLabel(summary?.afternoon_minutes ?? 0, t),
+                  hours: formatHours(summary?.afternoon_hours ?? 0),
                 })}
                 className="employee-pill--afternoon"
               />
               <MetricPill
                 icon={<Plane />}
                 label={t("employee.metrics.weekendHoliday")}
-                value={shortHoursLabel(
-                  summary?.weekend_holiday_minutes ?? 0,
-                  t,
-                )}
+                value={formatHours(summary?.weekend_holiday_hours ?? 0)}
                 title={t("employee.metrics.weekendHolidayDetail", {
-                  hours: hoursLabel(summary?.weekend_holiday_minutes ?? 0, t),
+                  hours: formatHours(summary?.weekend_holiday_hours ?? 0),
                 })}
                 className="employee-pill--weekend"
               />
@@ -1718,7 +1663,7 @@ export function EmployeePage() {
             <EmployeeStatusStrip
               attendanceLocked={attendanceLocked}
               shiftPlanLocked={shiftPlanLocked}
-              planBalance={summary.plan_balance_minutes}
+              planBalance={summary.plan_balance_hours}
               workedBalance={workedBalance}
               showWorkedBalance={Boolean(summary.worked_balance_mode)}
             />

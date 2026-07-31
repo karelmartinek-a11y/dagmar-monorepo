@@ -341,6 +341,27 @@ def test_attendance_and_shift_plan_are_stored_by_employment_id() -> None:
         assert attendance_row.arrival_time_2 == "13:00"
         assert attendance_row.departure_time_2 == "16:00"
 
+    portal_month = client.get(
+        f"/api/v1/attendance?employment_id={employment_id}&year={target_day.year}&month={target_day.month}",
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    admin_month = client.get(
+        f"/api/v1/admin/attendance?employment_id={employment_id}&year={target_day.year}&month={target_day.month}"
+    ).json()
+    admin_matrix = client.get(
+        f"/api/v1/admin/attendance/month?year={target_day.year}&month={target_day.month}"
+    ).json()
+    admin_plan = client.get(
+        f"/api/v1/admin/shift-plan?year={target_day.year}&month={target_day.month}"
+    ).json()
+    day_index = target_day.day - 1
+    assert portal_month["days"][day_index]["worked_hours"] == 7.0
+    assert portal_month["days"][day_index]["planned_hours"] == 8.0
+    assert admin_month["days"][day_index]["worked_hours"] == portal_month["days"][day_index]["worked_hours"]
+    assert admin_matrix["rows"][0]["days"][day_index]["worked_hours"] == portal_month["days"][day_index]["worked_hours"]
+    assert admin_plan["rows"][0]["days"][day_index]["planned_hours"] == portal_month["days"][day_index]["planned_hours"]
+    assert admin_matrix["rows"][0]["summary"]["worked_hours"] == portal_month["summary"]["worked_hours"]
+
 
 def test_portal_attendance_rejects_locked_month_for_read_and_write() -> None:
     client, session_local = _build_client()

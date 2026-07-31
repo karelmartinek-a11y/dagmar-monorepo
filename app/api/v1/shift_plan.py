@@ -20,6 +20,7 @@ from ...services.day_status import (
 )
 from ...services.employment_access import employment_label
 from ...services.locks import LockType, ensure_month_unlocked, is_month_locked
+from ...services.month_summary import build_month_summaries
 from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
 from .attendance import _require_accessible_employment
@@ -68,6 +69,9 @@ class GroupShiftPlanDayOut(BaseModel):
     departure_time: str | None = None
     status: str | None = None
     is_within_employment_period: bool
+    planned_minutes: int
+    planned_hours: float
+    planned_state: str
 
 
 class GroupShiftPlanRowOut(BaseModel):
@@ -76,6 +80,8 @@ class GroupShiftPlanRowOut(BaseModel):
     is_own_employment: bool
     shift_plan_locked: bool
     days: list[GroupShiftPlanDayOut]
+    planned_minutes: int
+    planned_hours: float
 
 
 class GroupShiftPlanMonthOut(BaseModel):
@@ -155,17 +161,30 @@ def portal_get_group_shift_plan_month(
     ).scalars().all()
     by_key = {(plan.employment_id, plan.date): plan for plan in plans}
     days = [start + dt.timedelta(days=index) for index in range((end - start).days)]
+    member_employments = [member.employment for member in group.members]
+    summaries = build_month_summaries(db, employments=member_employments, year=year, month=month)
     rows: list[GroupShiftPlanRowOut] = []
     for member in sorted(group.members, key=lambda item: (item.employment.user.name.lower(), item.employment_id)):
         employment = member.employment
-        def day_out(day: dt.date, *, current_employment: Employment = employment) -> GroupShiftPlanDayOut:
+        summary = summaries[employment.id]
+        day_summaries = {item.date: item for item in summary.day_summaries}
+        def day_out(
+            day: dt.date,
+            *,
+            current_employment: Employment = employment,
+            current_day_summaries=day_summaries,
+        ) -> GroupShiftPlanDayOut:
             plan = by_key.get((current_employment.id, day))
+            day_summary = current_day_summaries[day]
             return GroupShiftPlanDayOut(
                 date=day.isoformat(),
                 arrival_time=plan.arrival_time if plan else None,
                 departure_time=plan.departure_time if plan else None,
                 status=plan.status if plan else None,
                 is_within_employment_period=day >= current_employment.start_date and (current_employment.end_date is None or day <= current_employment.end_date),
+                planned_minutes=day_summary.planned_minutes,
+                planned_hours=day_summary.planned_hours,
+                planned_state=day_summary.planned_state,
             )
         rows.append(GroupShiftPlanRowOut(
             employment_id=employment.id,
@@ -173,6 +192,8 @@ def portal_get_group_shift_plan_month(
             is_own_employment=employment.user_id == auth.user.id,
             shift_plan_locked=is_month_locked(db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=year, month=month),
             days=[day_out(day) for day in days],
+            planned_minutes=summary.planned_minutes,
+            planned_hours=summary.planned_hours,
         ))
     return GroupShiftPlanMonthOut(group_id=group.id, group_name=group.name, year=year, month=month, rows=rows)
 

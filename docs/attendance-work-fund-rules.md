@@ -16,6 +16,9 @@
 - Neúplný interval se do denního součtu nezapočítá a den se označí jako `incomplete`.
 - Běžná přestávka na jídlo a oddech se do odpracované doby nezapočítává; v současném datovém modelu se reprezentuje druhým párem příchod/odchod.
 - Práce přes půlnoc se při měsíčních součtech i denních totalizacích rozděluje do správných kalendářních dnů.
+- Backend je jedinou autoritou všech hodinových hodnot. Pro každý nezáporný denní minutový ukazatel počítá celé desetiny jako `denní_minuty // 6` a API je vrací jako `*_hours` s jedním desetinným místem.
+- Měsíční `*_hours` jsou součtem již zaokrouhlených denních desetin; nikdy se znovu neodvozují z měsíčního součtu `*_minutes`. Minuty zůstávají pouze auditní hodnotou.
+- Frontend, administrační matice, tisky a PDF smějí `*_hours` pouze lokalizovaně formátovat, nikoli odvozovat z časů nebo minut.
 - `ODPOLEDNÍ` používá administrátorské nastavení `app_settings.afternoon_cutoff_minutes`.
 - `VÍKENDY + SVÁTKY` je součet skutečně odpracovaných minut v sobotu, neděli nebo český státní svátek včetně Velkého pátku a Velikonočního pondělí.
 - `PRACOVNÍ FOND` se počítá po dnech v rámci platnosti úvazku:

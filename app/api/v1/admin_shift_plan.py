@@ -35,6 +35,7 @@ from app.services.locks import (
     LockType,
     load_locked_employment_ids,
 )
+from app.services.month_summary import build_month_summaries
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
 router = APIRouter(tags=["admin"])
@@ -60,6 +61,19 @@ class ShiftPlanDayOut(BaseModel):
     departure_time: str | None = None
     status: str | None = None
     is_within_employment_period: bool
+    planned_minutes: int
+    planned_hours: float
+    planned_state: str
+
+
+class ShiftPlanSummaryOut(BaseModel):
+    planned_minutes: int
+    planned_hours: float
+    work_fund_minutes: int
+    work_fund_hours: float
+    scheduled_days: int
+    holiday_days: int
+    off_days: int
 
 
 class ShiftPlanRowOut(BaseModel):
@@ -75,6 +89,7 @@ class ShiftPlanRowOut(BaseModel):
     shift_plan_locked: bool = False
     attendance_locked: bool = False
     days: list[ShiftPlanDayOut]
+    summary: ShiftPlanSummaryOut
 
 
 class ShiftPlanMonthOut(BaseModel):
@@ -284,14 +299,19 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         year=year,
         month=month,
     )
+    typed_employments = [cast(Employment, item) for item in available_employments]
+    summaries = build_month_summaries(db, employments=typed_employments, year=year, month=month)
 
     rows: list[ShiftPlanRowOut] = []
     for employment in available_employments:
         employment_id = employment.id
+        summary = summaries[employment_id]
+        day_summary_by_date = {item.date: item for item in summary.day_summaries}
         cur = start
         days: list[ShiftPlanDayOut] = []
         while cur < end:
             row = plan_map.get((employment_id, cur))
+            day_summary = day_summary_by_date[cur]
             days.append(
                 ShiftPlanDayOut(
                     date=cur.isoformat(),
@@ -299,6 +319,9 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                     departure_time=row.departure_time if row else None,
                     status=row.status if row else None,
                     is_within_employment_period=employment.start_date <= cur and (employment.end_date is None or cur <= employment.end_date),
+                    planned_minutes=day_summary.planned_minutes,
+                    planned_hours=day_summary.planned_hours,
+                    planned_state=day_summary.planned_state,
                 )
             )
             cur = cur + dt.timedelta(days=1)
@@ -317,6 +340,19 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 shift_plan_locked=employment.id in shift_plan_locked_ids,
                 attendance_locked=employment.id in attendance_locked_ids,
                 days=days,
+                summary=ShiftPlanSummaryOut(
+                    planned_minutes=summary.planned_minutes,
+                    planned_hours=summary.planned_hours,
+                    work_fund_minutes=summary.work_fund_minutes,
+                    work_fund_hours=summary.work_fund_hours,
+                    scheduled_days=sum(
+                        1
+                        for item in summary.day_summaries
+                        if item.plan and item.plan.arrival_time and item.plan.departure_time
+                    ),
+                    holiday_days=sum(1 for item in summary.day_summaries if item.effective_status == DAY_STATUS_HOLIDAY),
+                    off_days=sum(1 for item in summary.day_summaries if item.effective_status == DAY_STATUS_OFF),
+                ),
             )
         )
 

@@ -60,6 +60,7 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 ## Scope dat a hlavní invarianty
 
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
+- všechny zobrazované hodinové hodnoty počítá backend po kalendářních dnech; měsíční hodiny jsou součtem denních hodnot zaokrouhlených dolů na desetiny a frontend je pouze formátuje
 - zaměstnanec po loginu dostává bearer `instance_token`, `employment_id` a `available_employments`
 - zaměstnanec může pracovat jen s úvazkem, ke kterému má přístup
 - integrační klienti mají scope a datový rozsah filtrovaný podle zaměstnanců a úvazků

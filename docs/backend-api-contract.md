@@ -71,11 +71,25 @@ Response 200:
       "planned_arrival_time": "08:00",
       "planned_departure_time": "16:00",
       "planned_status": null,
-      "is_within_employment_period": true
+      "is_within_employment_period": true,
+      "worked_minutes": 479,
+      "worked_hours": 7.9,
+      "worked_state": "complete",
+      "planned_minutes": 480,
+      "planned_hours": 8.0,
+      "planned_state": "complete"
     }
-  ]
+  ],
+  "summary": {
+    "worked_minutes": 9145,
+    "worked_hours": 152.4,
+    "planned_minutes": 9600,
+    "planned_hours": 160.0
+  }
 }
 ```
+
+Všechny denní a měsíční minutové ukazatele mají autoritativní hodinový protějšek `*_hours`. Denní hodiny jsou `floor(minuty / 6) / 10`; měsíční hodiny jsou součtem denních hodnot. Totéž platí pro fond, absence, časová pásma, vykázané hodiny a bilance. `accounted_balance_hours` je rozdíl denně zaokrouhlených `accounted_hours` a `work_fund_hours`. Klienti nesmějí hodiny přepočítávat z časů ani z `*_minutes`.
 
 ### PUT `/api/v1/attendance`
 Request:
@@ -90,8 +104,20 @@ Request:
 
 Response 200:
 ```json
-{ "ok": true }
+{
+  "date": "2026-03-01",
+  "arrival_time": "08:00",
+  "departure_time": "16:00",
+  "worked_minutes": 480,
+  "worked_hours": 8.0,
+  "worked_state": "complete",
+  "planned_minutes": 480,
+  "planned_hours": 8.0,
+  "planned_state": "complete"
+}
 ```
+
+Odpověď je celý znovu vypočtený denní kontrakt, nikoli potvrzovací placeholder.
 
 Backend odmítne zápis mimo období vybraného úvazku.
 
@@ -149,6 +175,10 @@ Při zkrácení období může backend vrátit `409` s `employment_period_confli
 ## 5) Admin – Evidence docházky
 
 ### GET `/api/v1/admin/attendance?employment_id=17&year=2026&month=3`
+Vrací stejný denní a měsíční hodinový kontrakt jako zaměstnanecká docházka.
+
+### GET `/api/v1/admin/attendance/month?year=2026&month=3`
+Každý řádek obsahuje stejné denní hodnoty a autoritativní měsíční `summary`; tento kontrakt používají matice, hromadné souhrny a oba tisky docházky.
 ### PUT `/api/v1/admin/attendance`
 ### POST `/api/v1/admin/attendance/lock`
 ### POST `/api/v1/admin/attendance/unlock`
@@ -214,11 +244,21 @@ Response 200:
       "title": "Recepce",
       "employment_type": "HPP",
       "display_label": "Jan Novák – HPP – Recepce",
-      "days": []
+      "days": [],
+      "summary": {
+        "planned_minutes": 9600,
+        "planned_hours": 160.0,
+        "work_fund_minutes": 9600,
+        "work_fund_hours": 160.0
+      }
     }
   ]
 }
 ```
+
+Ukázka `summary` je zkrácená; aktivní schéma řádku plánu vrací plánované
+minuty a hodiny, fond v minutách a hodinách a počty naplánovaných směn,
+dovolených a dnů volna.
 
 ### PUT `/api/v1/admin/shift-plan`
 ```json
@@ -276,6 +316,7 @@ Vstup:
 ```
 
 Vrací normalizovanou tiskovou sestavu plánu směn pro náhled v administraci. Výběr je vázaný na `employment_id`, vyžaduje administrátorskou session a CSRF a stránkuje deterministicky po nejvýše pěti úvazcích na stranu.
+Denní buňky obsahují `planned_minutes` a `planned_hours`; souhrn úvazku obsahuje `planned_minutes_total` a autoritativní `planned_hours`. Stejný reportový model se používá pro PDF.
 
 ### POST `/api/v1/admin/export/shift-plan/pdf`
 Používá stejný request body jako `report` endpoint a vrací skutečný soubor `application/pdf` s názvem `plan_smen_YYYY-MM.pdf`.

@@ -14,6 +14,31 @@ function jsonResponse(payload: unknown, init?: ResponseInit) {
   });
 }
 
+const hourDayFields = {
+  worked_minutes: 480, worked_hours: 7.9, worked_state: "complete",
+  planned_minutes: 480, planned_hours: 8.0, planned_state: "complete",
+  fund_minutes: 480, fund_hours: 8.0, vacation_minutes: 0, vacation_hours: 0.0,
+  paragraph_minutes: 0, paragraph_hours: 0.0, afternoon_minutes: 240, afternoon_hours: 4.0,
+  weekend_holiday_minutes: 0, weekend_holiday_hours: 0.0, holiday_minutes: 0, holiday_hours: 0.0,
+  weekend_minutes: 0, weekend_hours: 0.0, daytime_minutes: 480, daytime_hours: 8.0,
+  night_minutes: 0, night_hours: 0.0, pause_minutes: 0, pause_hours: 0.0,
+  accounted_minutes: 480, accounted_hours: 8.0,
+};
+
+const hourSummary = {
+  work_fund_minutes: 480, work_fund_hours: 8.0, work_fund_source: "calendar",
+  planned_minutes: 480, planned_hours: 8.0, worked_minutes: 480, worked_hours: 7.9,
+  vacation_days: 0, vacation_minutes: 0, vacation_hours: 0.0, sickness_days: 0,
+  paragraph_minutes: 0, paragraph_hours: 0.0, afternoon_minutes: 240, afternoon_hours: 4.0,
+  weekend_holiday_minutes: 0, weekend_holiday_hours: 0.0, holiday_minutes: 0, holiday_hours: 0.0,
+  weekend_minutes: 0, weekend_hours: 0.0, daytime_minutes: 480, daytime_hours: 8.0,
+  night_minutes: 0, night_hours: 0.0, pause_minutes: 0, pause_hours: 0.0,
+  accounted_minutes: 480, accounted_hours: 8.0, accounted_balance_minutes: 0, accounted_balance_hours: 0.0,
+  plan_balance_minutes: 0, plan_balance_hours: 0.0,
+  worked_balance_minutes: 0, worked_balance_hours: 0.0, elapsed_fund_minutes: 480, elapsed_fund_hours: 8.0,
+  worked_balance_mode: "elapsed",
+};
+
 function renderWithProviders(ui: ReactNode, initialEntries = ["/"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -232,7 +257,8 @@ describe("admin pages", () => {
             locked: false,
             attendance_locked: false,
             shift_plan_locked: false,
-            days: [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", status: null, is_within_employment_period: true }],
+            summary: { planned_minutes: 480, planned_hours: 7.9, work_fund_minutes: 480, work_fund_hours: 8.0, scheduled_days: 1, holiday_days: 0, off_days: 0 },
+            days: [{ date: "2026-07-01", arrival_time: "08:00", departure_time: "16:00", status: null, is_within_employment_period: true, planned_minutes: 480, planned_hours: 7.9, planned_state: "complete" }],
           }],
         });
       }
@@ -280,8 +306,10 @@ describe("admin pages", () => {
                   planned_departure_time: "16:00",
                   planned_status: null,
                   is_within_employment_period: true,
+                  ...hourDayFields,
                 },
               ],
+              summary: hourSummary,
             },
           ],
         });
@@ -314,6 +342,7 @@ describe("admin pages", () => {
     expect(screen.getByText("Dagmar Kájová")).toBeInTheDocument();
     expect(screen.getByText("Docházkový list pro mzdový podklad")).toBeInTheDocument();
     expect(screen.getAllByText("Fond 8 h")).toHaveLength(2);
+    expect(screen.getAllByText("7,9 h").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Pauza").length).toBeGreaterThan(0);
     expect(screen.getByText("Rozdíl vůči fondu")).toBeInTheDocument();
     expect(screen.getByText("Sváteční hodiny")).toBeInTheDocument();
@@ -381,13 +410,14 @@ describe("admin pages", () => {
                   end_date: null,
                   is_active_in_month: true,
                   planned_minutes_total: 480,
-                  planned_total_label: "8 h",
+                  planned_hours: 7.9,
+                  planned_total_label: "7,9 h",
                   scheduled_days: 1,
                   holiday_days: 0,
                   off_days: 1,
                   cells: [
-                    { date_iso: "2026-07-01", day_number: 1, weekday_short: "St", holiday_label: null, tone: "work", is_within_employment_period: true, arrival_time: "08:00", departure_time: "16:00", status: null, status_label: null, interval_label: "08:00-16:00", duration_label: "8 h" },
-                    { date_iso: "2026-07-02", day_number: 2, weekday_short: "Čt", holiday_label: null, tone: "work", is_within_employment_period: true, arrival_time: null, departure_time: null, status: "OFF", status_label: "Volno", interval_label: "Volno", duration_label: "" },
+                    { date_iso: "2026-07-01", day_number: 1, weekday_short: "St", holiday_label: null, tone: "work", is_within_employment_period: true, arrival_time: "08:00", departure_time: "16:00", status: null, status_label: null, interval_label: "08:00-16:00", duration_label: "7,9 h", planned_minutes: 480, planned_hours: 7.9 },
+                    { date_iso: "2026-07-02", day_number: 2, weekday_short: "Čt", holiday_label: null, tone: "work", is_within_employment_period: true, arrival_time: null, departure_time: null, status: "OFF", status_label: "Volno", interval_label: "Volno", duration_label: "", planned_minutes: 0, planned_hours: 0.0 },
                   ],
                 },
               ],

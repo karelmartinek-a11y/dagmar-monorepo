@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Employment, ShiftPlan
 from app.services.employment_access import employment_label, employment_overlaps_month
-from app.services.month_summary import is_czech_holiday
+from app.services.month_summary import build_month_summaries, is_czech_holiday
 from app.services.prague_time import prague_now
 
 EMPLOYMENTS_PER_PAGE = 5
@@ -68,6 +68,8 @@ class ShiftPlanReportCell:
     status_label: str | None
     interval_label: str
     duration_label: str
+    planned_minutes: int
+    planned_hours: float
 
 
 @dataclass(frozen=True)
@@ -82,6 +84,7 @@ class ShiftPlanReportEmployment:
     is_active_in_month: bool
     cells: list[ShiftPlanReportCell]
     planned_minutes_total: int
+    planned_hours: float
     scheduled_days: int
     holiday_days: int
     off_days: int
@@ -125,25 +128,8 @@ def _unique_ids(values: list[int]) -> list[int]:
     return result
 
 
-def _minutes_between(start: str | None, end: str | None) -> int:
-    if not start or not end:
-        return 0
-    start_hour, start_minute = map(int, start.split(":"))
-    end_hour, end_minute = map(int, end.split(":"))
-    start_total = start_hour * 60 + start_minute
-    end_total = end_hour * 60 + end_minute
-    if end_total <= start_total:
-        end_total += 24 * 60
-    return end_total - start_total
-
-
-def _format_minutes(minutes: int) -> str:
-    if minutes <= 0:
-        return "0 h"
-    hours, rest = divmod(minutes, 60)
-    if rest == 0:
-        return f"{hours} h"
-    return f"{hours}:{rest:02d} h"
+def _format_hours(hours: float) -> str:
+    return f"{hours:.1f}".replace(".", ",") + " h"
 
 
 def _holiday_label(value: date) -> str | None:
@@ -238,6 +224,7 @@ def build_shift_plan_report(
         .all()
     )
     plan_map = {(row.employment_id, row.date): row for row in plan_rows}
+    summaries = build_month_summaries(db, employments=ordered_employments, year=year, month=month)
 
     day_headers: list[dict[str, str | int | None]] = []
     current = start
@@ -256,17 +243,18 @@ def build_shift_plan_report(
     report_rows: list[ShiftPlanReportEmployment] = []
     for employment in ordered_employments:
         user_name = employment.user.name if employment.user else f"Uživatel {employment.user_id}"
+        summary = summaries[employment.id]
+        day_summary_by_date = {item.date: item for item in summary.day_summaries}
         current = start
         cells: list[ShiftPlanReportCell] = []
-        planned_minutes_total = 0
         scheduled_days = 0
         holiday_days = 0
         off_days = 0
         while current < end:
             plan = plan_map.get((employment.id, current))
-            duration_minutes = _minutes_between(plan.arrival_time if plan else None, plan.departure_time if plan else None)
-            if duration_minutes > 0:
-                planned_minutes_total += duration_minutes
+            day_summary = day_summary_by_date[current]
+            duration_minutes = day_summary.planned_minutes
+            if plan and plan.arrival_time and plan.departure_time:
                 scheduled_days += 1
             if plan and plan.status == "HOLIDAY":
                 holiday_days += 1
@@ -292,7 +280,9 @@ def build_shift_plan_report(
                         if plan and plan.arrival_time and plan.departure_time
                         else (STATUS_LABELS.get(plan.status, "Bez směny") if plan and plan.status else ("Bez směny" if is_within_employment_period else "Mimo období"))
                     ),
-                    duration_label=_format_minutes(duration_minutes) if duration_minutes > 0 else "",
+                    duration_label=_format_hours(day_summary.planned_hours) if duration_minutes > 0 else "",
+                    planned_minutes=duration_minutes,
+                    planned_hours=day_summary.planned_hours,
                 )
             )
             current += timedelta(days=1)
@@ -308,7 +298,8 @@ def build_shift_plan_report(
                 end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
                 is_active_in_month=True,
                 cells=cells,
-                planned_minutes_total=planned_minutes_total,
+                planned_minutes_total=summary.planned_minutes,
+                planned_hours=summary.planned_hours,
                 scheduled_days=scheduled_days,
                 holiday_days=holiday_days,
                 off_days=off_days,
@@ -365,7 +356,8 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
                         "end_date": employment.end_date,
                         "is_active_in_month": employment.is_active_in_month,
                         "planned_minutes_total": employment.planned_minutes_total,
-                        "planned_total_label": _format_minutes(employment.planned_minutes_total),
+                        "planned_hours": employment.planned_hours,
+                        "planned_total_label": _format_hours(employment.planned_hours),
                         "scheduled_days": employment.scheduled_days,
                         "holiday_days": employment.holiday_days,
                         "off_days": employment.off_days,
@@ -383,6 +375,8 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
                                 "status_label": cell.status_label,
                                 "interval_label": cell.interval_label,
                                 "duration_label": cell.duration_label,
+                                "planned_minutes": cell.planned_minutes,
+                                "planned_hours": cell.planned_hours,
                             }
                             for cell in employment.cells
                         ],
@@ -505,7 +499,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             )
             draw.multiline_text(
                 (x0 + LABEL_COLUMN_WIDTH + 10, row_top + 12),
-                f"{_format_minutes(employment.planned_minutes_total)}\n{employment.scheduled_days} směn",
+                f"{_format_hours(employment.planned_hours)}\n{employment.scheduled_days} směn",
                 font=small,
                 fill="#111111",
                 spacing=5,

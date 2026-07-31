@@ -28,6 +28,28 @@ type AttendanceMockDay = {
   planned_departure_time: string | null;
   planned_status: string | null;
   is_within_employment_period: boolean;
+  worked_minutes: number; worked_hours: number; worked_state: string;
+  planned_minutes: number; planned_hours: number; planned_state: string;
+  fund_minutes: number; fund_hours: number; vacation_minutes: number; vacation_hours: number;
+  paragraph_minutes: number; paragraph_hours: number; afternoon_minutes: number; afternoon_hours: number;
+  weekend_holiday_minutes: number; weekend_holiday_hours: number; holiday_minutes: number; holiday_hours: number;
+  weekend_minutes: number; weekend_hours: number; daytime_minutes: number; daytime_hours: number;
+  night_minutes: number; night_hours: number; pause_minutes: number; pause_hours: number;
+  accounted_minutes: number; accounted_hours: number;
+};
+
+const summary = {
+  work_fund_minutes: 9600, work_fund_hours: 160.0, work_fund_source: "calendar",
+  planned_minutes: 0, planned_hours: 0.0, worked_minutes: 0, worked_hours: 0.0,
+  vacation_days: 0, vacation_minutes: 0, vacation_hours: 0.0, sickness_days: 0,
+  paragraph_minutes: 0, paragraph_hours: 0.0, afternoon_minutes: 0, afternoon_hours: 0.0,
+  weekend_holiday_minutes: 0, weekend_holiday_hours: 0.0, holiday_minutes: 0, holiday_hours: 0.0,
+  weekend_minutes: 0, weekend_hours: 0.0, daytime_minutes: 0, daytime_hours: 0.0,
+  night_minutes: 0, night_hours: 0.0, pause_minutes: 0, pause_hours: 0.0,
+  accounted_minutes: 0, accounted_hours: 0.0, accounted_balance_minutes: -9600, accounted_balance_hours: -160.0,
+  plan_balance_minutes: -9600, plan_balance_hours: -160.0,
+  worked_balance_minutes: 0, worked_balance_hours: 0.0, elapsed_fund_minutes: 9600, elapsed_fund_hours: 160.0,
+  worked_balance_mode: "elapsed",
 };
 
 function julyAttendance(): AttendanceMockDay[] {
@@ -43,6 +65,14 @@ function julyAttendance(): AttendanceMockDay[] {
       planned_departure_time: "16:30",
       planned_status: null,
       is_within_employment_period: true,
+      worked_minutes: 0, worked_hours: 0.0, worked_state: "empty",
+      planned_minutes: 510, planned_hours: 8.5, planned_state: "complete",
+      fund_minutes: 480, fund_hours: 8.0, vacation_minutes: 0, vacation_hours: 0.0,
+      paragraph_minutes: 0, paragraph_hours: 0.0, afternoon_minutes: 0, afternoon_hours: 0.0,
+      weekend_holiday_minutes: 0, weekend_holiday_hours: 0.0, holiday_minutes: 0, holiday_hours: 0.0,
+      weekend_minutes: 0, weekend_hours: 0.0, daytime_minutes: 0, daytime_hours: 0.0,
+      night_minutes: 0, night_hours: 0.0, pause_minutes: 0, pause_hours: 0.0,
+      accounted_minutes: 0, accounted_hours: 0.0,
     };
   });
 }
@@ -74,7 +104,7 @@ for (const { width, height } of [
           employment_label: "Testovací uživatel · Denní provoz",
           attendance_locked: false,
           shift_plan_locked: false,
-          summary: { work_fund_minutes: 9600, work_fund_source: "calendar", planned_minutes: 0, worked_minutes: 0, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -9600, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
+          summary,
           days,
         }),
       });
@@ -195,6 +225,7 @@ test("employee can switch to editable shift plan and save planned time", async (
         employment_label: "Testovací uživatel · Denní provoz",
         attendance_locked: false,
         shift_plan_locked: false,
+        summary,
         days,
       }),
     });
@@ -248,7 +279,7 @@ test("employee shift plan is read-only when the month is locked", async ({ page 
         employment_label: "Testovací uživatel · Denní provoz",
         attendance_locked: false,
         shift_plan_locked: true,
-        summary: { work_fund_minutes: 9600, work_fund_source: "calendar", planned_minutes: 0, worked_minutes: 0, vacation_days: 0, vacation_minutes: 0, sickness_days: 0, paragraph_minutes: 0, afternoon_minutes: 0, weekend_holiday_minutes: 0, plan_balance_minutes: -9600, worked_balance_minutes: 0, worked_balance_mode: "elapsed" },
+        summary,
         days,
       }),
     });

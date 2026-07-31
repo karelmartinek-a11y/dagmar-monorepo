@@ -45,6 +45,7 @@ Pokud se dokumentace, komentáře, testy nebo manifest rozcházejí s funkčním
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
 - skupiny úvazků jsou vztah M:N nad `employment_id`, mají nejméně dva členy a sdílejí pouze plán směn
 - časová autorita je `Europe/Prague`
+- backend je jediná autorita hodin: denní `*_hours` jsou `floor(denní_minuty / 6) / 10` a měsíční `*_hours` jsou součtem již zaokrouhlených denních hodnot; frontend, tisky a exporty je pouze zobrazují
 - reverse proxy a TLS obsluhuje Nginx
 
 ## Povinná disciplína změn

@@ -716,6 +716,15 @@
       ]
     },
     {
+      "id": "backend_hours_authority",
+      "rule": "Backend computes daily tenths and monthly hours as the sum of rounded daily values; frontend only formats *_hours.",
+      "tests": [
+        "tests/test_month_summary.py",
+        "web/tests/employee-page-editing.test.tsx",
+        "scripts/check_repo_invariants.py"
+      ]
+    },
+    {
       "id": "auth_modes",
       "rule": "Admin uses session plus CSRF, employee uses bearer token, integrations use dgi_ bearer tokens.",
       "tests": [
@@ -988,6 +997,7 @@
     "canonical_domain": "https://dagmar.hcasc.cz",
     "employee_auth": "bearer_instance_token",
     "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
+    "hours_authority": "backend_daily_tenths_monthly_sum_of_daily_tenths",
     "integration_auth": "dgi_bearer_token",
     "postgres_bind": "127.0.0.1:5433",
     "reverse_proxy_tls": "nginx",

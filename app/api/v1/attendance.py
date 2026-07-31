@@ -24,7 +24,7 @@ from app.services.day_status import (
 )
 from app.services.employment_access import employment_label
 from app.services.locks import LockType, ensure_month_unlocked, is_month_locked
-from app.services.month_summary import build_month_summary
+from app.services.month_summary import DaySummary, MonthSummary, build_month_summary
 from app.services.prague_time import prague_minutes_since_midnight, prague_today
 from app.utils.timeparse import parse_hhmm_or_none
 
@@ -44,25 +44,73 @@ class AttendanceDayOut(BaseModel):
     effective_status: str | None = None
     is_within_employment_period: bool
     worked_minutes: int = 0
+    worked_hours: float = 0.0
     worked_state: str = "empty"
     planned_minutes: int = 0
+    planned_hours: float = 0.0
     planned_state: str = "empty"
+    fund_minutes: int = 0
+    fund_hours: float = 0.0
+    vacation_minutes: int = 0
+    vacation_hours: float = 0.0
+    paragraph_minutes: int = 0
+    paragraph_hours: float = 0.0
+    afternoon_minutes: int = 0
+    afternoon_hours: float = 0.0
+    weekend_holiday_minutes: int = 0
+    weekend_holiday_hours: float = 0.0
+    holiday_minutes: int = 0
+    holiday_hours: float = 0.0
+    weekend_minutes: int = 0
+    weekend_hours: float = 0.0
+    daytime_minutes: int = 0
+    daytime_hours: float = 0.0
+    night_minutes: int = 0
+    night_hours: float = 0.0
+    pause_minutes: int = 0
+    pause_hours: float = 0.0
+    accounted_minutes: int = 0
+    accounted_hours: float = 0.0
 
 
 class AttendanceMonthSummaryOut(BaseModel):
     work_fund_minutes: int
+    work_fund_hours: float
     work_fund_source: str
     planned_minutes: int
+    planned_hours: float
     worked_minutes: int
+    worked_hours: float
     vacation_minutes: int
+    vacation_hours: float
     vacation_days: int
     sickness_days: int
     paragraph_minutes: int
+    paragraph_hours: float
     afternoon_minutes: int
+    afternoon_hours: float
     weekend_holiday_minutes: int
+    weekend_holiday_hours: float
+    holiday_minutes: int
+    holiday_hours: float
+    weekend_minutes: int
+    weekend_hours: float
+    daytime_minutes: int
+    daytime_hours: float
+    night_minutes: int
+    night_hours: float
+    pause_minutes: int
+    pause_hours: float
+    accounted_minutes: int
+    accounted_hours: float
+    accounted_balance_minutes: int
+    accounted_balance_hours: float
     plan_balance_minutes: int
+    plan_balance_hours: float
     worked_balance_minutes: int | None = None
+    worked_balance_hours: float | None = None
     elapsed_fund_minutes: int | None = None
+    elapsed_fund_hours: float | None = None
     worked_balance_mode: str | None = None
 
 
@@ -95,6 +143,94 @@ class AttendanceStatusUpsertIn(BaseModel):
         examples=["SICKNESS", "PARAGRAPH"],
     )
     confirm_delete_conflicts: bool = False
+
+
+def attendance_day_out(item: DaySummary, employment: Employment) -> AttendanceDayOut:
+    return AttendanceDayOut(
+        date=item.date.isoformat(),
+        arrival_time=item.attendance.arrival_time if item.attendance else None,
+        departure_time=item.attendance.departure_time if item.attendance else None,
+        arrival_time_2=item.attendance.arrival_time_2 if item.attendance else None,
+        departure_time_2=item.attendance.departure_time_2 if item.attendance else None,
+        planned_arrival_time=item.plan.arrival_time if item.plan else None,
+        planned_departure_time=item.plan.departure_time if item.plan else None,
+        planned_status=item.plan.status if item.plan else None,
+        attendance_status=item.attendance.status if item.attendance else None,
+        effective_status=item.effective_status,
+        is_within_employment_period=employment.start_date <= item.date
+        and (employment.end_date is None or item.date <= employment.end_date),
+        worked_minutes=item.worked_minutes,
+        worked_hours=item.worked_hours,
+        worked_state=item.worked_state,
+        planned_minutes=item.planned_minutes,
+        planned_hours=item.planned_hours,
+        planned_state=item.planned_state,
+        fund_minutes=item.fund_minutes,
+        fund_hours=item.fund_hours,
+        vacation_minutes=item.vacation_minutes,
+        vacation_hours=item.vacation_hours,
+        paragraph_minutes=item.paragraph_minutes,
+        paragraph_hours=item.paragraph_hours,
+        afternoon_minutes=item.afternoon_minutes,
+        afternoon_hours=item.afternoon_hours,
+        weekend_holiday_minutes=item.weekend_holiday_minutes,
+        weekend_holiday_hours=item.weekend_holiday_hours,
+        holiday_minutes=item.holiday_minutes,
+        holiday_hours=item.holiday_hours,
+        weekend_minutes=item.weekend_minutes,
+        weekend_hours=item.weekend_hours,
+        daytime_minutes=item.daytime_minutes,
+        daytime_hours=item.daytime_hours,
+        night_minutes=item.night_minutes,
+        night_hours=item.night_hours,
+        pause_minutes=item.pause_minutes,
+        pause_hours=item.pause_hours,
+        accounted_minutes=item.accounted_minutes,
+        accounted_hours=item.accounted_hours,
+    )
+
+
+def attendance_summary_out(summary: MonthSummary) -> AttendanceMonthSummaryOut:
+    return AttendanceMonthSummaryOut(
+        work_fund_minutes=summary.work_fund_minutes,
+        work_fund_hours=summary.work_fund_hours,
+        work_fund_source=summary.work_fund_source,
+        planned_minutes=summary.planned_minutes,
+        planned_hours=summary.planned_hours,
+        worked_minutes=summary.worked_minutes,
+        worked_hours=summary.worked_hours,
+        vacation_minutes=summary.vacation_minutes,
+        vacation_hours=summary.vacation_hours,
+        vacation_days=summary.vacation_days,
+        sickness_days=summary.sickness_days,
+        paragraph_minutes=summary.paragraph_minutes,
+        paragraph_hours=summary.paragraph_hours,
+        afternoon_minutes=summary.afternoon_minutes,
+        afternoon_hours=summary.afternoon_hours,
+        weekend_holiday_minutes=summary.weekend_holiday_minutes,
+        weekend_holiday_hours=summary.weekend_holiday_hours,
+        holiday_minutes=summary.holiday_minutes,
+        holiday_hours=summary.holiday_hours,
+        weekend_minutes=summary.weekend_minutes,
+        weekend_hours=summary.weekend_hours,
+        daytime_minutes=summary.daytime_minutes,
+        daytime_hours=summary.daytime_hours,
+        night_minutes=summary.night_minutes,
+        night_hours=summary.night_hours,
+        pause_minutes=summary.pause_minutes,
+        pause_hours=summary.pause_hours,
+        accounted_minutes=summary.accounted_minutes,
+        accounted_hours=summary.accounted_hours,
+        accounted_balance_minutes=summary.accounted_balance_minutes,
+        accounted_balance_hours=summary.accounted_balance_hours,
+        plan_balance_minutes=summary.plan_balance_minutes,
+        plan_balance_hours=summary.plan_balance_hours,
+        worked_balance_minutes=summary.worked_balance_minutes,
+        worked_balance_hours=summary.worked_balance_hours,
+        elapsed_fund_minutes=summary.elapsed_fund_minutes,
+        elapsed_fund_hours=summary.elapsed_fund_hours,
+        worked_balance_mode=summary.worked_balance_mode,
+    )
 
 
 def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
@@ -230,27 +366,7 @@ def get_month_attendance(
         logging.getLogger(__name__).warning("ShiftPlan unavailable for attendance: %s", exc)
 
     month_summary = build_month_summary(db, employment=employment, year=year, month=month)
-    days = [
-        AttendanceDayOut(
-            date=item.date.isoformat(),
-            arrival_time=item.attendance.arrival_time if item.attendance else None,
-            departure_time=item.attendance.departure_time if item.attendance else None,
-            arrival_time_2=item.attendance.arrival_time_2 if item.attendance else None,
-            departure_time_2=item.attendance.departure_time_2 if item.attendance else None,
-            planned_arrival_time=item.plan.arrival_time if item.plan else None,
-            planned_departure_time=item.plan.departure_time if item.plan else None,
-            planned_status=item.plan.status if item.plan else None,
-            attendance_status=item.attendance.status if item.attendance else None,
-            effective_status=item.effective_status,
-            is_within_employment_period=employment.start_date <= item.date
-            and (employment.end_date is None or item.date <= employment.end_date),
-            worked_minutes=item.worked_minutes,
-            worked_state=item.worked_state,
-            planned_minutes=item.planned_minutes,
-            planned_state=item.planned_state,
-        )
-        for item in month_summary.day_summaries
-    ]
+    days = [attendance_day_out(item, employment) for item in month_summary.day_summaries]
 
     return AttendanceMonthOut(
         employment_id=employment.id,
@@ -259,22 +375,7 @@ def get_month_attendance(
         attendance_locked=attendance_locked,
         shift_plan_locked=shift_plan_locked,
         days=days,
-        summary=AttendanceMonthSummaryOut(
-            work_fund_minutes=month_summary.work_fund_minutes,
-            work_fund_source=month_summary.work_fund_source,
-            planned_minutes=month_summary.planned_minutes,
-            worked_minutes=month_summary.worked_minutes,
-            vacation_minutes=month_summary.vacation_minutes,
-            vacation_days=month_summary.vacation_days,
-            sickness_days=month_summary.sickness_days,
-            paragraph_minutes=month_summary.paragraph_minutes,
-            afternoon_minutes=month_summary.afternoon_minutes,
-            weekend_holiday_minutes=month_summary.weekend_holiday_minutes,
-            plan_balance_minutes=month_summary.plan_balance_minutes,
-            worked_balance_minutes=month_summary.worked_balance_minutes,
-            elapsed_fund_minutes=month_summary.elapsed_fund_minutes,
-            worked_balance_mode=month_summary.worked_balance_mode,
-        ),
+        summary=attendance_summary_out(month_summary),
     )
 
 
@@ -346,23 +447,8 @@ def upsert_attendance(
         existing.instance_id = auth.instance.id
 
     db.commit()
-    return AttendanceDayOut(
-        date=day.isoformat(),
-        arrival_time=existing.arrival_time,
-        departure_time=existing.departure_time,
-        arrival_time_2=existing.arrival_time_2,
-        departure_time_2=existing.departure_time_2,
-        planned_arrival_time=None,
-        planned_departure_time=None,
-        planned_status=None,
-        attendance_status=existing.status,
-        effective_status=existing.status,
-        is_within_employment_period=True,
-        worked_minutes=0,
-        worked_state="empty",
-        planned_minutes=0,
-        planned_state="empty",
-    )
+    summary = build_month_summary(db, employment=employment, year=day.year, month=day.month)
+    return attendance_day_out(next(item for item in summary.day_summaries if item.date == day), employment)
 
 
 @router.put("/api/v1/attendance/day-status", response_model=dict[str, bool])
