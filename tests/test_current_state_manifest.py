@@ -117,6 +117,7 @@ def test_manifest_includes_repository_layout_and_runtime_invariants() -> None:
         "employee_auth": "bearer_instance_token",
         "integration_auth": "dgi_bearer_token",
         "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
+        "hours_authority": "backend_daily_tenths_monthly_sum_of_daily_tenths",
         "timezone": "Europe/Prague",
         "reverse_proxy_tls": "nginx",
     }

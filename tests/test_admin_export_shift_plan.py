@@ -94,7 +94,7 @@ def _seed_shift_plan_rows(db: Session, *, count: int) -> list[int]:
                     instance_id=None,
                     date=date(2026, 7, 1),
                     arrival_time="08:00",
-                    departure_time="16:00",
+                    departure_time="15:59",
                     status=None,
                 ),
                 ShiftPlan(
@@ -165,6 +165,9 @@ def test_shift_plan_report_paginates_after_five_employments(tmp_path: Path) -> N
     assert len(payload["pages"][1]["employments"]) == 1
     assert len(payload["day_headers"]) == 31
     assert payload["pages"][0]["employments"][0]["employment_id"] == employment_ids[0]
+    assert payload["pages"][0]["employments"][0]["planned_hours"] == 7.9
+    assert payload["pages"][0]["employments"][0]["planned_total_label"] == "7,9 h"
+    assert payload["pages"][0]["employments"][0]["cells"][0]["planned_hours"] == 7.9
     assert payload["pages"][1]["employments"][0]["employment_id"] == employment_ids[5]
     assert payload["pages"][0]["employments"][0]["cells"][1]["status"] in {"OFF", "HOLIDAY"}
 

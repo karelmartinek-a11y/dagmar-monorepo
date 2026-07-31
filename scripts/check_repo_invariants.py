@@ -92,6 +92,21 @@ LEGACY_LAYOUT_PATTERNS = (
     re.compile(r"`backend/`"),
     re.compile(r"`frontend/`"),
 )
+HOUR_AUTHORITY_FRONTEND_FILES = (
+    Path("web/src/pages/EmployeePage.tsx"),
+    Path("web/src/pages/AdminMatrixPages.tsx"),
+    Path("web/src/pages/AdminOperationsPages.tsx"),
+)
+FORBIDDEN_FRONTEND_HOUR_CALCULATORS = (
+    "normalizeMinutes",
+    "durationMinutes",
+    "dayMinutes",
+    "actualDayMinutes",
+    "plannedDayMinutes",
+    "hhmmToMinutes",
+    "normalizeInterval",
+    "overlapMinutes",
+)
 
 
 def _text_files() -> list[Path]:
@@ -152,12 +167,21 @@ def _validate_key_docs(failures: list[str]) -> None:
                 failures.append(f"legacy top-level layout reference in {rel}: {pattern.pattern}")
 
 
+def _validate_backend_hour_authority(failures: list[str]) -> None:
+    for rel in HOUR_AUTHORITY_FRONTEND_FILES:
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        for identifier in FORBIDDEN_FRONTEND_HOUR_CALCULATORS:
+            if identifier in text:
+                failures.append(f"frontend hour calculator {identifier!r} present in {rel}")
+
+
 def main() -> int:
     failures: list[str] = []
     _validate_removed_paths(failures)
     _validate_forbidden_references(failures)
     _validate_local_links(failures)
     _validate_key_docs(failures)
+    _validate_backend_hour_authority(failures)
     if failures:
         print("Repository invariant check failed:")
         for failure in failures:

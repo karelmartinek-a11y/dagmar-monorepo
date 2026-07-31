@@ -8,14 +8,15 @@ import { Button, Field, Modal, Panel, StatusMessage } from "../components/Primit
 import { MonthControl } from "../components/MonthControl";
 import { useCurrentLanguage } from "../utils/format";
 import { asPragueDate, getCalendarDayTone, getHolidayLabel, getWeekdayLongLabel } from "../utils/calendar";
-import { formatHours, normalizeMinutes } from "../utils/timeMath";
+import { formatHours } from "../utils/timeMath";
 import { normalizeTimeInput } from "../utils/timeInput";
 
 type AttendanceEditState = { employmentId: number; date: string };
 type LockKind = "attendance" | "shift_plan";
 type LockMonthSelection = { year: number; month: number };
-type ShiftPlanDay = { date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean };
-type ShiftPlanRow = { employment_id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; start_date: string; end_date: string | null; is_active_in_month: boolean; shift_plan_locked: boolean; attendance_locked: boolean; days: ShiftPlanDay[] };
+type ShiftPlanDay = { date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean; planned_minutes: number; planned_hours: number; planned_state: string };
+type ShiftPlanSummary = { planned_minutes: number; planned_hours: number; work_fund_minutes: number; work_fund_hours: number; scheduled_days: number; holiday_days: number; off_days: number };
+type ShiftPlanRow = { employment_id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; start_date: string; end_date: string | null; is_active_in_month: boolean; shift_plan_locked: boolean; attendance_locked: boolean; days: ShiftPlanDay[]; summary: ShiftPlanSummary };
 type ActiveEmployment = { id: number; display_label: string; employment_type: string; start_date: string; end_date: string | null; is_active_in_month: boolean };
 type PlanMonth = { year: number; month: number; selected_employment_ids: number[]; available_employments: ActiveEmployment[]; rows: ShiftPlanRow[] };
 type DayStatusDraft = { employment_id: number; date: string; status: string | null; confirm_delete_conflicts?: boolean };
@@ -252,19 +253,9 @@ function dayHeader(day: { date: string }, language: string) {
   return { date, tone, weekday: getWeekdayLongLabel(date, language), holiday: getHolidayLabel(date, language) };
 }
 
-function employmentCalendarMinutes(days: Array<{ date: string; is_within_employment_period: boolean }>): number {
-  return days.reduce((total, day) => {
-    const date = asPragueDate(day.date);
-    return day.is_within_employment_period && getCalendarDayTone(date) === "work" ? total + 8 * 60 : total;
-  }, 0);
-}
-
 function ShiftPlanSummaryCell({ row }: { row: ShiftPlanRow }) {
   const { t } = useTranslation();
-  const plannedMinutes = row.days.reduce((total, day) => total + normalizeMinutes(day.arrival_time, day.departure_time), 0);
-  const holidayDays = row.days.filter((day) => day.status === "HOLIDAY").length;
-  const calendarMinutes = employmentCalendarMinutes(row.days);
-  return <div className="matrix-total"><strong>{formatHours(plannedMinutes)}</strong><small>{t("adminMatrix.summary.plan")}</small><span>{t("adminMatrix.summary.calendar", { hours: formatHours(calendarMinutes) })}</span><span>{t("adminMatrix.summary.holidayDays", { count: holidayDays })}</span></div>;
+  return <div className="matrix-total"><strong>{formatHours(row.summary.planned_hours)}</strong><small>{t("adminMatrix.summary.plan")}</small><span>{t("adminMatrix.summary.calendar", { hours: formatHours(row.summary.work_fund_hours) })}</span><span>{t("adminMatrix.summary.holidayDays", { count: row.summary.holiday_days })}</span></div>;
 }
 
 function sortByLabel<T>(items: T[], direction: SelectionDirection, getLabel: (item: T) => string) {

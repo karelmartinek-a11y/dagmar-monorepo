@@ -151,6 +151,7 @@ def build_manifest() -> dict[str, object]:
             "employee_auth": "bearer_instance_token",
             "integration_auth": "dgi_bearer_token",
             "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
+            "hours_authority": "backend_daily_tenths_monthly_sum_of_daily_tenths",
             "timezone": "Europe/Prague",
             "reverse_proxy_tls": "nginx",
         },
@@ -282,6 +283,11 @@ def build_manifest() -> dict[str, object]:
                 "id": "employment_scope",
                 "rule": "Attendance, shift plan, locks and exports stay scoped by employment_id.",
                 "tests": ["tests/test_integration_api.py", "web/tests/employee-page-editing.test.tsx", "web/tests/admin-pages.test.tsx"],
+            },
+            {
+                "id": "backend_hours_authority",
+                "rule": "Backend computes daily tenths and monthly hours as the sum of rounded daily values; frontend only formats *_hours.",
+                "tests": ["tests/test_month_summary.py", "web/tests/employee-page-editing.test.tsx", "scripts/check_repo_invariants.py"],
             },
             {
                 "id": "auth_modes",

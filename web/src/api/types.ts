@@ -31,26 +31,74 @@ export const attendanceDaySchema = z.object({
   attendance_status: z.string().nullable().optional(),
   effective_status: z.string().nullable().optional(),
   is_within_employment_period: z.boolean(),
-  worked_minutes: z.number().optional(),
-  worked_state: z.string().optional(),
-  planned_minutes: z.number().optional(),
-  planned_state: z.string().optional(),
+  worked_minutes: z.number(),
+  worked_hours: z.number(),
+  worked_state: z.string(),
+  planned_minutes: z.number(),
+  planned_hours: z.number(),
+  planned_state: z.string(),
+  fund_minutes: z.number(),
+  fund_hours: z.number(),
+  vacation_minutes: z.number(),
+  vacation_hours: z.number(),
+  paragraph_minutes: z.number(),
+  paragraph_hours: z.number(),
+  afternoon_minutes: z.number(),
+  afternoon_hours: z.number(),
+  weekend_holiday_minutes: z.number(),
+  weekend_holiday_hours: z.number(),
+  holiday_minutes: z.number(),
+  holiday_hours: z.number(),
+  weekend_minutes: z.number(),
+  weekend_hours: z.number(),
+  daytime_minutes: z.number(),
+  daytime_hours: z.number(),
+  night_minutes: z.number(),
+  night_hours: z.number(),
+  pause_minutes: z.number(),
+  pause_hours: z.number(),
+  accounted_minutes: z.number(),
+  accounted_hours: z.number(),
 });
 
 export const attendanceMonthSummarySchema = z.object({
   work_fund_minutes: z.number(),
+  work_fund_hours: z.number(),
   work_fund_source: z.string(),
   planned_minutes: z.number(),
+  planned_hours: z.number(),
   worked_minutes: z.number(),
+  worked_hours: z.number(),
   vacation_minutes: z.number(),
+  vacation_hours: z.number(),
   vacation_days: z.number(),
   sickness_days: z.number(),
   paragraph_minutes: z.number(),
+  paragraph_hours: z.number(),
   afternoon_minutes: z.number(),
+  afternoon_hours: z.number(),
   weekend_holiday_minutes: z.number(),
+  weekend_holiday_hours: z.number(),
+  holiday_minutes: z.number(),
+  holiday_hours: z.number(),
+  weekend_minutes: z.number(),
+  weekend_hours: z.number(),
+  daytime_minutes: z.number(),
+  daytime_hours: z.number(),
+  night_minutes: z.number(),
+  night_hours: z.number(),
+  pause_minutes: z.number(),
+  pause_hours: z.number(),
+  accounted_minutes: z.number(),
+  accounted_hours: z.number(),
+  accounted_balance_minutes: z.number(),
+  accounted_balance_hours: z.number(),
   plan_balance_minutes: z.number(),
+  plan_balance_hours: z.number(),
   worked_balance_minutes: z.number().nullable().optional(),
+  worked_balance_hours: z.number().nullable().optional(),
   elapsed_fund_minutes: z.number().nullable().optional(),
+  elapsed_fund_hours: z.number().nullable().optional(),
   worked_balance_mode: z.string().nullable().optional(),
 });
 
@@ -60,12 +108,13 @@ export const attendanceMonthSchema = z.object({
   attendance_locked: z.boolean(),
   shift_plan_locked: z.boolean(),
   days: z.array(attendanceDaySchema),
-  summary: attendanceMonthSummarySchema.optional(),
+  summary: attendanceMonthSummarySchema,
 });
 
 export type Employment = z.infer<typeof employmentSchema>;
 export type PortalLogin = z.infer<typeof portalLoginSchema>;
 export type AttendanceDay = z.infer<typeof attendanceDaySchema>;
+export type AttendanceMonthSummary = z.infer<typeof attendanceMonthSummarySchema>;
 export type AttendanceMonth = z.infer<typeof attendanceMonthSchema>;
 
 export interface EmploymentGroupMember {
@@ -94,7 +143,9 @@ export interface GroupShiftPlanMonth {
     display_label: string;
     is_own_employment: boolean;
     shift_plan_locked: boolean;
-    days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean }>;
+    planned_minutes: number;
+    planned_hours: number;
+    days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean; planned_minutes: number; planned_hours: number; planned_state: string }>;
   }>;
 }
 
@@ -143,6 +194,7 @@ export interface AttendanceMatrixRow {
   attendance_locked: boolean;
   shift_plan_locked: boolean;
   days: AttendanceDay[];
+  summary: AttendanceMonthSummary;
 }
 
 export interface ShiftPlanRow {
