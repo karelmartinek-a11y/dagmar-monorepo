@@ -142,9 +142,10 @@ export const api = {
   attendance: (employmentId: number, year: number, month: number): Promise<AttendanceMonth> => request(
     `/api/v1/attendance?employment_id=${employmentId}&year=${year}&month=${month}`, {}, "portal", attendanceMonthSchema,
   ),
-  saveAttendance: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
-    "/api/v1/attendance", { method: "PUT", body: JSON.stringify(payload) }, "portal",
+  createAttendanceEvent: (payload: { employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }) => request<{ id: number; employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }>(
+    "/api/v1/attendance/events", { method: "POST", body: JSON.stringify(payload) }, "portal",
   ),
+  deleteAttendanceEvent: (eventId: number) => request<{ ok: boolean }>(`/api/v1/attendance/events/${eventId}`, { method: "DELETE" }, "portal"),
   savePortalStatus: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
     "/api/v1/shift-plan/day-status", { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),

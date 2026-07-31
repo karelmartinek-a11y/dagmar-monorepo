@@ -53,14 +53,18 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 
 - veřejné endpointy zahrnují `/api/v1/health`, `/api/health`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`
 - zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/attendance/day-status`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status` a `/api/v1/portal/auth-methods*`
-- administrace používá session cookie `dagmar_admin_session`, CSRF hlavičku `X-CSRF-Token` a `/api/v1/admin/*` endpointy pro login, uživatele, úvazky, docházku, plán služeb, zámky, exporty, SMTP, nastavení a integrační klienty
+- administrace používá session cookie `dagmar_admin_session`, CSRF hlavičku `X-CSRF-Token` a `/api/v1/admin/*` endpointy pro login, uživatele, úvazky, docházkové eventy, plán služeb, zámky, exporty, SMTP a integrační klienty
 - integrační API používá bearer tokeny s prefixem `dgi_` a běží na `/api/v1/integration/*`
 - veřejná integrační dokumentace je dostupná na `/integration-api`
 
 ## Scope dat a hlavní invarianty
 
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
-- všechny zobrazované hodinové hodnoty počítá backend po kalendářních dnech; měsíční hodiny jsou součtem denních hodnot zaokrouhlených dolů na desetiny a frontend je pouze formátuje
+- existují pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; všechna časová nastavení patří konkrétnímu `Employment`
+- docházka je neomezená posloupnost chronologických `IN`/`OUT` eventů; intervaly se párují přes půlnoc i hranice měsíců
+- backend je jedinou autoritou časové matematiky; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíční součty vznikají součtem denních desetin
+- přestávky se fyzicky vkládají pouze při uzavření nového docházkového intervalu a nikdy se zpětně nepřepočítávají
+- pracovní fond a bilanční porovnávání nejsou aktivní součástí systému
 - zaměstnanec po loginu dostává bearer `instance_token`, `employment_id` a `available_employments`
 - zaměstnanec může pracovat jen s úvazkem, ke kterému má přístup
 - integrační klienti mají scope a datový rozsah filtrovaný podle zaměstnanců a úvazků

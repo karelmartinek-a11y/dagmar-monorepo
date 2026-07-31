@@ -42,7 +42,6 @@ def main() -> None:
                 status=InstanceStatus.ACTIVE,
                 display_name="E2E prohlížeč",
                 activated_at=datetime.now(UTC),
-                employment_template="DPP_DPC",
             )
             user = PortalUser(
                 email=email,
@@ -81,7 +80,11 @@ def main() -> None:
             colleague_employment = Employment(
                 user_id=colleague.id,
                 title="E2E kolega",
-                employment_type="HPP",
+                employment_type="WORK_CONTRACT",
+                workload_fraction=1,
+                night_hours_enabled=True,
+                weekend_hours_enabled=True,
+                public_holiday_hours_enabled=True,
                 start_date=date(today.year - 1, 1, 1),
                 end_date=None,
                 is_active=True,

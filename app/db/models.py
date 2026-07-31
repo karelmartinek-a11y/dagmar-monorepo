@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from enum import StrEnum
 
 from sqlalchemy import (
@@ -13,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -32,9 +34,21 @@ class InstanceStatus(StrEnum):
     DEACTIVATED = "DEACTIVATED"
 
 
-class EmploymentTemplate(StrEnum):
+class EmploymentType(StrEnum):
+    WORK_CONTRACT = "WORK_CONTRACT"
     DPP_DPC = "DPP_DPC"
-    HPP = "HPP"
+    TASK_SHIFT_BASED = "TASK_SHIFT_BASED"
+    EXTERNAL_HOURLY = "EXTERNAL_HOURLY"
+
+
+class AttendanceEventType(StrEnum):
+    IN = "IN"
+    OUT = "OUT"
+
+
+class DailyMetricSource(StrEnum):
+    ATTENDANCE = "ATTENDANCE"
+    SHIFT_PLAN = "SHIFT_PLAN"
 
 
 class ClientType(StrEnum):
@@ -77,13 +91,6 @@ class Instance(Base):
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    employment_template: Mapped[str] = mapped_column(
-        String(16),
-        nullable=False,
-        default=EmploymentTemplate.DPP_DPC.value,
-        server_default=EmploymentTemplate.DPP_DPC.value,
-    )
-
     # Token is issued upon activation; store only a hash.
     token_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     token_issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -103,7 +110,16 @@ class Employment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("portal_users.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(160), nullable=False)
-    employment_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    employment_type: Mapped[EmploymentType] = mapped_column(
+        Enum(EmploymentType, name="employment_type", create_type=False), nullable=False
+    )
+    workload_fraction: Mapped[Decimal | None] = mapped_column(Numeric(4, 3), nullable=True)
+    automatic_breaks_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    afternoon_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    afternoon_start_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    night_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    weekend_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    public_holiday_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
@@ -115,6 +131,12 @@ class Employment(Base):
     user: Mapped[PortalUser] = relationship("PortalUser", back_populates="employments")
     attendances: Mapped[list[Attendance]] = relationship(
         "Attendance", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+    )
+    attendance_events: Mapped[list[AttendanceEvent]] = relationship(
+        "AttendanceEvent", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+    )
+    daily_time_metrics: Mapped[list[EmploymentDailyTimeMetric]] = relationship(
+        "EmploymentDailyTimeMetric", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
     )
     shift_plans: Mapped[list[ShiftPlan]] = relationship(
         "ShiftPlan", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
@@ -133,6 +155,15 @@ class Employment(Base):
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "(employment_type = 'WORK_CONTRACT' AND workload_fraction IS NOT NULL AND workload_fraction > 0 AND workload_fraction <= 1) "
+            "OR (employment_type <> 'WORK_CONTRACT' AND workload_fraction IS NULL)",
+            name="ck_employment_workload_fraction",
+        ),
+        CheckConstraint("afternoon_start_minutes IS NULL OR (afternoon_start_minutes >= 0 AND afternoon_start_minutes <= 1319)", name="ck_employment_afternoon_start"),
+        CheckConstraint("NOT afternoon_hours_enabled OR afternoon_start_minutes IS NOT NULL", name="ck_employment_afternoon_required"),
+        CheckConstraint("employment_type <> 'TASK_SHIFT_BASED' OR (NOT automatic_breaks_enabled AND NOT afternoon_hours_enabled AND afternoon_start_minutes IS NULL AND NOT night_hours_enabled AND NOT weekend_hours_enabled AND NOT public_holiday_hours_enabled)", name="ck_employment_task_profile"),
+        CheckConstraint("employment_type <> 'WORK_CONTRACT' OR (night_hours_enabled AND weekend_hours_enabled AND public_holiday_hours_enabled)", name="ck_employment_work_contract_profile"),
         Index("ix_employments_user_id", "user_id"),
         Index("ix_employments_start_date", "start_date"),
         Index("ix_employments_end_date", "end_date"),
@@ -188,11 +219,6 @@ class Attendance(Base):
     )
     date: Mapped[date] = mapped_column(Date, nullable=False)
 
-    # Stored as "HH:MM" or NULL. Validation is performed in API layer.
-    arrival_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
-    departure_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
-    arrival_time_2: Mapped[str | None] = mapped_column(String(5), nullable=True)
-    departure_time_2: Mapped[str | None] = mapped_column(String(5), nullable=True)
     status: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -208,6 +234,49 @@ class Attendance(Base):
         Index("ix_attendance_employment_date", "employment_id", "date"),
         Index("ix_attendance_instance_date", "instance_id", "date"),
     )
+
+
+class AttendanceEvent(Base):
+    __tablename__ = "attendance_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    employment_id: Mapped[int] = mapped_column(Integer, ForeignKey("employments.id", ondelete="CASCADE"), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    event_type: Mapped[AttendanceEventType] = mapped_column(
+        Enum(AttendanceEventType, name="attendance_event_type", create_type=False), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    employment: Mapped[Employment] = relationship("Employment", back_populates="attendance_events")
+    __table_args__ = (
+        UniqueConstraint("employment_id", "occurred_at", name="uq_attendance_event_employment_timestamp"),
+        Index("ix_attendance_events_employment_occurred_id", "employment_id", "occurred_at", "id"),
+        CheckConstraint("event_type IN ('IN', 'OUT')", name="ck_attendance_event_type"),
+    )
+
+
+class EmploymentDailyTimeMetric(Base):
+    __tablename__ = "employment_daily_time_metrics"
+
+    employment_id: Mapped[int] = mapped_column(Integer, ForeignKey("employments.id", ondelete="CASCADE"), primary_key=True)
+    metric_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    source: Mapped[DailyMetricSource] = mapped_column(Enum(DailyMetricSource, name="daily_metric_source", create_type=False), primary_key=True)
+    total_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_tenths: Mapped[int] = mapped_column(Integer, nullable=False)
+    afternoon_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    afternoon_tenths: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    night_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    night_tenths: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    weekend_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    weekend_tenths: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    public_holiday_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    public_holiday_tenths: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    calculation_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    employment: Mapped[Employment] = relationship("Employment", back_populates="daily_time_metrics")
+    __table_args__ = (Index("ix_daily_time_metrics_employment_date", "employment_id", "metric_date"),)
 
 
 class ShiftPlan(Base):
@@ -553,10 +622,6 @@ class AppSettings(Base):
     __tablename__ = "app_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    afternoon_cutoff_minutes: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=17 * 60, server_default=str(17 * 60)
-    )
-
     smtp_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
     smtp_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
     smtp_username: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -35,7 +35,9 @@ export async function flushOperations(allowedEmploymentIds?: ReadonlySet<number>
       return { completed, blocked: { ...operation, last_error: lastError } };
     }
     try {
-      if (operation.kind === "attendance") await api.saveAttendance(operation.payload);
+      if (operation.kind === "attendance") {
+        await api.createAttendanceEvent(operation.payload as { employment_id: number; occurred_at: string; event_type: "IN" | "OUT" });
+      }
       else if (operation.kind === "day-status") {
         if (operation.payload.status_scope === "attendance") await api.savePortalAttendanceStatus(operation.payload);
         else await api.savePortalStatus(operation.payload);

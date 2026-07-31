@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.errors import raise_api_error
 from app.db.models import (
-    AppSettings,
     Employment,
     PortalUser,
     PortalUserResetToken,
@@ -59,7 +58,6 @@ class PortalLoginOut(BaseModel):
     display_name: str
     employment_id: int | None = None
     available_employments: list[LoginEmploymentOut]
-    afternoon_cutoff: str | None = None
 
 
 class PortalResetIn(BaseModel):
@@ -69,22 +67,6 @@ class PortalResetIn(BaseModel):
 
 class OkOut(BaseModel):
     ok: bool = True
-
-
-def _minutes_to_hhmm(minutes: int) -> str:
-    h = minutes // 60
-    m = minutes % 60
-    return f"{h:02d}:{m:02d}"
-
-
-def _get_settings(db: Session) -> AppSettings:
-    st = db.execute(select(AppSettings).where(AppSettings.id == 1)).scalars().first()
-    if st is None:
-        st = AppSettings(id=1, afternoon_cutoff_minutes=17 * 60)
-        db.add(st)
-        db.commit()
-        db.refresh(st)
-    return st
 
 
 def _record_login_failure(db: Session, *, email: str, detail: str) -> NoReturn:
@@ -131,13 +113,11 @@ def issue_portal_login(user: PortalUser, db: Session) -> PortalLoginOut:
         token = rotate_instance_token(db, user.instance)
     user.instance.last_seen_at = datetime.now(UTC)
     db.add(user.instance)
-    st = _get_settings(db)
     return PortalLoginOut(
         instance_token=token,
         display_name=user.name,
         employment_id=selection.default.id if selection.default is not None else None,
         available_employments=[_to_login_employment_out(item, today) for item in selection.available],
-        afternoon_cutoff=_minutes_to_hhmm(st.afternoon_cutoff_minutes),
     )
 
 

@@ -47,6 +47,12 @@ Pokud se dokumentace, komentáře, testy nebo manifest rozcházejí s funkčním
 - časová autorita je `Europe/Prague`
 - backend je jediná autorita hodin: denní `*_hours` jsou `floor(denní_minuty / 6) / 10` a měsíční `*_hours` jsou součtem již zaokrouhlených denních hodnot; frontend, tisky a exporty je pouze zobrazují
 - reverse proxy a TLS obsluhuje Nginx
+- úvazky mají pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; profilová nastavení patří konkrétnímu `Employment`
+- docházka používá neomezené chronologické `IN`/`OUT` eventy, včetně intervalů přes půlnoc a hranice měsíců
+- backend je jediná autorita časových intervalů, kategorií a výpočtů; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíc je součet denních desetin
+- automatické přestávky jsou fyzicky vložené, neretroaktivní průchody bez vlastní souhrnné metriky
+- změny profilu retroaktivně přepočítávají odvozené metriky bez ohledu na zámky
+- pracovní fond a bilanční porovnávání s fondem nebo plánem nejsou aktivní kontrakt
 
 ## Povinná disciplína změn
 

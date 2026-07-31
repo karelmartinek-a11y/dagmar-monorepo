@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import distinct, or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from ...db.models import Attendance, Employment, ShiftPlan
+from ...db.models import AttendanceEvent, Employment, ShiftPlan
 from ...db.session import get_db
 from ...security.csrf import require_csrf
 from ...services.shift_plan_reports import (
@@ -54,7 +54,7 @@ def _month_range(month_yyyy_mm: str) -> tuple[date, date]:
 
 def _employment_display_name(employment: Employment) -> str:
     user_name = employment.user.name if employment.user else f"Uzivatel {employment.user_id}"
-    type_label = "HPP" if employment.employment_type == "HPP" else "DPP_DPC"
+    type_label = str(employment.employment_type)
     return f"{user_name} - {type_label} - {employment.title}"
 
 
@@ -65,13 +65,7 @@ def _csv_for_employment(
     start: date,
     end: date,
 ) -> bytes:
-    q = (
-        select(Attendance)
-        .where(Attendance.employment_id == employment.id)
-        .where(Attendance.date >= start)
-        .where(Attendance.date < end)
-        .order_by(Attendance.date.asc())
-    )
+    q = select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id).order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
     attendance_rows = db.execute(q).scalars().all()
     plan_rows = db.execute(
         select(ShiftPlan)
@@ -80,9 +74,9 @@ def _csv_for_employment(
         .where(ShiftPlan.date < end)
         .order_by(ShiftPlan.date.asc())
     ).scalars().all()
-    attendance_by_date = {row.date: row for row in attendance_rows}
     plan_by_date = {row.date: row for row in plan_rows}
-    all_dates = sorted(set(attendance_by_date) | set(plan_by_date))
+    event_dates = {row.occurred_at.astimezone().date() for row in attendance_rows}
+    all_dates = sorted(event_dates | set(plan_by_date))
 
     buf = io.StringIO(newline="")
     w = csv.writer(buf, delimiter=",", quoting=csv.QUOTE_MINIMAL)
@@ -92,10 +86,7 @@ def _csv_for_employment(
             "uvazek",
             "typ_uvazku",
             "datum",
-            "prichod",
-            "odchod",
-            "prichod_2",
-            "odchod_2",
+            "pruchody",
             "stav_dne",
             "plan_prichod",
             "plan_odchod",
@@ -103,18 +94,15 @@ def _csv_for_employment(
     )
     user_name = employment.user.name if employment.user else f"Uzivatel {employment.user_id}"
     for day in all_dates:
-        attendance_row = attendance_by_date.get(day)
         plan_row = plan_by_date.get(day)
+        events = [row for row in attendance_rows if row.occurred_at.astimezone().date() == day]
         w.writerow(
             [
                 user_name,
                 employment.title,
                 employment.employment_type,
                 day.isoformat(),
-                attendance_row.arrival_time if attendance_row is not None and attendance_row.arrival_time else "",
-                attendance_row.departure_time if attendance_row is not None and attendance_row.departure_time else "",
-                attendance_row.arrival_time_2 if attendance_row is not None and attendance_row.arrival_time_2 else "",
-                attendance_row.departure_time_2 if attendance_row is not None and attendance_row.departure_time_2 else "",
+                ";".join(f"{row.event_type.value}:{row.occurred_at.isoformat()}" for row in events),
                 plan_row.status if plan_row is not None and plan_row.status else "",
                 plan_row.arrival_time if plan_row is not None and plan_row.arrival_time else "",
                 plan_row.departure_time if plan_row is not None and plan_row.departure_time else "",
@@ -147,7 +135,7 @@ def _load_relevant_employments(db: Session, start: date, end: date) -> list[Empl
         .all()
     )
     attendance_ids = db.execute(
-        select(distinct(Attendance.employment_id)).where(Attendance.date >= start, Attendance.date < end)
+        select(distinct(AttendanceEvent.employment_id)).where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
     ).scalars().all()
     attendance_id_set = set(attendance_ids)
     relevant = [employment for employment in candidates if employment.is_active or employment.id in attendance_id_set]

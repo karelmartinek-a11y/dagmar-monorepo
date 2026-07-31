@@ -106,6 +106,31 @@ FORBIDDEN_FRONTEND_HOUR_CALCULATORS = (
     "hhmmToMinutes",
     "normalizeInterval",
     "overlapMinutes",
+    "durationMinutes",
+    "workedMinutes",
+    "plannedMinutes",
+    "nightMinutes",
+    "weekendMinutes",
+    "holidayMinutes",
+    "publicHolidayMinutes",
+    "afternoonMinutes",
+    "minutesToHours",
+    "hoursFromMinutes",
+)
+FORBIDDEN_ACTIVE_CONTRACTS = (
+    "HPP",
+    "arrival_time_2",
+    "departure_time_2",
+    "work_fund",
+    "work_fund_source",
+    "plan_balance",
+    "worked_balance",
+    "elapsed_fund",
+    "worked_balance_mode",
+    "weekend_holiday",
+    "pause_hours",
+    "pause_minutes",
+    "afternoon_cutoff",
 )
 
 
@@ -175,6 +200,17 @@ def _validate_backend_hour_authority(failures: list[str]) -> None:
                 failures.append(f"frontend hour calculator {identifier!r} present in {rel}")
 
 
+def _validate_removed_contracts(failures: list[str]) -> None:
+    for path in _text_files():
+        rel = path.relative_to(ROOT).as_posix()
+        if rel in {"scripts/check_repo_invariants.py"} or rel.startswith("alembic/versions/") or rel.startswith("tests/migrations/"):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for needle in FORBIDDEN_ACTIVE_CONTRACTS:
+            if needle in text:
+                failures.append(f"removed active contract {needle!r} present in {rel}")
+
+
 def main() -> int:
     failures: list[str] = []
     _validate_removed_paths(failures)
@@ -182,6 +218,7 @@ def main() -> int:
     _validate_local_links(failures)
     _validate_key_docs(failures)
     _validate_backend_hour_authority(failures)
+    _validate_removed_contracts(failures)
     if failures:
         print("Repository invariant check failed:")
         for failure in failures:
