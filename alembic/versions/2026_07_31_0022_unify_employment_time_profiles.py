@@ -8,6 +8,7 @@ attendance columns or instance-level employment profile.
 from datetime import date, datetime, time, timedelta
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -49,7 +50,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("employment_id", sa.Integer(), sa.ForeignKey("employments.id", ondelete="CASCADE"), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("event_type", sa.Enum("IN", "OUT", name="attendance_event_type", create_type=False), nullable=False),
+        sa.Column("event_type", postgresql.ENUM("IN", "OUT", name="attendance_event_type", create_type=False) if bind.dialect.name == "postgresql" else sa.String(3), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint("employment_id", "occurred_at", name="uq_attendance_event_employment_timestamp"),
@@ -91,7 +92,7 @@ def upgrade() -> None:
         "employment_daily_time_metrics",
         sa.Column("employment_id", sa.Integer(), sa.ForeignKey("employments.id", ondelete="CASCADE"), primary_key=True),
         sa.Column("metric_date", sa.Date(), primary_key=True),
-        sa.Column("source", sa.Enum("ATTENDANCE", "SHIFT_PLAN", name="daily_metric_source", create_type=False), primary_key=True),
+        sa.Column("source", postgresql.ENUM("ATTENDANCE", "SHIFT_PLAN", name="daily_metric_source", create_type=False) if bind.dialect.name == "postgresql" else sa.String(12), primary_key=True),
         sa.Column("total_minutes", sa.Integer(), nullable=False), sa.Column("total_tenths", sa.Integer(), nullable=False),
         sa.Column("afternoon_minutes", sa.Integer()), sa.Column("afternoon_tenths", sa.Integer()),
         sa.Column("night_minutes", sa.Integer()), sa.Column("night_tenths", sa.Integer()),
