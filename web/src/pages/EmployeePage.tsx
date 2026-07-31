@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import type { AttendanceDay, PortalSession } from "../api/types";
 import { Brand } from "../components/Brand";
 import { ExternalLoginButtons } from "../components/ExternalLoginButtons";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Button, Field, Panel, StatusMessage } from "../components/Primitives";
 import { clearPortalSession, loadPortalSession, savePortalLogin, selectEmployment } from "../state/portalSession";
 
@@ -19,7 +20,7 @@ function Login({ onLogin }: { onLogin: (session: PortalSession) => void }) {
     event.preventDefault();
     try { onLogin(savePortalLogin(await api.portalLogin(email, password))); } catch (reason) { setError(reason instanceof Error ? reason.message : t("api.genericError")); }
   }
-  return <main className="auth-page"><Brand /><form className="panel auth-panel" onSubmit={submit}><h1>{t("employee.login.title")}</h1><Field label={t("auth.email", "Pracovní e-mail")}><input aria-label={t("auth.email", "Pracovní e-mail")} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></Field><Field label={t("auth.password", "Heslo")}><input aria-label={t("auth.password", "Heslo")} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></Field>{error && <StatusMessage kind="error" title={error} />}<Button type="submit">{t("auth.actions.login", "Přihlásit se")}</Button><ExternalLoginButtons enabled={providers.data} getUrl={(provider) => api.externalLoginUrl("employee", provider, "/app")} portal="employee" /></form></main>;
+  return <main className="auth-page"><div className="auth-page__toolbar"><Brand /><LanguageSwitcher surface="employee" /></div><form className="panel auth-panel" onSubmit={submit}><h1>{t("employee.login.title")}</h1><Field label={t("auth.email", "Pracovní e-mail")}><input aria-label={t("auth.email", "Pracovní e-mail")} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></Field><Field label={t("auth.password", "Heslo")}><input aria-label={t("auth.password", "Heslo")} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></Field>{error && <StatusMessage kind="error" title={error} />}<Button type="submit">{t("auth.actions.login", "Přihlásit se")}</Button><ExternalLoginButtons enabled={providers.data} getUrl={(provider) => api.externalLoginUrl("employee", provider, "/app")} portal="employee" /></form></main>;
 }
 
 function EventRow({ day, onChanged }: { day: AttendanceDay; onChanged: () => void }) {
