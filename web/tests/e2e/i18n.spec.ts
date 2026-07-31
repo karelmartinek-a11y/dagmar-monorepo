@@ -35,5 +35,5 @@ test("admin login and integration docs respect language switch", async ({ page }
   await page.locator("select").selectOption("sk");
   await expect(page).toHaveTitle("KájovoDagmar · Integration API");
   await expect(page.getByRole("heading", { name: "Integration API" })).toBeVisible();
-  await expect(page.getByText("/api/v1/integration/attendances", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("/api/v1/integration/attendance-events", { exact: true }).first()).toBeVisible();
 });
