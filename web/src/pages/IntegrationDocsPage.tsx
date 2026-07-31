@@ -6,12 +6,10 @@ import { Panel } from "../components/Primitives";
 const endpoints = [
   ["GET", "/api/v1/integration/health", "integrationDocs.endpointMeanings.health"],
   ["GET", "/api/v1/integration/employments", "integrationDocs.endpointMeanings.employments"],
-  ["GET", "/api/v1/integration/shift-plan", "integrationDocs.endpointMeanings.shiftPlan"],
-  ["GET", "/api/v1/integration/attendances", "integrationDocs.endpointMeanings.attendances"],
-  ["POST", "/api/v1/integration/attendances", "integrationDocs.endpointMeanings.createAttendance"],
-  ["PATCH", "/api/v1/integration/attendances/{attendance_id}", "integrationDocs.endpointMeanings.updateAttendance"],
-  ["DELETE", "/api/v1/integration/attendances/{attendance_id}", "integrationDocs.endpointMeanings.deleteAttendance"],
-  ["GET", "/api/v1/integration/punches", "integrationDocs.endpointMeanings.punches"],
+  ["GET", "/api/v1/integration/attendance-events", "integrationDocs.endpointMeanings.attendances"],
+  ["POST", "/api/v1/integration/attendance-events", "integrationDocs.endpointMeanings.createAttendance"],
+  ["PATCH", "/api/v1/integration/attendance-events/{event_id}", "integrationDocs.endpointMeanings.updateAttendance"],
+  ["DELETE", "/api/v1/integration/attendance-events/{event_id}", "integrationDocs.endpointMeanings.deleteAttendance"],
   ["GET", "/api/v1/integration/locks", "integrationDocs.endpointMeanings.locks"],
 ] as const;
 

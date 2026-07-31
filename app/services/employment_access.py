@@ -3,8 +3,9 @@ from __future__ import annotations
 import calendar
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
-from app.db.models import Employment, PortalUser
+from app.db.models import Employment, EmploymentType, PortalUser
 
 LOGIN_WINDOW_MONTHS = 1
 
@@ -18,7 +19,35 @@ def add_calendar_months(value: date, months: int) -> date:
 
 
 def employment_type_is_valid(value: str) -> bool:
-    return value in {"HPP", "DPP_DPC"}
+    return value in {item.value for item in EmploymentType}
+
+
+def validate_time_profile(
+    *,
+    employment_type: str,
+    workload_fraction: Decimal | None = None,
+    automatic_breaks_enabled: bool = False,
+    afternoon_hours_enabled: bool = False,
+    afternoon_start_minutes: int | None = None,
+    night_hours_enabled: bool = False,
+    weekend_hours_enabled: bool = False,
+    public_holiday_hours_enabled: bool = False,
+) -> None:
+    if not employment_type_is_valid(employment_type):
+        raise ValueError("Neplatný typ úvazku.")
+    if employment_type == EmploymentType.WORK_CONTRACT.value:
+        if workload_fraction is None or not (Decimal("0") < workload_fraction <= Decimal("1")):
+            raise ValueError("Velikost úvazku pracovní smlouvy musí být větší než 0 a nejvýše 1.")
+        if not (night_hours_enabled and weekend_hours_enabled and public_holiday_hours_enabled):
+            raise ValueError("Pracovní smlouva musí sledovat noční, víkendové a sváteční hodiny.")
+    elif workload_fraction is not None:
+        raise ValueError("Velikost úvazku patří pouze pracovní smlouvě.")
+    if employment_type == EmploymentType.TASK_SHIFT_BASED.value and any((automatic_breaks_enabled, afternoon_hours_enabled, night_hours_enabled, weekend_hours_enabled, public_holiday_hours_enabled)):
+        raise ValueError("Úkolová / směnová odměna nemá časové metriky.")
+    if afternoon_hours_enabled and (afternoon_start_minutes is None or not 0 <= afternoon_start_minutes <= 1319):
+        raise ValueError("Začátek odpoledního pásma musí být mezi 00:00 a 21:59.")
+    if not afternoon_hours_enabled and afternoon_start_minutes is not None:
+        raise ValueError("Začátek odpoledního pásma lze nastavit pouze při jeho sledování.")
 
 
 def _safe_start_date(employment: Employment) -> date | None:
@@ -83,10 +112,14 @@ def employment_label(employment: Employment, user_name: str | None = None) -> st
             resolved_user_name = getattr(employment_user, "name", None)
     base = (resolved_user_name or "").strip()
     raw_type = str(getattr(employment, "employment_type", "") or "").strip().upper()
-    if raw_type == "HPP":
-        type_label = "HPP"
+    if raw_type == EmploymentType.WORK_CONTRACT.value:
+        type_label = "Pracovní smlouva"
     elif raw_type == "DPP_DPC":
         type_label = "DPP/DPČ"
+    elif raw_type == EmploymentType.TASK_SHIFT_BASED.value:
+        type_label = "Úkolová / směnová odměna"
+    elif raw_type == EmploymentType.EXTERNAL_HOURLY.value:
+        type_label = "Externí hodinová fakturace"
     else:
         type_label = "Neurčený typ"
     title = str(getattr(employment, "title", "") or "").strip() or "Bez názvu úvazku"

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("public integration documentation is complete and navigable", async ({ page }) => {
   await page.goto("/integration-api");
   await expect(page.getByRole("heading", { name: "Integration API" })).toBeVisible();
-  await expect(page.getByText("/api/v1/integration/attendances", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("/api/v1/integration/attendance-events", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("employment_id", { exact: true }).first()).toBeVisible();
 });
 

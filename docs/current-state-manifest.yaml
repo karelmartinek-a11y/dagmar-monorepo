@@ -9,44 +9,36 @@
       "path": "/api/health"
     },
     {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_attendance.create_event",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/attendance/events"
+    },
+    {
       "auth_mode": "admin_session",
-      "handler": "app.api.v1.admin_attendance.admin_get_month_attendance",
+      "handler": "app.api.v1.admin_attendance.list_events",
       "methods": [
         "GET"
       ],
-      "path": "/api/v1/admin/attendance"
+      "path": "/api/v1/admin/attendance/events"
     },
     {
       "auth_mode": "admin_session_csrf",
-      "handler": "app.api.v1.admin_attendance.admin_upsert_attendance",
+      "handler": "app.api.v1.admin_attendance.update_event",
       "methods": [
         "PUT"
       ],
-      "path": "/api/v1/admin/attendance"
+      "path": "/api/v1/admin/attendance/events/{event_id}"
     },
     {
       "auth_mode": "admin_session_csrf",
-      "handler": "app.api.v1.admin_attendance.lock_month",
+      "handler": "app.api.v1.admin_attendance.delete_event",
       "methods": [
-        "POST"
+        "DELETE"
       ],
-      "path": "/api/v1/admin/attendance/lock"
-    },
-    {
-      "auth_mode": "admin_session",
-      "handler": "app.api.v1.admin_attendance.admin_get_attendance_matrix_month",
-      "methods": [
-        "GET"
-      ],
-      "path": "/api/v1/admin/attendance/month"
-    },
-    {
-      "auth_mode": "admin_session_csrf",
-      "handler": "app.api.v1.admin_attendance.unlock_month",
-      "methods": [
-        "POST"
-      ],
-      "path": "/api/v1/admin/attendance/unlock"
+      "path": "/api/v1/admin/attendance/events/{event_id}"
     },
     {
       "auth_mode": "admin_session",
@@ -298,22 +290,6 @@
     },
     {
       "auth_mode": "admin_session",
-      "handler": "app.api.v1.admin_settings.get_settings",
-      "methods": [
-        "GET"
-      ],
-      "path": "/api/v1/admin/settings"
-    },
-    {
-      "auth_mode": "admin_session_csrf",
-      "handler": "app.api.v1.admin_settings.set_settings",
-      "methods": [
-        "PUT"
-      ],
-      "path": "/api/v1/admin/settings"
-    },
-    {
-      "auth_mode": "admin_session",
       "handler": "app.api.v1.admin_shift_plan.admin_get_shift_plan_month",
       "methods": [
         "GET"
@@ -442,19 +418,27 @@
     },
     {
       "auth_mode": "portal_bearer",
-      "handler": "app.api.v1.attendance.upsert_attendance",
-      "methods": [
-        "PUT"
-      ],
-      "path": "/api/v1/attendance"
-    },
-    {
-      "auth_mode": "portal_bearer",
       "handler": "app.api.v1.attendance.upsert_attendance_status",
       "methods": [
         "PUT"
       ],
       "path": "/api/v1/attendance/day-status"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.attendance.create_attendance_event",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/attendance/events"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.attendance.delete_attendance_event",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v1/attendance/events/{event_id}"
     },
     {
       "auth_mode": "browser_redirect",
@@ -530,39 +514,39 @@
     },
     {
       "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.integration_attendances",
+      "handler": "app.api.v1.integration.list_attendance_events",
       "methods": [
         "GET"
       ],
-      "path": "/api/v1/integration/attendances"
+      "path": "/api/v1/integration/attendance-events"
     },
     {
       "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.create_integration_attendance",
+      "handler": "app.api.v1.integration.create_attendance_event",
       "methods": [
         "POST"
       ],
-      "path": "/api/v1/integration/attendances"
+      "path": "/api/v1/integration/attendance-events"
     },
     {
       "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.patch_integration_attendance",
+      "handler": "app.api.v1.integration.update_attendance_event",
       "methods": [
         "PATCH"
       ],
-      "path": "/api/v1/integration/attendances/{attendance_id}"
+      "path": "/api/v1/integration/attendance-events/{event_id}"
     },
     {
       "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.delete_integration_attendance",
+      "handler": "app.api.v1.integration.delete_attendance_event",
       "methods": [
         "DELETE"
       ],
-      "path": "/api/v1/integration/attendances/{attendance_id}"
+      "path": "/api/v1/integration/attendance-events/{event_id}"
     },
     {
       "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.integration_employments",
+      "handler": "app.api.v1.integration.list_employments",
       "methods": [
         "GET"
       ],
@@ -578,7 +562,7 @@
     },
     {
       "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.integration_locks",
+      "handler": "app.api.v1.integration.list_locks",
       "methods": [
         "GET"
       ],
@@ -591,22 +575,6 @@
         "GET"
       ],
       "path": "/api/v1/integration/openapi.json"
-    },
-    {
-      "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.integration_punches",
-      "methods": [
-        "GET"
-      ],
-      "path": "/api/v1/integration/punches"
-    },
-    {
-      "auth_mode": "integration_bearer",
-      "handler": "app.api.v1.integration.integration_shift_plan",
-      "methods": [
-        "GET"
-      ],
-      "path": "/api/v1/integration/shift-plan"
     },
     {
       "auth_mode": "portal_bearer",
@@ -756,6 +724,8 @@
         "/api/v1/portal/login",
         "/api/v1/portal/reset",
         "/api/v1/attendance",
+        "/api/v1/attendance/events",
+        "/api/v1/attendance/events/{event_id}",
         "/api/v1/attendance/day-status",
         "/api/v1/shift-plan",
         "/api/v1/shift-plan/day-status",
@@ -783,10 +753,8 @@
         "/api/v1/admin/users/{user_id}",
         "/api/v1/admin/users/{user_id}/employments",
         "/api/v1/admin/employments/{employment_id}",
-        "/api/v1/admin/attendance",
-        "/api/v1/admin/attendance/month",
-        "/api/v1/admin/attendance/lock",
-        "/api/v1/admin/attendance/unlock",
+        "/api/v1/admin/attendance/events",
+        "/api/v1/admin/attendance/events/{event_id}",
         "/api/v1/admin/locks",
         "/api/v1/admin/shift-plan",
         "/api/v1/admin/day-status",
@@ -795,7 +763,6 @@
         "/api/v1/admin/employment-groups/{group_id}",
         "/api/v1/admin/employment-groups/{group_id}/members",
         "/api/v1/admin/export",
-        "/api/v1/admin/settings",
         "/api/v1/admin/smtp",
         "/api/v1/admin/smtp/test",
         "/api/v1/admin/integrations/clients",
@@ -829,10 +796,8 @@
       "backend_endpoints": [
         "/api/v1/integration/health",
         "/api/v1/integration/employments",
-        "/api/v1/integration/shift-plan",
-        "/api/v1/integration/attendances",
-        "/api/v1/integration/attendances/{attendance_id}",
-        "/api/v1/integration/punches",
+        "/api/v1/integration/attendance-events",
+        "/api/v1/integration/attendance-events/{event_id}",
         "/api/v1/integration/locks",
         "/api/v1/integration/openapi.json"
       ],

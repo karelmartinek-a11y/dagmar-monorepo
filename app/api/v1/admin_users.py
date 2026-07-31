@@ -52,6 +52,8 @@ class EmploymentOut(BaseModel):
     end_date: str | None = None
     is_active: bool
     label: str
+    workload_fraction: str | None = None
+    time_profile: dict
 
 
 class PortalUserOut(BaseModel):
@@ -165,7 +167,7 @@ class OkOut(BaseModel):
 def _get_settings(db: Session) -> AppSettings:
     st = db.execute(select(AppSettings).where(AppSettings.id == 1)).scalars().first()
     if st is None:
-        st = AppSettings(id=1, afternoon_cutoff_minutes=17 * 60)
+        st = AppSettings(id=1)
         db.add(st)
         db.commit()
         db.refresh(st)
@@ -250,6 +252,14 @@ def _to_employment_out(employment: Employment) -> EmploymentOut:
         end_date=_safe_iso_date(employment.end_date),
         is_active=employment.is_active,
         label=employment_label(employment, user_name=getattr(employment.user, "name", None)),
+        workload_fraction=f"{employment.workload_fraction:.3f}" if employment.workload_fraction is not None else None,
+        time_profile={
+            "automatic_breaks_enabled": employment.automatic_breaks_enabled,
+            "afternoon": {"enabled": employment.afternoon_hours_enabled, "mandatory": False, "start": f"{employment.afternoon_start_minutes // 60:02d}:{employment.afternoon_start_minutes % 60:02d}" if employment.afternoon_start_minutes is not None else None},
+            "night": {"enabled": employment.night_hours_enabled, "mandatory": employment.employment_type.value == "WORK_CONTRACT"},
+            "weekend": {"enabled": employment.weekend_hours_enabled, "mandatory": employment.employment_type.value == "WORK_CONTRACT"},
+            "public_holiday": {"enabled": employment.public_holiday_hours_enabled, "mandatory": employment.employment_type.value == "WORK_CONTRACT"},
+        },
     )
 
 
@@ -455,7 +465,6 @@ def create_user(
         device_fingerprint=f"user:{email}",
         status=InstanceStatus.ACTIVE,
         display_name=payload.name.strip(),
-        employment_template="DPP_DPC",
         created_at=now,
         last_seen_at=now,
         activated_at=now,

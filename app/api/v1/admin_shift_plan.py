@@ -69,8 +69,6 @@ class ShiftPlanDayOut(BaseModel):
 class ShiftPlanSummaryOut(BaseModel):
     planned_minutes: int
     planned_hours: float
-    work_fund_minutes: int
-    work_fund_hours: float
     scheduled_days: int
     holiday_days: int
     off_days: int
@@ -343,8 +341,6 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 summary=ShiftPlanSummaryOut(
                     planned_minutes=summary.planned_minutes,
                     planned_hours=summary.planned_hours,
-                    work_fund_minutes=summary.work_fund_minutes,
-                    work_fund_hours=summary.work_fund_hours,
                     scheduled_days=sum(
                         1
                         for item in summary.day_summaries

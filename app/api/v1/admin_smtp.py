@@ -67,7 +67,7 @@ class SmtpTestOut(BaseModel):
 def _get_settings(db: Session) -> AppSettings:
     st = db.execute(select(AppSettings).where(AppSettings.id == 1)).scalars().first()
     if st is None:
-        st = AppSettings(id=1, afternoon_cutoff_minutes=17 * 60)
+        st = AppSettings(id=1)
         db.add(st)
         db.commit()
         db.refresh(st)

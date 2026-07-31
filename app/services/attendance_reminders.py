@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import Settings
 from app.db.models import (
     AppSettings,
-    Attendance,
+    AttendanceEvent,
+    AttendanceEventType,
     AttendanceReminderEvent,
     Employment,
     PortalUser,
@@ -38,7 +39,7 @@ SCHEDULER_ADVISORY_LOCK = 248613
 def _get_settings_row(db: Session) -> AppSettings:
     row = db.execute(select(AppSettings).where(AppSettings.id == 1)).scalars().first()
     if row is None:
-        row = AppSettings(id=1, afternoon_cutoff_minutes=17 * 60)
+        row = AppSettings(id=1)
         db.add(row)
         db.commit()
         db.refresh(row)
@@ -180,22 +181,23 @@ def process_attendance_reminders(
     plans = db.execute(
         select(ShiftPlan).where(ShiftPlan.date.in_([today, yesterday]), ShiftPlan.employment_id.in_(employment_ids))
     ).scalars().all()
-    attendances = db.execute(
-        select(Attendance).where(Attendance.date.in_([today, yesterday]), Attendance.employment_id.in_(employment_ids))
+    events = db.execute(
+        select(AttendanceEvent).where(AttendanceEvent.employment_id.in_(employment_ids))
     ).scalars().all()
 
     plan_by_key = {(plan.employment_id, plan.date): plan for plan in plans}
-    attendance_by_key = {(row.employment_id, row.date): row for row in attendances}
+    event_by_key: dict[tuple[int, date], list[AttendanceEvent]] = {}
+    for event in events:
+        event_by_key.setdefault((event.employment_id, prague_now(event.occurred_at).date()), []).append(event)
     already_sent = _already_sent_keys(db, today) | _already_sent_keys(db, yesterday)
     sent_count = 0
 
     for employment in eligible_employments:
         user = employment.user
         plan = plan_by_key.get((employment.id, today))
-        attendance = attendance_by_key.get((employment.id, today))
-        previous_day_attendance = attendance_by_key.get((employment.id, yesterday))
 
-        if plan and plan.arrival_time and (attendance is None or attendance.arrival_time is None):
+        today_events = event_by_key.get((employment.id, today), [])
+        if plan and plan.arrival_time and not today_events:
             first_at = combine_prague_hhmm(today, plan.arrival_time) + timedelta(minutes=5)
             due_attempts = _scheduled_attempt_count(current, first_at, interval_minutes=10, max_attempts=5)
             for sequence_no in range(1, due_attempts + 1):
@@ -211,7 +213,7 @@ def process_attendance_reminders(
                 already_sent.add(key)
                 sent_count += 1
 
-        if plan and plan.departure_time and attendance and attendance.arrival_time and not attendance.departure_time:
+        if plan and plan.departure_time and any(event.event_type == AttendanceEventType.IN for event in today_events) and not any(event.event_type == AttendanceEventType.OUT for event in today_events):
             first_at = combine_prague_hhmm(today, plan.departure_time) + timedelta(hours=2)
             due_attempts = _scheduled_attempt_count(current, first_at, interval_minutes=10, max_attempts=5)
             for sequence_no in range(1, due_attempts + 1):
@@ -228,7 +230,8 @@ def process_attendance_reminders(
                 already_sent.add(key)
                 sent_count += 1
 
-        if previous_day_attendance and previous_day_attendance.arrival_time and not previous_day_attendance.departure_time:
+        previous_events = event_by_key.get((employment.id, yesterday), [])
+        if any(event.event_type == AttendanceEventType.IN for event in previous_events) and not any(event.event_type == AttendanceEventType.OUT for event in previous_events):
             first_at = combine_prague(today, 8, 0)
             due_attempts = _scheduled_attempt_count(current, first_at, interval_minutes=10, max_attempts=5)
             for sequence_no in range(1, due_attempts + 1):

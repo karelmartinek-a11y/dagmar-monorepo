@@ -31,6 +31,10 @@ Kanonický technický přehled je v [docs/SSOT_CURRENT.md](docs/SSOT_CURRENT.md)
 - integrační autentizace: samostatný `dgi_` bearer token
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
 - časová autorita: `Europe/Prague`
+- úvazky používají pouze `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; profil je uložený na konkrétním `Employment`
+- docházka používá neomezené chronologické `IN`/`OUT` průchody a automatické přestávky jsou fyzické, neretroaktivní eventy
+- backend je jedinou autoritou časových intervalů a kategorií; denní desetiny se matematicky zaokrouhlují a měsíce sčítají z denních desetin
+- neexistuje pracovní fond ani bilanční porovnávání s fondem nebo plánem
 
 ## Lokální ověření
 

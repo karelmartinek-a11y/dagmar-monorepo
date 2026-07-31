@@ -5,8 +5,8 @@ import { flushOperations, listOperations, queueOperation } from "../src/state/of
 
 describe("offline queue", () => {
   it("preserves order and never replays another account's employment", async () => {
-    const save = vi.spyOn(api, "saveAttendance").mockResolvedValue({ ok: true });
-    await queueOperation({ kind: "attendance", employment_id: 41, payload: { employment_id: 41, date: "2026-07-01" } });
+    const save = vi.spyOn(api, "createAttendanceEvent").mockResolvedValue({ id: 1, employment_id: 41, occurred_at: "2026-07-01T08:00:00+02:00", event_type: "IN" });
+    await queueOperation({ kind: "attendance", employment_id: 41, payload: { employment_id: 41, occurred_at: "2026-07-01T08:00:00+02:00", event_type: "IN" } });
 
     const blocked = await flushOperations(new Set([99]));
     expect(blocked.completed).toBe(0);

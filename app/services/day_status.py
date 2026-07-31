@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Attendance, Employment, ShiftPlan
+from app.db.models import Attendance, AttendanceEvent, Employment, ShiftPlan
+from app.services.prague_time import PRAGUE_TIMEZONE
 
 DAY_STATUS_HOLIDAY = "HOLIDAY"
 DAY_STATUS_OFF = "OFF"
@@ -96,8 +97,7 @@ def collect_day_status_conflicts(db: Session, *, employment_id: int, day: date) 
         )
     ).scalar_one_or_none()
     return DayStatusConflicts(
-        attendance_exists=attendance is not None
-        and bool(attendance.arrival_time or attendance.departure_time or attendance.arrival_time_2 or attendance.departure_time_2 or attendance.status),
+        attendance_exists=attendance is not None and bool(attendance.status) or db.execute(select(AttendanceEvent.id).where(AttendanceEvent.employment_id == employment_id, AttendanceEvent.occurred_at >= datetime.combine(day, time.min, tzinfo=PRAGUE_TIMEZONE), AttendanceEvent.occurred_at < datetime.combine(day + timedelta(days=1), time.min, tzinfo=PRAGUE_TIMEZONE))).first() is not None,
         shift_plan_exists=plan is not None and bool(plan.arrival_time or plan.departure_time or plan.status),
     )
 
@@ -180,7 +180,7 @@ def set_attendance_status(
         if attendance is not None:
             attendance.status = None
             attendance.instance_id = instance_id
-            if not any([attendance.arrival_time, attendance.departure_time, attendance.arrival_time_2, attendance.departure_time_2]):
+            if not db.execute(select(AttendanceEvent.id).where(AttendanceEvent.employment_id == employment.id, AttendanceEvent.occurred_at >= datetime.combine(day, time.min, tzinfo=PRAGUE_TIMEZONE), AttendanceEvent.occurred_at < datetime.combine(day + timedelta(days=1), time.min, tzinfo=PRAGUE_TIMEZONE))).first():
                 db.delete(attendance)
         return conflicts
 
@@ -189,19 +189,11 @@ def set_attendance_status(
             employment_id=employment.id,
             instance_id=instance_id,
             date=day,
-            arrival_time=None,
-            departure_time=None,
-            arrival_time_2=None,
-            departure_time_2=None,
             status=normalized_status,
         )
         db.add(attendance)
     else:
         attendance.instance_id = instance_id
-        attendance.arrival_time = None
-        attendance.departure_time = None
-        attendance.arrival_time_2 = None
-        attendance.departure_time_2 = None
         attendance.status = normalized_status
 
     return conflicts

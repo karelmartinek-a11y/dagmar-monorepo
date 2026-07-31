@@ -1,314 +1,123 @@
 # ruff: noqa: B008
 from __future__ import annotations
 
-import datetime as dt
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
-from app.api.v1.attendance import (
-    AttendanceDayOut,
-    AttendanceMonthOut,
-    AttendanceMonthSummaryOut,
-    attendance_day_out,
-    attendance_summary_out,
-)
-from app.db.models import Attendance, Employment
+from app.db.models import AttendanceEvent, AttendanceEventType, Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
-from app.services.day_status import day_status_label, get_day_status
-from app.services.employment_access import employment_label
-from app.services.locks import (
-    LockType,
-    is_month_locked,
-    load_locked_employment_ids,
-    set_month_lock_state,
-)
-from app.services.month_summary import build_month_summaries, build_month_summary
-from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
+from app.services.attendance_events import add_event_with_breaks
+from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
 
-router = APIRouter(tags=["admin"])
+router = APIRouter(tags=["admin-attendance"])
 
 
-class AttendanceMatrixRowOut(BaseModel):
+class AdminAttendanceEventIn(BaseModel):
     employment_id: int
-    user_id: int
-    user_name: str
-    employment_label: str
-    employment_title: str
-    employment_type: str
-    user_is_active: bool
-    employment_is_active: bool
-    start_date: str
-    end_date: str | None = None
-    is_active_in_month: bool
-    locked: bool = False
-    attendance_locked: bool = False
-    shift_plan_locked: bool = False
-    days: list[AttendanceDayOut]
-    summary: AttendanceMonthSummaryOut
+    occurred_at: datetime
+    event_type: AttendanceEventType
+
+    @field_validator("occurred_at")
+    @classmethod
+    def timezone_required(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("Čas průchodu musí obsahovat časové pásmo.")
+        return value.astimezone(PRAGUE_TIMEZONE)
 
 
-class AttendanceMatrixMonthOut(BaseModel):
-    year: int
-    month: int
-    rows: list[AttendanceMatrixRowOut]
+class AdminAttendanceEventOut(BaseModel):
+    id: int
+    employment_id: int
+    occurred_at: str
+    event_type: AttendanceEventType
 
 
-class AttendanceUpsertIn(BaseModel):
-    employment_id: int = Field(..., ge=1)
-    date: str = Field(..., description="YYYY-MM-DD")
-    arrival_time: str | None = Field(None, description="HH:MM or null")
-    departure_time: str | None = Field(None, description="HH:MM or null")
-    arrival_time_2: str | None = Field(None, description="HH:MM or null")
-    departure_time_2: str | None = Field(None, description="HH:MM or null")
+class AdminAttendanceEventListOut(BaseModel):
+    data: list[AdminAttendanceEventOut]
 
 
-class OkOut(BaseModel):
-    ok: bool = True
+def _out(event: AttendanceEvent) -> AdminAttendanceEventOut:
+    return AdminAttendanceEventOut(id=event.id, employment_id=event.employment_id, occurred_at=prague_now(event.occurred_at).isoformat(), event_type=event.event_type)
 
 
-class LockMonthIn(BaseModel):
-    employment_id: int = Field(..., ge=1)
-    year: int = Field(..., ge=2000, le=2100)
-    month: int = Field(..., ge=1, le=12)
-
-
-def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
-    if month < 1 or month > 12:
-        raise ValueError("month out of range")
-    start = dt.date(year, month, 1)
-    if month == 12:
-        end = dt.date(year + 1, 1, 1)
-    else:
-        end = dt.date(year, month + 1, 1)
-    return start, end
-
-
-def _get_employment(employment_id: int, db: Session) -> Employment:
-    employment = (
-        db.execute(select(Employment).options(joinedload(Employment.user)).where(Employment.id == employment_id))
-        .scalars()
-        .first()
-    )
+def _employment(db: Session, employment_id: int) -> Employment:
+    employment = db.get(Employment, employment_id)
     if employment is None:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
     return employment
 
 
-def _employment_active_in_month(employment: Employment, start: dt.date, end: dt.date) -> bool:
-    if not employment.is_active:
-        return False
-    month_end = end - dt.timedelta(days=1)
-    return employment.start_date <= month_end and (employment.end_date is None or employment.end_date >= start)
+def _validate_alternation(db: Session, employment_id: int, event_type: AttendanceEventType, *, exclude_id: int | None = None) -> None:
+    query = select(AttendanceEvent).where(AttendanceEvent.employment_id == employment_id).order_by(AttendanceEvent.occurred_at.desc(), AttendanceEvent.id.desc())
+    if exclude_id is not None:
+        query = query.where(AttendanceEvent.id != exclude_id)
+    latest = db.execute(query).scalars().first()
+    if latest is not None and latest.event_type == event_type:
+        raise_api_error(409, "attendance_event_alternation_conflict", "Průchody musí střídat IN a OUT.")
 
 
-@router.get("/api/v1/admin/attendance/month", response_model=AttendanceMatrixMonthOut)
-def admin_get_attendance_matrix_month(
+@router.post("/api/v1/admin/attendance/events", response_model=AdminAttendanceEventOut)
+def create_event(body: AdminAttendanceEventIn, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> AdminAttendanceEventOut:
+    _employment(db, body.employment_id)
+    employment = _employment(db, body.employment_id)
+    event = AttendanceEvent(employment_id=employment.id, occurred_at=body.occurred_at, event_type=body.event_type)
+    try:
+        add_event_with_breaks(db, employment=employment, event=event)
+    except ValueError as exc:
+        raise_api_error(409, "attendance_event_alternation_conflict", str(exc))
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise_api_error(409, "attendance_event_conflict", "Průchod se překrývá s existujícím průchodem.")
+    db.refresh(event)
+    return _out(event)
+
+
+@router.get("/api/v1/admin/attendance/events", response_model=AdminAttendanceEventListOut)
+def list_events(
     year: int = Query(..., ge=2000, le=2100),
     month: int = Query(..., ge=1, le=12),
+    employment_id: int | None = Query(None, ge=1),
     _admin=Depends(require_admin),
     db: Session = Depends(get_db),
-) -> AttendanceMatrixMonthOut:
-    start, end = _month_range(year, month)
-
-    employments = (
-        db.execute(select(Employment).options(joinedload(Employment.user)).order_by(Employment.id.asc()))
-        .unique()
-        .scalars()
-        .all()
-    )
-    employment_ids = [employment.id for employment in employments]
-
-    attendance_locked_ids = load_locked_employment_ids(
-        db,
-        lock_type=LockType.ATTENDANCE,
-        employment_ids=employment_ids,
-        year=year,
-        month=month,
-    )
-    shift_plan_locked_ids = load_locked_employment_ids(
-        db,
-        lock_type=LockType.SHIFT_PLAN,
-        employment_ids=employment_ids,
-        year=year,
-        month=month,
-    )
-    summaries = build_month_summaries(db, employments=employments, year=year, month=month)
-
-    rows: list[AttendanceMatrixRowOut] = []
-    for employment in employments:
-        user = employment.user
-        summary = summaries[employment.id]
-        days = [attendance_day_out(item, employment) for item in summary.day_summaries]
-
-        rows.append(
-            AttendanceMatrixRowOut(
-                employment_id=employment.id,
-                user_id=employment.user_id,
-                user_name=user.name if user else "Neznámý zaměstnanec",
-                employment_label=employment_label(employment, user.name if user else None),
-                employment_title=employment.title,
-                employment_type=employment.employment_type,
-                user_is_active=bool(user.is_active) if user else False,
-                employment_is_active=employment.is_active,
-                start_date=employment.start_date.isoformat(),
-                end_date=employment.end_date.isoformat() if employment.end_date else None,
-                is_active_in_month=_employment_active_in_month(employment, start, end)
-                and (bool(user.is_active) if user else False),
-                locked=employment.id in attendance_locked_ids,
-                attendance_locked=employment.id in attendance_locked_ids,
-                shift_plan_locked=employment.id in shift_plan_locked_ids,
-                days=days,
-                summary=attendance_summary_out(summary),
-            )
-        )
-
-    return AttendanceMatrixMonthOut(year=year, month=month, rows=rows)
+) -> AdminAttendanceEventListOut:
+    start = date(year, month, 1)
+    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    query = select(AttendanceEvent).where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
+    if employment_id is not None:
+        query = query.where(AttendanceEvent.employment_id == employment_id)
+    events = db.execute(query.order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)).scalars().all()
+    return AdminAttendanceEventListOut(data=[_out(event) for event in events])
 
 
-@router.get("/api/v1/admin/attendance", response_model=AttendanceMonthOut)
-def admin_get_month_attendance(
-    employment_id: int = Query(..., ge=1),
-    year: int = Query(..., ge=2000, le=2100),
-    month: int = Query(..., ge=1, le=12),
-    _admin=Depends(require_admin),
-    db: Session = Depends(get_db),
-) -> AttendanceMonthOut:
-    employment = _get_employment(employment_id, db)
-    summary = build_month_summary(db, employment=employment, year=year, month=month)
-    days = [attendance_day_out(item, employment) for item in summary.day_summaries]
-
-    attendance_locked = is_month_locked(
-        db,
-        lock_type=LockType.ATTENDANCE,
-        employment_id=employment.id,
-        year=year,
-        month=month,
-    )
-    shift_plan_locked = is_month_locked(
-        db,
-        lock_type=LockType.SHIFT_PLAN,
-        employment_id=employment.id,
-        year=year,
-        month=month,
-    )
-
-    return AttendanceMonthOut(
-        employment_id=employment.id,
-        employment_label=employment_label(employment, employment.user.name if employment.user else None),
-        days=days,
-        locked=attendance_locked,
-        attendance_locked=attendance_locked,
-        shift_plan_locked=shift_plan_locked,
-        summary=attendance_summary_out(summary),
-    )
-
-
-@router.put("/api/v1/admin/attendance", response_model=OkOut)
-def admin_upsert_attendance(
-    body: AttendanceUpsertIn,
-    _admin=Depends(require_admin),
-    _: None = Depends(require_csrf),
-    db: Session = Depends(get_db),
-) -> OkOut:
-    employment = _get_employment(body.employment_id, db)
-
-    try:
-        day = parse_yyyy_mm_dd(body.date)
-    except ValueError as exc:
-        raise_api_error(400, "invalid_date_format", str(exc))
-
-    if day < employment.start_date or (employment.end_date is not None and day > employment.end_date):
-        raise_api_error(409, "employment_period_mismatch", "Datum neleží v období platnosti vybraného úvazku.")
-    blocked_status = get_day_status(db, employment_id=employment.id, day=day)
-    if blocked_status is not None:
-        raise_api_error(
-            409,
-            "attendance_blocked_by_day_status",
-            f"Do dne označeného jako {day_status_label(blocked_status)} nelze zapisovat docházku.",
-            blocked_status=blocked_status,
-        )
-
-    try:
-        arrival = parse_hhmm_or_none(body.arrival_time)
-        departure = parse_hhmm_or_none(body.departure_time)
-        arrival_2 = parse_hhmm_or_none(body.arrival_time_2)
-        departure_2 = parse_hhmm_or_none(body.departure_time_2)
-    except ValueError as exc:
-        raise_api_error(400, "invalid_time_format", str(exc))
-
-    existing = db.execute(
-        select(Attendance).where(
-            Attendance.employment_id == employment.id,
-            Attendance.date == day,
-        )
-    ).scalar_one_or_none()
-
-    if existing is None:
-        existing = Attendance(
-            employment_id=employment.id,
-            instance_id=employment.user.instance_id if employment.user else None,
-            date=day,
-            arrival_time=arrival,
-            departure_time=departure,
-            arrival_time_2=arrival_2,
-            departure_time_2=departure_2,
-        )
-        db.add(existing)
-    else:
-        existing.arrival_time = arrival
-        existing.departure_time = departure
-        existing.arrival_time_2 = arrival_2
-        existing.departure_time_2 = departure_2
-
+@router.put("/api/v1/admin/attendance/events/{event_id}", response_model=AdminAttendanceEventOut)
+def update_event(event_id: int, body: AdminAttendanceEventIn, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> AdminAttendanceEventOut:
+    event = db.get(AttendanceEvent, event_id)
+    if event is None:
+        raise_api_error(404, "attendance_event_not_found", "Průchod nebyl nalezen.")
+    if body.event_type != event.event_type:
+        raise_api_error(400, "attendance_event_type_immutable", "Typ průchodu se mění smazáním a novým vytvořením.")
+    _employment(db, body.employment_id)
+    event.employment_id = body.employment_id
+    event.occurred_at = body.occurred_at
     db.commit()
-    return OkOut(ok=True)
+    db.refresh(event)
+    return _out(event)
 
 
-@router.post("/api/v1/admin/attendance/lock", response_model=OkOut)
-def lock_month(
-    body: LockMonthIn,
-    admin=Depends(require_admin),
-    _: None = Depends(require_csrf),
-    db: Session = Depends(get_db),
-) -> OkOut:
-    employment = _get_employment(body.employment_id, db)
-    set_month_lock_state(
-        db,
-        lock_type=LockType.ATTENDANCE,
-        employment_id=employment.id,
-        instance_id=employment.user.instance_id if employment.user else None,
-        year=body.year,
-        month=body.month,
-        locked=True,
-        locked_by=admin.username or None,
-    )
+@router.delete("/api/v1/admin/attendance/events/{event_id}", response_model=dict[str, bool])
+def delete_event(event_id: int, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> dict[str, bool]:
+    event = db.get(AttendanceEvent, event_id)
+    if event is None:
+        raise_api_error(404, "attendance_event_not_found", "Průchod nebyl nalezen.")
+    db.delete(event)
     db.commit()
-    return OkOut(ok=True)
-
-
-@router.post("/api/v1/admin/attendance/unlock", response_model=OkOut)
-def unlock_month(
-    body: LockMonthIn,
-    _: None = Depends(require_csrf),
-    admin=Depends(require_admin),
-    db: Session = Depends(get_db),
-) -> OkOut:
-    employment = _get_employment(body.employment_id, db)
-    set_month_lock_state(
-        db,
-        lock_type=LockType.ATTENDANCE,
-        employment_id=employment.id,
-        instance_id=employment.user.instance_id if employment.user else None,
-        year=body.year,
-        month=body.month,
-        locked=False,
-        locked_by=admin.username or None,
-    )
-    db.commit()
-    return OkOut(ok=True)
+    return {"ok": True}

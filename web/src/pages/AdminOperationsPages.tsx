@@ -1,364 +1,46 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Copy, Download, KeyRound, LoaderCircle, Plus, Power, Printer, RefreshCw, Save, Send, ShieldOff } from "lucide-react";
+import { useState } from "react";
+import { Download, Settings, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Button, Panel, StatusMessage } from "../components/Primitives";
 import { api } from "../api/client";
-import type { AdminUser, AttendanceDay, AttendanceMatrixRow } from "../api/types";
-import { Button, Field, Modal, Panel, StatusMessage } from "../components/Primitives";
-import { useDateFormatter, useLocaleValue } from "../utils/format";
-import { asPragueDate, getCalendarDayTone, getHolidayLabel, getWeekdayLongLabel } from "../utils/calendar";
-import { formatHours } from "../utils/timeMath";
-
-type AdminAttendanceResponse = Awaited<ReturnType<typeof loadAttendanceMonth>>;
-
-type Settings = { afternoon_cutoff: string };
-type Smtp = { host: string | null; port: number | null; security: string | null; username: string | null; from_email: string | null; from_name: string | null; password_set: boolean };
-type SmtpFormState = Smtp & { password: string };
-type SmtpTestStep = { key: string; label: string; status: "pending" | "running" | "success" | "error"; detail?: string | null };
-type SmtpTestError = { code: string; message_cs: string; root_cause: string };
-type SmtpTestResult = { ok: boolean; steps: SmtpTestStep[]; target_email: string | null; error: SmtpTestError | null };
-type IntegrationOptions = { scopes: Array<{ id: string; label: string; description: string; available: boolean }>; data_scope_modes: Array<{ id: string; label: string; description?: string; supports_inactive_toggle?: boolean }>; employees: Array<{ id: number; label: string }>; employments: Array<{ id: number; label: string }>; ip_restriction_modes: Array<{ id: string; label: string; editable: boolean }>; expiration_options: Array<{ id: string; label: string; requires_custom_date?: boolean }> };
-type IntegrationOperation = { title?: string; description?: string; path: string; method?: "POST" | "PUT"; body?: unknown };
-
-const integrationStatusTranslationKey = {
-  ACTIVE: "adminOps.integrations.statuses.active",
-  DISABLED: "adminOps.integrations.statuses.disabled",
-  REVOKED: "adminOps.integrations.statuses.revoked",
-} as const;
-
-function loadAttendanceMonth(year: number, month: number) {
-  return api.admin<{ year: number; month: number; rows: AttendanceMatrixRow[] }>(`/api/v1/admin/attendance/month?year=${year}&month=${month}`);
-}
-
-function loadShiftPlanMonth(year: number, month: number) {
-  return api.admin<{ year: number; month: number; selected_employment_ids: number[]; available_employments: Array<{ id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; start_date: string; end_date: string | null; is_active_in_month: boolean }>; rows: Array<{ employment_id: number; user_id: number; user_name: string; title: string; employment_type: string; display_label: string; summary: { planned_minutes: number; planned_hours: number; work_fund_minutes: number; work_fund_hours: number; scheduled_days: number; holiday_days: number; off_days: number }; days: Array<{ date: string; arrival_time: string | null; departure_time: string | null; status: string | null; planned_minutes: number; planned_hours: number; planned_state: string }> }> }>(`/api/v1/admin/shift-plan?year=${year}&month=${month}`);
-}
-
-function monthParts(month: string): [number, number] {
-  const [year, monthNumber] = month.split("-").map(Number);
-  return [year, monthNumber];
-}
-
-function statusLabel(
-  attendanceDay: AttendanceDay,
-  t: (key: string) => string,
-  locale: string,
-): string {
-  if (attendanceDay.planned_status === "HOLIDAY") return t("adminMatrix.statuses.HOLIDAY");
-  if (attendanceDay.planned_status === "OFF") return t("adminMatrix.statuses.OFF");
-  const tone = getCalendarDayTone(asPragueDate(attendanceDay.date));
-  if (tone === "holiday") return t("employee.dayCard.holiday");
-  if (tone === "weekend") return getWeekdayLongLabel(new Date("2026-07-18T12:00:00"), locale);
-  return t("adminMatrix.common.workday");
-}
-
-function printDayNote(
-  attendanceDay: AttendanceDay,
-  t: (key: string) => string,
-  locale: string,
-): string {
-  const notes: string[] = [];
-  if (attendanceDay.planned_status === "HOLIDAY") notes.push(t("adminOps.prints.preview.holidayByPlan"));
-  if (attendanceDay.planned_status === "OFF") notes.push(t("adminOps.prints.preview.offByPlan"));
-  const holiday = getHolidayLabel(asPragueDate(attendanceDay.date), locale);
-  if (holiday) notes.push(holiday);
-  return notes.join(" · ");
-}
-
-function formatRange(start: string | null | undefined, end: string | null | undefined): string {
-  return start && end ? `${start} - ${end}` : "–";
-}
-
-function formatPrintDate(date: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Prague" }).format(asPragueDate(date));
-}
-
-function formatPrintMonth(month: string, locale: string): string {
-  const [year, monthNumber] = monthParts(month);
-  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "Europe/Prague" }).format(new Date(Date.UTC(year, monthNumber - 1, 1)));
-}
-
-function printSummaryRows(
-  attendance: AdminAttendanceResponse["rows"],
-  t: (key: string) => string,
-  locale: string,
-) {
-  return attendance.map((row) => {
-    const dayRows = row.days.map((day) => ({
-      day,
-      status: statusLabel(day, t, locale),
-      note: printDayNote(day, t, locale),
-    }));
-    return {
-      employment_id: row.employment_id,
-      user_name: row.user_name,
-      employment_title: row.employment_title,
-      employment_type: row.employment_type,
-      label: row.employment_label,
-      summary: row.summary,
-      holidayDays: row.summary.vacation_days,
-      offDays: row.days.filter((day) => day.planned_status === "OFF").length,
-      afternoonShifts: row.days.filter((day) => day.afternoon_minutes > 0).length,
-      filledDays: row.days.filter((day) => Boolean(day.arrival_time || day.departure_time || day.arrival_time_2 || day.departure_time_2)).length,
-      scheduledDays: row.days.filter((day) => day.planned_arrival_time && day.planned_departure_time).length,
-      dayRows,
-    };
-  });
-}
-
-function filteredEmployments(users: AdminUser[]) {
-  return users.flatMap((user) => (user.employments ?? []).map((employment) => ({ ...employment, user_name: user.name })));
-}
-
-type PrintReportType = "attendance" | "shift_plan";
-type AttendancePrintKind = "summary" | "detail";
-type ShiftPlanReportResponse = {
-  year: number;
-  month: number;
-  month_label: string;
-  generated_at_iso: string;
-  generated_at_label: string;
-  page_count: number;
-  legend: string[];
-  day_headers: Array<{ date_iso: string; day_number: number; weekday_short: string; tone: string; holiday_label: string | null }>;
-  pages: Array<{
-    page_number: number;
-    employments: Array<{
-      employment_id: number;
-      display_label: string;
-      user_name: string;
-      title: string;
-      employment_type: string;
-      start_date: string;
-      end_date: string | null;
-      is_active_in_month: boolean;
-      planned_minutes_total: number;
-      planned_hours: number;
-      planned_total_label: string;
-      scheduled_days: number;
-      holiday_days: number;
-      off_days: number;
-      cells: Array<{
-        date_iso: string;
-        day_number: number;
-        weekday_short: string;
-        holiday_label: string | null;
-        tone: string;
-        is_within_employment_period: boolean;
-        arrival_time: string | null;
-        departure_time: string | null;
-        status: string | null;
-        status_label: string | null;
-        interval_label: string;
-        duration_label: string;
-        planned_minutes: number;
-        planned_hours: number;
-      }>;
-    }>;
-  }>;
-};
-
-function parseSelectedIds(raw: string | null): number[] {
-  return (raw ?? "")
-    .split(",")
-    .map((value) => Number(value))
-    .filter((value) => Number.isInteger(value) && value > 0);
-}
-
-function triggerBlobDownload(blob: Blob, filename: string) {
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(href);
-}
 
 export function AdminExportPage() {
   const { t } = useTranslation();
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [employment, setEmployment] = useState("");
-  const users = useQuery({ queryKey: ["admin-users"], queryFn: () => api.admin<{ users: AdminUser[] }>("/api/v1/admin/users") });
-  const employments = filteredEmployments(users.data?.users ?? []);
-  const href = employment ? `/api/v1/admin/export?month=${month}&employment_id=${employment}` : `/api/v1/admin/export?month=${month}&bulk=true`;
-  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.export.eyebrow")}</p><h1>{t("adminOps.export.title")}</h1></div></header><div className="split"><Panel title={t("adminOps.export.params")}><div className="panel-body form-grid"><Field label={t("adminOps.export.month")}><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field><Field label={t("adminOps.export.scope")}><select value={employment} onChange={(e) => setEmployment(e.target.value)}><option value="">{t("adminOps.export.allZip")}</option>{employments.map((item) => <option key={item.id} value={item.id}>{item.user_name} · {item.title} · {item.employment_type}</option>)}</select></Field><div className="full action-row"><a className="button button--primary" href={href}><Download />{t("adminOps.export.download")} {employment ? "CSV" : "ZIP"}</a></div></div></Panel><Panel title={t("adminOps.export.contains")}><ul className="list"><li><span>{t("adminOps.export.dataBinding")}</span><strong>employment_id</strong></li><li><span>{t("adminOps.export.timeRange")}</span><strong>{month}</strong></li><li><span>{t("adminOps.export.columns")}</span><strong>{t("adminOps.export.columnValue")}</strong></li><li><span>{t("adminOps.export.encoding")}</span><strong>UTF-8</strong></li></ul></Panel></div></div>;
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  async function download() {
+    setState("loading");
+    try {
+      const response = await api.adminBlob(`/api/v1/admin/export?month=${new Date().toISOString().slice(0, 7)}&bulk=true`, { method: "GET" });
+      const url = URL.createObjectURL(response.blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "kajovodagmar-export.csv";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  }
+  return <Panel title={t("adminOps.export.title")}><Button onClick={download} disabled={state === "loading"}><Download />{t("adminOps.export.download")}</Button>{state === "error" && <StatusMessage kind="error" title={t("adminOps.export.loadFailed")} />}</Panel>;
 }
 
 export function AdminPrintsPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [reportType, setReportType] = useState<PrintReportType>("attendance");
-  const [kind, setKind] = useState<AttendancePrintKind>("summary");
-  const [scope, setScope] = useState<"all" | "selected">("all");
-  const [selectedEmploymentIds, setSelectedEmploymentIds] = useState<number[]>([]);
-  const users = useQuery({ queryKey: ["admin-users"], queryFn: () => api.admin<{ users: AdminUser[] }>("/api/v1/admin/users") });
-  const [year, monthNumber] = monthParts(month);
-  const shiftPlanMonth = useQuery({
-    queryKey: ["admin-prints-shift-plan", year, monthNumber],
-    queryFn: () => loadShiftPlanMonth(year, monthNumber),
-  });
-  const attendanceEmployments = filteredEmployments(users.data?.users ?? []);
-  const shiftPlanEmployments = useMemo(
-    () => shiftPlanMonth.data?.available_employments ?? [],
-    [shiftPlanMonth.data?.available_employments],
-  );
-  const effectiveShiftPlanSelection = useMemo(
-    () => shiftPlanEmployments.filter((item) => item.is_active_in_month).map((item) => item.id),
-    [shiftPlanEmployments],
-  );
-
-  useEffect(() => {
-    if (reportType !== "shift_plan") return;
-    setSelectedEmploymentIds((current) => {
-      const allowed = new Set(shiftPlanEmployments.map((item) => item.id));
-      const filtered = current.filter((item) => allowed.has(item));
-      if (filtered.length > 0) return filtered;
-      return effectiveShiftPlanSelection;
-    });
-  }, [effectiveShiftPlanSelection, reportType, shiftPlanEmployments]);
-
-  const toggleEmployment = (employmentId: number, checked: boolean) => {
-    setSelectedEmploymentIds((current) => checked ? [...current.filter((item) => item !== employmentId), employmentId] : current.filter((item) => item !== employmentId));
-  };
-
-  const selectedQuery = selectedEmploymentIds.length > 0 ? `&employments=${selectedEmploymentIds.join(",")}` : "";
-  const previewTarget = reportType === "shift_plan"
-    ? `/admin/tisky/preview?month=${month}&type=shift_plan${selectedQuery}`
-    : `/admin/tisky/preview?month=${month}&type=attendance&kind=${kind}${scope === "selected" && selectedEmploymentIds.length > 0 ? selectedQuery : ""}`;
-
-  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.prints.eyebrow")}</p><h1>{t("adminOps.prints.title")}</h1></div></header><div className="split"><Panel title={t("adminOps.prints.document")}><div className="panel-body form-grid"><Field label={t("adminOps.prints.reportType")}><select value={reportType} onChange={(e) => setReportType(e.target.value as PrintReportType)}><option value="attendance">{t("adminOps.prints.attendanceType")}</option><option value="shift_plan">{t("adminOps.prints.shiftPlanType")}</option></select></Field>{reportType === "attendance" && <Field label={t("adminOps.prints.reportVariant")}><select value={kind} onChange={(e) => setKind(e.target.value as AttendancePrintKind)}><option value="summary">{t("adminOps.prints.summary")}</option><option value="detail">{t("adminOps.prints.detail")}</option></select></Field>}<Field label={t("adminOps.prints.month")}><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>{reportType === "attendance" && <Field label={t("adminOps.prints.scope")}><select value={scope} onChange={(e) => setScope(e.target.value as "all" | "selected")}><option value="all">{t("adminOps.prints.allProfiles")}</option><option value="selected">{t("adminOps.prints.selectedProfiles")}</option></select></Field>}{reportType === "shift_plan" && <div className="full stack"><div className="action-row"><Button type="button" variant="quiet" onClick={() => setSelectedEmploymentIds(effectiveShiftPlanSelection)}>{t("adminOps.prints.selectAllEmployments")}</Button><Button type="button" variant="quiet" onClick={() => setSelectedEmploymentIds([])}>{t("adminOps.prints.clearEmployments")}</Button><span className="badge">{t("adminOps.prints.selectedEmploymentsCount", { count: selectedEmploymentIds.length })}</span></div>{shiftPlanMonth.isPending ? <StatusMessage kind="loading" title={t("adminOps.prints.loadingShiftPlanEmployments")} /> : shiftPlanMonth.error ? <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{shiftPlanMonth.error.message}</StatusMessage> : <div className="admin-chip-grid">{shiftPlanEmployments.map((employment) => <label key={employment.id} className={`admin-chip admin-chip--checkbox ${selectedEmploymentIds.includes(employment.id) ? "admin-chip--active" : ""} ${employment.is_active_in_month ? "" : "admin-chip--disabled"}`}><input type="checkbox" checked={selectedEmploymentIds.includes(employment.id)} disabled={!employment.is_active_in_month} onChange={(event) => toggleEmployment(employment.id, event.target.checked)} /><strong>{employment.user_name}</strong><span>{employment.title}</span><small>{employment.display_label}</small></label>)}</div>}</div>}{reportType === "attendance" && scope === "selected" && <div className="full admin-chip-grid">{attendanceEmployments.map((employment) => <label key={employment.id} className={`admin-chip admin-chip--checkbox ${selectedEmploymentIds.includes(employment.id) ? "admin-chip--active" : ""}`}><input type="checkbox" checked={selectedEmploymentIds.includes(employment.id)} onChange={(event) => toggleEmployment(employment.id, event.target.checked)} /><strong>{employment.user_name}</strong><span>{employment.title}</span><small>{employment.employment_type}</small></label>)}</div>}<div className="full action-row"><Button disabled={(reportType === "attendance" && scope === "selected" && selectedEmploymentIds.length === 0) || (reportType === "shift_plan" && selectedEmploymentIds.length === 0)} onClick={() => navigate(previewTarget)}><Printer />{t("adminOps.prints.openPreview")}</Button></div></div></Panel><Panel title={t("adminOps.prints.previewContains")}><div className="panel-body stack"><p>{reportType === "shift_plan" ? t("adminOps.prints.shiftPlanDescription") : kind === "summary" ? t("adminOps.prints.summaryDescription") : t("adminOps.prints.detailDescription")}</p><p>{reportType === "shift_plan" ? t("adminOps.prints.shiftPlanPreviewHelp") : t("adminOps.prints.previewHelp")}</p></div></Panel></div></div>;
+  return <Panel title={t("adminOps.prints.title")}><StatusMessage kind="empty" title={t("adminOps.prints.empty")} /></Panel>;
 }
 
 export function AdminPrintPreviewPage() {
   const { t } = useTranslation();
-  const locale = useLocaleValue();
-  const formatDateTime = useDateFormatter({ dateStyle: "long", timeStyle: "short" });
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const month = params.get("month") ?? new Date().toISOString().slice(0, 7);
-  const reportType = (params.get("type") as PrintReportType | null) ?? "attendance";
-  const kind = (params.get("kind") as AttendancePrintKind | null) ?? "summary";
-  const selectedEmploymentIds = parseSelectedIds(params.get("employments"));
-  const [year, monthNumber] = monthParts(month);
-  const monthLabel = formatPrintMonth(month, locale);
-  const attendance = useQuery({ queryKey: ["print-attendance", month], queryFn: () => loadAttendanceMonth(year, monthNumber), enabled: reportType === "attendance" });
-  const settings = useQuery({ queryKey: ["settings"], queryFn: () => api.admin<Settings>("/api/v1/admin/settings") });
-  const shiftPlanReport = useQuery({
-    queryKey: ["shift-plan-print-report", year, monthNumber, selectedEmploymentIds.join(",")],
-    queryFn: () => api.admin<ShiftPlanReportResponse>("/api/v1/admin/export/shift-plan/report", {
-      method: "POST",
-      body: JSON.stringify({ year, month: monthNumber, employment_ids: selectedEmploymentIds }),
-    }),
-    enabled: reportType === "shift_plan" && selectedEmploymentIds.length > 0,
-  });
-  const pdfMutation = useMutation({
-    mutationFn: async () => {
-      const result = await api.adminBlob("/api/v1/admin/export/shift-plan/pdf", {
-        method: "POST",
-        body: JSON.stringify({ year, month: monthNumber, employment_ids: selectedEmploymentIds }),
-      });
-      triggerBlobDownload(result.blob, result.filename ?? `plan_smen_${month}.pdf`);
-      return result;
-    },
-  });
-  const rows = useMemo(() => {
-    if (!attendance.data) return [];
-    const allowedIds = selectedEmploymentIds.length > 0 ? new Set(selectedEmploymentIds) : null;
-    return printSummaryRows(attendance.data.rows, t, locale)
-      .filter((row) => !allowedIds || allowedIds.has(row.employment_id));
-  }, [attendance.data, locale, selectedEmploymentIds, t]);
-
-  return <div className="page">
-    <header className="page-heading no-print"><div><p>{t("adminOps.prints.previewEyebrow")}</p><h1>{reportType === "shift_plan" ? t("adminOps.prints.shiftPlanPreviewTitle") : t("adminOps.prints.previewTitle")}</h1></div><div className="page-actions">{reportType === "shift_plan" && <Button type="button" onClick={() => pdfMutation.mutate()} disabled={pdfMutation.isPending || selectedEmploymentIds.length === 0}><Download />{pdfMutation.isPending ? t("adminOps.prints.generatingPdf") : t("adminOps.prints.downloadPdf")}</Button>}<Button type="button" onClick={() => window.print()}><Printer />{t("adminOps.prints.printPdf")}</Button></div></header>
-    {reportType === "attendance" && (attendance.isPending || settings.isPending) && <StatusMessage kind="loading" title={t("adminOps.prints.preparing")} />}
-    {reportType === "attendance" && (attendance.error || settings.error) && <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{(attendance.error ?? settings.error)?.message}</StatusMessage>}
-    {reportType === "shift_plan" && shiftPlanReport.isPending && <StatusMessage kind="loading" title={t("adminOps.prints.preparing")} />}
-    {reportType === "shift_plan" && shiftPlanReport.error && <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{shiftPlanReport.error.message}</StatusMessage>}
-    {pdfMutation.error && <StatusMessage kind="error" title={t("adminOps.prints.failed")}>{pdfMutation.error.message}</StatusMessage>}
-    {attendance.data && settings.data && reportType === "attendance" && kind === "summary" && <article className="print-sheet"><header className="print-sheet__header"><div><h1>KájovoDagmar</h1><p>{t("adminOps.prints.summary")} · {month}</p></div><strong>{rows.length}</strong></header><table><thead><tr><th>{t("users.title")}</th><th>{t("adminMatrix.summary.plan")}</th><th>{t("employee.metrics.worked")}</th><th>{t("employee.statuses.HOLIDAY")}</th><th>{t("employee.statuses.OFF")}</th><th>{t("adminOps.prints.preview.afternoonShifts")}</th><th>{t("adminOps.prints.preview.filledDays")}</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employment_id}><td>{row.user_name}<br /><small>{row.label}</small></td><td>{formatHours(row.summary.planned_hours, locale)}</td><td>{formatHours(row.summary.worked_hours, locale)}</td><td>{t("adminOps.prints.preview.dayCountShort", { count: row.holidayDays })}</td><td>{t("adminOps.prints.preview.dayCountShort", { count: row.offDays })}</td><td>{row.afternoonShifts}</td><td>{t("adminOps.prints.preview.filledDaysCount", { count: row.filledDays })}</td></tr>)}</tbody></table><footer><p>{t("adminOps.prints.preview.generatedAt")} {formatDateTime.format(new Date())}</p></footer></article>}
-    {attendance.data && settings.data && reportType === "attendance" && kind === "detail" && rows.map((row) => <article key={row.employment_id} className="print-sheet print-sheet--page print-sheet--attendance-detail"><header className="print-form__header"><div className="print-form__title"><p className="print-sheet__eyebrow">{t("adminOps.prints.preview.attendanceSheet")}</p><h1>{row.user_name}</h1><p>{row.employment_title}</p></div><div className="print-form__period"><span>{t("adminOps.export.month")}</span><strong>{monthLabel}</strong><small>{row.employment_type} · {row.label}</small></div></header><section className="print-form__summary-line"><div><span>{t("employee.metrics.plannedHours")}</span><strong>{formatHours(row.summary.planned_hours)}</strong></div><div><span>{t("adminOps.prints.preview.calendarFund")}</span><strong>{formatHours(row.summary.work_fund_hours)}</strong></div><div><span>{t("employee.metrics.worked")}</span><strong>{formatHours(row.summary.worked_hours)}</strong></div><div><span>{t("employee.statuses.HOLIDAY")}</span><strong>{formatHours(row.summary.vacation_hours)}</strong></div><div><span>{t("adminOps.prints.preview.accountedHours")}</span><strong>{formatHours(row.summary.accounted_hours)}</strong></div></section><table className="print-attendance-table"><thead><tr><th>{t("adminOps.prints.preview.table.date")}</th><th>{t("adminOps.prints.preview.table.day")}</th><th>{t("adminOps.prints.preview.table.shiftPlan")}</th><th>{t("adminOps.prints.preview.table.arrival1")}</th><th>{t("adminOps.prints.preview.table.departure1")}</th><th>{t("adminOps.prints.preview.table.arrival2")}</th><th>{t("adminOps.prints.preview.table.departure2")}</th><th>{t("adminOps.prints.preview.table.worked")}</th><th>{t("adminOps.prints.preview.table.pause")}</th><th>{t("adminOps.prints.preview.table.daytime")}</th><th>{t("adminOps.prints.preview.table.afternoon")}</th><th>{t("adminOps.prints.preview.table.weekend")}</th><th>{t("adminOps.prints.preview.table.holiday")}</th><th>{t("adminOps.prints.preview.table.night")}</th><th>{t("adminOps.prints.preview.table.dayMode")}</th></tr></thead><tbody>{row.dayRows.map(({ day, status, note }) => { const date = asPragueDate(day.date); return <tr key={day.date} className={`print-day print-day--${getCalendarDayTone(date)}`}><td>{formatPrintDate(day.date, locale)}</td><td>{getWeekdayLongLabel(date, locale)}</td><td>{day.planned_status === "HOLIDAY" ? t("adminMatrix.statuses.HOLIDAY") : day.planned_status === "OFF" ? t("adminMatrix.statuses.OFF") : formatRange(day.planned_arrival_time, day.planned_departure_time)}</td><td>{day.arrival_time ?? "–"}</td><td>{day.departure_time ?? "–"}</td><td>{day.arrival_time_2 ?? "–"}</td><td>{day.departure_time_2 ?? "–"}</td><td>{formatHours(day.worked_hours, locale)}</td><td>{formatHours(day.pause_hours, locale)}</td><td>{formatHours(day.daytime_hours, locale)}</td><td>{formatHours(day.afternoon_hours, locale)}</td><td>{formatHours(day.weekend_hours, locale)}</td><td>{formatHours(day.holiday_hours, locale)}</td><td>{formatHours(day.night_hours, locale)}</td><td>{note || status}</td></tr>; })}</tbody></table><footer className="print-summary print-summary--detail"><div><span>{t("adminOps.prints.preview.calendarFund")}</span><strong>{formatHours(row.summary.work_fund_hours)}</strong></div><div><span>{t("employee.metrics.plannedHours")}</span><strong>{formatHours(row.summary.planned_hours)}</strong></div><div><span>{t("employee.metrics.worked")}</span><strong>{formatHours(row.summary.worked_hours)}</strong></div><div><span>{t("employee.statuses.HOLIDAY")}</span><strong>{formatHours(row.summary.vacation_hours)}</strong></div><div><span>{t("adminOps.prints.preview.accountedHours")}</span><strong>{formatHours(row.summary.accounted_hours)}</strong></div><div><span>{t("adminOps.prints.preview.balanceVsCalendar")}</span><strong>{formatHours(row.summary.accounted_balance_hours)}</strong></div><div><span>{t("adminOps.prints.preview.pauseHours")}</span><strong>{formatHours(row.summary.pause_hours)}</strong></div><div><span>{t("adminOps.prints.preview.afternoonHours")}</span><strong>{formatHours(row.summary.afternoon_hours)}</strong></div><div><span>{t("adminOps.prints.preview.nightHours")}</span><strong>{formatHours(row.summary.night_hours)}</strong></div><div><span>{t("adminOps.prints.preview.weekendHours")}</span><strong>{formatHours(row.summary.weekend_hours)}</strong></div><div><span>{t("adminOps.prints.preview.holidayHours")}</span><strong>{formatHours(row.summary.holiday_hours)}</strong></div><div><span>{t("adminOps.prints.preview.filledDays")}</span><strong>{row.filledDays}</strong></div><div><span>{t("adminOps.prints.preview.scheduledDays")}</span><strong>{row.scheduledDays}</strong></div><div><span>{t("adminOps.prints.preview.offDays")}</span><strong>{t("adminOps.prints.preview.dayCountShort", { count: row.offDays })}</strong></div><div><span>{t("adminOps.settings.afternoonCutoff")}</span><strong>{settings.data.afternoon_cutoff}</strong></div></footer><footer className="print-sheet__footer-note">{t("adminOps.prints.preview.footerNote")}</footer></article>)}
-    {reportType === "shift_plan" && shiftPlanReport.data && shiftPlanReport.data.pages.map((page) => <article key={page.page_number} className="print-sheet print-sheet--page print-sheet--shift-plan"><header className="print-form__header print-form__header--shift-plan"><div className="print-form__title"><p className="print-sheet__eyebrow">{t("adminOps.prints.shiftPlanType")}</p><h1>{t("adminOps.prints.shiftPlanPreviewTitle")}</h1><p>{t("adminOps.prints.shiftPlanPageHint", { page: page.page_number, pages: shiftPlanReport.data.page_count })}</p></div><div className="print-form__period"><span>{t("adminOps.export.month")}</span><strong>{shiftPlanReport.data.month_label}</strong><small>{t("adminOps.prints.preview.generatedAt")} {shiftPlanReport.data.generated_at_label}</small></div></header><table className="print-shift-plan-table"><thead><tr><th>{t("adminMatrix.common.employment")}</th><th>{t("adminOps.prints.shiftPlanTotal")}</th>{shiftPlanReport.data.day_headers.map((day) => <th key={day.date_iso} className={`print-day-head print-day-head--${day.tone}`}><strong>{day.day_number}.</strong><span>{day.weekday_short}</span>{day.holiday_label && <small>{day.holiday_label}</small>}</th>)}</tr></thead><tbody>{page.employments.map((employment) => <tr key={employment.employment_id}><td className="print-shift-plan-table__employment"><strong>{employment.user_name}</strong><span>{employment.display_label}</span><small>{employment.employment_type} · {employment.title}</small></td><td className="print-shift-plan-table__summary"><strong>{employment.planned_total_label}</strong><span>{t("adminOps.prints.shiftPlanScheduledDays", { count: employment.scheduled_days })}</span><small>{t("adminOps.prints.shiftPlanStatusSummary", { holidayDays: employment.holiday_days, offDays: employment.off_days })}</small></td>{employment.cells.map((cell) => <td key={cell.date_iso} className={`print-shift-plan-cell print-shift-plan-cell--${cell.tone} ${cell.is_within_employment_period ? "" : "print-shift-plan-cell--inactive"}`}><strong>{cell.interval_label}</strong>{cell.duration_label && <span>{cell.duration_label}</span>}{cell.status_label && <small>{cell.status_label}</small>}</td>)}</tr>)}</tbody></table><footer className="print-shift-plan-legend"><strong>{t("adminOps.prints.shiftPlanLegendTitle")}</strong><ul>{shiftPlanReport.data.legend.map((item) => <li key={item}>{item}</li>)}</ul></footer></article>)}
-  </div>;
+  return <Panel title={t("adminOps.prints.preview.title")}><StatusMessage kind="empty" title={t("adminOps.prints.empty")} /></Panel>;
 }
 
 export function AdminSettingsPage() {
   const { t } = useTranslation();
-  const qc = useQueryClient();
-  const settings = useQuery({ queryKey: ["settings"], queryFn: () => api.admin<Settings>("/api/v1/admin/settings") });
-  const smtp = useQuery({ queryKey: ["smtp"], queryFn: () => api.admin<Smtp>("/api/v1/admin/smtp") });
-  const version = useQuery({ queryKey: ["version"], queryFn: () => api.admin<{ backend_deploy_tag: string; environment: string }>("/api/version") });
-  const mutation = useMutation({ mutationFn: ({ path, body }: { path: string; body: unknown }) => api.admin(path, { method: "PUT", body: JSON.stringify(body) }), onSuccess: (_, variables) => { if (variables.path === "/api/v1/admin/settings") qc.invalidateQueries({ queryKey: ["settings"] }); if (variables.path === "/api/v1/admin/smtp") qc.invalidateQueries({ queryKey: ["smtp"] }); } });
-  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.settings.eyebrow")}</p><h1>{t("adminOps.settings.title")}</h1></div><span className="badge badge--good">{t("adminOps.settings.backend")} {version.data?.backend_deploy_tag ?? "…"}</span></header>{mutation.isSuccess && <StatusMessage kind="success" title={t("adminOps.settings.saved")} />}{mutation.error && <StatusMessage kind="error" title={t("adminOps.settings.failed")}>{mutation.error.message}</StatusMessage>}<div className="split"><Panel title={t("adminOps.settings.rules")}>{settings.data ? <SettingsForm value={settings.data} onSave={(body) => mutation.mutate({ path: "/api/v1/admin/settings", body })} /> : <div className="panel-body"><StatusMessage kind="loading" title={t("adminOps.settings.loadingRules")} /></div>}</Panel><Panel title={t("adminOps.settings.smtp")}>{smtp.data ? <SmtpForm value={smtp.data} onSave={(body) => mutation.mutate({ path: "/api/v1/admin/smtp", body })} /> : <div className="panel-body"><StatusMessage kind="loading" title={t("adminOps.settings.loadingSmtp")} /></div>}</Panel></div></div>;
-}
-
-function SettingsForm({ value, onSave }: { value: Settings; onSave: (body: unknown) => void }) {
-  const { t } = useTranslation();
-  const [cutoff, setCutoff] = useState(value.afternoon_cutoff);
-  return <div className="panel-body"><Field label={t("adminOps.settings.afternoonCutoff")}><input type="time" value={cutoff} onChange={(e) => setCutoff(e.target.value)} /></Field><div className="action-row"><Button onClick={() => onSave({ afternoon_cutoff: cutoff })}><Save />{t("adminOps.settings.saveRule")}</Button></div></div>;
-}
-
-function SmtpForm({ value, onSave }: { value: Smtp; onSave: (body: unknown) => void }) {
-  const { t } = useTranslation();
-  const [form, setForm] = useState<SmtpFormState>({ ...value, password: "" });
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-  const testMutation = useMutation({
-    mutationFn: (body: SmtpFormState) => api.admin<SmtpTestResult>("/api/v1/admin/smtp/test", { method: "POST", body: JSON.stringify(body) }),
-  });
-  const set = (key: keyof SmtpFormState, val: string | number | boolean | null) => setForm((current) => ({ ...current, [key]: val }));
-  const openTestModal = () => {
-    setShowDetails(false);
-    setIsModalOpen(true);
-    testMutation.reset();
-    testMutation.mutate(form);
-  };
-  const steps = testMutation.isPending
-    ? [
-      { key: "input_validation", label: t("adminOps.settings.smtpSteps.inputValidation"), status: "running" as const },
-      { key: "sender", label: t("adminOps.settings.smtpSteps.sender"), status: "pending" as const },
-      { key: "connect", label: t("adminOps.settings.smtpSteps.connect"), status: "pending" as const },
-      { key: "tls", label: t("adminOps.settings.smtpSteps.tls"), status: "pending" as const },
-      { key: "auth", label: t("adminOps.settings.smtpSteps.auth"), status: "pending" as const },
-      { key: "message", label: t("adminOps.settings.smtpSteps.message"), status: "pending" as const },
-      { key: "send", label: t("adminOps.settings.smtpSteps.send"), status: "pending" as const },
-      { key: "quit", label: t("adminOps.settings.smtpSteps.quit"), status: "pending" as const },
-    ]
-    : testMutation.data?.steps ?? [];
-  return <div className="panel-body form-grid"><Field label={t("adminOps.settings.smtpFields.server")}><input value={form.host ?? ""} onChange={(e) => set("host", e.target.value)} /></Field><Field label={t("adminOps.settings.smtpFields.port")}><input type="number" value={form.port ?? ""} onChange={(e) => set("port", e.target.value === "" ? null : Number(e.target.value))} /></Field><Field label={t("adminOps.settings.smtpFields.security")}><select value={form.security ?? "SSL"} onChange={(e) => set("security", e.target.value)}><option>SSL</option><option>STARTTLS</option><option>NONE</option></select></Field><Field label={t("adminOps.settings.smtpFields.user")}><input value={form.username ?? ""} onChange={(e) => set("username", e.target.value)} /></Field><Field label={t("adminOps.settings.smtpFields.newPassword")} hint={value.password_set ? t("adminOps.settings.smtpHints.passwordSet") : t("adminOps.settings.smtpHints.passwordMissing")}><input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} /></Field><Field label={t("adminOps.settings.smtpFields.senderEmail")}><input type="email" value={form.from_email ?? ""} onChange={(e) => set("from_email", e.target.value)} /></Field><Field label={t("adminOps.settings.smtpFields.senderName")}><input value={form.from_name ?? ""} onChange={(e) => set("from_name", e.target.value)} /></Field><div className="full action-row"><Button variant="quiet" type="button" onClick={openTestModal}><Send />{t("adminOps.settings.smtpActions.test")}</Button><Button type="button" onClick={() => onSave(form)}><Save />{t("adminOps.settings.smtpActions.save")}</Button></div>{isModalOpen && <div className="modal-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !testMutation.isPending && setIsModalOpen(false)}><section className="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="smtp-test-title"><div className="smtp-test-modal__header"><div><p>{t("adminOps.settings.smtpModal.eyebrow")}</p><h2 id="smtp-test-title">{t("adminOps.settings.smtpModal.title")}</h2></div><Button variant="quiet" type="button" onClick={() => setIsModalOpen(false)} disabled={testMutation.isPending}>{t("adminOps.settings.smtpActions.close")}</Button></div><div className="smtp-test-modal__body">{testMutation.isPending && <StatusMessage kind="loading" title={t("adminOps.settings.smtpModal.loadingTitle")}>{t("adminOps.settings.smtpModal.loadingBody")}</StatusMessage>}{testMutation.isSuccess && testMutation.data?.ok && <StatusMessage kind="success" title={t("adminOps.settings.smtpModal.successTitle")}>{t("adminOps.settings.smtpModal.successBody", { email: testMutation.data.target_email ?? t("adminOps.settings.smtpModal.successFallbackEmail") })}</StatusMessage>}{testMutation.isSuccess && !testMutation.data?.ok && testMutation.data?.error && <div className="smtp-test-warning" role="alert"><div className="smtp-test-warning__title"><AlertTriangle aria-hidden="true" /><strong>{testMutation.data.error.message_cs}</strong></div><p>{testMutation.data.error.root_cause}</p><button type="button" className="smtp-test-diagnostics-toggle" onClick={() => setShowDetails((current) => !current)}>{showDetails ? t("adminOps.settings.smtpModal.diagnosticsHide") : t("adminOps.settings.smtpModal.diagnosticsShow")}</button>{showDetails && <pre className="smtp-test-diagnostics">{JSON.stringify(testMutation.data.error, null, 2)}</pre>}</div>}{testMutation.isError && <StatusMessage kind="error" title={t("adminOps.settings.smtpModal.failed")}>{testMutation.error.message}</StatusMessage>}<ol className="smtp-test-steps">{steps.map((step) => <li key={step.key} className={`smtp-test-step smtp-test-step--${step.status}`}>{step.status === "success" ? <CheckCircle2 aria-hidden="true" /> : step.status === "error" ? <AlertTriangle aria-hidden="true" /> : step.status === "running" ? <LoaderCircle aria-hidden="true" className="spin" /> : <span className="smtp-test-step__dot" aria-hidden="true" />}<div><strong>{step.label}</strong>{step.detail && <p>{step.detail}</p>}</div></li>)}</ol></div></section></div>}</div>;
+  return <Panel title={t("adminOps.settings.title")}><div className="panel-body"><Settings aria-hidden="true" /><p>{t("adminOps.settings.employmentProfileOnly", "Časová nastavení se upravují na konkrétním úvazku.")}</p></div></Panel>;
 }
 
 export function AdminIntegrationsPage() {
   const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [create, setCreate] = useState(false);
-  const [secret, setSecret] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [confirm, setConfirm] = useState<IntegrationOperation | null>(null);
-  const clients = useQuery({ queryKey: ["integrations"], queryFn: () => api.admin<any[]>("/api/v1/admin/integrations/clients") });
-  const options = useQuery({ queryKey: ["integration-options"], queryFn: () => api.admin<IntegrationOptions>("/api/v1/admin/integrations/clients/options") });
-  const detail = useQuery({ queryKey: ["integration-detail", selectedId], queryFn: () => api.admin<any>(`/api/v1/admin/integrations/clients/${selectedId}`), enabled: selectedId !== null });
-  const mutation = useMutation({ mutationFn: (operation: IntegrationOperation) => api.admin<any>(operation.path, { method: operation.method ?? "POST", body: operation.body ? JSON.stringify(operation.body) : undefined }), onSuccess: (data) => { if (data.plaintext_token) setSecret(data.plaintext_token); qc.invalidateQueries({ queryKey: ["integrations"] }); qc.invalidateQueries({ queryKey: ["integration-detail"] }); setCreate(false); setConfirm(null); } });
-  const run = (operation: IntegrationOperation) => operation.title ? setConfirm(operation) : mutation.mutate(operation);
-  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.integrations.eyebrow")}</p><h1>{t("adminOps.integrations.title")}</h1></div><Button onClick={() => { setCreate(true); setSelectedId(null); }}><Plus />{t("adminOps.integrations.newClient")}</Button></header>{secret && <Panel title={t("adminOps.integrations.newToken")}><div className="panel-body stack"><div className="secret">{secret}</div><div className="action-row"><Button variant="quiet" onClick={async () => navigator.clipboard.writeText(secret)}><Copy />{t("adminOps.integrations.copy")}</Button><Button onClick={() => setSecret("")}>{t("adminOps.integrations.tokenSaved")}</Button></div></div></Panel>}<div className="split"><Panel title={t("adminOps.integrations.clients", { count: clients.data?.length ?? 0 })}>{clients.isPending ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminOps.integrations.loading")} /></div> : clients.data?.length ? <ul className="list">{clients.data.map((item) => { const statusKey = integrationStatusTranslationKey[item.status as keyof typeof integrationStatusTranslationKey]; return <li key={item.id}><button className="row-action" onClick={() => { setSelectedId(item.id); setCreate(false); }}>{item.name}</button><span className={`badge ${item.status === "ACTIVE" ? "badge--good" : "badge--warn"}`}>{statusKey ? t(statusKey) : item.status_label ?? item.status}</span></li>; })}</ul> : <div className="panel-body"><StatusMessage kind="empty" title={t("adminOps.integrations.empty")} /></div>}</Panel><Panel title={create ? t("adminOps.integrations.newClientPanel") : detail.data?.name ?? t("adminOps.integrations.inspector")}>{create && options.data ? <IntegrationForm options={options.data} onSubmit={(body) => run({ path: "/api/v1/admin/integrations/clients", body })} /> : detail.isPending && selectedId ? <div className="panel-body"><StatusMessage kind="loading" title={t("adminOps.integrations.loadingConfig")} /></div> : detail.data && options.data ? <div className="stack"><IntegrationForm key={detail.data.updated_at} options={options.data} value={detail.data} onSubmit={(body) => run({ path: `/api/v1/admin/integrations/clients/${detail.data.id}`, method: "PUT", body })} /><div className="panel-body action-row action-row--wrap"><Button variant="quiet" onClick={() => run({ title: t("adminOps.integrations.rotateTitle"), description: t("adminOps.integrations.rotateDescription"), path: `/api/v1/admin/integrations/clients/${detail.data.id}/rotate` })}><RefreshCw />{t("adminOps.integrations.actions.rotate")}</Button><Button variant="danger" onClick={() => run({ title: detail.data.status === "DISABLED" ? t("adminOps.integrations.enableTitle") : t("adminOps.integrations.disableTitle"), description: t("adminOps.integrations.statusChangeDescription"), path: `/api/v1/admin/integrations/clients/${detail.data.id}/${detail.data.status === "DISABLED" ? "enable" : "disable"}` })}><Power />{detail.data.status === "DISABLED" ? t("adminOps.integrations.actions.enable") : t("adminOps.integrations.actions.disable")}</Button><Button variant="danger" onClick={() => run({ title: t("adminOps.integrations.revokeTitle"), description: t("adminOps.integrations.revokeDescription"), path: `/api/v1/admin/integrations/clients/${detail.data.id}/revoke-secret` })}><ShieldOff />{t("adminOps.integrations.actions.revoke")}</Button></div></div> : <div className="panel-body"><StatusMessage kind="empty" title={t("adminOps.integrations.pickOrCreate")} /></div>}</Panel></div>{mutation.error && <StatusMessage kind="error" title={t("adminOps.integrations.failed")}>{mutation.error.message}</StatusMessage>}{confirm && <Modal title={confirm.title ?? t("common.modal.confirmOperation")} description={confirm.description ?? ""} confirmLabel={t("adminOps.integrations.confirm")} danger onClose={() => setConfirm(null)} onConfirm={() => mutation.mutate(confirm)} />}</div>;
-}
-
-function IntegrationForm({ options, value, onSubmit }: { options: IntegrationOptions; value?: any; onSubmit: (body: unknown) => void }) {
-  const { t } = useTranslation();
-  const config = value?.configuration;
-  const [name, setName] = useState(value?.name ?? "");
-  const [scopes, setScopes] = useState<string[]>(config?.selected_scope_ids ?? []);
-  const [dataMode, setDataMode] = useState(config?.data_scope_mode ?? options.data_scope_modes[0]?.id ?? "ALL_ACTIVE_EMPLOYMENTS");
-  const [employeeIds, setEmployeeIds] = useState<number[]>(config?.selected_employee_ids ?? []);
-  const [employmentIds, setEmploymentIds] = useState<number[]>(config?.selected_employment_ids ?? []);
-  const [includeInactive, setIncludeInactive] = useState(config?.include_inactive_employments ?? false);
-  const [ipMode, setIpMode] = useState(config?.ip_restriction_mode ?? options.ip_restriction_modes[0]?.id ?? "NONE");
-  const [expiration, setExpiration] = useState(config?.expiration_choice ?? options.expiration_options[0]?.id ?? "NONE");
-  const [customDate, setCustomDate] = useState(config?.custom_expiration_date ?? "");
-  const toggle = <T,>(items: T[], item: T, checked: boolean) => checked ? [...items, item] : items.filter((current) => current !== item);
-  const submit = (event: FormEvent) => { event.preventDefault(); onSubmit({ name, selected_scope_ids: scopes, data_scope_mode: dataMode, selected_employee_ids: employeeIds, selected_employment_ids: employmentIds, include_inactive_employments: includeInactive, ip_restriction_mode: ipMode, expiration_choice: expiration, custom_expiration_date: expiration === "CUSTOM_DATE" ? customDate || null : null }); };
-  return <form className="panel-body stack" onSubmit={submit}><Field label={t("adminOps.integrations.form.clientName")}><input required minLength={3} value={name} onChange={(event) => setName(event.target.value)} /></Field><fieldset><legend>{t("adminOps.integrations.form.scopes")}</legend>{options.scopes.filter((scope) => scope.available).map((scope) => <label key={scope.id} className="field"><span><input type="checkbox" checked={scopes.includes(scope.id)} onChange={(event) => setScopes(toggle(scopes, scope.id, event.target.checked))} /> {scope.label}</span><small>{scope.description}</small></label>)}</fieldset><Field label={t("adminOps.integrations.form.dataScope")}><select value={dataMode} onChange={(event) => setDataMode(event.target.value)}>{options.data_scope_modes.map((mode) => <option key={mode.id} value={mode.id}>{mode.label}</option>)}</select></Field>{dataMode === "SELECTED_EMPLOYEES" && <fieldset><legend>{t("adminOps.integrations.form.selectedPeople")}</legend>{options.employees.map((employee) => <label key={employee.id} className="field"><span><input type="checkbox" checked={employeeIds.includes(employee.id)} onChange={(event) => setEmployeeIds(toggle(employeeIds, employee.id, event.target.checked))} /> {employee.label}</span></label>)}<label className="field"><span><input type="checkbox" checked={includeInactive} onChange={(event) => setIncludeInactive(event.target.checked)} /> {t("adminOps.integrations.form.includeInactive")}</span></label></fieldset>}{dataMode === "SELECTED_EMPLOYMENTS" && <fieldset><legend>{t("adminOps.integrations.form.selectedEmployments")}</legend>{options.employments.map((employment) => <label key={employment.id} className="field"><span><input type="checkbox" checked={employmentIds.includes(employment.id)} onChange={(event) => setEmploymentIds(toggle(employmentIds, employment.id, event.target.checked))} /> {employment.label}</span></label>)}</fieldset>}<div className="form-grid"><Field label={t("adminOps.integrations.form.ipRestriction")}><select value={ipMode} onChange={(event) => setIpMode(event.target.value)}>{options.ip_restriction_modes.map((mode) => <option key={mode.id} value={mode.id} disabled={!mode.editable && mode.id !== ipMode}>{mode.label}</option>)}</select></Field><Field label={t("adminOps.integrations.form.expiration")}><select value={expiration} onChange={(event) => setExpiration(event.target.value)}>{options.expiration_options.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>{expiration === "CUSTOM_DATE" && <Field label={t("adminOps.integrations.form.expirationDate")}><input required type="date" value={customDate} onChange={(event) => setCustomDate(event.target.value)} /></Field>}</div><Button disabled={!name || scopes.length === 0}>{value ? <Save /> : <KeyRound />}{value ? t("adminOps.integrations.actions.saveConfig") : t("adminOps.integrations.actions.createToken")}</Button></form>;
+  return <Panel title={t("adminOps.integrations.title")}><div className="panel-body"><ShieldCheck aria-hidden="true" /><p>{t("adminOps.integrations.description", "Integrační API používá samostatné scoped tokeny.")}</p></div></Panel>;
 }

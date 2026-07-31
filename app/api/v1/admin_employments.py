@@ -4,10 +4,11 @@ from __future__ import annotations
 import calendar
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import delete, or_, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
@@ -20,6 +21,7 @@ from app.db.models import (
     AttendanceLock,
     AttendanceReminderEvent,
     Employment,
+    EmploymentType,
     PortalUser,
     ShiftPlan,
     ShiftPlanLock,
@@ -27,7 +29,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.security.csrf import require_csrf
-from app.services.employment_access import employment_type_is_valid
+from app.services.employment_access import employment_type_is_valid, validate_time_profile
 from app.services.employment_groups import remove_groups_for_employment
 
 router = APIRouter(tags=["admin-employments"])
@@ -39,6 +41,13 @@ class EmploymentCreateIn(BaseModel):
     start_date: str = Field(description="YYYY-MM-DD")
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
     is_active: bool = True
+    workload_fraction: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1.000"))
+    automatic_breaks_enabled: bool = False
+    afternoon_hours_enabled: bool = False
+    afternoon_start_minutes: int | None = Field(default=None, ge=0, le=1319)
+    night_hours_enabled: bool = False
+    weekend_hours_enabled: bool = False
+    public_holiday_hours_enabled: bool = False
 
     @field_validator("title")
     @classmethod
@@ -48,6 +57,19 @@ class EmploymentCreateIn(BaseModel):
             raise ValueError("Název úvazku je povinný.")
         return normalized
 
+    @model_validator(mode="after")
+    def validate_profile(self) -> EmploymentCreateIn:
+        if self.employment_type == "WORK_CONTRACT":
+            self.workload_fraction = self.workload_fraction or Decimal("1.000")
+            self.night_hours_enabled = True
+            self.weekend_hours_enabled = True
+            self.public_holiday_hours_enabled = True
+        try:
+            validate_time_profile(employment_type=self.employment_type, workload_fraction=self.workload_fraction, automatic_breaks_enabled=self.automatic_breaks_enabled, afternoon_hours_enabled=self.afternoon_hours_enabled, afternoon_start_minutes=self.afternoon_start_minutes, night_hours_enabled=self.night_hours_enabled, weekend_hours_enabled=self.weekend_hours_enabled, public_holiday_hours_enabled=self.public_holiday_hours_enabled)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+        return self
+
 
 class EmploymentUpdateIn(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
@@ -56,6 +78,13 @@ class EmploymentUpdateIn(BaseModel):
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
     is_active: bool | None = None
     confirm_delete_out_of_range: bool = False
+    workload_fraction: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1.000"))
+    automatic_breaks_enabled: bool | None = None
+    afternoon_hours_enabled: bool | None = None
+    afternoon_start_minutes: int | None = Field(default=None, ge=0, le=1319)
+    night_hours_enabled: bool | None = None
+    weekend_hours_enabled: bool | None = None
+    public_holiday_hours_enabled: bool | None = None
 
     @field_validator("title")
     @classmethod
@@ -470,6 +499,13 @@ def create_employment(
         start_date=start_date,
         end_date=end_date,
         is_active=payload.is_active,
+        workload_fraction=payload.workload_fraction,
+        automatic_breaks_enabled=payload.automatic_breaks_enabled,
+        afternoon_hours_enabled=payload.afternoon_hours_enabled,
+        afternoon_start_minutes=payload.afternoon_start_minutes,
+        night_hours_enabled=payload.night_hours_enabled,
+        weekend_hours_enabled=payload.weekend_hours_enabled,
+        public_holiday_hours_enabled=payload.public_holiday_hours_enabled,
     )
     db.add(employment)
     db.commit()
@@ -518,11 +554,31 @@ def update_employment(
         delete_summary = _delete_out_of_range_records(employment.id, next_start_date, next_end_date, db)
 
     employment.title = next_title
-    employment.employment_type = next_type
+    employment.employment_type = EmploymentType(next_type)
     employment.start_date = next_start_date
     employment.end_date = next_end_date
     if payload.is_active is not None:
         employment.is_active = payload.is_active
+    profile_values: dict[str, Any] = {
+        "workload_fraction": payload.workload_fraction if "workload_fraction" in payload.model_fields_set else employment.workload_fraction,
+        "automatic_breaks_enabled": payload.automatic_breaks_enabled if payload.automatic_breaks_enabled is not None else employment.automatic_breaks_enabled,
+        "afternoon_hours_enabled": payload.afternoon_hours_enabled if payload.afternoon_hours_enabled is not None else employment.afternoon_hours_enabled,
+        "afternoon_start_minutes": payload.afternoon_start_minutes if "afternoon_start_minutes" in payload.model_fields_set else employment.afternoon_start_minutes,
+        "night_hours_enabled": payload.night_hours_enabled if payload.night_hours_enabled is not None else employment.night_hours_enabled,
+        "weekend_hours_enabled": payload.weekend_hours_enabled if payload.weekend_hours_enabled is not None else employment.weekend_hours_enabled,
+        "public_holiday_hours_enabled": payload.public_holiday_hours_enabled if payload.public_holiday_hours_enabled is not None else employment.public_holiday_hours_enabled,
+    }
+    if next_type == "WORK_CONTRACT":
+        profile_values["workload_fraction"] = profile_values["workload_fraction"] or Decimal("1.000")
+        profile_values["night_hours_enabled"] = True
+        profile_values["weekend_hours_enabled"] = True
+        profile_values["public_holiday_hours_enabled"] = True
+    try:
+        validate_time_profile(employment_type=next_type, **profile_values)
+    except ValueError as exc:
+        raise_api_error(400, "invalid_time_profile", str(exc))
+    for key, value in profile_values.items():
+        setattr(employment, key, value)
     db.add(employment)
     db.commit()
     db.refresh(employment)

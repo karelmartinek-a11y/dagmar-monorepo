@@ -7,10 +7,9 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import AppSettings, ClientType, Instance, InstanceStatus
+from app.db.models import ClientType, Instance, InstanceStatus
 from app.db.session import get_db
 from app.security.tokens import rotate_instance_token
 
@@ -32,24 +31,11 @@ class RegisterInstanceOut(BaseModel):
 class InstanceStatusOut(BaseModel):
     status: str
     display_name: str | None = None
-    employment_template: str | None = None
-    afternoon_cutoff: str | None = None
 
 
 class ClaimTokenOut(BaseModel):
     instance_token: str
     display_name: str | None = None
-
-
-def _minutes_to_hhmm(minutes: int) -> str:
-    return f"{minutes // 60:02d}:{minutes % 60:02d}"
-
-
-def _get_cutoff(db: Session) -> str:
-    row = db.execute(select(AppSettings).where(AppSettings.id == 1)).scalars().first()
-    if row is None:
-        return "17:00"
-    return _minutes_to_hhmm(row.afternoon_cutoff_minutes)
 
 
 @router.post("/api/v1/instances/register", response_model=RegisterInstanceOut)
@@ -82,8 +68,6 @@ def get_instance_status(instance_id: str, db: Session = Depends(get_db)) -> Inst
     out = InstanceStatusOut(status=inst.status.value)
     if inst.status == InstanceStatus.ACTIVE:
         out.display_name = inst.display_name
-        out.employment_template = inst.employment_template
-        out.afternoon_cutoff = _get_cutoff(db)
     return out
 
 

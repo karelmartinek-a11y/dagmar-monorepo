@@ -164,7 +164,7 @@ function UserEditForm({ value, onSubmit }: { value: AdminUser; onSubmit: (payloa
 function EmploymentForm({ value, onSubmit, onDelete }: { value?: Employment; onSubmit: (payload: Record<string, unknown>) => void; onDelete?: () => void }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState(value?.title ?? "");
-  const [type, setType] = useState(value?.employment_type ?? "HPP");
+  const [type, setType] = useState<"WORK_CONTRACT" | "DPP_DPC" | "TASK_SHIFT_BASED" | "EXTERNAL_HOURLY">((value?.employment_type as "WORK_CONTRACT" | "DPP_DPC" | "TASK_SHIFT_BASED" | "EXTERNAL_HOURLY" | undefined) ?? "WORK_CONTRACT");
   const [start, setStart] = useState(value?.start_date ?? new Date().toISOString().slice(0, 10));
   const [end, setEnd] = useState(value?.end_date ?? "");
   const [active, setActive] = useState(value?.is_active ?? true);
@@ -174,7 +174,7 @@ function EmploymentForm({ value, onSubmit, onDelete }: { value?: Employment; onS
   };
   return <form className="form-grid inspector-form" onSubmit={submit}>
     <Field label={t("users.fields.employmentTitle")}><input required value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
-    <Field label={t("users.fields.employmentType")}><select value={type} onChange={(event) => setType(event.target.value)}><option value="HPP">HPP</option><option value="DPP_DPC">DPP / DPČ</option></select></Field>
+    <Field label={t("users.fields.employmentType")}><select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="WORK_CONTRACT">Pracovní smlouva</option><option value="DPP_DPC">DPP / DPČ</option><option value="TASK_SHIFT_BASED">Úkolová / směnová odměna</option><option value="EXTERNAL_HOURLY">Externí hodinová fakturace</option></select></Field>
     <Field label={t("users.fields.validFrom")}><input required type="date" value={start} onChange={(event) => setStart(event.target.value)} /></Field>
     <Field label={t("users.fields.validTo")}><input type="date" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>
     <label className="field full"><span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /> {t("users.fields.activeEmployment")}</span></label>
