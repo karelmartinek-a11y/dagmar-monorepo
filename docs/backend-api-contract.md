@@ -8,7 +8,7 @@ Backend používá namespace `/api/v1/` a je jedinou autoritou časových výpo�
 
 ## Docházkové eventy
 
-Zaměstnanecké endpointy jsou `POST /api/v1/attendance/events` a `DELETE /api/v1/attendance/events/{event_id}`. Administrace používá `POST`, `PUT` a `DELETE /api/v1/admin/attendance/events...`.
+Zaměstnanecké endpointy jsou `POST /api/v1/attendance/events` a `DELETE /api/v1/attendance/events/{event_id}`. Administrace používá `GET /api/v1/admin/attendance/month` pro měsíční docházkové listy a `POST`, `PUT` a `DELETE /api/v1/admin/attendance/events...` pro správu jednotlivých průchodů.
 
 ```json
 {

@@ -42,6 +42,14 @@
     },
     {
       "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_attendance.list_month_sheets",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/attendance/month"
+    },
+    {
+      "auth_mode": "admin_session",
       "handler": "app.api.v1.external_auth.admin_methods",
       "methods": [
         "GET"

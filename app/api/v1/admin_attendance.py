@@ -5,11 +5,12 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
+from app.api.v1.attendance import AttendanceMonthOut, _build_month
 from app.db.models import AttendanceEvent, AttendanceEventType, Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
@@ -44,6 +45,10 @@ class AdminAttendanceEventListOut(BaseModel):
     data: list[AdminAttendanceEventOut]
 
 
+class AdminAttendanceMonthListOut(BaseModel):
+    data: list[AttendanceMonthOut]
+
+
 def _out(event: AttendanceEvent) -> AdminAttendanceEventOut:
     return AdminAttendanceEventOut(id=event.id, employment_id=event.employment_id, employment_label=f"{event.employment.user.name} — {event.employment.title}", occurred_at=prague_now(event.occurred_at).isoformat(), event_type=event.event_type)
 
@@ -53,6 +58,36 @@ def _employment(db: Session, employment_id: int) -> Employment:
     if employment is None:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
     return employment
+
+
+@router.get("/api/v1/admin/attendance/month", response_model=AdminAttendanceMonthListOut)
+def list_month_sheets(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    _admin=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AdminAttendanceMonthListOut:
+    start = date(year, month, 1)
+    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    range_start = datetime.combine(start, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+    range_end = datetime.combine(end, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+    employments = db.execute(
+        select(Employment)
+        .options(selectinload(Employment.user))
+        .where(
+            or_(
+                (Employment.start_date < end) & (Employment.end_date.is_(None) | (Employment.end_date >= start)),
+                Employment.id.in_(
+                    select(AttendanceEvent.employment_id).where(
+                        AttendanceEvent.occurred_at >= range_start,
+                        AttendanceEvent.occurred_at < range_end,
+                    )
+                ),
+            )
+        )
+        .order_by(Employment.user_id, Employment.start_date, Employment.id)
+    ).scalars().all()
+    return AdminAttendanceMonthListOut(data=[_build_month(db, employment, year, month) for employment in employments])
 
 
 def _validate_alternation(db: Session, employment_id: int, event_type: AttendanceEventType, *, exclude_id: int | None = None) -> None:
