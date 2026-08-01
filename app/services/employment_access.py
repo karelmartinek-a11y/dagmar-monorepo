@@ -111,7 +111,8 @@ def employment_label(employment: Employment, user_name: str | None = None) -> st
         if employment_user is not None:
             resolved_user_name = getattr(employment_user, "name", None)
     base = (resolved_user_name or "").strip()
-    raw_type = str(getattr(employment, "employment_type", "") or "").strip().upper()
+    employment_type = getattr(employment, "employment_type", "")
+    raw_type = str(getattr(employment_type, "value", employment_type) or "").strip().upper()
     if raw_type == EmploymentType.WORK_CONTRACT.value:
         type_label = "Pracovní smlouva"
     elif raw_type == "DPP_DPC":

@@ -242,23 +242,30 @@ def _employment_sort_key(employment: Employment) -> tuple[date, int]:
     return (start_date, employment.id)
 
 
+def _employment_type_value(value: object) -> str:
+    raw_value = getattr(value, "value", value)
+    return str(raw_value or "").strip() or "DPP_DPC"
+
+
 def _to_employment_out(employment: Employment) -> EmploymentOut:
+    employment_type = _employment_type_value(getattr(employment, "employment_type", None))
+    afternoon_start_minutes = getattr(employment, "afternoon_start_minutes", None)
     return EmploymentOut(
         id=employment.id,
         user_id=employment.user_id,
         title=(employment.title or "").strip() or "Bez názvu úvazku",
-        employment_type=str(employment.employment_type or "").strip() or "DPP_DPC",
+        employment_type=employment_type,
         start_date=_safe_iso_date(employment.start_date) or "1970-01-01",
         end_date=_safe_iso_date(employment.end_date),
         is_active=employment.is_active,
         label=employment_label(employment, user_name=getattr(employment.user, "name", None)),
-        workload_fraction=f"{employment.workload_fraction:.3f}" if employment.workload_fraction is not None else None,
+        workload_fraction=f"{employment.workload_fraction:.3f}" if getattr(employment, "workload_fraction", None) is not None else None,
         time_profile={
-            "automatic_breaks_enabled": employment.automatic_breaks_enabled,
-            "afternoon": {"enabled": employment.afternoon_hours_enabled, "mandatory": False, "start": f"{employment.afternoon_start_minutes // 60:02d}:{employment.afternoon_start_minutes % 60:02d}" if employment.afternoon_start_minutes is not None else None},
-            "night": {"enabled": employment.night_hours_enabled, "mandatory": employment.employment_type.value == "WORK_CONTRACT"},
-            "weekend": {"enabled": employment.weekend_hours_enabled, "mandatory": employment.employment_type.value == "WORK_CONTRACT"},
-            "public_holiday": {"enabled": employment.public_holiday_hours_enabled, "mandatory": employment.employment_type.value == "WORK_CONTRACT"},
+            "automatic_breaks_enabled": bool(getattr(employment, "automatic_breaks_enabled", False)),
+            "afternoon": {"enabled": bool(getattr(employment, "afternoon_hours_enabled", False)), "mandatory": False, "start": f"{afternoon_start_minutes // 60:02d}:{afternoon_start_minutes % 60:02d}" if isinstance(afternoon_start_minutes, int) else None},
+            "night": {"enabled": bool(getattr(employment, "night_hours_enabled", False)), "mandatory": employment_type == "WORK_CONTRACT"},
+            "weekend": {"enabled": bool(getattr(employment, "weekend_hours_enabled", False)), "mandatory": employment_type == "WORK_CONTRACT"},
+            "public_holiday": {"enabled": bool(getattr(employment, "public_holiday_hours_enabled", False)), "mandatory": employment_type == "WORK_CONTRACT"},
         },
     )
 
@@ -371,6 +378,13 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
             employments_table.c.start_date,
             employments_table.c.end_date,
             employments_table.c.is_active,
+            employments_table.c.workload_fraction,
+            employments_table.c.automatic_breaks_enabled,
+            employments_table.c.afternoon_hours_enabled,
+            employments_table.c.afternoon_start_minutes,
+            employments_table.c.night_hours_enabled,
+            employments_table.c.weekend_hours_enabled,
+            employments_table.c.public_holiday_hours_enabled,
         )
         .where(employments_table.c.user_id.in_(user_ids))
         .order_by(employments_table.c.start_date.asc(), employments_table.c.id.asc())
@@ -387,6 +401,13 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
                 start_date=row["start_date"],
                 end_date=row["end_date"],
                 is_active=bool(row["is_active"]),
+                workload_fraction=row["workload_fraction"],
+                automatic_breaks_enabled=bool(row["automatic_breaks_enabled"]),
+                afternoon_hours_enabled=bool(row["afternoon_hours_enabled"]),
+                afternoon_start_minutes=row["afternoon_start_minutes"],
+                night_hours_enabled=bool(row["night_hours_enabled"]),
+                weekend_hours_enabled=bool(row["weekend_hours_enabled"]),
+                public_holiday_hours_enabled=bool(row["public_holiday_hours_enabled"]),
                 user=SimpleNamespace(name=""),
             )
         except Exception:
