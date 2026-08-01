@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import datetime as dt
 from types import SimpleNamespace
-from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -15,7 +14,6 @@ from app.api.deps import require_admin
 from app.api.errors import raise_api_error
 from app.db.models import (
     Employment,
-    PortalUser,
     ShiftPlan,
     ShiftPlanMonthInstance,
 )
@@ -179,43 +177,17 @@ def _get_employment(employment_id: int, db: Session) -> Employment:
     return employment
 
 
-def _load_available_employment_rows(db: Session) -> list[SimpleNamespace]:
-    employments_table = Employment.__table__
-    users_table = PortalUser.__table__
-
-    rows = db.execute(
-        select(
-            employments_table.c.id,
-            employments_table.c.user_id,
-            employments_table.c.title,
-            employments_table.c.employment_type,
-            employments_table.c.start_date,
-            employments_table.c.end_date,
-            employments_table.c.is_active,
-            users_table.c.name.label("user_name"),
-            users_table.c.is_active.label("user_is_active"),
+def _load_available_employment_rows(db: Session) -> list[Employment]:
+    return list(
+        db.execute(
+            select(Employment)
+            .options(joinedload(Employment.user))
+            .order_by(Employment.start_date.asc(), Employment.id.asc())
         )
-        .select_from(employments_table.outerjoin(users_table, users_table.c.id == employments_table.c.user_id))
-        .order_by(employments_table.c.start_date.asc(), employments_table.c.id.asc())
-    ).mappings().all()
-
-    available: list[SimpleNamespace] = []
-    for row in rows:
-        employment = SimpleNamespace(
-            id=int(row["id"]),
-            user_id=int(row["user_id"]),
-            title=row["title"],
-            employment_type=row["employment_type"],
-            start_date=row["start_date"],
-            end_date=row["end_date"],
-            is_active=bool(row["is_active"]),
-            user=SimpleNamespace(
-                name=row["user_name"] or f"Uživatel {row['user_id']}",
-                is_active=bool(row["user_is_active"]) if row["user_is_active"] is not None else False,
-            ),
-        )
-        available.append(employment)
-    return available
+        .unique()
+        .scalars()
+        .all()
+    )
 
 
 @router.get("/api/v1/admin/shift-plan", response_model=ShiftPlanMonthOut)
@@ -231,9 +203,9 @@ def admin_get_shift_plan_month(
 def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> ShiftPlanMonthOut:
     start, end = _month_range(year, month)
     available_employments = _load_available_employment_rows(db)
-    available_out = [_to_active_employment_out(cast(Employment, item), start, end) for item in available_employments]
+    available_out = [_to_active_employment_out(item, start, end) for item in available_employments]
     active_default_ids = [
-        item.id for item in available_employments if _employment_is_active_in_month(cast(Employment, item), start, end)
+        item.id for item in available_employments if _employment_is_active_in_month(item, start, end)
     ]
 
     try:
@@ -297,8 +269,7 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         year=year,
         month=month,
     )
-    typed_employments = [cast(Employment, item) for item in available_employments]
-    summaries = build_month_summaries(db, employments=typed_employments, year=year, month=month)
+    summaries = build_month_summaries(db, employments=available_employments, year=year, month=month)
 
     rows: list[ShiftPlanRowOut] = []
     for employment in available_employments:
@@ -331,10 +302,10 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 user_name=user_name,
                 title=employment.title,
                 employment_type=employment.employment_type,
-                display_label=employment_label(cast(Employment, employment), user_name),
+                display_label=employment_label(employment, user_name),
                 start_date=employment.start_date.isoformat(),
                 end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
-                is_active_in_month=_employment_is_active_in_month(cast(Employment, employment), start, end),
+                is_active_in_month=_employment_is_active_in_month(employment, start, end),
                 shift_plan_locked=employment.id in shift_plan_locked_ids,
                 attendance_locked=employment.id in attendance_locked_ids,
                 days=days,
