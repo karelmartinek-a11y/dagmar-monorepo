@@ -33,7 +33,7 @@ from app.services.locks import (
     LockType,
     load_locked_employment_ids,
 )
-from app.services.month_summary import build_month_summaries
+from app.services.time_metrics import round_minutes_to_tenths
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
 router = APIRouter(tags=["admin"])
@@ -147,6 +147,20 @@ def _month_range(year: int, month: int) -> tuple[dt.date, dt.date]:
 def _employment_is_active_in_month(employment: Employment, month_start: dt.date, month_end: dt.date) -> bool:
     user_is_active = bool(employment.user.is_active) if employment.user is not None else False
     return user_is_active and employment_overlaps_month(employment, month_start, month_end)
+
+
+def _planned_minutes(row: SimpleNamespace | None) -> int:
+    if row is None or row.status in {DAY_STATUS_HOLIDAY, DAY_STATUS_OFF}:
+        return 0
+    if not row.arrival_time or not row.departure_time:
+        return 0
+    arrival_hour, arrival_minute = (int(value) for value in row.arrival_time.split(":"))
+    departure_hour, departure_minute = (int(value) for value in row.departure_time.split(":"))
+    arrival = arrival_hour * 60 + arrival_minute
+    departure = departure_hour * 60 + departure_minute
+    if departure <= arrival:
+        departure += 24 * 60
+    return departure - arrival
 
 
 def _to_active_employment_out(employment: Employment, month_start: dt.date, month_end: dt.date) -> ActiveEmploymentOut:
@@ -269,18 +283,22 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         year=year,
         month=month,
     )
-    summaries = build_month_summaries(db, employments=available_employments, year=year, month=month)
-
     rows: list[ShiftPlanRowOut] = []
     for employment in available_employments:
         employment_id = employment.id
-        summary = summaries[employment_id]
-        day_summary_by_date = {item.date: item for item in summary.day_summaries}
         cur = start
         days: list[ShiftPlanDayOut] = []
+        planned_minutes = 0
+        scheduled_days = 0
+        holiday_days = 0
+        off_days = 0
         while cur < end:
             row = plan_map.get((employment_id, cur))
-            day_summary = day_summary_by_date[cur]
+            day_planned_minutes = _planned_minutes(row)
+            planned_minutes += day_planned_minutes
+            scheduled_days += int(day_planned_minutes > 0)
+            holiday_days += int(row is not None and row.status == DAY_STATUS_HOLIDAY)
+            off_days += int(row is not None and row.status == DAY_STATUS_OFF)
             days.append(
                 ShiftPlanDayOut(
                     date=cur.isoformat(),
@@ -288,9 +306,9 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                     departure_time=row.departure_time if row else None,
                     status=row.status if row else None,
                     is_within_employment_period=employment.start_date <= cur and (employment.end_date is None or cur <= employment.end_date),
-                    planned_minutes=day_summary.planned_minutes,
-                    planned_hours=day_summary.planned_hours,
-                    planned_state=day_summary.planned_state,
+                    planned_minutes=day_planned_minutes,
+                    planned_hours=round_minutes_to_tenths(day_planned_minutes) / 10,
+                    planned_state="complete" if day_planned_minutes else "empty",
                 )
             )
             cur = cur + dt.timedelta(days=1)
@@ -310,15 +328,11 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 attendance_locked=employment.id in attendance_locked_ids,
                 days=days,
                 summary=ShiftPlanSummaryOut(
-                    planned_minutes=summary.planned_minutes,
-                    planned_hours=summary.planned_hours,
-                    scheduled_days=sum(
-                        1
-                        for item in summary.day_summaries
-                        if item.plan and item.plan.arrival_time and item.plan.departure_time
-                    ),
-                    holiday_days=sum(1 for item in summary.day_summaries if item.effective_status == DAY_STATUS_HOLIDAY),
-                    off_days=sum(1 for item in summary.day_summaries if item.effective_status == DAY_STATUS_OFF),
+                    planned_minutes=planned_minutes,
+                    planned_hours=round_minutes_to_tenths(planned_minutes) / 10,
+                    scheduled_days=scheduled_days,
+                    holiday_days=holiday_days,
+                    off_days=off_days,
                 ),
             )
         )
