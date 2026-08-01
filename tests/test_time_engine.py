@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 from app.db.models import EmploymentType
 from app.services.czech_holidays import is_czech_public_holiday
-from app.services.time_intervals import break_segments
+from app.services.time_intervals import break_segments, pair_events
 from app.services.time_metrics import round_minutes_to_tenths
 
 
@@ -14,6 +15,18 @@ def test_break_distribution_is_minimal_and_deterministic() -> None:
     assert break_segments(360) == ([360], 0)
     assert break_segments(721) == ([360, 331], 1)
     assert break_segments(1440) == ([360, 360, 360, 270], 3)
+
+
+def test_pair_events_ignores_incomplete_historical_sequences() -> None:
+    events = [
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 1, 8, tzinfo=UTC), event_type="IN"),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 7, 2, 8, tzinfo=UTC), event_type="IN"),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 7, 2, 16, tzinfo=UTC), event_type="OUT"),
+    ]
+
+    intervals = pair_events(events)
+
+    assert [(item.start.date(), item.end.date(), item.minutes) for item in intervals] == [(date(2026, 7, 2), date(2026, 7, 2), 480)]
 
 
 def test_czech_holidays_include_easter_and_fixed_days() -> None:

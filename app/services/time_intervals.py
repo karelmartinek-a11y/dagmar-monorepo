@@ -22,21 +22,32 @@ def ordered_events(events: list[AttendanceEvent]) -> list[AttendanceEvent]:
 
 
 def pair_events(events: list[AttendanceEvent]) -> list[WorkInterval]:
+    """Build closed work intervals without failing on incomplete history.
+
+    Historical attendance can contain an open IN or an orphan OUT, especially
+    for data converted from the pre-event schema. Those events remain visible
+    to callers, while only chronologically valid IN/OUT pairs contribute to
+    metrics. New event writes still enforce strict alternation at the API
+    boundary.
+    """
     ordered = ordered_events(events)
     intervals: list[WorkInterval] = []
     opened: AttendanceEvent | None = None
     for event in ordered:
         if event.event_type == AttendanceEventType.IN:
-            if opened is not None:
-                raise ValueError("Docházkové průchody musí střídat IN a OUT.")
+            # A second IN means the previous historical interval was never
+            # closed. Start the next usable interval instead of failing the
+            # whole month response.
             opened = event
             continue
         if opened is None:
-            raise ValueError("Průchod OUT nemá předchozí IN.")
+            # Keep an orphan OUT visible, but it cannot form a work interval.
+            continue
         start = prague_now(opened.occurred_at)
         end = prague_now(event.occurred_at)
         if end <= start:
-            raise ValueError("Průchod OUT musí následovat po IN.")
+            opened = None
+            continue
         intervals.append(WorkInterval(start=start, end=end))
         opened = None
     return intervals
