@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import distinct, or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from ...db.models import AttendanceEvent, Employment, ShiftPlan
+from ...db.models import Attendance, AttendanceEvent, Employment, ShiftPlan
 from ...db.session import get_db
 from ...security.csrf import require_csrf
 from ...services.shift_plan_reports import (
@@ -67,6 +67,12 @@ def _csv_for_employment(
 ) -> bytes:
     q = select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id).order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
     attendance_rows = db.execute(q).scalars().all()
+    status_rows = db.execute(
+        select(Attendance)
+        .where(Attendance.employment_id == employment.id, Attendance.date >= start, Attendance.date < end)
+        .order_by(Attendance.date.asc())
+    ).scalars().all()
+    status_by_date = {row.date: row.status for row in status_rows if row.status}
     plan_rows = db.execute(
         select(ShiftPlan)
         .where(ShiftPlan.employment_id == employment.id)
@@ -76,7 +82,7 @@ def _csv_for_employment(
     ).scalars().all()
     plan_by_date = {row.date: row for row in plan_rows}
     event_dates = {row.occurred_at.astimezone().date() for row in attendance_rows}
-    all_dates = sorted(event_dates | set(plan_by_date))
+    all_dates = sorted(event_dates | set(plan_by_date) | set(status_by_date))
 
     buf = io.StringIO(newline="")
     w = csv.writer(buf, delimiter=",", quoting=csv.QUOTE_MINIMAL)
@@ -103,7 +109,7 @@ def _csv_for_employment(
                 employment.employment_type,
                 day.isoformat(),
                 ";".join(f"{row.event_type.value}:{row.occurred_at.isoformat()}" for row in events),
-                plan_row.status if plan_row is not None and plan_row.status else "",
+                status_by_date.get(day) or (plan_row.status if plan_row is not None and plan_row.status else ""),
                 plan_row.arrival_time if plan_row is not None and plan_row.arrival_time else "",
                 plan_row.departure_time if plan_row is not None and plan_row.departure_time else "",
             ]
@@ -134,9 +140,9 @@ def _load_relevant_employments(db: Session, start: date, end: date) -> list[Empl
         .scalars()
         .all()
     )
-    attendance_ids = db.execute(
-        select(distinct(AttendanceEvent.employment_id)).where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
-    ).scalars().all()
+    event_ids = select(AttendanceEvent.employment_id).where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
+    legacy_ids = select(Attendance.employment_id).where(Attendance.date >= start, Attendance.date < end)
+    attendance_ids = db.execute(select(distinct(event_ids.union(legacy_ids).subquery().c.employment_id))).scalars().all()
     attendance_id_set = set(attendance_ids)
     relevant = [employment for employment in candidates if employment.is_active or employment.id in attendance_id_set]
     seen = {employment.id for employment in relevant}

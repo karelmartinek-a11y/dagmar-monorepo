@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
 from app.api.v1.attendance import AttendanceMonthOut, _build_month
-from app.db.models import AttendanceEvent, AttendanceEventType, Employment
+from app.db.models import Attendance, AttendanceEvent, AttendanceEventType, Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.attendance_events import add_event_with_breaks
@@ -60,6 +60,38 @@ def _employment(db: Session, employment_id: int) -> Employment:
     return employment
 
 
+def _load_month_employments(db: Session, *, start: date, end: date, range_start: datetime, range_end: datetime) -> list[Employment]:
+    return list(
+        db.execute(
+            select(Employment)
+            .options(selectinload(Employment.user))
+            .where(
+                or_(
+                    (Employment.start_date < end) & (Employment.end_date.is_(None) | (Employment.end_date >= start)),
+                    Employment.id.in_(
+                        select(AttendanceEvent.employment_id).where(
+                            AttendanceEvent.occurred_at >= range_start,
+                            AttendanceEvent.occurred_at < range_end,
+                        )
+                    ),
+                    # Pre-migration attendance rows may contain only a day status.
+                    # Keep that employment visible even when the selected month is
+                    # outside the current employment period.
+                    Employment.id.in_(
+                        select(Attendance.employment_id).where(
+                            Attendance.date >= start,
+                            Attendance.date < end,
+                        )
+                    ),
+                )
+            )
+            .order_by(Employment.user_id, Employment.start_date, Employment.id)
+        )
+        .scalars()
+        .all()
+    )
+
+
 @router.get("/api/v1/admin/attendance/month", response_model=AdminAttendanceMonthListOut)
 def list_month_sheets(
     year: int = Query(..., ge=2000, le=2100),
@@ -71,22 +103,7 @@ def list_month_sheets(
     end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
     range_start = datetime.combine(start, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
     range_end = datetime.combine(end, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
-    employments = db.execute(
-        select(Employment)
-        .options(selectinload(Employment.user))
-        .where(
-            or_(
-                (Employment.start_date < end) & (Employment.end_date.is_(None) | (Employment.end_date >= start)),
-                Employment.id.in_(
-                    select(AttendanceEvent.employment_id).where(
-                        AttendanceEvent.occurred_at >= range_start,
-                        AttendanceEvent.occurred_at < range_end,
-                    )
-                ),
-            )
-        )
-        .order_by(Employment.user_id, Employment.start_date, Employment.id)
-    ).scalars().all()
+    employments = _load_month_employments(db, start=start, end=end, range_start=range_start, range_end=range_end)
     return AdminAttendanceMonthListOut(data=[_build_month(db, employment, year, month) for employment in employments])
 
 
