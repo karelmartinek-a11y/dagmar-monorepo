@@ -111,6 +111,30 @@ class EmploymentDeleteIn(BaseModel):
     confirm_delete_related: bool = False
 
 
+def _normalize_profile_for_type(
+    employment_type: str,
+    profile_values: dict[str, Any],
+    *,
+    type_changed: bool,
+) -> dict[str, Any]:
+    normalized = dict(profile_values)
+    if type_changed and employment_type != EmploymentType.WORK_CONTRACT.value:
+        normalized["workload_fraction"] = None
+    if employment_type == EmploymentType.WORK_CONTRACT.value:
+        normalized["workload_fraction"] = normalized["workload_fraction"] or Decimal("1.000")
+        normalized["night_hours_enabled"] = True
+        normalized["weekend_hours_enabled"] = True
+        normalized["public_holiday_hours_enabled"] = True
+    elif type_changed and employment_type == EmploymentType.TASK_SHIFT_BASED.value:
+        normalized["automatic_breaks_enabled"] = False
+        normalized["afternoon_hours_enabled"] = False
+        normalized["afternoon_start_minutes"] = None
+        normalized["night_hours_enabled"] = False
+        normalized["weekend_hours_enabled"] = False
+        normalized["public_holiday_hours_enabled"] = False
+    return normalized
+
+
 @dataclass
 class RangeConflictSummary:
     attendance_count: int = 0
@@ -527,6 +551,8 @@ def update_employment(
 
     next_title = payload.title.strip() if payload.title is not None else employment.title
     next_type = payload.employment_type if payload.employment_type is not None else employment.employment_type
+    next_type_value = str(getattr(next_type, "value", next_type))
+    current_type_value = str(getattr(employment.employment_type, "value", employment.employment_type))
     if not employment_type_is_valid(next_type):
         raise_api_error(400, "invalid_employment_type", "Neplatný typ úvazku.")
 
@@ -568,13 +594,13 @@ def update_employment(
         "weekend_hours_enabled": payload.weekend_hours_enabled if payload.weekend_hours_enabled is not None else employment.weekend_hours_enabled,
         "public_holiday_hours_enabled": payload.public_holiday_hours_enabled if payload.public_holiday_hours_enabled is not None else employment.public_holiday_hours_enabled,
     }
-    if next_type == "WORK_CONTRACT":
-        profile_values["workload_fraction"] = profile_values["workload_fraction"] or Decimal("1.000")
-        profile_values["night_hours_enabled"] = True
-        profile_values["weekend_hours_enabled"] = True
-        profile_values["public_holiday_hours_enabled"] = True
+    profile_values = _normalize_profile_for_type(
+        next_type_value,
+        profile_values,
+        type_changed=next_type_value != current_type_value,
+    )
     try:
-        validate_time_profile(employment_type=next_type, **profile_values)
+        validate_time_profile(employment_type=next_type_value, **profile_values)
     except ValueError as exc:
         raise_api_error(400, "invalid_time_profile", str(exc))
     for key, value in profile_values.items():
