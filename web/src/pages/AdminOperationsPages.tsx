@@ -1,38 +1,112 @@
-import { useState } from "react";
-import { Download, Settings, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download, Printer, Settings, ShieldCheck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Button, Panel, StatusMessage } from "../components/Primitives";
+import { Button, Field, Panel, StatusMessage } from "../components/Primitives";
 import { api } from "../api/client";
+import type { AdminUser, AttendanceDay, AttendanceMonth } from "../api/types";
+
+type EmploymentChoice = { id: number; user_name: string; title: string; employment_type: string; display_label?: string; is_active_in_month?: boolean };
+type ShiftPlanResponse = { year: number; month: number; selected_employment_ids: number[]; available_employments: EmploymentChoice[]; rows: ShiftPlanRow[] };
+type ShiftPlanRow = { employment_id: number; display_label: string; shift_plan_locked: boolean; days: ShiftPlanDay[]; summary: { planned_hours: number; scheduled_days: number; holiday_days: number; off_days: number } };
+type ShiftPlanDay = { date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean; planned_hours: number; planned_state: string };
+type PrintType = "attendance" | "shift_plan";
+
+function currentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthParts(value: string) {
+  const [year, month] = value.split("-").map(Number);
+  return { year, month };
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function formatEventTimes(day: AttendanceDay) {
+  return day.events.map((event) => `${event.event_type} ${new Intl.DateTimeFormat("cs-CZ", { timeZone: "Europe/Prague", hour: "2-digit", minute: "2-digit" }).format(new Date(event.occurred_at))}`).join(" · ") || "—";
+}
+
+function formatHours(value: { hours: number } | null | undefined) {
+  return value == null ? "—" : value.hours.toFixed(1);
+}
+
+function AttendancePrint({ sheets, kind }: { sheets: AttendanceMonth[]; kind: "summary" | "detail" }) {
+  return <div className={`print-sheet print-sheet--attendance-detail ${kind === "summary" ? "print-sheet--attendance-summary" : ""}`}>
+    {sheets.map((sheet) => <article className="print-attendance-card" key={sheet.employment_id}>
+      <header><h2>{sheet.employment_label}</h2><p>Docházkový list · {kind === "summary" ? "souhrn" : "detail"}</p></header>
+      <table className="print-attendance-table"><thead><tr><th>Datum</th><th>Průchody</th><th>Celkem h</th><th>Odpoledne h</th><th>Noc h</th><th>Víkend h</th><th>Svátek h</th></tr></thead><tbody>{sheet.days.map((day) => <tr key={day.date}><td>{new Intl.DateTimeFormat("cs-CZ").format(new Date(`${day.date}T12:00:00`))}</td><td>{formatEventTimes(day)}</td><td>{formatHours(day.worked?.total)}</td><td>{formatHours(day.worked?.afternoon)}</td><td>{formatHours(day.worked?.night)}</td><td>{formatHours(day.worked?.weekend)}</td><td>{formatHours(day.worked?.public_holiday)}</td></tr>)}<tr><th colSpan={2}>Součet</th><th>{formatHours(sheet.worked?.total)}</th><th>{formatHours(sheet.worked?.afternoon)}</th><th>{formatHours(sheet.worked?.night)}</th><th>{formatHours(sheet.worked?.weekend)}</th><th>{formatHours(sheet.worked?.public_holiday)}</th></tr></tbody></table>
+    </article>)}
+  </div>;
+}
 
 export function AdminExportPage() {
   const { t } = useTranslation();
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
-  async function download() {
-    setState("loading");
+  const [month, setMonth] = useState(currentMonth());
+  const [employment, setEmployment] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const users = useQuery({ queryKey: ["admin-users"], queryFn: () => api.admin<{ users: AdminUser[] }>("/api/v1/admin/users") });
+  const choices = useMemo(() => (users.data?.users ?? []).flatMap((user) => (user.employments ?? []).map((item) => ({ ...item, user_name: user.name }))), [users.data?.users]);
+  const download = async () => {
+    setError(null);
     try {
-      const response = await api.adminBlob(`/api/v1/admin/export?month=${new Date().toISOString().slice(0, 7)}&bulk=true`, { method: "GET" });
-      const url = URL.createObjectURL(response.blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "kajovodagmar-export.csv";
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setState("idle");
-    } catch {
-      setState("error");
-    }
-  }
-  return <Panel title={t("adminOps.export.title")}><Button onClick={download} disabled={state === "loading"}><Download />{t("adminOps.export.download")}</Button>{state === "error" && <StatusMessage kind="error" title={t("adminOps.export.loadFailed")} />}</Panel>;
+      const path = employment ? `/api/v1/admin/export?month=${month}&employment_id=${employment}` : `/api/v1/admin/export?month=${month}&bulk=true`;
+      const result = await api.adminBlob(path);
+      downloadBlob(result.blob, result.filename ?? (employment ? `dochazka_${month}.csv` : `export_${month}.zip`));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Export se nepodařilo vytvořit."); }
+  };
+  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.export.eyebrow")}</p><h1>{t("adminOps.export.title")}</h1></div></header><div className="split"><Panel title={t("adminOps.export.params")}><div className="panel-body form-grid"><Field label={t("adminOps.export.month")}><input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></Field><Field label={t("adminOps.export.scope")}><select value={employment} onChange={(event) => setEmployment(event.target.value)}><option value="">{t("adminOps.export.allZip")}</option>{choices.map((item) => <option key={item.id} value={item.id}>{item.user_name} · {item.title} · {item.employment_type}</option>)}</select></Field><div className="full action-row"><Button onClick={download}><Download />{t("adminOps.export.download")} {employment ? "CSV" : "ZIP"}</Button></div>{error && <div className="full"><StatusMessage kind="error" title={t("adminOps.export.loadFailed")}>{error}</StatusMessage></div>}</div></Panel><Panel title={t("adminOps.export.contains")}><ul className="list"><li><span>{t("adminOps.export.dataBinding")}</span><strong>employment_id</strong></li><li><span>{t("adminOps.export.timeRange")}</span><strong>{month}</strong></li><li><span>{t("adminOps.export.columns")}</span><strong>{t("adminOps.export.columnValue")}</strong></li><li><span>{t("adminOps.export.encoding")}</span><strong>UTF-8</strong></li></ul></Panel></div></div>;
 }
 
 export function AdminPrintsPage() {
   const { t } = useTranslation();
-  return <Panel title={t("adminOps.prints.title")}><StatusMessage kind="empty" title={t("adminOps.prints.empty")} /></Panel>;
+  const navigate = useNavigate();
+  const [month, setMonth] = useState(currentMonth());
+  const [type, setType] = useState<PrintType>("attendance");
+  const [kind, setKind] = useState<"summary" | "detail">("summary");
+  const [selected, setSelected] = useState<number[] | null>(null);
+  const { year, month: monthNumber } = monthParts(month);
+  const plan = useQuery({ queryKey: ["admin-print-plan", year, monthNumber], queryFn: () => api.admin<ShiftPlanResponse>(`/api/v1/admin/shift-plan?year=${year}&month=${monthNumber}`), enabled: type === "shift_plan" });
+  const users = useQuery({ queryKey: ["admin-users"], queryFn: () => api.admin<{ users: AdminUser[] }>("/api/v1/admin/users"), enabled: type === "attendance" });
+  const choices: EmploymentChoice[] = type === "shift_plan" ? plan.data?.available_employments ?? [] : (users.data?.users ?? []).flatMap((user) => (user.employments ?? []).map((item) => ({ id: item.id, user_name: user.name, title: item.title, employment_type: item.employment_type, display_label: item.label })));
+  const defaultIds = choices.filter((item) => item.is_active_in_month !== false).map((item) => item.id);
+  const selectedIds = selected ?? defaultIds;
+  const toggle = (id: number) => setSelected((current) => { const base = current ?? defaultIds; return base.includes(id) ? base.filter((item) => item !== id) : [...base, id]; });
+  const openPreview = () => navigate(`/admin/tisky/preview?month=${month}&type=${type}&kind=${kind}&employments=${selectedIds.join(",")}`);
+  return <div className="page"><header className="page-heading"><div><p>{t("adminOps.prints.eyebrow")}</p><h1>{t("adminOps.prints.title")}</h1></div></header><div className="split"><Panel title={t("adminOps.prints.document")}><div className="panel-body form-grid"><Field label={t("adminOps.prints.reportType")}><select value={type} onChange={(event) => { setType(event.target.value as PrintType); setSelected(null); }}><option value="attendance">{t("adminOps.prints.attendanceType")}</option><option value="shift_plan">{t("adminOps.prints.shiftPlanType")}</option></select></Field>{type === "attendance" && <Field label={t("adminOps.prints.reportVariant")}><select value={kind} onChange={(event) => setKind(event.target.value as "summary" | "detail")}><option value="summary">{t("adminOps.prints.summary")}</option><option value="detail">{t("adminOps.prints.detail")}</option></select></Field>}<Field label={t("adminOps.prints.month")}><input type="month" value={month} onChange={(event) => { setMonth(event.target.value); setSelected(null); }} /></Field><div className="full"><div className="action-row action-row--wrap"><Button type="button" variant="quiet" onClick={() => setSelected(defaultIds)}>{t("adminOps.prints.selectAllEmployments")}</Button><Button type="button" variant="quiet" onClick={() => setSelected([])}>{t("adminOps.prints.clearEmployments")}</Button><span className="badge">{t("adminOps.prints.selectedEmploymentsCount", { count: selectedIds.length })}</span></div>{(plan.isError || users.isError) && <StatusMessage kind="error" title={t("adminOps.prints.failed")} />}{(plan.isPending || users.isPending) && <StatusMessage kind="loading" title={t("adminOps.prints.loadingShiftPlanEmployments")} />}<div className="admin-chip-grid">{choices.map((item) => <label key={item.id} className={`admin-chip admin-chip--checkbox ${selectedIds.includes(item.id) ? "admin-chip--active" : ""}`}><input type="checkbox" checked={selectedIds.includes(item.id)} disabled={item.is_active_in_month === false} onChange={() => toggle(item.id)} /><strong>{item.user_name}</strong><span>{item.title}</span><small>{item.display_label ?? item.employment_type}</small></label>)}</div></div><div className="full action-row"><Button disabled={selectedIds.length === 0} onClick={openPreview}><Printer />{t("adminOps.prints.openPreview")}</Button></div></div></Panel><Panel title={t("adminOps.prints.previewContains")}><div className="panel-body stack"><p>{type === "shift_plan" ? t("adminOps.prints.shiftPlanDescription") : kind === "summary" ? t("adminOps.prints.summaryDescription") : t("adminOps.prints.detailDescription")}</p><p>{t("adminOps.prints.previewHelp")}</p></div></Panel></div></div>;
 }
 
 export function AdminPrintPreviewPage() {
   const { t } = useTranslation();
-  return <Panel title={t("adminOps.prints.preview.title")}><StatusMessage kind="empty" title={t("adminOps.prints.empty")} /></Panel>;
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const month = params.get("month") ?? currentMonth();
+  const type = (params.get("type") ?? "attendance") as PrintType;
+  const kind = (params.get("kind") ?? "summary") as "summary" | "detail";
+  const selectedIds = (params.get("employments") ?? "").split(",").map(Number).filter((id) => id > 0);
+  const { year, month: monthNumber } = monthParts(month);
+  const attendance = useQuery({ queryKey: ["print-attendance-month", year, monthNumber], queryFn: () => api.admin<{ data: AttendanceMonth[] }>(`/api/v1/admin/attendance/month?year=${year}&month=${monthNumber}`), enabled: type === "attendance" });
+  const report = useQuery({ queryKey: ["print-shift-plan-report", year, monthNumber, selectedIds], queryFn: () => api.admin<ShiftPlanReport>("/api/v1/admin/export/shift-plan/report", { method: "POST", body: JSON.stringify({ year, month: monthNumber, employment_ids: selectedIds }) }), enabled: type === "shift_plan" && selectedIds.length > 0 });
+  const sheets = (attendance.data?.data ?? []).filter((sheet) => selectedIds.length === 0 || selectedIds.includes(sheet.employment_id));
+  const downloadPdf = async () => { const response = await api.adminBlob("/api/v1/admin/export/shift-plan/pdf", { method: "POST", body: JSON.stringify({ year, month: monthNumber, employment_ids: selectedIds }) }); downloadBlob(response.blob, response.filename ?? `plan_smen_${month}.pdf`); };
+  return <div className="page"><header className="page-heading no-print"><div><p>{t("adminOps.prints.previewEyebrow")}</p><h1>{type === "shift_plan" ? t("adminOps.prints.shiftPlanPreviewTitle") : t("adminOps.prints.previewTitle")}</h1></div><div className="action-row"><Button variant="quiet" onClick={() => window.print()}><Printer />{t("adminOps.prints.printPdf")}</Button>{type === "shift_plan" && <Button onClick={downloadPdf}><Download />{t("adminOps.prints.downloadPdf")}</Button>}</div></header>{type === "attendance" ? attendance.isPending ? <StatusMessage kind="loading" title={t("adminOps.prints.preparing")} /> : attendance.isError ? <StatusMessage kind="error" title={t("adminOps.prints.failed")} /> : <AttendancePrint sheets={sheets} kind={kind} /> : report.isPending ? <StatusMessage kind="loading" title={t("adminOps.prints.generatingPdf")} /> : report.isError ? <StatusMessage kind="error" title={t("adminOps.prints.failed")} /> : report.data ? <ShiftPlanPreview report={report.data} /> : <StatusMessage kind="empty" title={t("adminOps.prints.failed")} />}</div>;
+}
+
+type ShiftPlanReport = { year: number; month: number; month_label: string; generated_at_label: string; day_headers: Array<{ date_iso: string; day_number: number; weekday_short: string; holiday_label: string | null; tone: string }>; pages: Array<{ page_number: number; employments: Array<{ employment_id: number; display_label: string; user_name: string; title: string; employment_type: string; planned_total_label: string; scheduled_days: number; holiday_days: number; off_days: number; cells: Array<{ date_iso: string; interval_label: string; duration_label: string; status_label: string | null; tone: string; is_within_employment_period: boolean }> }> }>; legend: string[] };
+
+function ShiftPlanPreview({ report }: { report: ShiftPlanReport }) {
+  return <div className="print-report-pages">{report.pages.map((page) => <article className="print-sheet print-sheet--shift-plan" key={page.page_number}><header><h2>Plán služeb · {report.month_label}</h2><small>Vygenerováno {report.generated_at_label} · Strana {page.page_number} z {report.pages.length}</small></header><table className="print-shift-plan-table"><thead><tr><th>Úvazek</th><th>Součet</th>{report.day_headers.map((day) => <th key={day.date_iso}><strong>{day.day_number}.</strong><span>{day.weekday_short}</span>{day.holiday_label && <small>{day.holiday_label}</small>}</th>)}</tr></thead><tbody>{page.employments.map((employment) => <tr key={employment.employment_id}><td><strong>{employment.user_name}</strong><span>{employment.display_label}</span><small>{employment.employment_type} · {employment.title}</small></td><td><strong>{employment.planned_total_label}</strong><span>{employment.scheduled_days} směn</span><small>D {employment.holiday_days} · V {employment.off_days}</small></td>{employment.cells.map((cell) => <td key={cell.date_iso}><strong>{cell.interval_label}</strong>{cell.duration_label && <span>{cell.duration_label}</span>}{cell.status_label && <small>{cell.status_label}</small>}</td>)}</tr>)}</tbody></table><footer><strong>Legenda</strong><ul>{report.legend.map((item) => <li key={item}>{item}</li>)}</ul></footer></article>)}</div>;
 }
 
 export function AdminSettingsPage() {

@@ -172,6 +172,7 @@ function EmploymentForm({ value, onSubmit, onDelete }: { value?: Employment; onS
   const [type, setType] = useState<"WORK_CONTRACT" | "DPP_DPC" | "TASK_SHIFT_BASED" | "EXTERNAL_HOURLY">((value?.employment_type as "WORK_CONTRACT" | "DPP_DPC" | "TASK_SHIFT_BASED" | "EXTERNAL_HOURLY" | undefined) ?? "WORK_CONTRACT");
   const [start, setStart] = useState(value?.start_date ?? new Date().toISOString().slice(0, 10));
   const [end, setEnd] = useState(value?.end_date ?? "");
+  const [indefinite, setIndefinite] = useState(value?.end_date == null);
   const [active, setActive] = useState(value?.is_active ?? true);
   const [workloadFraction, setWorkloadFraction] = useState(value?.workload_fraction ?? "1.000");
   const [automaticBreaks, setAutomaticBreaks] = useState(profile.automatic_breaks_enabled === true);
@@ -201,7 +202,7 @@ function EmploymentForm({ value, onSubmit, onDelete }: { value?: Employment; onS
       title,
       employment_type: type,
       start_date: start,
-      end_date: end || null,
+      end_date: indefinite ? null : end || null,
       is_active: active,
       workload_fraction: type === "WORK_CONTRACT" ? Number(workloadFraction || "1") : null,
       automatic_breaks_enabled: type === "TASK_SHIFT_BASED" ? false : automaticBreaks,
@@ -218,7 +219,8 @@ function EmploymentForm({ value, onSubmit, onDelete }: { value?: Employment; onS
     <Field label={t("users.fields.employmentTitle")}><input required value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
     <Field label={t("users.fields.employmentType")}><select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="WORK_CONTRACT">Pracovní smlouva</option><option value="DPP_DPC">DPP / DPČ</option><option value="TASK_SHIFT_BASED">Úkolová / směnová odměna</option><option value="EXTERNAL_HOURLY">Externí hodinová fakturace</option></select></Field>
     <Field label={t("users.fields.validFrom")}><input required type="date" value={start} onChange={(event) => setStart(event.target.value)} /></Field>
-    <Field label={t("users.fields.validTo")}><input type="date" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>
+    <Field label={t("users.fields.validTo")}><input type="date" value={indefinite ? "" : end} disabled={indefinite} onChange={(event) => setEnd(event.target.value)} /></Field>
+    <label className="field full"><span><input type="checkbox" checked={indefinite} onChange={(event) => { setIndefinite(event.target.checked); if (event.target.checked) setEnd(""); }} /> Na dobu neurčitou</span></label>
     <label className="field full"><span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /> {t("users.fields.activeEmployment")}</span></label>
     <fieldset className="full form-grid">
       <legend>Časový profil úvazku</legend>

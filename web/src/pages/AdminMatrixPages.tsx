@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Panel, StatusMessage } from "../components/Primitives";
 import { api } from "../api/client";
@@ -33,5 +33,22 @@ type AttendanceSheet = { employment_id: number; employment_label: string; days: 
 
 export function AdminShiftPlanPage() {
   const { t } = useTranslation();
-  return <Panel title={t("adminMatrix.shiftPlan.title")}><StatusMessage kind="empty" title={t("adminMatrix.shiftPlan.empty")} /></Panel>;
+  const queryClient = useQueryClient();
+  const initial = monthParts();
+  const [year, setYear] = useState(initial.year);
+  const [month, setMonth] = useState(initial.month);
+  const [filter, setFilter] = useState("");
+  const plan = useQuery({ queryKey: ["admin-shift-plan", year, month], queryFn: () => api.admin<PlanMonth>(`/api/v1/admin/shift-plan?year=${year}&month=${month}`) });
+  const save = useMutation({ mutationFn: (body: PlanUpdate) => api.admin("/api/v1/admin/shift-plan", { method: "PUT", body: JSON.stringify(body) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-shift-plan", year, month] }) });
+  const select = useMutation({ mutationFn: (employmentIds: number[]) => api.admin("/api/v1/admin/shift-plan/selection", { method: "PUT", body: JSON.stringify({ year, month, employment_ids: employmentIds }) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-shift-plan", year, month] }) });
+  const available = plan.data?.available_employments ?? [];
+  const selected = plan.data?.selected_employment_ids ?? [];
+  const rows = (plan.data?.rows ?? []).filter((row) => selected.includes(row.employment_id) && row.display_label.toLocaleLowerCase("cs-CZ").includes(filter.toLocaleLowerCase("cs-CZ")));
+  const toggle = (id: number, checked: boolean) => select.mutate(checked ? [...selected, id] : selected.filter((item) => item !== id));
+  return <Panel title={t("adminMatrix.shiftPlan.title")}><div className="panel-body"><div className="form-grid"><label>Rok<input type="number" value={year} onChange={(event) => setYear(Number(event.target.value))} /></label><label>Měsíc<input type="number" min="1" max="12" value={month} onChange={(event) => setMonth(Number(event.target.value))} /></label><label>Filtrovat úvazky<input placeholder="Jméno nebo úvazek" value={filter} onChange={(event) => setFilter(event.target.value)} /></label></div>{plan.isPending && <StatusMessage kind="loading" title="Načítám plán služeb" />}{plan.isError && <StatusMessage kind="error" title="Plán služeb nelze načíst" />}{plan.data && <><div className="attendance-sheet-selection"><strong>Výběr úvazků pro plán</strong><div className="attendance-sheet-selection__items">{available.map((item) => <label key={item.id}><input type="checkbox" checked={selected.includes(item.id)} disabled={!item.is_active_in_month} onChange={(event) => toggle(item.id, event.target.checked)} />{item.display_label ?? `${item.user_name} — ${item.title}`}</label>)}</div></div>{rows.length === 0 ? <StatusMessage kind="empty" title={t("adminMatrix.shiftPlan.empty")} /> : rows.map((row) => <section className="attendance-sheet" key={row.employment_id}><h3>{row.display_label}</h3><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Datum</th><th>Příchod</th><th>Odchod</th><th>Stav</th><th>Plán (h)</th></tr></thead><tbody>{row.days.map((day) => <tr key={day.date}><td>{new Intl.DateTimeFormat("cs-CZ").format(new Date(`${day.date}T12:00:00`))}</td><td><input aria-label={`${row.display_label} ${day.date} příchod`} type="time" value={day.arrival_time ?? ""} disabled={row.shift_plan_locked || !day.is_within_employment_period} onChange={(event) => save.mutate({ employment_id: row.employment_id, date: day.date, arrival_time: event.target.value || null, departure_time: day.departure_time, status: day.status })} /></td><td><input aria-label={`${row.display_label} ${day.date} odchod`} type="time" value={day.departure_time ?? ""} disabled={row.shift_plan_locked || !day.is_within_employment_period} onChange={(event) => save.mutate({ employment_id: row.employment_id, date: day.date, arrival_time: day.arrival_time, departure_time: event.target.value || null, status: day.status })} /></td><td>{day.status ?? "—"}</td><td>{day.planned_hours.toFixed(1)}</td></tr>)}<tr><th colSpan={4}>Součet</th><th>{row.summary.planned_hours.toFixed(1)}</th></tr></tbody></table></div></section>)}</>}</div></Panel>;
 }
+
+type PlanUpdate = { employment_id: number; date: string; arrival_time: string | null; departure_time: string | null; status: string | null };
+type ShiftPlanDay = { date: string; arrival_time: string | null; departure_time: string | null; status: string | null; is_within_employment_period: boolean; planned_hours: number; planned_state: string };
+type ShiftPlanRow = { employment_id: number; display_label: string; shift_plan_locked: boolean; days: ShiftPlanDay[]; summary: { planned_hours: number; scheduled_days: number; holiday_days: number; off_days: number } };
+type PlanMonth = { year: number; month: number; selected_employment_ids: number[]; available_employments: Array<{ id: number; display_label: string; user_name: string; title: string; is_active_in_month: boolean }>; rows: ShiftPlanRow[] };
