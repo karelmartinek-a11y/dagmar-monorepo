@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Field, Panel, StatusMessage } from "../components/Primitives";
 import { api } from "../api/client";
 import type { AdminUser, AttendanceDay, AttendanceMonth } from "../api/types";
+import { asPragueDate, getCalendarDayInfo, getCalendarDayTone, getWeekdayLongLabel } from "../utils/calendar";
 
 type EmploymentChoice = { id: number; user_name: string; title: string; employment_type: string; display_label?: string; is_active_in_month?: boolean };
 type ShiftPlanResponse = { year: number; month: number; selected_employment_ids: number[]; available_employments: EmploymentChoice[]; rows: ShiftPlanRow[] };
@@ -34,19 +35,25 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function formatEventTimes(day: AttendanceDay) {
-  return day.events.map((event) => `${event.event_type} ${new Intl.DateTimeFormat("cs-CZ", { timeZone: "Europe/Prague", hour: "2-digit", minute: "2-digit" }).format(new Date(event.occurred_at))}`).join(" · ") || "—";
+const PRINT_EVENT_COLUMNS = 4;
+
+function formatEventTime(day: AttendanceDay, index: number) {
+  const event = day.events[index];
+  if (!event) return "—";
+  const time = new Intl.DateTimeFormat("cs-CZ", { timeZone: "Europe/Prague", hour: "2-digit", minute: "2-digit" }).format(new Date(event.occurred_at));
+  const extra = index === PRINT_EVENT_COLUMNS - 1 && day.events.length > PRINT_EVENT_COLUMNS ? ` +${day.events.length - PRINT_EVENT_COLUMNS}` : "";
+  return `${event.event_type} ${time}${extra}`;
 }
 
 function formatHours(value: { hours: number } | null | undefined) {
-  return value == null ? "—" : value.hours.toFixed(1);
+  return value == null ? "—" : `${value.hours.toFixed(1)} h`;
 }
 
 function AttendancePrint({ sheets, kind }: { sheets: AttendanceMonth[]; kind: "summary" | "detail" }) {
   return <div className={`print-sheet print-sheet--attendance-detail ${kind === "summary" ? "print-sheet--attendance-summary" : ""}`}>
     {sheets.map((sheet) => <article className="print-attendance-card" key={sheet.employment_id}>
       <header><h2>{sheet.employment_label}</h2><p>Docházkový list · {kind === "summary" ? "souhrn" : "detail"}</p></header>
-      <table className="print-attendance-table"><thead><tr><th>Datum</th><th>Průchody</th><th>Celkem h</th><th>Odpoledne h</th><th>Noc h</th><th>Víkend h</th><th>Svátek h</th></tr></thead><tbody>{sheet.days.map((day) => <tr key={day.date}><td>{new Intl.DateTimeFormat("cs-CZ").format(new Date(`${day.date}T12:00:00`))}</td><td>{formatEventTimes(day)}</td><td>{formatHours(day.worked?.total)}</td><td>{formatHours(day.worked?.afternoon)}</td><td>{formatHours(day.worked?.night)}</td><td>{formatHours(day.worked?.weekend)}</td><td>{formatHours(day.worked?.public_holiday)}</td></tr>)}<tr><th colSpan={2}>Součet</th><th>{formatHours(sheet.worked?.total)}</th><th>{formatHours(sheet.worked?.afternoon)}</th><th>{formatHours(sheet.worked?.night)}</th><th>{formatHours(sheet.worked?.weekend)}</th><th>{formatHours(sheet.worked?.public_holiday)}</th></tr></tbody></table>
+      <table className="print-attendance-table"><colgroup><col className="print-attendance-col-date" />{Array.from({ length: PRINT_EVENT_COLUMNS }, (_, index) => <col className="print-attendance-col-event" key={index} />)}{Array.from({ length: 5 }, (_, index) => <col className="print-attendance-col-metric" key={index} />)}</colgroup><thead><tr><th>Datum / den</th>{Array.from({ length: PRINT_EVENT_COLUMNS }, (_, index) => <th key={index}>Průchod {index + 1}</th>)}<th>Celkem</th><th>Odpoledne</th><th>Noc</th><th>Víkend</th><th>Svátek</th></tr></thead><tbody>{sheet.days.map((day) => { const date = asPragueDate(day.date); const info = getCalendarDayInfo(date, "cs"); const tone = getCalendarDayTone(date); return <tr className={`print-day--${tone}`} key={day.date}><td><strong>{new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "numeric" }).format(date)}</strong><span>{getWeekdayLongLabel(date, "cs")}</span>{info.publicHoliday && <small>{info.publicHoliday.label}</small>}</td>{Array.from({ length: PRINT_EVENT_COLUMNS }, (_, index) => <td className="print-event-cell" key={index}>{formatEventTime(day, index)}</td>)}<td>{formatHours(day.worked?.total)}</td><td>{formatHours(day.worked?.afternoon)}</td><td>{formatHours(day.worked?.night)}</td><td>{formatHours(day.worked?.weekend)}</td><td>{formatHours(day.worked?.public_holiday)}</td></tr>; })}<tr className="print-attendance-total"><th colSpan={1 + PRINT_EVENT_COLUMNS}>Součet</th><th>{formatHours(sheet.worked?.total)}</th><th>{formatHours(sheet.worked?.afternoon)}</th><th>{formatHours(sheet.worked?.night)}</th><th>{formatHours(sheet.worked?.weekend)}</th><th>{formatHours(sheet.worked?.public_holiday)}</th></tr></tbody></table>
     </article>)}
   </div>;
 }
