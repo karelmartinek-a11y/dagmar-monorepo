@@ -106,7 +106,23 @@ def _month_range(year: int, month: int) -> tuple[date, date]:
 
 
 def _day_events(db: Session, employment_id: int, start: date, end: date) -> list[AttendanceEvent]:
-    return list(db.execute(select(AttendanceEvent).where(AttendanceEvent.employment_id == employment_id).order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)).scalars())
+    # Include one day on each side so an interval crossing midnight or a month
+    # boundary still contributes to the correct day/month without mixing in
+    # unrelated historical events.
+    range_start = datetime.combine(start - timedelta(days=1), datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+    range_end = datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+    return list(
+        db.execute(
+            select(AttendanceEvent)
+            .where(
+                AttendanceEvent.employment_id == employment_id,
+                AttendanceEvent.occurred_at >= range_start,
+                AttendanceEvent.occurred_at < range_end,
+            )
+            .order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
+        )
+        .scalars()
+    )
 
 
 def _plan_interval(day: date, plan: ShiftPlan | None) -> list[WorkInterval]:

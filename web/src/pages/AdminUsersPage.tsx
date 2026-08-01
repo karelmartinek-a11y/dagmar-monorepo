@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BriefcaseBusiness, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound, UserX } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -163,21 +163,73 @@ function UserEditForm({ value, onSubmit }: { value: AdminUser; onSubmit: (payloa
 
 function EmploymentForm({ value, onSubmit, onDelete }: { value?: Employment; onSubmit: (payload: Record<string, unknown>) => void; onDelete?: () => void }) {
   const { t } = useTranslation();
+  const profile = (value?.time_profile ?? {}) as Record<string, unknown>;
+  const afternoonProfile = (profile.afternoon ?? {}) as Record<string, unknown>;
+  const nightProfile = (profile.night ?? {}) as Record<string, unknown>;
+  const weekendProfile = (profile.weekend ?? {}) as Record<string, unknown>;
+  const holidayProfile = (profile.public_holiday ?? {}) as Record<string, unknown>;
   const [title, setTitle] = useState(value?.title ?? "");
   const [type, setType] = useState<"WORK_CONTRACT" | "DPP_DPC" | "TASK_SHIFT_BASED" | "EXTERNAL_HOURLY">((value?.employment_type as "WORK_CONTRACT" | "DPP_DPC" | "TASK_SHIFT_BASED" | "EXTERNAL_HOURLY" | undefined) ?? "WORK_CONTRACT");
   const [start, setStart] = useState(value?.start_date ?? new Date().toISOString().slice(0, 10));
   const [end, setEnd] = useState(value?.end_date ?? "");
   const [active, setActive] = useState(value?.is_active ?? true);
+  const [workloadFraction, setWorkloadFraction] = useState(value?.workload_fraction ?? "1.000");
+  const [automaticBreaks, setAutomaticBreaks] = useState(profile.automatic_breaks_enabled === true);
+  const [afternoonEnabled, setAfternoonEnabled] = useState(afternoonProfile.enabled === true);
+  const [afternoonStart, setAfternoonStart] = useState(typeof afternoonProfile.start === "string" ? afternoonProfile.start : "17:00");
+  const [nightEnabled, setNightEnabled] = useState(nightProfile.enabled === true);
+  const [weekendEnabled, setWeekendEnabled] = useState(weekendProfile.enabled === true);
+  const [holidayEnabled, setHolidayEnabled] = useState(holidayProfile.enabled === true);
+  useEffect(() => {
+    if (type === "TASK_SHIFT_BASED") {
+      setAutomaticBreaks(false);
+      setAfternoonEnabled(false);
+      setNightEnabled(false);
+      setWeekendEnabled(false);
+      setHolidayEnabled(false);
+    }
+    if (type === "WORK_CONTRACT") {
+      setNightEnabled(true);
+      setWeekendEnabled(true);
+      setHolidayEnabled(true);
+      if (!workloadFraction) setWorkloadFraction("1.000");
+    }
+  }, [type, workloadFraction]);
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onSubmit({ title, employment_type: type, start_date: start, end_date: end || null, is_active: active });
+    onSubmit({
+      title,
+      employment_type: type,
+      start_date: start,
+      end_date: end || null,
+      is_active: active,
+      workload_fraction: type === "WORK_CONTRACT" ? Number(workloadFraction || "1") : null,
+      automatic_breaks_enabled: type === "TASK_SHIFT_BASED" ? false : automaticBreaks,
+      afternoon_hours_enabled: type === "TASK_SHIFT_BASED" ? false : afternoonEnabled,
+      afternoon_start_minutes: type === "TASK_SHIFT_BASED" || !afternoonEnabled || !afternoonStart ? null : Number(afternoonStart.split(":")[0]) * 60 + Number(afternoonStart.split(":")[1]),
+      night_hours_enabled: type === "TASK_SHIFT_BASED" ? false : nightEnabled,
+      weekend_hours_enabled: type === "TASK_SHIFT_BASED" ? false : weekendEnabled,
+      public_holiday_hours_enabled: type === "TASK_SHIFT_BASED" ? false : holidayEnabled,
+    });
   };
+  const taskBased = type === "TASK_SHIFT_BASED";
+  const workContract = type === "WORK_CONTRACT";
   return <form className="form-grid inspector-form" onSubmit={submit}>
     <Field label={t("users.fields.employmentTitle")}><input required value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
     <Field label={t("users.fields.employmentType")}><select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="WORK_CONTRACT">Pracovní smlouva</option><option value="DPP_DPC">DPP / DPČ</option><option value="TASK_SHIFT_BASED">Úkolová / směnová odměna</option><option value="EXTERNAL_HOURLY">Externí hodinová fakturace</option></select></Field>
     <Field label={t("users.fields.validFrom")}><input required type="date" value={start} onChange={(event) => setStart(event.target.value)} /></Field>
     <Field label={t("users.fields.validTo")}><input type="date" value={end} onChange={(event) => setEnd(event.target.value)} /></Field>
     <label className="field full"><span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /> {t("users.fields.activeEmployment")}</span></label>
+    <fieldset className="full form-grid">
+      <legend>Časový profil úvazku</legend>
+      <label className="field"><span>Velikost úvazku</span><input type="number" min="0.001" max="1" step="0.001" value={workloadFraction} disabled={!workContract} onChange={(event) => setWorkloadFraction(event.target.value)} /></label>
+      <label className="field"><span><input type="checkbox" checked={automaticBreaks} disabled={taskBased} onChange={(event) => setAutomaticBreaks(event.target.checked)} /> Automatické přestávky</span></label>
+      <label className="field"><span><input type="checkbox" checked={afternoonEnabled} disabled={taskBased} onChange={(event) => setAfternoonEnabled(event.target.checked)} /> Odpolední hodiny</span></label>
+      <label className="field"><span>Začátek odpoledního pásma</span><input type="time" value={afternoonStart} disabled={taskBased || !afternoonEnabled} onChange={(event) => setAfternoonStart(event.target.value)} /></label>
+      <label className="field"><span><input type="checkbox" checked={nightEnabled} disabled={taskBased || workContract} onChange={(event) => setNightEnabled(event.target.checked)} /> Noční hodiny{workContract ? " (povinné)" : ""}</span></label>
+      <label className="field"><span><input type="checkbox" checked={weekendEnabled} disabled={taskBased || workContract} onChange={(event) => setWeekendEnabled(event.target.checked)} /> Víkendové hodiny{workContract ? " (povinné)" : ""}</span></label>
+      <label className="field"><span><input type="checkbox" checked={holidayEnabled} disabled={taskBased || workContract} onChange={(event) => setHolidayEnabled(event.target.checked)} /> Sváteční hodiny{workContract ? " (povinné)" : ""}</span></label>
+    </fieldset>
     <div className="full action-row action-row--wrap"><Button><BriefcaseBusiness />{value ? t("users.actions.saveEmployment") : t("users.actions.createEmployment")}</Button>{onDelete && <Button type="button" variant="danger" onClick={onDelete}><Trash2 />{t("users.actions.deleteEmployment")}</Button>}</div>
   </form>;
 }

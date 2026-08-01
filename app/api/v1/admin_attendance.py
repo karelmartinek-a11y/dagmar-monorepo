@@ -6,7 +6,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
@@ -35,6 +35,7 @@ class AdminAttendanceEventIn(BaseModel):
 class AdminAttendanceEventOut(BaseModel):
     id: int
     employment_id: int
+    employment_label: str
     occurred_at: str
     event_type: AttendanceEventType
 
@@ -44,7 +45,7 @@ class AdminAttendanceEventListOut(BaseModel):
 
 
 def _out(event: AttendanceEvent) -> AdminAttendanceEventOut:
-    return AdminAttendanceEventOut(id=event.id, employment_id=event.employment_id, occurred_at=prague_now(event.occurred_at).isoformat(), event_type=event.event_type)
+    return AdminAttendanceEventOut(id=event.id, employment_id=event.employment_id, employment_label=f"{event.employment.user.name} — {event.employment.title}", occurred_at=prague_now(event.occurred_at).isoformat(), event_type=event.event_type)
 
 
 def _employment(db: Session, employment_id: int) -> Employment:
@@ -91,7 +92,9 @@ def list_events(
 ) -> AdminAttendanceEventListOut:
     start = date(year, month, 1)
     end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    query = select(AttendanceEvent).where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
+    range_start = datetime.combine(start, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+    range_end = datetime.combine(end, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+    query = select(AttendanceEvent).options(selectinload(AttendanceEvent.employment).selectinload(Employment.user)).where(AttendanceEvent.occurred_at >= range_start, AttendanceEvent.occurred_at < range_end)
     if employment_id is not None:
         query = query.where(AttendanceEvent.employment_id == employment_id)
     events = db.execute(query.order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)).scalars().all()
