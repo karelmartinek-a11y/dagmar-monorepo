@@ -4,11 +4,16 @@ import { normalizeTimeInput } from "../utils/timeInput";
 export function ClockInput({
   value,
   onCommit,
+  onDraftChange,
   ...props
 }: Omit<
   InputHTMLAttributes<HTMLInputElement>,
   "type" | "value" | "defaultValue" | "onChange" | "onBlur"
-> & { value: string; onCommit: (value: string) => void }) {
+> & {
+  value: string;
+  onCommit: (value: string) => void;
+  onDraftChange?: (value: string) => void;
+}) {
   const [draft, setDraft] = useState(value);
   const [invalid, setInvalid] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -52,6 +57,7 @@ export function ClockInput({
       onChange={(event) => {
         setInvalid(false);
         setDraft(event.target.value);
+        onDraftChange?.(event.target.value);
       }}
       onBlur={() => {
         if (cancelBlur.current) {

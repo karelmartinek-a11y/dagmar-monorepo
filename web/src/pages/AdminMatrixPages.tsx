@@ -198,6 +198,7 @@ function EventEditor({
           aria-label={`Nový průchod ${sheet.employment_label} ${day.date}`}
           value={newTime}
           disabled={disabled}
+          onDraftChange={setNewTime}
           onCommit={(value) => {
             setNewTime(value);
             void add(value);
@@ -207,6 +208,7 @@ function EventEditor({
           aria-label={`Nový odchod páru ${sheet.employment_label} ${day.date}`}
           value={newEndTime}
           disabled={disabled}
+          onDraftChange={setNewEndTime}
           onCommit={(value) => {
             setNewEndTime(value);
             if (newTime) void add(newTime, value);

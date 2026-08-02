@@ -292,6 +292,7 @@ function DayCard({
             aria-label={`Nový ${day.next_event_type} ${day.date}`}
             value={newTime}
             disabled={disabled}
+            onDraftChange={setNewTime}
             onCommit={(value) => {
               setNewTime(value);
               void add(value);
@@ -316,6 +317,7 @@ function DayCard({
             aria-label={`Nový odchod páru ${day.date}`}
             value={newEndTime}
             disabled={disabled}
+            onDraftChange={setNewEndTime}
             onCommit={(value) => {
               setNewEndTime(value);
               if (newTime) void add(newTime, value);
