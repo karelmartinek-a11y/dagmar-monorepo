@@ -114,6 +114,7 @@ class Employment(Base):
         Enum(EmploymentType, name="employment_type", create_type=False), nullable=False
     )
     workload_fraction: Mapped[Decimal | None] = mapped_column(Numeric(4, 3), nullable=True)
+    total_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     automatic_breaks_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     afternoon_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     afternoon_start_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -162,8 +163,8 @@ class Employment(Base):
         ),
         CheckConstraint("afternoon_start_minutes IS NULL OR (afternoon_start_minutes >= 0 AND afternoon_start_minutes <= 1319)", name="ck_employment_afternoon_start"),
         CheckConstraint("NOT afternoon_hours_enabled OR afternoon_start_minutes IS NOT NULL", name="ck_employment_afternoon_required"),
-        CheckConstraint("employment_type <> 'TASK_SHIFT_BASED' OR (NOT automatic_breaks_enabled AND NOT afternoon_hours_enabled AND afternoon_start_minutes IS NULL AND NOT night_hours_enabled AND NOT weekend_hours_enabled AND NOT public_holiday_hours_enabled)", name="ck_employment_task_profile"),
-        CheckConstraint("employment_type <> 'WORK_CONTRACT' OR (night_hours_enabled AND weekend_hours_enabled AND public_holiday_hours_enabled)", name="ck_employment_work_contract_profile"),
+        CheckConstraint("employment_type <> 'TASK_SHIFT_BASED' OR (NOT total_hours_enabled AND NOT automatic_breaks_enabled AND NOT afternoon_hours_enabled AND afternoon_start_minutes IS NULL AND NOT night_hours_enabled AND NOT weekend_hours_enabled AND NOT public_holiday_hours_enabled)", name="ck_employment_task_profile"),
+        CheckConstraint("employment_type <> 'WORK_CONTRACT' OR (total_hours_enabled AND night_hours_enabled)", name="ck_employment_work_contract_profile"),
         Index("ix_employments_user_id", "user_id"),
         Index("ix_employments_start_date", "start_date"),
         Index("ix_employments_end_date", "end_date"),

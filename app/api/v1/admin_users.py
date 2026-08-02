@@ -262,10 +262,11 @@ def _to_employment_out(employment: Employment) -> EmploymentOut:
         workload_fraction=f"{employment.workload_fraction:.3f}" if getattr(employment, "workload_fraction", None) is not None else None,
         time_profile={
             "automatic_breaks_enabled": bool(getattr(employment, "automatic_breaks_enabled", False)),
+            "total": {"enabled": bool(getattr(employment, "total_hours_enabled", True)), "mandatory": employment_type == "WORK_CONTRACT"},
             "afternoon": {"enabled": bool(getattr(employment, "afternoon_hours_enabled", False)), "mandatory": False, "start": f"{afternoon_start_minutes // 60:02d}:{afternoon_start_minutes % 60:02d}" if isinstance(afternoon_start_minutes, int) else None},
             "night": {"enabled": bool(getattr(employment, "night_hours_enabled", False)), "mandatory": employment_type == "WORK_CONTRACT"},
-            "weekend": {"enabled": bool(getattr(employment, "weekend_hours_enabled", False)), "mandatory": employment_type == "WORK_CONTRACT"},
-            "public_holiday": {"enabled": bool(getattr(employment, "public_holiday_hours_enabled", False)), "mandatory": employment_type == "WORK_CONTRACT"},
+            "weekend": {"enabled": bool(getattr(employment, "weekend_hours_enabled", False)), "mandatory": False},
+            "public_holiday": {"enabled": bool(getattr(employment, "public_holiday_hours_enabled", False)), "mandatory": False},
         },
     )
 
@@ -379,6 +380,7 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
             employments_table.c.end_date,
             employments_table.c.is_active,
             employments_table.c.workload_fraction,
+            employments_table.c.total_hours_enabled,
             employments_table.c.automatic_breaks_enabled,
             employments_table.c.afternoon_hours_enabled,
             employments_table.c.afternoon_start_minutes,
@@ -402,6 +404,7 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
                 end_date=row["end_date"],
                 is_active=bool(row["is_active"]),
                 workload_fraction=row["workload_fraction"],
+                total_hours_enabled=bool(row["total_hours_enabled"]),
                 automatic_breaks_enabled=bool(row["automatic_breaks_enabled"]),
                 afternoon_hours_enabled=bool(row["afternoon_hours_enabled"]),
                 afternoon_start_minutes=row["afternoon_start_minutes"],

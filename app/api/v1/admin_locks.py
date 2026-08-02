@@ -13,7 +13,10 @@ from app.api.errors import raise_api_error
 from app.db.models import Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
-from app.services.employment_access import employment_overlaps_month
+from app.services.employment_access import (
+    employment_overlaps_month,
+    lock_employment_for_time_mutation,
+)
 from app.services.locks import LockType, set_month_lock_state_bulk
 
 router = APIRouter(tags=["admin"])
@@ -107,6 +110,8 @@ def admin_set_locks(
     missing_ids = [employment_id for employment_id in uniq_ids if employment_id not in employment_by_id]
     if missing_ids:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.", employment_ids=missing_ids)
+    for employment_id in sorted(uniq_ids):
+        lock_employment_for_time_mutation(db, employment_id)
 
     target_rows_by_month: list[tuple[LockMonthIn, list[tuple[int, str | None]]]] = []
     updated_count = 0

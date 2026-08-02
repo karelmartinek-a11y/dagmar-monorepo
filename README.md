@@ -34,6 +34,9 @@ Kanonický technický přehled je v [docs/SSOT_CURRENT.md](docs/SSOT_CURRENT.md)
 - úvazky používají pouze `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; profil je uložený na konkrétním `Employment`
 - docházka používá neomezené chronologické `IN`/`OUT` průchody a automatické přestávky jsou fyzické, neretroaktivní eventy
 - backend je jedinou autoritou časových intervalů a kategorií; denní desetiny se matematicky zaokrouhlují a měsíce sčítají z denních desetin
+- viditelné hodinové sloupce dodává backend v `display_metrics` podle aktuálního profilu konkrétního úvazku; frontend, tisk, CSV, ZIP a PDF pouze interpretují dodaná čísla
+- zaměstnanec i admin vybírají ve zvoleném měsíci jen aktivní úvazky aktivních uživatelů s překryvem období; docházka a plán mají samostatné zámky
+- administrátor může potvrzenou idempotentní akcí „Přidej pauzy“ fyzicky doplnit chybějící `OUT`/`IN` eventy do historické docházky
 - neexistuje pracovní fond ani bilanční porovnávání s fondem nebo plánem
 
 ## Lokální ověření

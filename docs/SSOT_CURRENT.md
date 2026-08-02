@@ -40,6 +40,7 @@ Aktivní routy definuje [web/src/App.tsx](../web/src/App.tsx):
 - `/admin/users`
 - `/admin/dochazka`
 - `/admin/plan-sluzeb`
+- `/admin/skupiny-uvazku`
 - `/admin/export`
 - `/admin/tisky`
 - `/admin/tisky/preview`
@@ -52,7 +53,7 @@ Aktivní routy definuje [web/src/App.tsx](../web/src/App.tsx):
 Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
 - veřejné endpointy zahrnují `/api/v1/health`, `/api/health`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`
-- zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/attendance/day-status`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status` a `/api/v1/portal/auth-methods*`
+- zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/attendance/employments`, `/api/v1/attendance/events*`, `/api/v1/attendance/day-status`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status`, `/api/v1/shift-plan/groups*` a `/api/v1/portal/auth-methods*`
 - administrace používá session cookie `dagmar_admin_session`, CSRF hlavičku `X-CSRF-Token` a `/api/v1/admin/*` endpointy pro login, uživatele, úvazky, docházkové eventy, plán služeb, zámky, exporty, SMTP a integrační klienty
 - integrační API používá bearer tokeny s prefixem `dgi_` a běží na `/api/v1/integration/*`
 - veřejná integrační dokumentace je dostupná na `/integration-api`
@@ -63,7 +64,14 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 - existují pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; všechna časová nastavení patří konkrétnímu `Employment`
 - docházka je neomezená posloupnost chronologických `IN`/`OUT` eventů; intervaly se párují přes půlnoc i hranice měsíců
 - backend je jedinou autoritou časové matematiky; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíční součty vznikají součtem denních desetin
-- přestávky se fyzicky vkládají pouze při uzavření nového docházkového intervalu a nikdy se zpětně nepřepočítávají
+- backend synchronizuje `EmploymentDailyTimeMetric` po změně eventu, plánu nebo profilu; běžná mutace přepočítá jen skutečně dotčené měsíce, zatímco změna profilu a provozní backfill pokryjí celou historii. Aktivní hodinová metrika bez zdrojových faktů má backendovou nulu. Frontend, tisky a exporty řídí sloupce pouze pomocí `display_metrics` a dodané hodnoty nepřepočítávají
+- `WORK_CONTRACT` má povinnou celkovou a noční metriku; ostatní zvláštní metriky jsou volitelné. `DPP_DPC` a `EXTERNAL_HOURLY` mají všechny metriky volitelné a `TASK_SHIFT_BASED` nemá hodinové metriky
+- přestávky se při běžném provozu fyzicky vkládají při uzavření nového intervalu; potvrzené adminské „Přidej pauzy“ je idempotentně doplní také do historických uzavřených intervalů bez hromadného undo a započítá přitom délku už existujících ručních pauz
+- zaměstnanecké i adminské měsíční výběry vyžadují aktivního uživatele, aktivní úvazek a překryv období úvazku se zvoleným měsícem
+- docházka a plán služeb mají nezávislé měsíční zámky; celodenní nepřítomnosti podporují dovolenou, nemoc, volno a paragraf
+- noční plán musí být platný a odemčený ve všech dnech a měsících, do kterých zasahuje, a nesmí se překrývat s jinou směnou stejného úvazku. Všechny časové mutace jednoho úvazku serializuje řádkový databázový zámek; po jeho získání se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele. Pokračování z předchozího dne backend označí jako carryover; frontend je nezapisuje jako nový plán následujícího dne a při další nepřekrývající se směně zobrazí oba intervaly i správnou plánovou nápovědu každého odchodu
+- deploy zastaví starý backend před migrací, provede Alembic upgrade, backfill denních metrik a čistý `--check`, a až potom atomicky aktivuje nový release. Po zahájení změny schématu žádná chybová větev nespustí starý backend; při neúspěchu zůstane služba zastavená, dokud není dostupný kompatibilní release
+- eventová mutace kontroluje zámky všech měsíců dotčených změnou intervalu a nelze jí vytvořit docházku v dni s celodenní nepřítomností
 - pracovní fond a bilanční porovnávání nejsou aktivní součástí systému
 - zaměstnanec po loginu dostává bearer `instance_token`, `employment_id` a `available_employments`
 - zaměstnanec může pracovat jen s úvazkem, ke kterému má přístup

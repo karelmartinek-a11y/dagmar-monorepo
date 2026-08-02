@@ -23,6 +23,7 @@ def test_employment_output_accepts_projection_without_time_profile_fields() -> N
     assert result.label == "Jana Nováková - DPP/DPČ - Výchozí úvazek"
     assert result.time_profile == {
         "automatic_breaks_enabled": False,
+        "total": {"enabled": True, "mandatory": False},
         "afternoon": {"enabled": False, "mandatory": False, "start": None},
         "night": {"enabled": False, "mandatory": False},
         "weekend": {"enabled": False, "mandatory": False},
@@ -33,6 +34,7 @@ def test_employment_output_accepts_projection_without_time_profile_fields() -> N
 def test_employment_type_change_normalizes_incompatible_profile() -> None:
     profile = {
         "workload_fraction": 1,
+        "total_hours_enabled": True,
         "automatic_breaks_enabled": True,
         "afternoon_hours_enabled": True,
         "afternoon_start_minutes": 1020,
@@ -45,6 +47,7 @@ def test_employment_type_change_normalizes_incompatible_profile() -> None:
 
     assert result == {
         "workload_fraction": None,
+        "total_hours_enabled": False,
         "automatic_breaks_enabled": False,
         "afternoon_hours_enabled": False,
         "afternoon_start_minutes": None,

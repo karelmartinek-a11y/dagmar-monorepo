@@ -117,6 +117,12 @@ FORBIDDEN_FRONTEND_HOUR_CALCULATORS = (
     "minutesToHours",
     "hoursFromMinutes",
 )
+FORBIDDEN_FRONTEND_TIME_MATH_PATTERNS = (
+    re.compile(r"\.reduce\s*\("),
+    re.compile(r"\.toFixed\s*\("),
+    re.compile(r"Math\.(?:round|floor|ceil)\s*\("),
+    re.compile(r"(?:minutes|hours)\s*[*/+-]", re.IGNORECASE),
+)
 FORBIDDEN_ACTIVE_CONTRACTS = (
     "HPP",
     "arrival_time_2",
@@ -132,6 +138,7 @@ FORBIDDEN_ACTIVE_CONTRACTS = (
     "pause_minutes",
     "afternoon_cutoff",
 )
+MIGRATION_FORENSIC_FILES = {"tests/test_migration_0021_to_head.py"}
 
 
 def _text_files() -> list[Path]:
@@ -198,17 +205,48 @@ def _validate_backend_hour_authority(failures: list[str]) -> None:
         for identifier in FORBIDDEN_FRONTEND_HOUR_CALCULATORS:
             if identifier in text:
                 failures.append(f"frontend hour calculator {identifier!r} present in {rel}")
+        for pattern in FORBIDDEN_FRONTEND_TIME_MATH_PATTERNS:
+            if pattern.search(text):
+                failures.append(f"frontend time mathematics {pattern.pattern!r} present in {rel}")
+
+
+def _validate_frontend_lock_contract(failures: list[str]) -> None:
+    for rel in HOUR_AUTHORITY_FRONTEND_FILES:
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        for legacy_value in ('lock_type: "ATTENDANCE"', 'lock_type: "SHIFT_PLAN"'):
+            if legacy_value in text:
+                failures.append(
+                    f"frontend uses non-API lock value {legacy_value!r} in {rel}"
+                )
 
 
 def _validate_removed_contracts(failures: list[str]) -> None:
     for path in _text_files():
         rel = path.relative_to(ROOT).as_posix()
-        if rel in {"scripts/check_repo_invariants.py"} or rel.startswith("alembic/versions/") or rel.startswith("tests/migrations/"):
+        if rel in {"scripts/check_repo_invariants.py", *MIGRATION_FORENSIC_FILES} or rel.startswith("alembic/versions/") or rel.startswith("tests/migrations/"):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for needle in FORBIDDEN_ACTIVE_CONTRACTS:
             if needle in text:
                 failures.append(f"removed active contract {needle!r} present in {rel}")
+
+
+def _validate_shift_plan_write_serialization(failures: list[str]) -> None:
+    service = (ROOT / "app/services/employment_access.py").read_text(encoding="utf-8")
+    if ".with_for_update()" not in service:
+        failures.append("employment mutation lock no longer uses SELECT FOR UPDATE")
+    for rel in (
+        Path("app/api/v1/attendance.py"),
+        Path("app/api/v1/admin_attendance.py"),
+        Path("app/api/v1/integration.py"),
+        Path("app/api/v1/shift_plan.py"),
+        Path("app/api/v1/admin_shift_plan.py"),
+        Path("app/api/v1/admin_locks.py"),
+        Path("app/api/v1/admin_employments.py"),
+    ):
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        if "lock_employment_for_time_mutation" not in text:
+            failures.append(f"shift-plan mutations are not row-lock serialized in {rel}")
 
 
 def main() -> int:
@@ -218,7 +256,9 @@ def main() -> int:
     _validate_local_links(failures)
     _validate_key_docs(failures)
     _validate_backend_hour_authority(failures)
+    _validate_frontend_lock_contract(failures)
     _validate_removed_contracts(failures)
+    _validate_shift_plan_write_serialization(failures)
     if failures:
         print("Repository invariant check failed:")
         for failure in failures:

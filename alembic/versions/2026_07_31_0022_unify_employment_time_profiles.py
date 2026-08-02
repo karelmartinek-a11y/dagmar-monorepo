@@ -6,6 +6,7 @@ attendance columns or instance-level employment profile.
 """
 
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -17,10 +18,15 @@ down_revision = "2026_07_26_0021"
 branch_labels = None
 depends_on = None
 
+PRAGUE_TIMEZONE = ZoneInfo("Europe/Prague")
+
 
 def _at(day: date, value: str) -> datetime:
     hour, minute = (int(part) for part in value.split(":"))
-    return datetime.combine(day, time(hour, minute))
+    # Legacy attendance values are Czech wall-clock times.  Explicitly attach
+    # the application timezone so PostgreSQL session settings cannot reinterpret
+    # them as UTC while writing the new TIMESTAMPTZ event column.
+    return datetime.combine(day, time(hour, minute), tzinfo=PRAGUE_TIMEZONE)
 
 
 def upgrade() -> None:
@@ -57,7 +63,6 @@ def upgrade() -> None:
         sa.CheckConstraint("event_type IN ('IN', 'OUT')", name="ck_attendance_event_type"),
     )
     op.create_index("ix_attendance_events_employment_occurred_id", "attendance_events", ["employment_id", "occurred_at", "id"])
-
     rows = bind.execute(sa.text("SELECT employment_id, date, arrival_time, departure_time, arrival_time_2, departure_time_2 FROM attendance WHERE arrival_time IS NOT NULL OR departure_time IS NOT NULL OR arrival_time_2 IS NOT NULL OR departure_time_2 IS NOT NULL")).mappings()
     for row in rows:
         previous: datetime | None = None

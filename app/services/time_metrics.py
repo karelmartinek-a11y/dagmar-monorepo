@@ -38,6 +38,20 @@ def metric_value(minutes: int) -> MetricValue:
     return MetricValue(minutes=minutes, tenths=round_minutes_to_tenths(minutes))
 
 
+def empty_daily_metrics(employment: Employment) -> DailyMetrics | None:
+    """Return backend-owned zero values for an hourly profile with no persisted facts."""
+    if employment.employment_type == EmploymentType.TASK_SHIFT_BASED:
+        return None
+    zero = metric_value(0)
+    return DailyMetrics(
+        total=zero,
+        afternoon=zero if employment.afternoon_hours_enabled else None,
+        night=zero if employment.night_hours_enabled else None,
+        weekend=zero if employment.weekend_hours_enabled else None,
+        public_holiday=zero if employment.public_holiday_hours_enabled else None,
+    )
+
+
 def _window(day: date, start: int, end: int) -> tuple[datetime, datetime]:
     return (
         datetime.combine(day, time.min, tzinfo=PRAGUE_TIMEZONE) + timedelta(minutes=start),

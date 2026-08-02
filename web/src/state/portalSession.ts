@@ -1,4 +1,4 @@
-import type { PortalLogin, PortalSession } from "../api/types";
+import type { Employment, PortalLogin, PortalSession } from "../api/types";
 import { setPortalToken } from "../api/client";
 
 const KEY = "kajovodagmar.portal.session.v1";
@@ -23,6 +23,15 @@ export function savePortalLogin(login: PortalLogin): PortalSession {
 
 export function selectEmployment(session: PortalSession, employmentId: number): PortalSession {
   const next = { ...session, selected_employment_id: employmentId };
+  localStorage.setItem(KEY, JSON.stringify(next));
+  return next;
+}
+
+export function replaceAvailableEmployments(session: PortalSession, employments: Employment[]): PortalSession {
+  const selected = employments.some((item) => item.id === session.selected_employment_id)
+    ? session.selected_employment_id
+    : (employments[0]?.id ?? null);
+  const next = { ...session, available_employments: employments, selected_employment_id: selected };
   localStorage.setItem(KEY, JSON.stringify(next));
   return next;
 }

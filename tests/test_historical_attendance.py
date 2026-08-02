@@ -1,16 +1,14 @@
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.api.v1.admin_attendance import _load_month_employments
 from app.api.v1.admin_export import _load_relevant_employments
-from app.api.v1.attendance import _build_month
 from app.db.models import Attendance, Base, Employment, EmploymentType, PortalUser, PortalUserRole
-from app.services.prague_time import PRAGUE_TIMEZONE
 
 
-def test_admin_month_builder_keeps_pre_migration_day_status() -> None:
+def test_old_data_does_not_reactivate_employment_outside_selected_month() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
 
@@ -36,13 +34,8 @@ def test_admin_month_builder_keeps_pre_migration_day_status() -> None:
 
         start = date(2026, 7, 1)
         end = date(2026, 8, 1)
-        range_start = datetime.combine(start, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
-        range_end = datetime.combine(end, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
-        visible = _load_month_employments(db, start=start, end=end, range_start=range_start, range_end=range_end)
+        visible = _load_month_employments(db, start=start, end=end)
         export_visible = _load_relevant_employments(db, start, end)
-        month = _build_month(db, visible[0], 2026, 7)
 
-    assert [item.id for item in visible] == [employment.id]
-    assert [item.id for item in export_visible] == [employment.id]
-    assert month.employment_id == employment.id
-    assert month.days[14].attendance_status == "SICKNESS"
+    assert visible == []
+    assert export_visible == []

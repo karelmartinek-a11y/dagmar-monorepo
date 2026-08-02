@@ -45,13 +45,20 @@ Pokud se dokumentace, komentáře, testy nebo manifest rozcházejí s funkčním
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
 - skupiny úvazků jsou vztah M:N nad `employment_id`, mají nejméně dva členy a sdílejí pouze plán směn
 - časová autorita je `Europe/Prague`
-- backend je jediná autorita hodin: denní `*_hours` jsou `floor(denní_minuty / 6) / 10` a měsíční `*_hours` jsou součtem již zaokrouhlených denních hodnot; frontend, tisky a exporty je pouze zobrazují
+- backend je jediná autorita hodin: denní `*_tenths` používají matematické half-up zaokrouhlení `floor((denní_minuty + 3) / 6)` a denní `*_hours` jsou `*_tenths / 10`; měsíční hodnoty jsou součtem již zaokrouhlených denních desetin a frontend, tisky i exporty je pouze zobrazují
 - reverse proxy a TLS obsluhuje Nginx
 - úvazky mají pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; profilová nastavení patří konkrétnímu `Employment`
 - docházka používá neomezené chronologické `IN`/`OUT` eventy, včetně intervalů přes půlnoc a hranice měsíců
 - backend je jediná autorita časových intervalů, kategorií a výpočtů; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíc je součet denních desetin
 - automatické přestávky jsou fyzicky vložené, neretroaktivní průchody bez vlastní souhrnné metriky
 - změny profilu retroaktivně přepočítávají odvozené metriky bez ohledu na zámky
+- běžná změna eventu, plánu nebo stavu synchronizuje pouze skutečně dotčené měsíce; úplný historický přepočet je vyhrazen změně profilu a provoznímu backfillu
+- `WORK_CONTRACT` vyžaduje celkovou a noční metriku; odpolední, víkendová a sváteční jsou volitelné. `DPP_DPC` a `EXTERNAL_HOURLY` mají všechny metriky včetně celkové a noční volitelné; `TASK_SHIFT_BASED` nemá hodinové metriky
+- viditelné metriky určuje výhradně backendové `display_metrics` podle aktuálního profilu konkrétního úvazku, retroaktivně i pro starší období
+- zaměstnanecké a adminské měsíční výběry obsahují pouze aktivního uživatele a aktivní úvazek, jehož období se překrývá se zvoleným měsícem
+- adminské „Přidej pauzy“ je potvrzovaný idempotentní historický backfill fyzických `OUT`/`IN` eventů bez hromadného undo; započítává délku existujících ručních pauz a doplní pouze chybějící zákonnou délku
+- všechny mutace eventů, plánů a celodenních stavů stejného úvazku se serializují databázovým `SELECT FOR UPDATE`; po získání zámku se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele. Mutace eventu zachovává posloupnost začínající `IN`, ověřuje zámek každého měsíce, jehož interval nebo metriky by změnila, a průchod nesmí překrýt den s celodenní nepřítomností. Historický uzavřený interval se vkládá atomicky pomocí `paired_occurred_at` a prostřední interval nebo fyzická pauza se odstraňuje atomicky pomocí `paired_event_id`; databáze nikdy nepersistuje přechodně neplatnou posloupnost
+- přeshraniční plán se validuje a zamyká ve všech dotčených dnech a měsících, nesmí se překrývat s jiným plánem stejného úvazku; carryover v následujícím dni je v DTO explicitní a časová pole samotného carryover jsou v UI pouze ke čtení. Pokud ve stejném dni začíná další nepřekrývající se směna, DTO, UI i report zobrazí oba intervaly
 - pracovní fond a bilanční porovnávání s fondem nebo plánem nejsou aktivní kontrakt
 
 ## Povinná disciplína změn
@@ -156,6 +163,7 @@ git status --short
 - Commit message musí být věcná a popisovat skutečný logický celek změny.
 - Po pushi ověř GitHub Actions a případné selhání oprav bez přenášení práce na uživatele.
 - Pokud GitHub Actions nebo GitHub deploy právě běží, není to blocker a práce se nesmí ukončit v tomto mezistavu; je nutné počkat na dokončení a podle výsledku pokračovat dle těchto instrukcí a konkrétní situace.
+- Produkční backend se zastaví ještě před Alembic migrací a zůstane zastavený po dobu povinného backfillu i následné konzistenční kontroly, aby migrace nemohla souběžně přijmout zápis starého kontraktu a mezi `--check` a aktivací release nevznikly nesynchronizované zápisy. Po zahájení migrace se při chybě nikdy znovu nespouští starý release proti novému schématu; backend zůstane zastavený do bezpečné opravy nebo spuštění kompatibilního release.
 - Při nasazení ověř cílový commit, průběh deploye, health endpoint, version endpoint a relevantní uživatelské scénáře.
 - Produkční validaci prováděj jen v mezích dostupných oprávnění; interní serverové kroky musí být podložené autorizovaným přístupem nebo důkazy z deploy workflow.
 

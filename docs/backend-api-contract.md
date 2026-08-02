@@ -4,11 +4,17 @@ Backend používá namespace `/api/v1/` a je jedinou autoritou časových výpo�
 
 ## Úvazek
 
-`employment_type` má jednu z hodnot `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` nebo `EXTERNAL_HOURLY`. Profil konkrétního úvazku obsahuje `workload_fraction` a přepínače `automatic_breaks_enabled`, `afternoon_hours_enabled`, `afternoon_start_minutes`, `night_hours_enabled`, `weekend_hours_enabled` a `public_holiday_hours_enabled`.
+`employment_type` má jednu z hodnot `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` nebo `EXTERNAL_HOURLY`. Profil konkrétního úvazku obsahuje `workload_fraction` a přepínače `total_hours_enabled`, `automatic_breaks_enabled`, `afternoon_hours_enabled`, `afternoon_start_minutes`, `night_hours_enabled`, `weekend_hours_enabled` a `public_holiday_hours_enabled`.
+
+- `WORK_CONTRACT`: celková a noční metrika jsou povinné; odpolední, víkendová a sváteční jsou volitelné.
+- `DPP_DPC` a `EXTERNAL_HOURLY`: celková i všechny zvláštní metriky jsou volitelné.
+- `TASK_SHIFT_BASED`: žádná hodinová metrika není aktivní.
+
+Profil patří konkrétnímu `Employment` a jeho změna se retroaktivně projeví ve všech obdobích. Aktivní měsíční výběr vyžaduje aktivního uživatele, aktivní úvazek a překryv `start_date`/`end_date` se zvoleným měsícem. Zaměstnanecký výběr poskytuje `GET /api/v1/attendance/employments?year=...&month=...`.
 
 ## Docházkové eventy
 
-Zaměstnanecké endpointy jsou `POST /api/v1/attendance/events` a `DELETE /api/v1/attendance/events/{event_id}`. Administrace používá `GET /api/v1/admin/attendance/month` pro měsíční docházkové listy a `POST`, `PUT` a `DELETE /api/v1/admin/attendance/events...` pro správu jednotlivých průchodů.
+Zaměstnanecké endpointy jsou `POST /api/v1/attendance/events` a `PUT`/`DELETE /api/v1/attendance/events/{event_id}`. Administrace používá `GET /api/v1/admin/attendance/month` pro měsíční docházkové listy a `POST`, `PUT` a `DELETE /api/v1/admin/attendance/events...` pro správu průchodů. Typ existujícího průchodu a jeho `employment_id` jsou neměnné; backend ověřuje vlastnictví, chronologii, budoucí čas, období a zámek. Volitelné `paired_occurred_at` atomicky vloží uzavřený pár `IN`/`OUT`; volitelný query parametr `paired_event_id` u `DELETE` atomicky odstraní prostřední pracovní interval nebo fyzickou pauzu. Stejný kontrakt používají adminské a integrační eventové endpointy.
 
 ```json
 {
@@ -18,7 +24,11 @@ Zaměstnanecké endpointy jsou `POST /api/v1/attendance/events` a `DELETE /api/v
 }
 ```
 
-Eventy jsou chronologické, střídají `IN` a `OUT` a párují se i přes půlnoc a hranice měsíců.
+Eventy jsou chronologické, střídají `IN` a `OUT` a párují se i přes půlnoc a hranice měsíců. Mutace ověřuje zámek každého měsíce, jehož interval nebo metriky by změnila, a odmítne průchod překrývající den s celodenní nepřítomností.
+
+Den měsíční odpovědi obsahuje také `planned_arrival_time`, `planned_departure_time`, `planned_status`, backendem odvozený `next_event_type`, denní stavy a kompletní denní metriky. Oba měsíční zámky jsou na kořeni odpovědi jako `attendance_locked` a `shift_plan_locked`. Celodenní stavy `HOLIDAY`, `SICKNESS`, `OFF` a `PARAGRAPH` zapisuje sjednocený `PUT /api/v1/attendance/day-status`; potvrzená změna fyzicky odstraní konfliktní docházku nebo plán.
+
+Potvrzený `POST /api/v1/admin/attendance/breaks` přijímá jeden `employment_id`, rok a měsíc. Idempotentně doplní chybějící fyzické páry `OUT`/`IN` do uzavřených intervalů překrývajících měsíc, respektuje existující ruční pauzy a neimplementuje hromadné undo.
 
 ## Časové metriky
 
@@ -28,4 +38,6 @@ Denní a měsíční odpovědi používají sady `worked` a `planned` s klíči 
 {"minutes": 450, "tenths": 75, "hours": 7.5}
 ```
 
-Neaktivní metrika je `null`. Denní desetiny používají matematické zaokrouhlení na nejbližší desetinu hodiny; měsíční hodnoty jsou součtem denních desetin. Frontend, tisk a exporty hodnoty pouze formátují.
+Neaktivní metrika je `null`. Aktivní hodinová metrika v měsíci bez zdrojových faktů má backendovou nulovou hodnotu, aby prázdný měsíc zachoval stejný vizuální kontrakt jako před eventovou migrací. `display_metrics` je seřazený backendový seznam jedině viditelných sloupců pro aktuální profil konkrétního úvazku. Denní desetiny používají matematické half-up zaokrouhlení `floor((minuty + 3) / 6)`; měsíční hodnoty jsou součtem denních desetin. `EmploymentDailyTimeMetric` se po změně eventu, plánu nebo profilu transakčně synchronizuje stejnou backendovou službou; běžná mutace přepočítá pouze dotčené měsíce, změna profilu a provozní backfill celou historii. Frontend, tisk, CSV, ZIP a PDF čísla ani kategorie neodvozují a hodnoty pouze lokalizují.
+
+Eventová posloupnost začíná `IN` a dále striktně střídá `OUT`/`IN`; editace ani mazání nesmí toto pořadí porušit. Všechny mutace eventů, plánů a stavů jednoho úvazku se serializují řádkovým databázovým zámkem; po jeho získání se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele. Přeshraniční plán se kontroluje proti období úvazku, celodenním stavům, jiným směnám stejného úvazku a zámkům ve všech dotčených dnech a měsících. Denní DTO označuje samostatný carryover příznakem `planned_is_carryover` (docházka) nebo `is_carryover` (plán a skupinový plán). Pole `planned_carryover_departure_time` a `carryover_departure_time` zachovají přesah i tehdy, když v témže dni začíná další nepřekrývající se směna; frontend ani report jej nesmí zakrýt nebo zapsat jako nový plán. První `OUT` nápověda takového dne používá carryover odchod a další `OUT` nápověda odchod přímé směny.

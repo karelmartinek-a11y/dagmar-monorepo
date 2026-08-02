@@ -10,9 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Employment, ShiftPlan
-from app.services.employment_access import employment_label, employment_overlaps_month
+from app.services.employment_access import (
+    display_metrics_for_employment,
+    employment_label,
+    employment_overlaps_month,
+)
 from app.services.month_summary import build_month_summaries, is_czech_holiday
 from app.services.prague_time import prague_now
+from app.services.time_intervals import shift_plan_carryover
+from app.services.time_metrics import DailyMetrics, MetricValue
 
 EMPLOYMENTS_PER_PAGE = 5
 PDF_DPI = 200
@@ -42,7 +48,16 @@ MONTH_LABELS_CS = {
 WEEKDAY_SHORT_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
 STATUS_LABELS = {
     "HOLIDAY": "Dovolená",
+    "SICKNESS": "Nemoc",
     "OFF": "Volno",
+    "PARAGRAPH": "Paragraf",
+}
+METRIC_LABELS = {
+    "total": "Plán",
+    "afternoon": "Odpoledne",
+    "night": "Noc",
+    "weekend": "Víkend",
+    "public_holiday": "Svátek",
 }
 FONT_CANDIDATES = [
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
@@ -64,12 +79,14 @@ class ShiftPlanReportCell:
     is_within_employment_period: bool
     arrival_time: str | None
     departure_time: str | None
+    carryover_departure_time: str | None
     status: str | None
     status_label: str | None
     interval_label: str
     duration_label: str
     planned_minutes: int
     planned_hours: float
+    planned_metrics: dict[str, dict[str, int | float]]
 
 
 @dataclass(frozen=True)
@@ -82,9 +99,11 @@ class ShiftPlanReportEmployment:
     start_date: str
     end_date: str | None
     is_active_in_month: bool
+    display_metrics: list[str]
     cells: list[ShiftPlanReportCell]
     planned_minutes_total: int
     planned_hours: float
+    planned_metrics: dict[str, dict[str, int | float]]
     scheduled_days: int
     holiday_days: int
     off_days: int
@@ -130,6 +149,57 @@ def _unique_ids(values: list[int]) -> list[int]:
 
 def _format_hours(hours: float) -> str:
     return f"{hours:.1f}".replace(".", ",") + " h"
+
+
+def _metric_payload(value: MetricValue) -> dict[str, int | float]:
+    return {"minutes": value.minutes, "tenths": value.tenths, "hours": value.hours}
+
+
+def _daily_metric_payload(
+    metrics: DailyMetrics | None,
+    display_metrics: list[str],
+) -> dict[str, dict[str, int | float]]:
+    if metrics is None:
+        return {}
+    return {
+        key: _metric_payload(value)
+        for key in display_metrics
+        if (value := getattr(metrics, key)) is not None
+    }
+
+
+def _monthly_metric_payload(
+    metrics: dict[str, MetricValue | None] | None,
+    display_metrics: list[str],
+) -> dict[str, dict[str, int | float]]:
+    if metrics is None:
+        return {}
+    return {
+        key: _metric_payload(value)
+        for key in display_metrics
+        if (value := metrics.get(key)) is not None
+    }
+
+
+def _metric_summary_label(metrics: dict[str, dict[str, int | float]]) -> str:
+    return "\n".join(
+        f"{METRIC_LABELS[key]} {_format_hours(float(value['hours']))}"
+        for key, value in metrics.items()
+    )
+
+
+def _metric_cell_label(metrics: dict[str, dict[str, int | float]]) -> str:
+    abbreviations = {
+        "total": "P",
+        "afternoon": "O",
+        "night": "N",
+        "weekend": "V",
+        "public_holiday": "S",
+    }
+    return "\n".join(
+        f"{abbreviations[key]} {float(value['hours']):.1f}".replace(".", ",")
+        for key, value in metrics.items()
+    )
 
 
 def _holiday_label(value: date) -> str | None:
@@ -201,14 +271,21 @@ def build_shift_plan_report(
         .all()
     )
     employment_map = {employment.id: employment for employment in employments}
-    missing = [employment_id for employment_id in selected_ids if employment_id not in employment_map]
+    missing = [
+        employment_id for employment_id in selected_ids if employment_id not in employment_map
+    ]
     if missing:
         raise ValueError("Vybraný úvazek neexistuje nebo už není dostupný.")
 
     ordered_employments: list[Employment] = []
     for employment_id in selected_ids:
         employment = employment_map[employment_id]
-        if not employment_overlaps_month(employment, start, end):
+        if (
+            not employment.is_active
+            or employment.user is None
+            or not employment.user.is_active
+            or not employment_overlaps_month(employment, start, end)
+        ):
             raise ValueError("Vybraný úvazek není v zadaném měsíci aktivní.")
         ordered_employments.append(employment)
 
@@ -216,7 +293,7 @@ def build_shift_plan_report(
         db.execute(
             select(ShiftPlan)
             .where(ShiftPlan.employment_id.in_(selected_ids))
-            .where(ShiftPlan.date >= start)
+            .where(ShiftPlan.date >= start - timedelta(days=1))
             .where(ShiftPlan.date < end)
             .order_by(ShiftPlan.employment_id.asc(), ShiftPlan.date.asc())
         )
@@ -243,6 +320,8 @@ def build_shift_plan_report(
     report_rows: list[ShiftPlanReportEmployment] = []
     for employment in ordered_employments:
         user_name = employment.user.name if employment.user else f"Uživatel {employment.user_id}"
+        display_metrics = display_metrics_for_employment(employment)
+        show_total = "total" in display_metrics
         summary = summaries[employment.id]
         day_summary_by_date = {item.date: item for item in summary.day_summaries}
         current = start
@@ -250,15 +329,25 @@ def build_shift_plan_report(
         scheduled_days = 0
         holiday_days = 0
         off_days = 0
+        employment_plans = [row for row in plan_rows if row.employment_id == employment.id]
         while current < end:
             plan = plan_map.get((employment.id, current))
+            carryover_plan = shift_plan_carryover(employment_plans, current)
             day_summary = day_summary_by_date[current]
+            effective_status = day_summary.effective_status
+            interval_parts: list[str] = []
+            if carryover_plan is not None:
+                interval_parts.append(f"do {carryover_plan.departure_time}")
+            if plan and plan.arrival_time and plan.departure_time:
+                interval_parts.append(f"{plan.arrival_time}-{plan.departure_time}")
+            elif effective_status:
+                interval_parts.append(STATUS_LABELS.get(effective_status, "Bez směny"))
             duration_minutes = day_summary.planned_minutes
             if plan and plan.arrival_time and plan.departure_time:
                 scheduled_days += 1
-            if plan and plan.status == "HOLIDAY":
+            if effective_status == "HOLIDAY":
                 holiday_days += 1
-            if plan and plan.status == "OFF":
+            if effective_status == "OFF":
                 off_days += 1
             is_within_employment_period = employment.start_date <= current and (
                 employment.end_date is None or current <= employment.end_date
@@ -272,17 +361,29 @@ def build_shift_plan_report(
                     tone=_tone_for_day(current),
                     is_within_employment_period=is_within_employment_period,
                     arrival_time=plan.arrival_time if plan else None,
-                    departure_time=plan.departure_time if plan else None,
-                    status=plan.status if plan else None,
-                    status_label=STATUS_LABELS.get(plan.status) if plan and plan.status else None,
-                    interval_label=(
-                        f"{plan.arrival_time}-{plan.departure_time}"
-                        if plan and plan.arrival_time and plan.departure_time
-                        else (STATUS_LABELS.get(plan.status, "Bez směny") if plan and plan.status else ("Bez směny" if is_within_employment_period else "Mimo období"))
+                    departure_time=plan.departure_time
+                    if plan
+                    else carryover_plan.departure_time
+                    if carryover_plan
+                    else None,
+                    carryover_departure_time=(
+                        carryover_plan.departure_time if carryover_plan else None
                     ),
-                    duration_label=_format_hours(day_summary.planned_hours) if duration_minutes > 0 else "",
+                    status=effective_status,
+                    status_label=STATUS_LABELS.get(effective_status)
+                    if effective_status
+                    else None,
+                    interval_label="; ".join(interval_parts)
+                    if interval_parts
+                    else "Bez směny"
+                    if is_within_employment_period
+                    else "Mimo období",
+                    duration_label=_format_hours(day_summary.planned_hours)
+                    if show_total and duration_minutes > 0
+                    else "",
                     planned_minutes=duration_minutes,
                     planned_hours=day_summary.planned_hours,
+                    planned_metrics=_daily_metric_payload(day_summary.planned, display_metrics),
                 )
             )
             current += timedelta(days=1)
@@ -295,11 +396,15 @@ def build_shift_plan_report(
                 title=employment.title,
                 employment_type=employment.employment_type,
                 start_date=employment.start_date.isoformat(),
-                end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
+                end_date=employment.end_date.isoformat()
+                if employment.end_date is not None
+                else None,
                 is_active_in_month=True,
+                display_metrics=display_metrics,
                 cells=cells,
                 planned_minutes_total=summary.planned_minutes,
                 planned_hours=summary.planned_hours,
+                planned_metrics=_monthly_metric_payload(summary.planned, display_metrics),
                 scheduled_days=scheduled_days,
                 holiday_days=holiday_days,
                 off_days=off_days,
@@ -355,9 +460,8 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
                         "start_date": employment.start_date,
                         "end_date": employment.end_date,
                         "is_active_in_month": employment.is_active_in_month,
-                        "planned_minutes_total": employment.planned_minutes_total,
-                        "planned_hours": employment.planned_hours,
-                        "planned_total_label": _format_hours(employment.planned_hours),
+                        "display_metrics": employment.display_metrics,
+                        "planned_metrics": employment.planned_metrics,
                         "scheduled_days": employment.scheduled_days,
                         "holiday_days": employment.holiday_days,
                         "off_days": employment.off_days,
@@ -371,12 +475,12 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
                                 "is_within_employment_period": cell.is_within_employment_period,
                                 "arrival_time": cell.arrival_time,
                                 "departure_time": cell.departure_time,
+                                "carryover_departure_time": cell.carryover_departure_time,
                                 "status": cell.status,
                                 "status_label": cell.status_label,
                                 "interval_label": cell.interval_label,
                                 "duration_label": cell.duration_label,
-                                "planned_minutes": cell.planned_minutes,
-                                "planned_hours": cell.planned_hours,
+                                "planned_metrics": cell.planned_metrics,
                             }
                             for cell in employment.cells
                         ],
@@ -415,14 +519,26 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
         draw = ImageDraw.Draw(image)
 
         draw.rounded_rectangle(
-            (PAGE_MARGIN_X, PAGE_MARGIN_Y, PAGE_MARGIN_X + table_width, PAGE_MARGIN_Y + HEADER_HEIGHT - 24),
+            (
+                PAGE_MARGIN_X,
+                PAGE_MARGIN_Y,
+                PAGE_MARGIN_X + table_width,
+                PAGE_MARGIN_Y + HEADER_HEIGHT - 24,
+            ),
             radius=20,
             outline="#111111",
             width=3,
             fill="#fbf9f4",
         )
-        draw.text((PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 22), "Plán směn", font=title_font, fill="#111111")
-        draw.text((PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 62), f"Měsíc: {report.month_label}", font=regular, fill="#111111")
+        draw.text(
+            (PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 22), "Plán směn", font=title_font, fill="#111111"
+        )
+        draw.text(
+            (PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 62),
+            f"Měsíc: {report.month_label}",
+            font=regular,
+            fill="#111111",
+        )
         draw.text(
             (PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 92),
             f"Vygenerováno: {report.generated_at_label}",
@@ -445,15 +561,27 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
         x0 = PAGE_MARGIN_X
         y0 = table_top
         draw.rectangle((x0, y0, x0 + table_width, y0 + table_height), outline="#111111", width=2)
-        draw.rectangle((x0, y0, x0 + LABEL_COLUMN_WIDTH, y0 + row_height), fill="#efebe2", outline="#111111", width=2)
-        draw.text((x0 + 14, y0 + 14), "Úvazek / osoba", font=strong_font, fill="#111111")
         draw.rectangle(
-            (x0 + LABEL_COLUMN_WIDTH, y0, x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH, y0 + row_height),
+            (x0, y0, x0 + LABEL_COLUMN_WIDTH, y0 + row_height),
             fill="#efebe2",
             outline="#111111",
             width=2,
         )
-        draw.text((x0 + LABEL_COLUMN_WIDTH + 12, y0 + 14), "Součet", font=strong_font, fill="#111111")
+        draw.text((x0 + 14, y0 + 14), "Úvazek / osoba", font=strong_font, fill="#111111")
+        draw.rectangle(
+            (
+                x0 + LABEL_COLUMN_WIDTH,
+                y0,
+                x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH,
+                y0 + row_height,
+            ),
+            fill="#efebe2",
+            outline="#111111",
+            width=2,
+        )
+        draw.text(
+            (x0 + LABEL_COLUMN_WIDTH + 12, y0 + 14), "Součet", font=strong_font, fill="#111111"
+        )
 
         for day_index, header in enumerate(report.day_headers):
             x = x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + (day_index * day_column_width)
@@ -463,7 +591,12 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                 fill = "#fff1de"
             elif tone == "weekend":
                 fill = "#f2f2f2"
-            draw.rectangle((x, y0, x + day_column_width, y0 + row_height), fill=fill, outline="#111111", width=1)
+            draw.rectangle(
+                (x, y0, x + day_column_width, y0 + row_height),
+                fill=fill,
+                outline="#111111",
+                width=1,
+            )
             draw.text((x + 7, y0 + 8), str(header["day_number"]), font=strong_font, fill="#111111")
             draw.text((x + 7, y0 + 32), str(header["weekday_short"]), font=small, fill="#333333")
             holiday_label = header["holiday_label"]
@@ -499,7 +632,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             )
             draw.multiline_text(
                 (x0 + LABEL_COLUMN_WIDTH + 10, row_top + 12),
-                f"{_format_hours(employment.planned_hours)}\n{employment.scheduled_days} směn",
+                f"{_metric_summary_label(employment.planned_metrics) or '—'}\n{employment.scheduled_days} směn",
                 font=small,
                 fill="#111111",
                 spacing=5,
@@ -512,7 +645,9 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             )
 
             for day_index, cell in enumerate(employment.cells):
-                cell_left = x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + (day_index * day_column_width)
+                cell_left = (
+                    x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + (day_index * day_column_width)
+                )
                 cell_top = row_top
                 cell_right = cell_left + day_column_width
                 cell_bottom = row_bottom
@@ -524,7 +659,9 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                     fill = "#f7f7f7"
                 else:
                     fill = "white"
-                draw.rectangle((cell_left + 1, cell_top + 1, cell_right - 1, cell_bottom - 1), fill=fill)
+                draw.rectangle(
+                    (cell_left + 1, cell_top + 1, cell_right - 1, cell_bottom - 1), fill=fill
+                )
                 text_y = cell_top + 10
                 text = cell.interval_label
                 if len(text) > 11:
@@ -538,18 +675,34 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                     spacing=3,
                     align="center",
                 )
-                if cell.duration_label:
-                    draw.text((cell_left + 5, cell_bottom - 22), cell.duration_label, font=tiny, fill="#555555")
+                metric_label = _metric_cell_label(cell.planned_metrics)
+                if metric_label:
+                    metric_lines = metric_label.count("\n") + 1
+                    metric_y = max(cell_top + 58, cell_bottom - 8 - metric_lines * 13)
+                    draw.multiline_text(
+                        (cell_left + 5, metric_y),
+                        metric_label,
+                        font=tiny,
+                        fill="#555555",
+                        spacing=2,
+                    )
 
         legend_top = PAGE_HEIGHT - LEGEND_HEIGHT - FOOTER_HEIGHT
         draw.rounded_rectangle(
-            (PAGE_MARGIN_X, legend_top, PAGE_MARGIN_X + table_width, legend_top + LEGEND_HEIGHT - 18),
+            (
+                PAGE_MARGIN_X,
+                legend_top,
+                PAGE_MARGIN_X + table_width,
+                legend_top + LEGEND_HEIGHT - 18,
+            ),
             radius=16,
             outline="#111111",
             width=2,
             fill="#fafafa",
         )
-        draw.text((PAGE_MARGIN_X + 18, legend_top + 14), "Legenda", font=strong_font, fill="#111111")
+        draw.text(
+            (PAGE_MARGIN_X + 18, legend_top + 14), "Legenda", font=strong_font, fill="#111111"
+        )
         legend_y = legend_top + 44
         for item in report.legend:
             draw.text((PAGE_MARGIN_X + 24, legend_y), f"• {item}", font=small, fill="#333333")

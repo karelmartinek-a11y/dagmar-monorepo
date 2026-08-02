@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import { attendanceMonthSchema, portalLoginSchema, type AttendanceMonth, type AuthMethods, type ExternalProvider, type PortalLogin } from "./types";
+import { attendanceMonthSchema, employmentSchema, portalLoginSchema, type AttendanceMonth, type AuthMethods, type Employment, type ExternalProvider, type PortalLogin } from "./types";
 import { i18n } from "../i18n";
 
 export class ApiError extends Error {
@@ -142,10 +142,20 @@ export const api = {
   attendance: (employmentId: number, year: number, month: number): Promise<AttendanceMonth> => request(
     `/api/v1/attendance?employment_id=${employmentId}&year=${year}&month=${month}`, {}, "portal", attendanceMonthSchema,
   ),
-  createAttendanceEvent: (payload: { employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }) => request<{ id: number; employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }>(
+  attendanceEmployments: (year: number, month: number): Promise<Employment[]> => request(
+    `/api/v1/attendance/employments?year=${year}&month=${month}`, {}, "portal", employmentSchema.array(),
+  ),
+  createAttendanceEvent: (payload: { employment_id: number; occurred_at: string; event_type: "IN" | "OUT"; paired_occurred_at?: string }) => request<{ id: number; employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }>(
     "/api/v1/attendance/events", { method: "POST", body: JSON.stringify(payload) }, "portal",
   ),
-  deleteAttendanceEvent: (eventId: number) => request<{ ok: boolean }>(`/api/v1/attendance/events/${eventId}`, { method: "DELETE" }, "portal"),
+  updateAttendanceEvent: (eventId: number, payload: { employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }) => request<{ id: number; employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }>(
+    `/api/v1/attendance/events/${eventId}`, { method: "PUT", body: JSON.stringify(payload) }, "portal",
+  ),
+  deleteAttendanceEvent: (eventId: number, pairedEventId?: number) => request<{ ok: boolean }>(
+    `/api/v1/attendance/events/${eventId}${pairedEventId == null ? "" : `?paired_event_id=${pairedEventId}`}`,
+    { method: "DELETE" },
+    "portal",
+  ),
   savePortalStatus: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
     "/api/v1/shift-plan/day-status", { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),
@@ -155,7 +165,7 @@ export const api = {
   saveShiftPlan: (payload: Record<string, unknown>) => request<{ ok: boolean }>(
     "/api/v1/shift-plan", { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),
-  shiftPlanGroups: () => request<{ groups: Array<{ id: number; name: string }> }>("/api/v1/shift-plan/groups", {}, "portal").then((result) => result.groups),
+  shiftPlanGroups: (year: number, month: number) => request<{ groups: Array<{ id: number; name: string }> }>(`/api/v1/shift-plan/groups?year=${year}&month=${month}`, {}, "portal").then((result) => result.groups),
   groupShiftPlan: (groupId: number, year: number, month: number) => request<import("./types").GroupShiftPlanMonth>(
     `/api/v1/shift-plan/groups/${groupId}?year=${year}&month=${month}`, {}, "portal",
   ),

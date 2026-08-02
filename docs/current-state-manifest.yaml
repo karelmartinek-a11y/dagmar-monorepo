@@ -10,6 +10,14 @@
     },
     {
       "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_attendance.add_missing_breaks",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/attendance/breaks"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.admin_attendance.create_event",
       "methods": [
         "POST"
@@ -434,11 +442,27 @@
     },
     {
       "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.attendance.get_month_employments",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/attendance/employments"
+    },
+    {
+      "auth_mode": "portal_bearer",
       "handler": "app.api.v1.attendance.create_attendance_event",
       "methods": [
         "POST"
       ],
       "path": "/api/v1/attendance/events"
+    },
+    {
+      "auth_mode": "portal_bearer",
+      "handler": "app.api.v1.attendance.update_attendance_event",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/attendance/events/{event_id}"
     },
     {
       "auth_mode": "portal_bearer",

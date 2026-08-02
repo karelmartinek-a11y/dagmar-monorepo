@@ -10,10 +10,11 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import distinct, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from ...db.models import Attendance, AttendanceEvent, Employment, ShiftPlan
+from ...api.v1.attendance import _build_month
+from ...db.models import Employment
 from ...db.session import get_db
 from ...security.csrf import require_csrf
 from ...services.shift_plan_reports import (
@@ -65,24 +66,14 @@ def _csv_for_employment(
     start: date,
     end: date,
 ) -> bytes:
-    q = select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id).order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
-    attendance_rows = db.execute(q).scalars().all()
-    status_rows = db.execute(
-        select(Attendance)
-        .where(Attendance.employment_id == employment.id, Attendance.date >= start, Attendance.date < end)
-        .order_by(Attendance.date.asc())
-    ).scalars().all()
-    status_by_date = {row.date: row.status for row in status_rows if row.status}
-    plan_rows = db.execute(
-        select(ShiftPlan)
-        .where(ShiftPlan.employment_id == employment.id)
-        .where(ShiftPlan.date >= start)
-        .where(ShiftPlan.date < end)
-        .order_by(ShiftPlan.date.asc())
-    ).scalars().all()
-    plan_by_date = {row.date: row for row in plan_rows}
-    event_dates = {row.occurred_at.astimezone().date() for row in attendance_rows}
-    all_dates = sorted(event_dates | set(plan_by_date) | set(status_by_date))
+    month_data = _build_month(db, employment, start.year, start.month)
+    metric_labels = {
+        "total": "odpracovano_h",
+        "afternoon": "odpoledni_h",
+        "night": "nocni_h",
+        "weekend": "vikend_h",
+        "public_holiday": "svatek_h",
+    }
 
     buf = io.StringIO(newline="")
     w = csv.writer(buf, delimiter=",", quoting=csv.QUOTE_MINIMAL)
@@ -96,22 +87,46 @@ def _csv_for_employment(
             "stav_dne",
             "plan_prichod",
             "plan_odchod",
+            "plan_presah_do",
+            *[metric_labels[key] for key in month_data.display_metrics],
         ]
     )
+
+    def displayed_hours(day, key: str) -> float | str:
+        metric = day.worked.get(key) if day.worked else None
+        return metric.hours if metric is not None else ""
+
     user_name = employment.user.name if employment.user else f"Uzivatel {employment.user_id}"
-    for day in all_dates:
-        plan_row = plan_by_date.get(day)
-        events = [row for row in attendance_rows if row.occurred_at.astimezone().date() == day]
+    for day in month_data.days:
+        has_displayed_work = bool(
+            day.worked
+            and any(
+                metric is not None and metric.tenths != 0
+                for key in month_data.display_metrics
+                if (metric := day.worked.get(key)) is not None
+            )
+        )
+        if (
+            not day.events
+            and not day.effective_status
+            and not day.planned_arrival_time
+            and not day.planned_departure_time
+            and not day.planned_carryover_departure_time
+            and not has_displayed_work
+        ):
+            continue
         w.writerow(
             [
                 user_name,
                 employment.title,
                 employment.employment_type,
-                day.isoformat(),
-                ";".join(f"{row.event_type.value}:{row.occurred_at.isoformat()}" for row in events),
-                status_by_date.get(day) or (plan_row.status if plan_row is not None and plan_row.status else ""),
-                plan_row.arrival_time if plan_row is not None and plan_row.arrival_time else "",
-                plan_row.departure_time if plan_row is not None and plan_row.departure_time else "",
+                day.date,
+                ";".join(f"{row.event_type.value}:{row.occurred_at}" for row in day.events),
+                day.effective_status or "",
+                day.planned_arrival_time or "",
+                day.planned_departure_time or "",
+                day.planned_carryover_departure_time or "",
+                *[displayed_hours(day, key) for key in month_data.display_metrics],
             ]
         )
 
@@ -140,23 +155,11 @@ def _load_relevant_employments(db: Session, start: date, end: date) -> list[Empl
         .scalars()
         .all()
     )
-    event_ids = select(AttendanceEvent.employment_id).where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
-    legacy_ids = select(Attendance.employment_id).where(Attendance.date >= start, Attendance.date < end)
-    attendance_ids = db.execute(select(distinct(event_ids.union(legacy_ids).subquery().c.employment_id))).scalars().all()
-    attendance_id_set = set(attendance_ids)
-    relevant = [employment for employment in candidates if employment.is_active or employment.id in attendance_id_set]
-    seen = {employment.id for employment in relevant}
-    if attendance_id_set - seen:
-        extra = (
-            db.execute(
-                select(Employment)
-                .options(joinedload(Employment.user))
-                .where(Employment.id.in_(attendance_id_set - seen))
-            )
-            .scalars()
-            .all()
-        )
-        relevant.extend(extra)
+    relevant = [
+        employment
+        for employment in candidates
+        if employment.is_active and employment.user is not None and employment.user.is_active
+    ]
     relevant.sort(key=lambda item: (item.user.name if item.user else "", item.start_date, item.id))
     return relevant
 
@@ -172,18 +175,33 @@ def export_csv_or_zip(
     start, end = _month_range(month)
 
     if bulk and employment_id:
-        raise HTTPException(status_code=400, detail="Use either bulk=true or employment_id, not both")
+        raise HTTPException(
+            status_code=400, detail="Use either bulk=true or employment_id, not both"
+        )
 
     if not bulk:
         if not employment_id:
-            raise HTTPException(status_code=400, detail="employment_id is required unless bulk=true")
+            raise HTTPException(
+                status_code=400, detail="employment_id is required unless bulk=true"
+            )
 
         employment = (
-            db.execute(select(Employment).options(joinedload(Employment.user)).where(Employment.id == employment_id))
+            db.execute(
+                select(Employment)
+                .options(joinedload(Employment.user))
+                .where(Employment.id == employment_id)
+            )
             .scalars()
             .first()
         )
-        if not employment:
+        if (
+            not employment
+            or not employment.is_active
+            or employment.user is None
+            or not employment.user.is_active
+            or employment.start_date >= end
+            or (employment.end_date is not None and employment.end_date < start)
+        ):
             raise HTTPException(status_code=404, detail="Employment not found")
 
         display = _employment_display_name(employment)

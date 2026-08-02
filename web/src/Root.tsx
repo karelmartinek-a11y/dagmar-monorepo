@@ -36,5 +36,5 @@ function DocumentTitle() {
 
 export function Root() {
   const { t } = useTranslation();
-  return <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}><DocumentTitle /><a className="skip-link" href="#main-content">{t("nav.skipToContent")}</a><App/></BrowserRouter>;
+  return <BrowserRouter><DocumentTitle /><a className="skip-link" href="#main-content">{t("nav.skipToContent")}</a><App/></BrowserRouter>;
 }

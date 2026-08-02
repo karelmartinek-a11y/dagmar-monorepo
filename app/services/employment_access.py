@@ -5,9 +5,33 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.db.models import Employment, EmploymentType, PortalUser
 
 LOGIN_WINDOW_MONTHS = 1
+
+
+def lock_employment_for_time_mutation(db: Session, employment_id: int) -> Employment:
+    """Serialize all attendance/plan mutations for one employment."""
+    return db.execute(
+        select(Employment)
+        .where(Employment.id == employment_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one()
+
+
+def locked_employment_has_active_user(db: Session, employment: Employment) -> bool:
+    """Lock and re-read the owning user after the employment mutation lock."""
+    user_is_active = db.execute(
+        select(PortalUser.is_active)
+        .where(PortalUser.id == employment.user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    return employment.is_active and user_is_active is True
 
 
 def add_calendar_months(value: date, months: int) -> date:
@@ -26,6 +50,7 @@ def validate_time_profile(
     *,
     employment_type: str,
     workload_fraction: Decimal | None = None,
+    total_hours_enabled: bool = True,
     automatic_breaks_enabled: bool = False,
     afternoon_hours_enabled: bool = False,
     afternoon_start_minutes: int | None = None,
@@ -38,11 +63,11 @@ def validate_time_profile(
     if employment_type == EmploymentType.WORK_CONTRACT.value:
         if workload_fraction is None or not (Decimal("0") < workload_fraction <= Decimal("1")):
             raise ValueError("Velikost úvazku pracovní smlouvy musí být větší než 0 a nejvýše 1.")
-        if not (night_hours_enabled and weekend_hours_enabled and public_holiday_hours_enabled):
-            raise ValueError("Pracovní smlouva musí sledovat noční, víkendové a sváteční hodiny.")
+        if not total_hours_enabled or not night_hours_enabled:
+            raise ValueError("Pracovní smlouva musí zobrazovat celkové a noční hodiny.")
     elif workload_fraction is not None:
         raise ValueError("Velikost úvazku patří pouze pracovní smlouvě.")
-    if employment_type == EmploymentType.TASK_SHIFT_BASED.value and any((automatic_breaks_enabled, afternoon_hours_enabled, night_hours_enabled, weekend_hours_enabled, public_holiday_hours_enabled)):
+    if employment_type == EmploymentType.TASK_SHIFT_BASED.value and any((total_hours_enabled, automatic_breaks_enabled, afternoon_hours_enabled, night_hours_enabled, weekend_hours_enabled, public_holiday_hours_enabled)):
         raise ValueError("Úkolová / směnová odměna nemá časové metriky.")
     if afternoon_hours_enabled and (afternoon_start_minutes is None or not 0 <= afternoon_start_minutes <= 1319):
         raise ValueError("Začátek odpoledního pásma musí být mezi 00:00 a 21:59.")
@@ -127,6 +152,25 @@ def employment_label(employment: Employment, user_name: str | None = None) -> st
     if base:
         return f"{base} - {type_label} - {title}"
     return f"{type_label} - {title}"
+
+
+def display_metrics_for_employment(employment: Employment) -> list[str]:
+    """Return the only metric columns consumers may render for this employment."""
+    employment_type = str(
+        getattr(employment.employment_type, "value", employment.employment_type)
+    )
+    if employment_type == EmploymentType.TASK_SHIFT_BASED.value:
+        return []
+    result = ["total"] if employment.total_hours_enabled else []
+    for key, enabled in (
+        ("afternoon", employment.afternoon_hours_enabled),
+        ("night", employment.night_hours_enabled),
+        ("weekend", employment.weekend_hours_enabled),
+        ("public_holiday", employment.public_holiday_hours_enabled),
+    ):
+        if enabled:
+            result.append(key)
+    return result
 
 
 @dataclass(frozen=True)

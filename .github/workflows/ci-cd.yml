@@ -51,7 +51,10 @@ jobs:
           alembic upgrade head
           alembic current
       - name: Backend tests
-        run: pytest -q
+        run: |
+          pytest -q
+          python scripts/rebuild_daily_time_metrics.py --apply
+          python scripts/rebuild_daily_time_metrics.py --check
       - name: Repository invariants
         run: |
           python scripts/check_repo_invariants.py
@@ -211,9 +214,24 @@ jobs:
             tar -xzf "/tmp/dagmar-$SHA/web-release.tgz" -C "$WEB_RELEASE"
             printf '{"frontend_commit":"%s"}\n' "$SHORT_SHA" > "$WEB_RELEASE/frontend-version.json"
 
+            switch_link() {
+              local target="$1" current="$2"
+              rm -f "$current.next"
+              ln -s "$target" "$current.next"
+              mv -Tf "$current.next" "$current"
+            }
+
             test -r /etc/dagmar/backend.env
             cd "$BACK_RELEASE"
+            BACKEND_STOPPED=false
+            SCHEMA_CHANGE_STARTED=false
+            trap 'if [ "$BACKEND_STOPPED" = true ]; then if [ "$SCHEMA_CHANGE_STARTED" = false ]; then systemctl start dagmar-backend || true; else systemctl stop dagmar-backend || true; fi; fi' EXIT
+            systemctl stop dagmar-backend
+            BACKEND_STOPPED=true
+            SCHEMA_CHANGE_STARTED=true
             "$BACK_RELEASE/.venv/bin/alembic" -c "$BACK_RELEASE/alembic.ini" upgrade head
+            "$BACK_RELEASE/.venv/bin/python" "$REPO/scripts/rebuild_daily_time_metrics.py" --apply
+            "$BACK_RELEASE/.venv/bin/python" "$REPO/scripts/rebuild_daily_time_metrics.py" --check
             systemctl daemon-reload
             systemctl enable --now dagmar-shift-plan-month-auto-lock.timer
             nginx -t
@@ -229,12 +247,6 @@ jobs:
               mv "$CURRENT_WEB" "$PREV_WEB"
             fi
 
-            switch_link() {
-              local target="$1" current="$2"
-              rm -f "$current.next"
-              ln -s "$target" "$current.next"
-              mv -Tf "$current.next" "$current"
-            }
             switch_link "$BACK_RELEASE" "$CURRENT_BACK"
             switch_link "$WEB_RELEASE" "$CURRENT_WEB"
             systemctl restart dagmar-backend
@@ -248,13 +260,14 @@ jobs:
               sleep 2
             done
             if [ "$HEALTHY" != true ]; then
-              if [ -n "$PREV_BACK" ] && [ -e "$PREV_BACK" ]; then switch_link "$PREV_BACK" "$CURRENT_BACK"; fi
               if [ -n "$PREV_WEB" ] && [ -e "$PREV_WEB" ]; then switch_link "$PREV_WEB" "$CURRENT_WEB"; fi
-              systemctl restart dagmar-backend
+              systemctl stop dagmar-backend
               exit 1
             fi
             VERSION_JSON=$(curl -fsS http://127.0.0.1:8101/api/version)
             test "$(printf '%s' "$VERSION_JSON" | jq -r .backend_deploy_tag)" = "$SHORT_SHA"
             test "$(jq -r .frontend_commit "$CURRENT_WEB/frontend-version.json")" = "$SHORT_SHA"
+            BACKEND_STOPPED=false
+            trap - EXIT
             rm -rf "/tmp/dagmar-$SHA"
             printf '%s KájovoDagmar atomic release %s\n' "$(date '+%F %T')" "$SHA" >> /var/log/dagmar/deploy.log || true

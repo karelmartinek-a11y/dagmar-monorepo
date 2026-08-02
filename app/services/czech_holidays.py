@@ -2,6 +2,20 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+FIXED_HOLIDAY_LABELS = {
+    (1, 1): "Nový rok / Den obnovy samostatného českého státu",
+    (5, 1): "Svátek práce",
+    (5, 8): "Den vítězství",
+    (7, 5): "Den slovanských věrozvěstů Cyrila a Metoděje",
+    (7, 6): "Den upálení mistra Jana Husa",
+    (9, 28): "Den české státnosti",
+    (10, 28): "Den vzniku samostatného československého státu",
+    (11, 17): "Den boje za svobodu a demokracii a Mezinárodní den studentstva",
+    (12, 24): "Štědrý den",
+    (12, 25): "1. svátek vánoční",
+    (12, 26): "2. svátek vánoční",
+}
+
 
 def _easter_sunday(year: int) -> date:
     a = year % 19
@@ -20,6 +34,16 @@ def _easter_sunday(year: int) -> date:
 
 
 def is_czech_public_holiday(day: date) -> bool:
-    fixed = {(1, 1), (5, 1), (5, 8), (7, 5), (7, 6), (9, 28), (10, 28), (11, 17), (12, 24), (12, 25), (12, 26)}
+    return czech_public_holiday_label(day) is not None
+
+
+def czech_public_holiday_label(day: date) -> str | None:
+    fixed = FIXED_HOLIDAY_LABELS.get((day.month, day.day))
+    if fixed is not None:
+        return fixed
     easter = _easter_sunday(day.year)
-    return (day.month, day.day) in fixed or day in {easter - timedelta(days=2), easter + timedelta(days=1)}
+    if day == easter - timedelta(days=2):
+        return "Velký pátek"
+    if day == easter + timedelta(days=1):
+        return "Velikonoční pondělí"
+    return None

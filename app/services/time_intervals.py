@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from app.db.models import AttendanceEvent, AttendanceEventType
+from app.db.models import AttendanceEvent, AttendanceEventType, ShiftPlan
 from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
 
 
@@ -17,8 +17,94 @@ class WorkInterval:
         return int((self.end - self.start).total_seconds() // 60)
 
 
+def shift_plan_interval(plan: ShiftPlan) -> WorkInterval | None:
+    """Convert one stored shift into its canonical possibly overnight interval."""
+    if not plan.arrival_time or not plan.departure_time:
+        return None
+    start_hour, start_minute = (int(value) for value in plan.arrival_time.split(":"))
+    end_hour, end_minute = (int(value) for value in plan.departure_time.split(":"))
+    start = datetime.combine(plan.date, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE) + timedelta(
+        hours=start_hour, minutes=start_minute
+    )
+    end = datetime.combine(plan.date, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE) + timedelta(
+        hours=end_hour, minutes=end_minute
+    )
+    if end <= start:
+        end += timedelta(days=1)
+    return WorkInterval(start, end)
+
+
+def shift_plan_intervals(plans: list[ShiftPlan]) -> list[WorkInterval]:
+    return [interval for plan in plans if (interval := shift_plan_interval(plan)) is not None]
+
+
+def shift_plan_months(plan: ShiftPlan | None) -> set[tuple[int, int]]:
+    if plan is None:
+        return set()
+    months = {(plan.date.year, plan.date.month)}
+    interval = shift_plan_interval(plan)
+    if interval is not None:
+        months.update((day.year, day.month) for day, _part in split_by_day(interval))
+    return months
+
+
+def shift_plan_days(plan: ShiftPlan | None) -> set[date]:
+    if plan is None:
+        return set()
+    interval = shift_plan_interval(plan)
+    if interval is None:
+        return {plan.date}
+    return {day for day, _part in split_by_day(interval)}
+
+
+def shift_plans_overlap(left: ShiftPlan | None, right: ShiftPlan | None) -> bool:
+    left_interval = shift_plan_interval(left) if left is not None else None
+    right_interval = shift_plan_interval(right) if right is not None else None
+    return bool(
+        left_interval
+        and right_interval
+        and left_interval.start < right_interval.end
+        and right_interval.start < left_interval.end
+    )
+
+
+def shift_plan_carryover(plans: list[ShiftPlan], day: date) -> ShiftPlan | None:
+    """Return a prior-day plan whose interval continues into ``day``."""
+    day_start = datetime.combine(day, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+    day_end = day_start + timedelta(days=1)
+    for plan in plans:
+        if plan.date >= day:
+            continue
+        interval = shift_plan_interval(plan)
+        if interval is not None and interval.start < day_end and interval.end > day_start:
+            return plan
+    return None
+
+
 def ordered_events(events: list[AttendanceEvent]) -> list[AttendanceEvent]:
     return sorted(events, key=lambda event: (prague_now(event.occurred_at), event.id))
+
+
+def pair_event_rows(events: list[AttendanceEvent]) -> list[tuple[AttendanceEvent, AttendanceEvent]]:
+    """Return chronologically valid IN/OUT event pairs."""
+    ordered = ordered_events(events)
+    pairs: list[tuple[AttendanceEvent, AttendanceEvent]] = []
+    opened: AttendanceEvent | None = None
+    for event in ordered:
+        if event.event_type == AttendanceEventType.IN:
+            opened = event
+            continue
+        if opened is None:
+            continue
+        if prague_now(event.occurred_at) > prague_now(opened.occurred_at):
+            pairs.append((opened, event))
+        opened = None
+    return pairs
+
+
+def paired_event_ids(events: list[AttendanceEvent]) -> set[int]:
+    """Return IDs of events that belong to a closed interval."""
+    return {event.id for pair in pair_event_rows(events) for event in pair}
 
 
 def pair_events(events: list[AttendanceEvent]) -> list[WorkInterval]:
@@ -30,34 +116,19 @@ def pair_events(events: list[AttendanceEvent]) -> list[WorkInterval]:
     metrics. New event writes still enforce strict alternation at the API
     boundary.
     """
-    ordered = ordered_events(events)
-    intervals: list[WorkInterval] = []
-    opened: AttendanceEvent | None = None
-    for event in ordered:
-        if event.event_type == AttendanceEventType.IN:
-            # A second IN means the previous historical interval was never
-            # closed. Start the next usable interval instead of failing the
-            # whole month response.
-            opened = event
-            continue
-        if opened is None:
-            # Keep an orphan OUT visible, but it cannot form a work interval.
-            continue
-        start = prague_now(opened.occurred_at)
-        end = prague_now(event.occurred_at)
-        if end <= start:
-            opened = None
-            continue
-        intervals.append(WorkInterval(start=start, end=end))
-        opened = None
-    return intervals
+    return [
+        WorkInterval(start=prague_now(start.occurred_at), end=prague_now(end.occurred_at))
+        for start, end in pair_event_rows(events)
+    ]
 
 
 def split_by_day(interval: WorkInterval) -> list[tuple[date, WorkInterval]]:
     result: list[tuple[date, WorkInterval]] = []
     cursor = interval.start
     while cursor.date() < interval.end.date():
-        boundary = datetime.combine(cursor.date() + timedelta(days=1), datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
+        boundary = datetime.combine(
+            cursor.date() + timedelta(days=1), datetime.min.time(), tzinfo=PRAGUE_TIMEZONE
+        )
         result.append((cursor.date(), WorkInterval(cursor, boundary)))
         cursor = boundary
     result.append((cursor.date(), WorkInterval(cursor, interval.end)))
@@ -103,3 +174,60 @@ def automatic_break_events(start: datetime, end: datetime) -> list[tuple[datetim
         cursor += timedelta(minutes=30)
         result.append((cursor, "IN"))
     return result
+
+
+def missing_break_event_groups(
+    intervals: list[WorkInterval],
+    *,
+    range_start: datetime,
+    range_end: datetime,
+) -> list[list[tuple[datetime, str]]]:
+    """Return missing OUT/IN pauses while crediting already recorded pause time."""
+    ordered = sorted(intervals, key=lambda item: (item.start, item.end))
+    sessions: list[list[WorkInterval]] = []
+    for interval in ordered:
+        if not sessions or interval.start - sessions[-1][-1].end >= timedelta(minutes=30):
+            sessions.append([interval])
+        else:
+            sessions[-1].append(interval)
+
+    additions: list[list[tuple[datetime, str]]] = []
+    for session in sessions:
+        session_start = session[0].start
+        session_end = session[-1].end
+        if session_end <= range_start or session_start >= range_end:
+            continue
+        gross_minutes = int((session_end - session_start).total_seconds() // 60)
+        _segments, required_breaks = break_segments(gross_minutes)
+        existing_break_minutes = sum(
+            max(0, int((right.start - left.end).total_seconds() // 60))
+            for left, right in zip(session, session[1:], strict=False)
+        )
+        missing_minutes = max(0, required_breaks * 30 - existing_break_minutes)
+        if missing_minutes == 0:
+            continue
+
+        session_additions: list[tuple[datetime, str]] = []
+        remaining = missing_minutes
+        for break_index in range(required_breaks):
+            duration = min(30, remaining)
+            if duration <= 0:
+                break
+            target = session_start + timedelta(minutes=360 * (break_index + 1))
+            placement: datetime | None = None
+            for interval in session:
+                earliest = interval.start + timedelta(minutes=1)
+                latest = interval.end - timedelta(minutes=duration + 1)
+                if earliest <= latest:
+                    placement = min(max(target, earliest), latest)
+                    if earliest <= target <= latest:
+                        break
+            if placement is None:
+                break
+            session_additions.extend(
+                [(placement, "OUT"), (placement + timedelta(minutes=duration), "IN")]
+            )
+            remaining -= duration
+        if remaining == 0:
+            additions.append(session_additions)
+    return additions

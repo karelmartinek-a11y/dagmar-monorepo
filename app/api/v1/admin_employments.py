@@ -18,6 +18,7 @@ from app.api.errors import raise_api_error
 from app.api.v1.admin_users import EmploymentOut, _to_employment_out
 from app.db.models import (
     Attendance,
+    AttendanceEvent,
     AttendanceLock,
     AttendanceReminderEvent,
     Employment,
@@ -29,8 +30,15 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.security.csrf import require_csrf
-from app.services.employment_access import employment_type_is_valid, validate_time_profile
+from app.services.daily_metrics import sync_employment_metrics
+from app.services.employment_access import (
+    employment_type_is_valid,
+    lock_employment_for_time_mutation,
+    validate_time_profile,
+)
 from app.services.employment_groups import remove_groups_for_employment
+from app.services.prague_time import prague_now
+from app.services.time_intervals import pair_event_rows, shift_plan_days
 
 router = APIRouter(tags=["admin-employments"])
 
@@ -42,9 +50,11 @@ class EmploymentCreateIn(BaseModel):
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
     is_active: bool = True
     workload_fraction: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1.000"))
+    total_hours_enabled: bool = True
     automatic_breaks_enabled: bool = False
     afternoon_hours_enabled: bool = False
     afternoon_start_minutes: int | None = Field(default=None, ge=0, le=1319)
+    afternoon_start_time: str | None = Field(default=None, pattern="^(?:[01]\\d|2[0-1]):[0-5]\\d$")
     night_hours_enabled: bool = False
     weekend_hours_enabled: bool = False
     public_holiday_hours_enabled: bool = False
@@ -59,13 +69,23 @@ class EmploymentCreateIn(BaseModel):
 
     @model_validator(mode="after")
     def validate_profile(self) -> EmploymentCreateIn:
+        if self.afternoon_start_time is not None:
+            hour, minute = (int(part) for part in self.afternoon_start_time.split(":"))
+            self.afternoon_start_minutes = hour * 60 + minute
         if self.employment_type == "WORK_CONTRACT":
             self.workload_fraction = self.workload_fraction or Decimal("1.000")
+            self.total_hours_enabled = True
             self.night_hours_enabled = True
-            self.weekend_hours_enabled = True
-            self.public_holiday_hours_enabled = True
+        elif self.employment_type == "TASK_SHIFT_BASED":
+            self.total_hours_enabled = False
+            self.automatic_breaks_enabled = False
+            self.afternoon_hours_enabled = False
+            self.afternoon_start_minutes = None
+            self.night_hours_enabled = False
+            self.weekend_hours_enabled = False
+            self.public_holiday_hours_enabled = False
         try:
-            validate_time_profile(employment_type=self.employment_type, workload_fraction=self.workload_fraction, automatic_breaks_enabled=self.automatic_breaks_enabled, afternoon_hours_enabled=self.afternoon_hours_enabled, afternoon_start_minutes=self.afternoon_start_minutes, night_hours_enabled=self.night_hours_enabled, weekend_hours_enabled=self.weekend_hours_enabled, public_holiday_hours_enabled=self.public_holiday_hours_enabled)
+            validate_time_profile(employment_type=self.employment_type, workload_fraction=self.workload_fraction, total_hours_enabled=self.total_hours_enabled, automatic_breaks_enabled=self.automatic_breaks_enabled, afternoon_hours_enabled=self.afternoon_hours_enabled, afternoon_start_minutes=self.afternoon_start_minutes, night_hours_enabled=self.night_hours_enabled, weekend_hours_enabled=self.weekend_hours_enabled, public_holiday_hours_enabled=self.public_holiday_hours_enabled)
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
         return self
@@ -79,9 +99,11 @@ class EmploymentUpdateIn(BaseModel):
     is_active: bool | None = None
     confirm_delete_out_of_range: bool = False
     workload_fraction: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1.000"))
+    total_hours_enabled: bool | None = None
     automatic_breaks_enabled: bool | None = None
     afternoon_hours_enabled: bool | None = None
     afternoon_start_minutes: int | None = Field(default=None, ge=0, le=1319)
+    afternoon_start_time: str | None = Field(default=None, pattern="^(?:[01]\\d|2[0-1]):[0-5]\\d$")
     night_hours_enabled: bool | None = None
     weekend_hours_enabled: bool | None = None
     public_holiday_hours_enabled: bool | None = None
@@ -122,10 +144,10 @@ def _normalize_profile_for_type(
         normalized["workload_fraction"] = None
     if employment_type == EmploymentType.WORK_CONTRACT.value:
         normalized["workload_fraction"] = normalized["workload_fraction"] or Decimal("1.000")
+        normalized["total_hours_enabled"] = True
         normalized["night_hours_enabled"] = True
-        normalized["weekend_hours_enabled"] = True
-        normalized["public_holiday_hours_enabled"] = True
     elif type_changed and employment_type == EmploymentType.TASK_SHIFT_BASED.value:
+        normalized["total_hours_enabled"] = False
         normalized["automatic_breaks_enabled"] = False
         normalized["afternoon_hours_enabled"] = False
         normalized["afternoon_start_minutes"] = None
@@ -189,6 +211,21 @@ def _month_record_out_of_range(year: int, month: int, start_date: date, end_date
     return False
 
 
+def _out_of_range_event_ids(
+    events: list[AttendanceEvent], start_date: date, end_date: date | None
+) -> set[int]:
+    """Delete whole closed intervals when either endpoint falls outside the new period."""
+    ids = {
+        event.id
+        for event in events
+        if _is_date_out_of_range(prague_now(event.occurred_at).date(), start_date, end_date)
+    }
+    for arrival, departure in pair_event_rows(events):
+        if arrival.id in ids or departure.id in ids:
+            ids.update((arrival.id, departure.id))
+    return ids
+
+
 def _collect_range_conflicts(employment_id: int, start_date: date, end_date: date | None, db: Session) -> RangeConflictSummary:
     summary = RangeConflictSummary()
 
@@ -201,11 +238,33 @@ def _collect_range_conflicts(employment_id: int, start_date: date, end_date: dat
         summary.attendance_count = len(offending_attendance)
         summary.touch(offending_attendance[0], offending_attendance[-1])
 
-    shift_rows = (
-        db.execute(select(ShiftPlan.date).where(ShiftPlan.employment_id == employment_id).order_by(ShiftPlan.date.asc()))
-        .all()
+    event_rows = list(
+        db.execute(
+            select(AttendanceEvent).where(AttendanceEvent.employment_id == employment_id)
+        ).scalars()
     )
-    offending_shift = [row[0] for row in shift_rows if _is_date_out_of_range(row[0], start_date, end_date)]
+    offending_event_ids = _out_of_range_event_ids(event_rows, start_date, end_date)
+    offending_event_dates = sorted(
+        prague_now(event.occurred_at).date()
+        for event in event_rows
+        if event.id in offending_event_ids
+    )
+    if offending_event_dates:
+        summary.attendance_count += len(offending_event_ids)
+        summary.touch(offending_event_dates[0], offending_event_dates[-1])
+
+    shift_rows = list(
+        db.execute(
+            select(ShiftPlan)
+            .where(ShiftPlan.employment_id == employment_id)
+            .order_by(ShiftPlan.date.asc())
+        ).scalars()
+    )
+    offending_shift = [
+        row.date
+        for row in shift_rows
+        if any(_is_date_out_of_range(day, start_date, end_date) for day in shift_plan_days(row))
+    ]
     if offending_shift:
         summary.shift_plan_count = len(offending_shift)
         summary.touch(offending_shift[0], offending_shift[-1])
@@ -317,6 +376,18 @@ def _collect_related_data_summary(employment_id: int, db: Session) -> RangeConfl
         summary.attendance_count = len(attendance_dates)
         summary.touch(attendance_dates[0][0], attendance_dates[-1][0])
 
+    event_dates = sorted(
+        prague_now(value).date()
+        for value in db.execute(
+            select(AttendanceEvent.occurred_at).where(
+                AttendanceEvent.employment_id == employment_id
+            )
+        ).scalars()
+    )
+    if event_dates:
+        summary.attendance_count += len(event_dates)
+        summary.touch(event_dates[0], event_dates[-1])
+
     shift_dates = db.execute(
         select(ShiftPlan.date).where(ShiftPlan.employment_id == employment_id).order_by(ShiftPlan.date.asc())
     ).all()
@@ -391,17 +462,42 @@ def _delete_out_of_range_records(employment_id: int, start_date: date, end_date:
             ),
         )
     )
+    event_rows = list(
+        db.execute(
+            select(AttendanceEvent).where(AttendanceEvent.employment_id == employment_id)
+        ).scalars()
+    )
+    event_ids = _out_of_range_event_ids(event_rows, start_date, end_date)
+    attendance_deleted += (
+        _delete_row_count(
+            cast(
+                CursorResult[Any],
+                db.execute(delete(AttendanceEvent).where(AttendanceEvent.id.in_(event_ids))),
+            )
+        )
+        if event_ids
+        else 0
+    )
+    shift_plan_ids = [
+        row.id
+        for row in db.execute(
+            select(ShiftPlan).where(ShiftPlan.employment_id == employment_id)
+        ).scalars()
+        if any(
+            _is_date_out_of_range(day, start_date, end_date)
+            for day in shift_plan_days(row)
+        )
+    ]
     shift_plan_deleted = _delete_row_count(
         cast(
             CursorResult[Any],
             db.execute(
                 delete(ShiftPlan).where(
-                    ShiftPlan.employment_id == employment_id,
-                    _out_of_range_clause(ShiftPlan.date, start_date, end_date),
+                    ShiftPlan.id.in_(shift_plan_ids),
                 )
             ),
         )
-    )
+    ) if shift_plan_ids else 0
 
     lock_rows = (
         db.execute(select(AttendanceLock.id, AttendanceLock.year, AttendanceLock.month).where(AttendanceLock.employment_id == employment_id))
@@ -467,11 +563,23 @@ def _delete_out_of_range_records(employment_id: int, start_date: date, end_date:
 
 
 def _delete_all_related_records(employment_id: int, db: Session) -> EmploymentDeleteOut:
+    attendance_deleted = _delete_row_count(
+        cast(
+            CursorResult[Any],
+            db.execute(delete(Attendance).where(Attendance.employment_id == employment_id)),
+        )
+    )
+    attendance_deleted += _delete_row_count(
+        cast(
+            CursorResult[Any],
+            db.execute(
+                delete(AttendanceEvent).where(AttendanceEvent.employment_id == employment_id)
+            ),
+        )
+    )
     return EmploymentDeleteOut(
         ok=True,
-        deleted_attendance_count=_delete_row_count(
-            cast(CursorResult[Any], db.execute(delete(Attendance).where(Attendance.employment_id == employment_id)))
-        ),
+        deleted_attendance_count=attendance_deleted,
         deleted_shift_plan_count=_delete_row_count(
             cast(CursorResult[Any], db.execute(delete(ShiftPlan).where(ShiftPlan.employment_id == employment_id)))
         ),
@@ -524,6 +632,7 @@ def create_employment(
         end_date=end_date,
         is_active=payload.is_active,
         workload_fraction=payload.workload_fraction,
+        total_hours_enabled=payload.total_hours_enabled,
         automatic_breaks_enabled=payload.automatic_breaks_enabled,
         afternoon_hours_enabled=payload.afternoon_hours_enabled,
         afternoon_start_minutes=payload.afternoon_start_minutes,
@@ -548,6 +657,7 @@ def update_employment(
     employment = db.get(Employment, employment_id)
     if employment is None:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
+    employment = lock_employment_for_time_mutation(db, employment.id)
 
     next_title = payload.title.strip() if payload.title is not None else employment.title
     next_type = payload.employment_type if payload.employment_type is not None else employment.employment_type
@@ -560,6 +670,9 @@ def update_employment(
     next_end_date = _parse_date(payload.end_date, "end_date") if payload.end_date is not None else employment.end_date
     assert next_start_date is not None
     _validate_period(next_start_date, next_end_date)
+    period_changed = (
+        next_start_date != employment.start_date or next_end_date != employment.end_date
+    )
 
     summary = _collect_range_conflicts(employment.id, next_start_date, next_end_date, db)
     has_conflicts = any(
@@ -585,11 +698,21 @@ def update_employment(
     employment.end_date = next_end_date
     if payload.is_active is not None:
         employment.is_active = payload.is_active
+    if "afternoon_start_time" in payload.model_fields_set:
+        requested_afternoon_minutes = None
+        if payload.afternoon_start_time is not None:
+            hour, minute = (int(part) for part in payload.afternoon_start_time.split(":"))
+            requested_afternoon_minutes = hour * 60 + minute
+    elif "afternoon_start_minutes" in payload.model_fields_set:
+        requested_afternoon_minutes = payload.afternoon_start_minutes
+    else:
+        requested_afternoon_minutes = employment.afternoon_start_minutes
     profile_values: dict[str, Any] = {
         "workload_fraction": payload.workload_fraction if "workload_fraction" in payload.model_fields_set else employment.workload_fraction,
+        "total_hours_enabled": payload.total_hours_enabled if payload.total_hours_enabled is not None else employment.total_hours_enabled,
         "automatic_breaks_enabled": payload.automatic_breaks_enabled if payload.automatic_breaks_enabled is not None else employment.automatic_breaks_enabled,
         "afternoon_hours_enabled": payload.afternoon_hours_enabled if payload.afternoon_hours_enabled is not None else employment.afternoon_hours_enabled,
-        "afternoon_start_minutes": payload.afternoon_start_minutes if "afternoon_start_minutes" in payload.model_fields_set else employment.afternoon_start_minutes,
+        "afternoon_start_minutes": requested_afternoon_minutes,
         "night_hours_enabled": payload.night_hours_enabled if payload.night_hours_enabled is not None else employment.night_hours_enabled,
         "weekend_hours_enabled": payload.weekend_hours_enabled if payload.weekend_hours_enabled is not None else employment.weekend_hours_enabled,
         "public_holiday_hours_enabled": payload.public_holiday_hours_enabled if payload.public_holiday_hours_enabled is not None else employment.public_holiday_hours_enabled,
@@ -599,6 +722,17 @@ def update_employment(
         profile_values,
         type_changed=next_type_value != current_type_value,
     )
+    metric_profile_keys = (
+        "total_hours_enabled",
+        "afternoon_hours_enabled",
+        "afternoon_start_minutes",
+        "night_hours_enabled",
+        "weekend_hours_enabled",
+        "public_holiday_hours_enabled",
+    )
+    metric_profile_changed = next_type_value != current_type_value or any(
+        getattr(employment, key) != profile_values[key] for key in metric_profile_keys
+    )
     try:
         validate_time_profile(employment_type=next_type_value, **profile_values)
     except ValueError as exc:
@@ -606,6 +740,9 @@ def update_employment(
     for key, value in profile_values.items():
         setattr(employment, key, value)
     db.add(employment)
+    db.flush()
+    if metric_profile_changed or period_changed:
+        sync_employment_metrics(db, employment=employment)
     db.commit()
     db.refresh(employment)
 
@@ -625,12 +762,14 @@ def delete_employment(
     employment = db.get(Employment, employment_id)
     if employment is None:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
+    employment = lock_employment_for_time_mutation(db, employment.id)
 
     summary = _collect_related_data_summary(employment.id, db)
     related_count = (
         summary.attendance_count
         + summary.shift_plan_count
         + summary.attendance_lock_count
+        + summary.shift_plan_lock_count
         + summary.shift_plan_selection_count
         + summary.reminder_count
     )
