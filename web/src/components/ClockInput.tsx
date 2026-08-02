@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
-
-const CLOCK_VALUE = /^([01]\d|2[0-3]):[0-5]\d$/;
+import { normalizeTimeInput } from "../utils/timeInput";
 
 export function ClockInput({
   value,
@@ -12,13 +11,29 @@ export function ClockInput({
 > & { value: string; onCommit: (value: string) => void }) {
   const [draft, setDraft] = useState(value);
   const [invalid, setInvalid] = useState(false);
+  const [saved, setSaved] = useState(false);
   const cancelBlur = useRef(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => setDraft(value), [value]);
+  useEffect(
+    () => () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    },
+    [],
+  );
   const commit = () => {
     if (draft === value) return;
-    if (draft === "" || CLOCK_VALUE.test(draft)) {
+    const normalized = normalizeTimeInput(draft);
+    if (normalized !== null) {
       setInvalid(false);
-      onCommit(draft);
+      if (normalized === value) {
+        setDraft(value);
+        return;
+      }
+      onCommit(normalized);
+      setSaved(true);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaved(false), 650);
       return;
     }
     setInvalid(true);
@@ -26,7 +41,8 @@ export function ClockInput({
   };
   return (
     <input
-      {...props}
+    {...props}
+      className={`${props.className ?? ""} clock-input${saved ? " clock-input--saved" : ""}`.trim()}
       type="text"
       inputMode="numeric"
       placeholder="HH:mm"

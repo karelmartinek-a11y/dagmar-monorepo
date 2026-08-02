@@ -388,6 +388,12 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .month-lock-action--lock,.matrix-lock-toggle.is-locked { color:var(--warning); }
 .month-lock-action--unlock,.matrix-lock-toggle.is-unlocked { color:var(--accent-strong); }
 .month-lock-action svg,.matrix-lock-toggle svg { stroke-width:2.2; }
+.clock-input { transition:background-color .16s ease,box-shadow .16s ease; }
+.clock-input--saved { animation:clock-input-saved .65s ease-out; }
+@keyframes clock-input-saved {
+  0%,100% { background-color:inherit; }
+  35% { background-color:rgba(0,124,96,.22);box-shadow:0 0 0 2px rgba(0,124,96,.28); }
+}
 @keyframes cell-saved-flash { 0% { border-color:#7af2cf;background:#0b392d;box-shadow:0 0 0 0 rgba(39,215,166,.45),inset 0 0 0 1px #7af2cf; } 42% { border-color:#7af2cf;background:#124a3b;box-shadow:0 0 0 5px rgba(39,215,166,.18),inset 0 0 0 1px #7af2cf; } 100% { border-color:#5b9d8d;background:#06110e;box-shadow:none; } }
 @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important; } }
 @page shift-plan-landscape { size:A4 landscape; margin:8mm; }

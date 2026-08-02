@@ -152,7 +152,11 @@ function DayCard({
   const disabled =
     locked || !day.is_within_employment_period || Boolean(day.effective_status);
   const update = async (event: AttendanceEvent, time: string) => {
-    if (!time || time === eventTime(event)) return;
+    if (!time) {
+      await remove(event.id, event.deletion_partner_id ?? undefined, false);
+      return;
+    }
+    if (time === eventTime(event)) return;
     try {
       await api.updateAttendanceEvent(event.id, {
         employment_id: employmentId,
@@ -168,8 +172,19 @@ function DayCard({
       );
     }
   };
-  const remove = async (eventId: number, pairedEventId?: number) => {
-    if (!window.confirm(pairedEventId == null ? "Opravdu odstranit tento průchod?" : "Opravdu odstranit vybraný pár průchodů?"))
+  const remove = async (
+    eventId: number,
+    pairedEventId?: number,
+    confirm = true,
+  ) => {
+    if (
+      confirm &&
+      !window.confirm(
+        pairedEventId == null
+          ? "Opravdu odstranit tento průchod?"
+          : "Opravdu odstranit vybraný pár průchodů?",
+      )
+    )
       return;
     try {
       await api.deleteAttendanceEvent(eventId, pairedEventId);
@@ -182,15 +197,15 @@ function DayCard({
       );
     }
   };
-  const add = async () => {
-    if (!newTime) return;
+  const add = async (startTime = newTime, endTime = newEndTime) => {
+    if (!startTime) return;
     try {
       await api.createAttendanceEvent({
         employment_id: employmentId,
-        occurred_at: `${day.date}T${newTime}:00`,
-        event_type: newEndTime ? "IN" : day.next_event_type,
-        ...(newEndTime
-          ? { paired_occurred_at: `${newEndDate}T${newEndTime}:00` }
+        occurred_at: `${day.date}T${startTime}:00`,
+        event_type: endTime ? "IN" : day.next_event_type,
+        ...(endTime
+          ? { paired_occurred_at: `${newEndDate}T${endTime}:00` }
           : {}),
       });
       setNewTime("");
@@ -273,15 +288,14 @@ function DayCard({
           <span>
             {newEndTime || day.next_event_type === "IN" ? "Nový příchod" : "Nový odchod"}
           </span>
-          <input
+          <ClockInput
             aria-label={`Nový ${day.next_event_type} ${day.date}`}
-            type="text"
-            inputMode="numeric"
-            placeholder="HH:mm"
-            maxLength={5}
             value={newTime}
             disabled={disabled}
-            onChange={(event) => setNewTime(event.target.value)}
+            onCommit={(value) => {
+              setNewTime(value);
+              void add(value);
+            }}
           />
         </label>
         {newEndTime ? (
@@ -298,15 +312,14 @@ function DayCard({
         ) : null}
         <label className="time-cell">
           <span>Odchod páru (volitelné)</span>
-          <input
+          <ClockInput
             aria-label={`Nový odchod páru ${day.date}`}
-            type="text"
-            inputMode="numeric"
-            placeholder="HH:mm"
-            maxLength={5}
             value={newEndTime}
             disabled={disabled}
-            onChange={(event) => setNewEndTime(event.target.value)}
+            onCommit={(value) => {
+              setNewEndTime(value);
+              if (newTime) void add(newTime, value);
+            }}
           />
         </label>
         <Button

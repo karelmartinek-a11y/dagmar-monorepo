@@ -78,7 +78,11 @@ function EventEditor({
     !day.is_within_employment_period ||
     Boolean(day.effective_status);
   const update = async (event: AttendanceEvent, time: string) => {
-    if (!time || time === eventTime(event)) return;
+    if (!time) {
+      await remove(event.id, event.deletion_partner_id ?? undefined, false);
+      return;
+    }
+    if (time === eventTime(event)) return;
     try {
       await api.admin(`/api/v1/admin/attendance/events/${event.id}`, {
         method: "PUT",
@@ -97,8 +101,20 @@ function EventEditor({
       );
     }
   };
-  const remove = async (eventId: number, pairedEventId?: number) => {
-    if (!window.confirm(pairedEventId == null ? "Odstranit tento průchod?" : "Odstranit vybraný pár průchodů?")) return;
+  const remove = async (
+    eventId: number,
+    pairedEventId?: number,
+    confirm = true,
+  ) => {
+    if (
+      confirm &&
+      !window.confirm(
+        pairedEventId == null
+          ? "Odstranit tento průchod?"
+          : "Odstranit vybraný pár průchodů?",
+      )
+    )
+      return;
     try {
       await api.admin(`/api/v1/admin/attendance/events/${eventId}${pairedEventId == null ? "" : `?paired_event_id=${pairedEventId}`}`, {
         method: "DELETE",
@@ -112,17 +128,17 @@ function EventEditor({
       );
     }
   };
-  const add = async () => {
-    if (!newTime) return;
+  const add = async (startTime = newTime, endTime = newEndTime) => {
+    if (!startTime) return;
     try {
       await api.admin("/api/v1/admin/attendance/events", {
         method: "POST",
         body: JSON.stringify({
           employment_id: sheet.employment_id,
-          occurred_at: `${day.date}T${newTime}:00`,
-          event_type: newEndTime ? "IN" : day.next_event_type,
-          ...(newEndTime
-            ? { paired_occurred_at: `${newEndDate}T${newEndTime}:00` }
+          occurred_at: `${day.date}T${startTime}:00`,
+          event_type: endTime ? "IN" : day.next_event_type,
+          ...(endTime
+            ? { paired_occurred_at: `${newEndDate}T${endTime}:00` }
             : {}),
         }),
       });
@@ -178,25 +194,23 @@ function EventEditor({
         <span>
           {newEndTime || day.next_event_type === "IN" ? "Nový příchod" : "Nový odchod"}
         </span>
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="HH:mm"
-          maxLength={5}
+        <ClockInput
           aria-label={`Nový průchod ${sheet.employment_label} ${day.date}`}
           value={newTime}
           disabled={disabled}
-          onChange={(event) => setNewTime(event.target.value)}
+          onCommit={(value) => {
+            setNewTime(value);
+            void add(value);
+          }}
         />
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="Odchod HH:mm"
-          maxLength={5}
+        <ClockInput
           aria-label={`Nový odchod páru ${sheet.employment_label} ${day.date}`}
           value={newEndTime}
           disabled={disabled}
-          onChange={(event) => setNewEndTime(event.target.value)}
+          onCommit={(value) => {
+            setNewEndTime(value);
+            if (newTime) void add(newTime, value);
+          }}
         />
         {newEndTime ? (
           <input
