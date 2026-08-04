@@ -86,7 +86,7 @@ test.describe("real event backend", () => {
     await page.getByRole("button", { name: "›" }).click();
     await expect(
       page
-        .locator(".group-plan-table-wrap .employee-month-table tbody tr")
+        .locator(".group-plan-table-wrap .admin-employment-table")
         .filter({ hasText: "E2E provozní úvazek" })
         .getByText("Volno", { exact: true }),
     ).toBeVisible();
