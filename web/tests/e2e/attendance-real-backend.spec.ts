@@ -53,10 +53,10 @@ test.describe("real event backend", () => {
       page.getByLabel("Celodenní nepřítomnost 2026-08-11"),
     ).toHaveValue("PARAGRAPH");
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
-    await expect(page.getByLabel("Plánovaný PRŮCHOD 2 2026-08-01")).toHaveValue(
+    await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toHaveValue(
       "02:00",
     );
-    await expect(page.getByLabel("Plánovaný PRŮCHOD 2 2026-08-01")).toBeDisabled();
+    await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toBeDisabled();
     await expect(
       page.getByText("plán z předchozího dne", { exact: true }),
     ).toBeVisible();

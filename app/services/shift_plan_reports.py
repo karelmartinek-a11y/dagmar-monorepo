@@ -336,7 +336,7 @@ def build_shift_plan_report(
             day_summary = day_summary_by_date[current]
             effective_status = day_summary.effective_status
             interval_parts: list[str] = []
-            if carryover_plan is not None:
+            if carryover_plan is not None and carryover_plan.departure_time:
                 interval_parts.append(carryover_plan.departure_time)
             if plan and plan.arrival_time and plan.departure_time:
                 interval_parts.extend([plan.arrival_time, plan.departure_time])
