@@ -136,6 +136,23 @@ test.describe("real event backend", () => {
             document.documentElement.scrollWidth -
             document.documentElement.clientWidth,
         );
+        if (overflow > 1 && viewport.width === 390) {
+          console.log(
+            await page.evaluate(() =>
+              Array.from(document.querySelectorAll<HTMLElement>("body *"))
+                .map((element) => ({
+                  tag: element.tagName,
+                  className: element.className,
+                  left: Math.round(element.getBoundingClientRect().left),
+                  right: Math.round(element.getBoundingClientRect().right),
+                  width: Math.round(element.getBoundingClientRect().width),
+                }))
+                .filter(({ right, left }) => right > window.innerWidth + 1 || left < -1)
+                .sort((a, b) => b.right - a.right)
+                .slice(0, 12),
+            ),
+          );
+        }
         expect(overflow).toBeLessThanOrEqual(1);
       }
     });
