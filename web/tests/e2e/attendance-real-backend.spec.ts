@@ -189,7 +189,7 @@ test.describe("real event backend", () => {
       await page.getByLabel("Měsíc").fill("7");
       const attendance = page
         .getByTestId(/admin-attendance-/)
-        .filter({ hasText: "E2E provozní úvazek" });
+        .filter({ hasText: "E2E pracovní smlouva" });
       const thirdPass = attendance.getByLabel(/2026-07-02 PRŮCHOD 3/);
       const firstPass = attendance.getByLabel(/2026-07-02 PRŮCHOD 1/);
       await expect(thirdPass).toBeEnabled();
