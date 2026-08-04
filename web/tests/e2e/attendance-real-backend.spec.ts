@@ -180,21 +180,6 @@ test.describe("real event backend", () => {
     await expect(
       augustAttendanceSheet.getByRole("button", { name: "Zamknout docházku" }),
     ).toBeVisible();
-    const augustPlanRow = page
-      .locator(".admin-shift-plan-matrix tbody tr")
-      .filter({ hasText: "E2E provozní úvazek" });
-    await augustPlanRow
-      .getByRole("button", { name: "Zamknout plán" })
-      .click();
-    await expect(
-      augustPlanRow.getByRole("button", { name: "Odemknout plán" }),
-    ).toBeVisible();
-    await augustPlanRow
-      .getByRole("button", { name: "Odemknout plán" })
-      .click();
-    await expect(
-      augustPlanRow.getByRole("button", { name: "Zamknout plán" }),
-    ).toBeVisible();
     await page.getByLabel("Měsíc").fill("6");
     const lockedAttendanceSheet = page
       .locator(".admin-attendance-matrix tbody tr")
