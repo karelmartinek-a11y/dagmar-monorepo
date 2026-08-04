@@ -190,14 +190,17 @@ test.describe("real event backend", () => {
       const attendance = page
         .getByTestId(/admin-attendance-/)
         .filter({ hasText: "E2E provozní úvazek" });
-      const firstPass = attendance.getByLabel(/2026-07-01 PRŮCHOD 1/);
-      await expect(firstPass).toHaveValue("08:00");
-      await firstPass.fill("124");
-      await firstPass.press("Enter");
+      const thirdPass = attendance.getByLabel(/2026-07-02 PRŮCHOD 3/);
+      const firstPass = attendance.getByLabel(/2026-07-02 PRŮCHOD 1/);
+      await expect(thirdPass).toBeEnabled();
+      await expect(firstPass).toHaveValue("");
+      await thirdPass.fill("124");
+      await thirdPass.press("Enter");
       await expect(firstPass).toHaveValue("01:24");
-      await firstPass.fill("08");
+      await expect(thirdPass).toHaveValue("");
+      await firstPass.press("Delete");
       await firstPass.press("Enter");
-      await expect(firstPass).toHaveValue("08:00");
+      await expect(firstPass).toHaveValue("");
     });
   }
 });
