@@ -104,7 +104,8 @@ export function ClockInput({
       event.currentTarget.blur();
       return;
     }
-    if (event.key === "Delete" && wholeCellSelected.current) {
+    const selectionCoversValue = event.currentTarget.selectionStart === 0 && event.currentTarget.selectionEnd === draft.length;
+    if (event.key === "Delete" && (wholeCellSelected.current || selectionCoversValue)) {
       event.preventDefault();
       setDraft("");
       onDraftChange?.("");
@@ -119,8 +120,9 @@ export function ClockInput({
       wholeCellSelected.current = false;
     }
   };
-  const handleFocus = () => {
+  const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => {
     wholeCellSelected.current = true;
+    event.currentTarget.select();
     setError(null);
   };
   return (

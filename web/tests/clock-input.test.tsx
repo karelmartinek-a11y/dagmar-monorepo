@@ -52,6 +52,17 @@ describe("ClockInput", () => {
     expect(onCommit).toHaveBeenCalledWith("");
   });
 
+  it("selects the existing time on focus so Delete then Enter clears it", () => {
+    const onCommit = vi.fn();
+    render(<ClockInput aria-label="Čas" value="23:11" onCommit={onCommit} />);
+    const input = screen.getByLabelText("Čas");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "Delete" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input).toHaveValue("");
+    expect(onCommit).toHaveBeenCalledWith("");
+  });
+
   it("does not show saved before a rejected async commit", async () => {
     const onCommit = vi.fn().mockRejectedValue(new Error("Konflikt"));
     render(<ClockInput aria-label="Čas" value="08:00" onCommit={onCommit} />);
