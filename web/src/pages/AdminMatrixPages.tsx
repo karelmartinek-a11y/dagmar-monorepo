@@ -40,7 +40,7 @@ function eventTime(event: AttendanceEvent) {
   return formatPragueTime(event.occurred_at);
 }
 
-function AdminAttendanceMatrix({ sheets, refresh, onLock, onBreaks }: { sheets: AdminAttendanceSheet[]; refresh: () => void; onLock: (sheet: AdminAttendanceSheet) => void; onBreaks: (sheet: AdminAttendanceSheet) => void; }) {
+function AdminAttendanceMatrix({ sheets, refresh, onLock, onBreaks }: { sheets: AdminAttendanceSheet[]; refresh: () => Promise<void>; onLock: (sheet: AdminAttendanceSheet) => void; onBreaks: (sheet: AdminAttendanceSheet) => void; }) {
   const [context, setContext] = useState<{ sheet: AdminAttendanceSheet; day: AttendanceDay; x: number; y: number } | null>(null);
   const update = async (sheet: AdminAttendanceSheet, day: AttendanceDay, event: AttendanceEvent | undefined, rawValue: string) => {
     const value = normalizeTimeInput(rawValue);
@@ -49,9 +49,9 @@ function AdminAttendanceMatrix({ sheets, refresh, onLock, onBreaks }: { sheets: 
     else if (event && !value) await api.admin(`/api/v1/admin/attendance/events/${event.id}${event.deletion_partner_id == null ? "" : `?paired_event_id=${event.deletion_partner_id}`}`, { method: "DELETE" });
     else if (event && value !== eventTime(event)) await api.admin(`/api/v1/admin/attendance/events/${event.id}`, { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: event.event_type }) });
     else return;
-    refresh();
+    await refresh();
   };
-  const updateStatus = async (sheet: AdminAttendanceSheet, day: AttendanceDay, status: string) => { await api.admin("/api/v1/admin/day-status", { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, date: day.date, status: status || null, confirm_delete_conflicts: Boolean(status) }) }); refresh(); };
+  const updateStatus = async (sheet: AdminAttendanceSheet, day: AttendanceDay, status: string) => { await api.admin("/api/v1/admin/day-status", { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, date: day.date, status: status || null, confirm_delete_conflicts: Boolean(status) }) }); await refresh(); };
   const labels: Record<string, string> = { SICKNESS: "Nemoc", PARAGRAPH: "Paragraf", HOLIDAY: "Dovolená", OFF: "Volno" };
   return <div className="admin-day-tables admin-attendance-matrix-wrap">{sheets.map((sheet) => <section className="admin-employment-table" key={sheet.employment_id} data-testid={`admin-attendance-${sheet.employment_id}`}>
     <header className="admin-employment-table__header"><strong>{sheet.employment_label}</strong><span>{sheet.attendance_locked ? "Zamčeno" : "Odemčeno"}</span><div className="matrix-user__actions"><Button variant="quiet" onClick={() => onLock(sheet)}>{sheet.attendance_locked ? <UnlockKeyhole /> : <LockKeyhole />}{sheet.attendance_locked ? "Odemknout docházku" : "Zamknout docházku"}</Button><Button variant="quiet" onClick={() => onBreaks(sheet)}>Přidej pauzy</Button></div></header>
@@ -75,7 +75,7 @@ export function AdminAttendancePage() {
       ),
   });
   const refresh = () =>
-    void queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: ["admin-attendance-month", year, month],
     });
   const lock = useMutation({
