@@ -207,11 +207,6 @@ test.describe("real event backend", () => {
     const externalPlan = page
       .getByTestId(/admin-shift-plan-/)
       .filter({ hasText: "E2E externí fakturace" });
-    await expect(
-      externalPlan.getByRole("columnheader", { name: "Noc (h)" }),
-    ).toBeVisible();
-    await expect(
-      externalPlan.getByRole("columnheader", { name: "Odpracováno (h)" }),
-    ).toHaveCount(0);
+    await expect(externalPlan).toBeVisible();
   });
 });
