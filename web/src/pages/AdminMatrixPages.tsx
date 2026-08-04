@@ -16,7 +16,7 @@ import type {
 import { Button, Panel, StatusMessage } from "../components/Primitives";
 import { ClockInput } from "../components/ClockInput";
 import { formatHours } from "../utils/hoursFormat";
-import { chronologicalPlanBoundaries, edgeEvents, formatPragueTime } from "../utils/presentationAdapters";
+import { chronologicalPlanBoundaries, formatPragueTime } from "../utils/presentationAdapters";
 
 const metricLabels: Record<MetricKey, string> = {
   total: "Odpracováno",
@@ -39,66 +39,21 @@ function eventTime(event: AttendanceEvent) {
   return formatPragueTime(event.occurred_at);
 }
 
-function AdminAttendanceMatrix({
-  sheets,
-  refresh,
-  onLock,
-  onBreaks,
-}: {
-  sheets: AdminAttendanceSheet[];
-  refresh: () => void;
-  onLock: (sheet: AdminAttendanceSheet) => void;
-  onBreaks: (sheet: AdminAttendanceSheet) => void;
-}) {
-  const { t } = useTranslation();
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
-  const days = sheets[0]?.days ?? [];
+function AdminAttendanceMatrix({ sheets, refresh, onLock, onBreaks }: { sheets: AdminAttendanceSheet[]; refresh: () => void; onLock: (sheet: AdminAttendanceSheet) => void; onBreaks: (sheet: AdminAttendanceSheet) => void; }) {
+  const [context, setContext] = useState<{ sheet: AdminAttendanceSheet; day: AttendanceDay; x: number; y: number } | null>(null);
   const update = async (sheet: AdminAttendanceSheet, day: AttendanceDay, event: AttendanceEvent | undefined, value: string) => {
-    try {
-      if (!event && value) {
-        await api.admin("/api/v1/admin/attendance/events", { method: "POST", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: day.next_event_type }) });
-      } else if (event && !value) {
-        await api.admin(`/api/v1/admin/attendance/events/${event.id}${event.deletion_partner_id == null ? "" : `?paired_event_id=${event.deletion_partner_id}`}`, { method: "DELETE" });
-      } else if (event && value !== eventTime(event)) {
-        await api.admin(`/api/v1/admin/attendance/events/${event.id}`, { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: event.event_type }) });
-      } else return;
-      refresh();
-    } catch (reason) {
-      throw reason instanceof Error ? reason : new Error("PRŮCHOD se nepodařilo uložit.");
-    }
-  };
-  const updateStatus = async (sheet: AdminAttendanceSheet, day: AttendanceDay, status: string) => {
-    await api.admin("/api/v1/admin/day-status", { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, date: day.date, status: status || null, confirm_delete_conflicts: Boolean(status) }) });
+    if (!event && value) await api.admin("/api/v1/admin/attendance/events", { method: "POST", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: day.next_event_type }) });
+    else if (event && !value) await api.admin(`/api/v1/admin/attendance/events/${event.id}${event.deletion_partner_id == null ? "" : `?paired_event_id=${event.deletion_partner_id}`}`, { method: "DELETE" });
+    else if (event && value !== eventTime(event)) await api.admin(`/api/v1/admin/attendance/events/${event.id}`, { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: event.event_type }) });
+    else return;
     refresh();
   };
-  return (
-    <div className="data-table-wrap group-plan-table-wrap admin-attendance-matrix-wrap">
-      <table className="data-table matrix admin-attendance-matrix">
-        <thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => <th className="matrix__day-head" key={day.date}><strong>{day.date.slice(-2)}</strong><span>{new Intl.DateTimeFormat("cs-CZ", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</span></th>)}<th>{t("adminMatrix.common.completed")}</th></tr></thead>
-        <tbody>
-          {sheets.map((sheet) => (
-            <tr key={sheet.employment_id} data-testid={`admin-attendance-${sheet.employment_id}`}>
-              <th className="matrix__sticky-left"><div className="matrix-user"><strong>{sheet.employment_label}</strong><small>{sheet.attendance_locked ? "Zamčeno" : "Odemčeno"}</small><span className="matrix-user__actions"><Button variant="quiet" onClick={() => onLock(sheet)}>{sheet.attendance_locked ? <UnlockKeyhole /> : <LockKeyhole />}{sheet.attendance_locked ? "Odemknout docházku" : "Zamknout docházku"}</Button><Button variant="quiet" onClick={() => onBreaks(sheet)}>Přidej pauzy</Button></span></div></th>
-              {sheet.days.map((day) => {
-                const edges = edgeEvents(day.events);
-                const disabled = sheet.attendance_locked || !day.is_within_employment_period || Boolean(day.effective_status);
-                const dayKey = `${sheet.employment_id}-${day.date}`;
-                const visibleEvents: (AttendanceEvent | undefined)[] = expandedDays.has(dayKey) ? [...day.events, undefined] : day.events.length === 0 ? [undefined] : day.events.length === 1 ? [edges.first, undefined] : [edges.first, edges.last];
-                return <td className="day-cell" key={day.date}>
-                  {edges.middleCount ? <button type="button" className="matrix-middle-count" onClick={() => setExpandedDays((current) => { const next = new Set(current); if (next.has(dayKey)) next.delete(dayKey); else next.add(dayKey); return next; })} aria-expanded={expandedDays.has(dayKey)}>{expandedDays.has(dayKey) ? t("adminMatrix.common.collapse") : `${t("adminMatrix.common.expand")} (+${edges.middleCount})`}</button> : null}
-                  <div className="matrix-day-editor">
-                    {visibleEvents.map((event, index) => <ClockInput key={event?.id ?? `append-${index}`} aria-label={`${sheet.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={event ? eventTime(event) : ""} disabled={disabled || (!event && index !== day.events.length)} onCommit={(value) => update(sheet, day, event, value)} />)}
-                    <select aria-label={`Nepřítomnost ${sheet.employment_label} ${day.date}`} value={day.effective_status ?? ""} disabled={sheet.attendance_locked || !day.is_within_employment_period} onChange={(event) => { if (event.target.value && !window.confirm("Nahradit docházku celodenním stavem?")) return; void updateStatus(sheet, day, event.target.value); }}><option value="">{t("adminMatrix.common.workday")}</option><option value="SICKNESS">{t("adminMatrix.statuses.SICKNESS")}</option><option value="PARAGRAPH">{t("adminMatrix.statuses.PARAGRAPH")}</option><option value="HOLIDAY">{t("adminMatrix.statuses.HOLIDAY")}</option><option value="OFF">{t("adminMatrix.statuses.OFF")}</option></select>
-                  </div>
-                </td>;
-              })}
-              <td className="matrix__summary">{sheet.display_metrics.map((key) => <span key={key}>{metricLabels[key]}: {sheet.worked?.[key] ? formatHours(sheet.worked[key]!.hours, "cs-CZ") : "—"}</span>)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const updateStatus = async (sheet: AdminAttendanceSheet, day: AttendanceDay, status: string) => { await api.admin("/api/v1/admin/day-status", { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, date: day.date, status: status || null, confirm_delete_conflicts: Boolean(status) }) }); refresh(); };
+  const labels: Record<string, string> = { SICKNESS: "Nemoc", PARAGRAPH: "Paragraf", HOLIDAY: "Dovolená", OFF: "Volno" };
+  return <div className="admin-day-tables admin-attendance-matrix-wrap">{sheets.map((sheet) => <section className="admin-employment-table" key={sheet.employment_id} data-testid={`admin-attendance-${sheet.employment_id}`}>
+    <header className="admin-employment-table__header"><strong>{sheet.employment_label}</strong><span>{sheet.attendance_locked ? "Zamčeno" : "Odemčeno"}</span><div className="matrix-user__actions"><Button variant="quiet" onClick={() => onLock(sheet)}>{sheet.attendance_locked ? <UnlockKeyhole /> : <LockKeyhole />}{sheet.attendance_locked ? "Odemknout docházku" : "Zamknout docházku"}</Button><Button variant="quiet" onClick={() => onBreaks(sheet)}>Přidej pauzy</Button></div></header>
+    <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: 4 }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{sheet.display_metrics.map((key) => <th key={key}>{metricLabels[key]} (h)</th>)}</tr></thead><tbody>{sheet.days.map((day) => { const disabled = sheet.attendance_locked || !day.is_within_employment_period || Boolean(day.effective_status); return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ sheet, day, x: event.clientX, y: event.clientY }); }}><th>{day.date}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: 4 }, (_, index) => { const item = day.events[index]; return <td key={index}>{day.effective_status ? <strong className="day-absence-label">{labels[day.effective_status] ?? day.effective_status}</strong> : <ClockInput aria-label={`${sheet.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={item ? eventTime(item) : ""} disabled={disabled || (!item && index !== day.events.length)} onCommit={(value) => update(sheet, day, item, value)} />}</td>; })}{sheet.display_metrics.map((key) => <td key={key}>{day.worked?.[key] ? formatHours(day.worked[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+  </section>)}{context ? <div className="row-context-menu" role="menu" style={{ left: context.x, top: context.y }} onMouseLeave={() => setContext(null)}><strong>Celodenní nepřítomnost</strong>{Object.entries(labels).map(([status, label]) => <button type="button" role="menuitem" key={status} onClick={() => { if (window.confirm(`Nastavit ${label} pro ${context.day.date}?`)) void updateStatus(context.sheet, context.day, status).then(() => setContext(null)); }}>{label}</button>)}<button type="button" role="menuitem" disabled={!context.day.effective_status} onClick={() => void updateStatus(context.sheet, context.day, "").then(() => setContext(null))}>Pracovní den</button></div> : null}</div>;
 }
 
 export function AdminAttendancePage() {
@@ -305,6 +260,7 @@ export function AdminShiftPlanPage() {
   const [month, setMonth] = useState(initial.month);
   const [filter, setFilter] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [context, setContext] = useState<{ row: ShiftPlanRow; day: ShiftPlanRow["days"][number]; x: number; y: number } | null>(null);
   const plan = useQuery({
     queryKey: ["admin-shift-plan", year, month],
     queryFn: () =>
@@ -433,54 +389,12 @@ export function AdminShiftPlanPage() {
                 title={t("adminMatrix.shiftPlan.empty")}
               />
             ) : (
-              <div className="data-table-wrap group-plan-table-wrap admin-shift-plan-matrix-wrap">
-                <table className="data-table matrix shift-plan-matrix">
-                  <thead>
-                    <tr>
-                      <th className="matrix__sticky-left">Úvazek</th>
-                      {rows[0]?.days.map((day) => (
-                        <th className="matrix__day-head" key={day.date}>
-                          <strong>{day.date.slice(-2)}</strong>
-                          <span>{new Intl.DateTimeFormat("cs-CZ", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</span>
-                        </th>
-                      ))}
-                      <th>Souhrn</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row.employment_id} data-testid={`admin-shift-plan-${row.employment_id}`}>
-                        <th className="matrix__sticky-left">
-                          <div className="matrix-user">
-                            <strong>{row.display_label}</strong>
-                            <Button variant="quiet" onClick={() => lock.mutate({ row, locked: !row.shift_plan_locked })}>
-                              {row.shift_plan_locked ? <UnlockKeyhole /> : <LockKeyhole />}
-                              {row.shift_plan_locked ? "Odemknout plán" : "Zamknout plán"}
-                            </Button>
-                          </div>
-                        </th>
-                        {row.days.map((day) => {
-                          const disabled = row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status);
-                          const planTimes = chronologicalPlanBoundaries({ planned_carryover_departure_time: day.carryover_departure_time, planned_arrival_time: day.arrival_time, planned_departure_time: day.departure_time });
-                          const carryover = Boolean(day.carryover_departure_time);
-                          return (
-                            <td className="day-cell" key={day.date}>
-                              <div className="matrix-day-editor">
-                                {Array.from({ length: Math.max(2, planTimes.length) }, (_, index) => <ClockInput key={index} aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />)}
-                                <select aria-label={`Stav plánu ${row.display_label} ${day.date}`} value={day.status ?? ""} disabled={disabled || Boolean(day.carryover_departure_time)} onChange={(event) => { const nextStatus = event.target.value || null; if (nextStatus && (day.arrival_time || day.departure_time) && !window.confirm("Nahradit existující směnu celodenním stavem? Časy směny budou odstraněny.")) return; void save.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: null, departure_time: null, status: nextStatus, confirm_delete_conflicts: Boolean(nextStatus) }); }}>
-                                  <option value="">Směna</option><option value="HOLIDAY">Dovolená</option><option value="OFF">Volno</option>
-                                </select>
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td className="matrix__summary">
-                          {row.display_metrics.map((key) => <span key={key}>{plannedMetricLabels[key]}: {row.summary.planned?.[key] ? formatHours(row.summary.planned[key]!.hours, "cs-CZ") : "—"}</span>)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="admin-day-tables admin-shift-plan-matrix-wrap">
+                {rows.map((row) => <section className="admin-employment-table" key={row.employment_id} data-testid={`admin-shift-plan-${row.employment_id}`}>
+                  <header className="admin-employment-table__header"><strong>{row.display_label}</strong><div className="matrix-user__actions"><Button variant="quiet" onClick={() => lock.mutate({ row, locked: !row.shift_plan_locked })}>{row.shift_plan_locked ? <UnlockKeyhole /> : <LockKeyhole />}{row.shift_plan_locked ? "Odemknout plán" : "Zamknout plán"}</Button></div></header>
+                  <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: 4 }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{row.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead><tbody>{row.days.map((day) => { const disabled = row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status); const planTimes = chronologicalPlanBoundaries({ carryover_departure_time: day.carryover_departure_time, arrival_time: day.arrival_time, departure_time: day.departure_time }); const carryover = Boolean(day.carryover_departure_time); return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ row, day, x: event.clientX, y: event.clientY }); }}><th>{day.date}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: 4 }, (_, index) => <td key={index}>{day.effective_status || day.status ? <strong className="day-absence-label">{day.effective_status || day.status}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />}</td>)}{row.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+                </section>)}
+                {context ? <div className="row-context-menu" role="menu" style={{ left: context.x, top: context.y }} onMouseLeave={() => setContext(null)}><strong>Celodenní nepřítomnost</strong>{["HOLIDAY", "OFF"].map((status) => <button type="button" role="menuitem" key={status} onClick={() => { if (window.confirm(`Nastavit ${status} pro ${context.day.date}?`)) void save.mutateAsync({ employment_id: context.row.employment_id, date: context.day.date, arrival_time: null, departure_time: null, status }).then(() => setContext(null)); }}>{status === "HOLIDAY" ? "Dovolená" : "Volno"}</button>)}<button type="button" role="menuitem" disabled={!context.day.status} onClick={() => void save.mutateAsync({ employment_id: context.row.employment_id, date: context.day.date, arrival_time: null, departure_time: null, status: null }).then(() => setContext(null))}>Pracovní den</button></div> : null}
               </div>
             )}
           </>

@@ -30,16 +30,9 @@ import {
 import { formatHours } from "../utils/hoursFormat";
 import { reconcileSelectedGroup } from "../utils/groupSelection";
 import { plannedHintForEvent } from "../utils/plannedEventHint";
-import { chronologicalPlanBoundaries, formatPragueTime, maxEventColumns } from "../utils/presentationAdapters";
+import { chronologicalPlanBoundaries, formatPragueTime } from "../utils/presentationAdapters";
 
 type View = "attendance" | "plan" | "group-plan";
-const metricOrder: MetricKey[] = [
-  "total",
-  "afternoon",
-  "night",
-  "weekend",
-  "public_holiday",
-];
 const metricLabels: Record<MetricKey, string> = {
   total: "Odpracováno",
   afternoon: "Odpoledne",
@@ -57,8 +50,63 @@ const statusLabels: Record<string, string> = {
   SICKNESS: "Nemoc",
   PARAGRAPH: "Paragraf",
 };
-const attendanceStatuses = new Set(["SICKNESS", "PARAGRAPH"]);
-const planStatuses = new Set(["HOLIDAY", "OFF"]);
+const PASS_COLUMNS = 4;
+
+function weekdayLabel(date: string, language: string): string {
+  return new Intl.DateTimeFormat(language === "cs" ? "cs-CZ" : language, {
+    weekday: "long",
+  }).format(new Date(`${date}T12:00:00`));
+}
+
+function absenceLabel(status: string | null | undefined): string {
+  return status ? statusLabels[status] ?? status : "";
+}
+
+function AbsenceContextMenu({
+  open,
+  x,
+  y,
+  day,
+  employmentId,
+  attendanceLocked,
+  shiftPlanLocked,
+  onRefresh,
+  onClose,
+  mode,
+}: {
+  open: boolean;
+  x: number;
+  y: number;
+  day: AttendanceDay;
+  employmentId: number;
+  attendanceLocked: boolean;
+  shiftPlanLocked: boolean;
+  onRefresh: () => void;
+  onClose: () => void;
+  mode: "attendance" | "plan";
+}) {
+  if (!open) return null;
+  const options = mode === "attendance" ? ["SICKNESS", "PARAGRAPH"] : ["HOLIDAY", "OFF"];
+  const save = async (status: string | null) => {
+    if (status && !window.confirm(`Nastavit ${absenceLabel(status)} pro ${day.date}?`)) return;
+    await (mode === "attendance" ? api.savePortalAttendanceStatus : api.savePortalStatus)({
+      employment_id: employmentId,
+      date: day.date,
+      status,
+      confirm_delete_conflicts: Boolean(status),
+    });
+    onClose();
+    onRefresh();
+  };
+  const locked = mode === "attendance" ? attendanceLocked : shiftPlanLocked;
+  return (
+    <div className="row-context-menu" role="menu" style={{ left: x, top: y }} onMouseLeave={onClose}>
+      <strong>Celodenní nepřítomnost</strong>
+      {options.map((status) => <button type="button" role="menuitem" key={status} disabled={locked} onClick={() => void save(status)}>{absenceLabel(status)}</button>)}
+      <button type="button" role="menuitem" disabled={locked || !day.effective_status} onClick={() => void save(null)}>Pracovní den</button>
+    </div>
+  );
+}
 
 function Login({ onLogin }: { onLogin: (session: PortalSession) => void }) {
   const { t } = useTranslation();
@@ -124,102 +172,15 @@ function eventTime(event: AttendanceEvent): string {
   return formatPragueTime(event.occurred_at);
 }
 
-function StatusSelect({
-  day,
-  employmentId,
-  attendanceLocked,
-  shiftPlanLocked,
-  onRefresh,
-  onError,
-}: {
-  day: AttendanceDay;
-  employmentId: number;
-  attendanceLocked: boolean;
-  shiftPlanLocked: boolean;
-  onRefresh: () => void;
-  onError: (message: string) => void;
-}) {
-  const currentStatus = day.effective_status ?? "";
-  const currentStatusLocked =
-    (attendanceLocked && attendanceStatuses.has(currentStatus)) ||
-    (shiftPlanLocked && planStatuses.has(currentStatus));
-  const conflictingDomainLocked =
-    (attendanceLocked && day.events.length > 0) ||
-    (shiftPlanLocked &&
-      Boolean(
-        day.planned_arrival_time ||
-          day.planned_departure_time ||
-          day.planned_carryover_departure_time ||
-          day.planned_status,
-      ));
-  const save = async (status: string) => {
-    if (
-      status &&
-      !window.confirm(
-        `Nastavit ${statusLabels[status]} pro ${day.date}? Existující konfliktní data mohou být odstraněna.`,
-      )
-    )
-      return;
-    const payload = {
-      employment_id: employmentId,
-      date: day.date,
-      status: status || null,
-      confirm_delete_conflicts: true,
-    };
-    try {
-      await api.savePortalAttendanceStatus(payload);
-      onRefresh();
-    } catch (reason) {
-      onError(
-        reason instanceof Error
-          ? reason.message
-          : "Stav dne se nepodařilo uložit.",
-      );
-    }
-  };
-  return (
-    <label className="day-status-select">
-      <span>Typ dne</span>
-      <select
-        aria-label={`Celodenní nepřítomnost ${day.date}`}
-        value={day.effective_status ?? ""}
-        disabled={
-          !day.is_within_employment_period ||
-          currentStatusLocked ||
-          conflictingDomainLocked ||
-          (attendanceLocked && shiftPlanLocked)
-        }
-        onChange={(event) => void save(event.target.value)}
-      >
-        <option value="">Pracovní den</option>
-        <option value="HOLIDAY" disabled={shiftPlanLocked}>
-          Dovolená
-        </option>
-        <option value="SICKNESS" disabled={attendanceLocked}>
-          Nemoc
-        </option>
-        <option value="OFF" disabled={shiftPlanLocked}>
-          Volno
-        </option>
-        <option value="PARAGRAPH" disabled={attendanceLocked}>
-          Paragraf
-        </option>
-      </select>
-    </label>
-  );
-}
-
 function EmployeeAttendanceTable({
   month,
   onRefresh,
-  onError,
 }: {
   month: AttendanceMonth;
   onRefresh: () => void;
-  onError: (message: string) => void;
 }) {
-  const { t } = useTranslation();
-  const eventColumns = maxEventColumns(month.days);
+  const { t, i18n } = useTranslation();
+  const [context, setContext] = useState<{ day: AttendanceDay; x: number; y: number } | null>(null);
   const locked = month.attendance_locked;
   const update = async (day: AttendanceDay, event: AttendanceEvent | undefined, value: string) => {
     try {
@@ -252,57 +213,41 @@ function EmployeeAttendanceTable({
           <tr>
             <th>{t("employee.page.table.date")}</th>
             <th>{t("employee.page.table.day")}</th>
-            {Array.from({ length: eventColumns }, (_, index) => (
+            {Array.from({ length: PASS_COLUMNS }, (_, index) => (
               <th key={index}>{t("employee.page.table.pass")} {index + 1}</th>
             ))}
-            <th>{t("employee.page.table.status")}</th>
             {month.display_metrics.map((key) => <th key={key}>{metricLabels[key]} (h)</th>)}
           </tr>
         </thead>
         <tbody>
           {month.days.map((day) => (
-            <tr key={day.date} data-testid={`attendance-day-${day.date}`}>
+            <tr key={day.date} data-testid={`attendance-day-${day.date}`} onContextMenu={(event) => { event.preventDefault(); setContext({ day, x: event.clientX, y: event.clientY }); }}>
               <th>{day.date}</th>
-              <td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</td>
-              {Array.from({ length: eventColumns }, (_, index) => {
+              <td>{weekdayLabel(day.date, i18n.language)}</td>
+              {Array.from({ length: PASS_COLUMNS }, (_, index) => {
                 const event = day.events[index];
                 const plannedTime = plannedHintForEvent(day, index);
                 const editable = index <= day.events.length && !locked && day.is_within_employment_period && !day.effective_status;
                 return (
                   <td key={index}>
-                    <em className="planned-hint">{plannedTime ? `plán ${plannedTime}` : ""}</em>
-                    <ClockInput
-                      aria-label={`${month.employment_label} ${day.date} PRŮCHOD ${index + 1}`}
-                      value={event ? eventTime(event) : ""}
-                      disabled={!editable}
-                      onCommit={(value) => update(day, event, value)}
-                    />
+                    {day.effective_status ? <strong className="day-absence-label">{absenceLabel(day.effective_status)}</strong> : <><em className="planned-hint">{plannedTime ? `plán ${plannedTime}` : ""}</em><ClockInput aria-label={`${month.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={event ? eventTime(event) : ""} disabled={!editable} onCommit={(value) => update(day, event, value)} /></>}
                   </td>
                 );
               })}
-              <td>
-                <StatusSelect
-                  day={day}
-                  employmentId={month.employment_id}
-                  attendanceLocked={month.attendance_locked}
-                  shiftPlanLocked={month.shift_plan_locked}
-                  onRefresh={onRefresh}
-                  onError={onError}
-                />
-              </td>
               {month.display_metrics.map((key) => (
                 <td key={key}>{day.worked?.[key] ? formatHours(day.worked[key]!.hours, "cs-CZ") : "—"}</td>
               ))}
             </tr>
           ))}
           <tr className="summary-row">
-            <th colSpan={2 + eventColumns + 1}>{t("employee.page.table.sum")}</th>
+            <th colSpan={2 + PASS_COLUMNS}>{t("employee.page.table.sum")}</th>
             {month.display_metrics.map((key) => (
               <th key={key}>{month.worked?.[key] ? formatHours(month.worked[key]!.hours, "cs-CZ") : "—"}</th>
             ))}
           </tr>
         </tbody>
       </table>
+      {context ? <AbsenceContextMenu open x={context.x} y={context.y} day={context.day} employmentId={month.employment_id} attendanceLocked={month.attendance_locked} shiftPlanLocked={month.shift_plan_locked} onRefresh={onRefresh} onClose={() => setContext(null)} mode="attendance" /> : null}
     </div>
   );
 }
@@ -310,20 +255,18 @@ function EmployeeAttendanceTable({
 function EmployeePlanTable({
   month,
   onRefresh,
-  onError,
   onSave,
 }: {
   month: AttendanceMonth;
   onRefresh: () => void;
-  onError: (message: string) => void;
   onSave: (body: Record<string, unknown>) => Promise<unknown>;
 }) {
-  const { t } = useTranslation();
-  const planColumns = Math.max(2, ...month.days.map((day) => chronologicalPlanBoundaries({ planned_carryover_departure_time: day.planned_carryover_departure_time, planned_arrival_time: day.planned_arrival_time, planned_departure_time: day.planned_departure_time }).length));
+  const { t, i18n } = useTranslation();
+  const [context, setContext] = useState<{ day: AttendanceDay; x: number; y: number } | null>(null);
   return (
     <div className="data-table-wrap employee-table-wrap">
       <table className="data-table employee-month-table">
-        <thead><tr><th>{t("employee.page.table.date")}</th><th>{t("employee.page.table.day")}</th>{Array.from({ length: planColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass")} {index + 1}</th>)}<th>{t("employee.page.table.status")}</th>{month.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead>
+        <thead><tr><th>{t("employee.page.table.date")}</th><th>{t("employee.page.table.day")}</th>{Array.from({ length: PASS_COLUMNS }, (_, index) => <th key={index}>{t("employee.page.table.pass")} {index + 1}</th>)}{month.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead>
         <tbody>
           {month.days.map((day) => {
             const disabled = month.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status) || day.planned_is_carryover;
@@ -331,18 +274,18 @@ function EmployeePlanTable({
             const carryover = Boolean(day.planned_carryover_departure_time);
             const save = (arrival: string | null, departure: string | null) => onSave({ employment_id: month.employment_id, date: day.date, arrival_time: arrival, departure_time: departure, status: day.planned_status ?? null });
             return (
-              <tr key={day.date}>
+              <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ day, x: event.clientX, y: event.clientY }); }}>
                 <th>{day.date}</th>
-                <td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</td>
-                {Array.from({ length: planColumns }, (_, index) => <td key={index}><ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || (carryover && index > 2) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save(index === arrivalIndex ? value || null : day.planned_arrival_time ?? null, index === departureIndex ? value || null : day.planned_departure_time ?? null); }} /></td>)}
-                <td><StatusSelect day={day} employmentId={month.employment_id} attendanceLocked={month.attendance_locked} shiftPlanLocked={month.shift_plan_locked} onRefresh={onRefresh} onError={onError} /></td>
+                <td>{weekdayLabel(day.date, i18n.language)}</td>
+                {Array.from({ length: PASS_COLUMNS }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || (carryover && index > 2) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save(index === arrivalIndex ? value || null : day.planned_arrival_time ?? null, index === departureIndex ? value || null : day.planned_departure_time ?? null); }} />}</td>)}
                 {month.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}
               </tr>
             );
           })}
-          <tr className="summary-row"><th colSpan={2 + planColumns + 1}>{t("employee.page.table.sum")}</th>{month.display_metrics.map((key) => <th key={key}>{month.planned?.[key] ? formatHours(month.planned[key]!.hours, "cs-CZ") : "—"}</th>)}</tr>
+          <tr className="summary-row"><th colSpan={2 + PASS_COLUMNS}>{t("employee.page.table.sum")}</th>{month.display_metrics.map((key) => <th key={key}>{month.planned?.[key] ? formatHours(month.planned[key]!.hours, "cs-CZ") : "—"}</th>)}</tr>
         </tbody>
       </table>
+      {context ? <AbsenceContextMenu open x={context.x} y={context.y} day={context.day} employmentId={month.employment_id} attendanceLocked={month.attendance_locked} shiftPlanLocked={month.shift_plan_locked} onRefresh={onRefresh} onClose={() => setContext(null)} mode="plan" /> : null}
     </div>
   );
 }
@@ -385,9 +328,6 @@ export function EmployeePage() {
       api.groupShiftPlan(selectedGroup as number, year, monthNumber),
     enabled: view === "group-plan" && selectedGroupIsAvailable,
   });
-  const groupDisplayMetrics = metricOrder.filter((key) =>
-    groupPlan.data?.rows.some((row) => row.display_metrics.includes(key)),
-  );
   useEffect(() => {
     document.title = `${t("common.appName")} · ${t("employee.page.title")}`;
   }, [t]);
@@ -588,9 +528,9 @@ export function EmployeePage() {
                 </span>
               </div>
               {view === "attendance" ? (
-                <EmployeeAttendanceTable month={query.data} onRefresh={refresh} onError={setNotice} />
+                <EmployeeAttendanceTable month={query.data} onRefresh={refresh} />
               ) : (
-                <EmployeePlanTable month={query.data} onRefresh={refresh} onError={setNotice} onSave={(body) => planMutation.mutateAsync(body)} />
+                <EmployeePlanTable month={query.data} onRefresh={refresh} onSave={(body) => planMutation.mutateAsync(body)} />
               )}
             </>
           ) : null}
@@ -642,61 +582,11 @@ export function EmployeePage() {
                 ) : null}
                 {groupPlan.data ? (
                   <>
-                    <div className="data-table-wrap group-plan-table-wrap">
-                      <table className="data-table matrix group-plan-table">
-                        <thead>
-                          <tr>
-                            <th>Úvazek</th>
-                            {groupDisplayMetrics.map((key) => (
-                              <th key={key}>{plannedMetricLabels[key]} (h)</th>
-                            ))}
-                            {groupPlan.data.rows[0]?.days.map((day) => (
-                              <th key={day.date}>{day.date.slice(-2)}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {groupPlan.data.rows.map((row) => (
-                            <tr key={row.employment_id}>
-                              <th>
-                                {row.display_label}
-                                {row.is_own_employment ? (
-                                  <small> Moje</small>
-                                ) : null}
-                              </th>
-                              {groupDisplayMetrics.map((key) => (
-                                <td key={key}>
-                                  {row.display_metrics.includes(key) &&
-                                  row.planned?.[key]
-                                    ? formatHours(
-                                        row.planned[key]!.hours,
-                                        "cs-CZ",
-                                      )
-                                    : "—"}
-                                </td>
-                              ))}
-                              {row.days.map((day) => { const planTimes = chronologicalPlanBoundaries({ planned_carryover_departure_time: day.carryover_departure_time, planned_arrival_time: day.arrival_time, planned_departure_time: day.departure_time }); const carryover = Boolean(day.carryover_departure_time); return (
-                                <td key={day.date}>
-                                  {day.carryover_departure_time ? (
-                                    <small>
-                                      {t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} {day.carryover_departure_time}
-                                    </small>
-                                  ) : null}
-                                  {day.effective_status ? (
-                                    <strong>
-                                      {statusLabels[day.effective_status] ?? day.effective_status}
-                                    </strong>
-                                  ) : (
-                                    <>
-                                      {Array.from({ length: Math.max(2, planTimes.length) }, (_, index) => <ClockInput key={index} aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={!row.is_own_employment || row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status) || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await planMutation.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />)}
-                                    </>
-                                  )}
-                                </td>
-                              ); })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="admin-day-tables group-plan-table-wrap">
+                      {groupPlan.data.rows.map((row) => <section className="admin-employment-table" key={row.employment_id}>
+                        <header className="admin-employment-table__header"><strong>{row.display_label}</strong>{row.is_own_employment ? <span>Moje</span> : null}</header>
+                        <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: 4 }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{row.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead><tbody>{row.days.map((day) => { const planTimes = chronologicalPlanBoundaries({ planned_carryover_departure_time: day.carryover_departure_time, planned_arrival_time: day.arrival_time, planned_departure_time: day.departure_time }); const carryover = Boolean(day.carryover_departure_time); return <tr key={day.date}><th>{day.date}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: 4 }, (_, index) => <td key={index}>{day.effective_status ? <strong className="day-absence-label">{statusLabels[day.effective_status] ?? day.effective_status}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={!row.is_own_employment || row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status) || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await planMutation.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />}</td>)}{row.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+                      </section>)}
                     </div>
                   </>
                 ) : null}
