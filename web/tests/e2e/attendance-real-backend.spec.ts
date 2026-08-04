@@ -136,8 +136,9 @@ test.describe("real event backend", () => {
             document.documentElement.scrollWidth -
             document.documentElement.clientWidth,
         );
+        let overflowDetails = "";
         if (overflow > 1 && viewport.width === 390) {
-          console.log(
+          overflowDetails = JSON.stringify(
             await page.evaluate(() =>
               Array.from(document.querySelectorAll<HTMLElement>("body *"))
                 .map((element) => ({
@@ -153,7 +154,7 @@ test.describe("real event backend", () => {
             ),
           );
         }
-        expect(overflow).toBeLessThanOrEqual(1);
+        expect(overflow, overflowDetails).toBeLessThanOrEqual(1);
       }
     });
   }
