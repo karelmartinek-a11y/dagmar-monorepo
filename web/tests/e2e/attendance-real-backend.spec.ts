@@ -80,13 +80,13 @@ test.describe("real event backend", () => {
     await page.getByRole("tab", { name: "Skupinový plán služeb" }).click();
     await expect(page.getByLabel("Skupina")).not.toHaveValue("");
     await expect(
-      page.locator(".group-plan-table .employee-month-table thead"),
+      page.locator(".group-plan-table-wrap .employee-month-table thead"),
     ).toBeVisible();
     await page.getByRole("button", { name: "›" }).click();
     await page.getByRole("button", { name: "›" }).click();
     await expect(
       page
-        .locator(".group-plan-table .employee-month-table tbody tr")
+        .locator(".group-plan-table-wrap .employee-month-table tbody tr")
         .filter({ hasText: "E2E provozní úvazek" })
         .getByText("Volno", { exact: true }),
     ).toBeVisible();
