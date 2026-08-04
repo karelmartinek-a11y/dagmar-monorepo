@@ -679,7 +679,7 @@ export function EmployeePage() {
                                 <td key={day.date}>
                                   {day.carryover_departure_time ? (
                                     <small>
-                                      Plán {day.carryover_departure_time}
+                                      {t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} {day.carryover_departure_time}
                                     </small>
                                   ) : null}
                                   {day.effective_status ? (
@@ -688,7 +688,7 @@ export function EmployeePage() {
                                     </strong>
                                   ) : (
                                     <>
-                                      {Array.from({ length: Math.max(2, planTimes.length) }, (_, index) => <ClockInput key={index} aria-label={`${row.display_label} ${day.date} PRŮCHOD ${index + 1}`} value={planTimes[index] ?? ""} disabled={!row.is_own_employment || row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status) || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await planMutation.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />)}
+                                      {Array.from({ length: Math.max(2, planTimes.length) }, (_, index) => <ClockInput key={index} aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={!row.is_own_employment || row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status) || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await planMutation.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />)}
                                     </>
                                   )}
                                 </td>

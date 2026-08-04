@@ -58,7 +58,7 @@ test.describe("real event backend", () => {
     );
     await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toBeDisabled();
     await expect(
-      page.getByText("plán z předchozího dne", { exact: true }),
+      page.getByText("PLÁN – PRŮCHOD 02:00", { exact: true }),
     ).toBeVisible();
     await page.getByRole("tab", { name: "Docházka", exact: true }).click();
 
