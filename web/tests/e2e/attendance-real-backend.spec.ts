@@ -147,27 +147,13 @@ test.describe("real event backend", () => {
     await expect(
       page.getByText("E2E skrytý úvazek", { exact: false }),
     ).toHaveCount(0);
-    const augustAttendanceSheet = page
-      .locator(".admin-attendance-matrix [data-testid^='admin-attendance-']")
-      .filter({ hasText: "E2E provozní úvazek" });
-    await augustAttendanceSheet
-      .getByRole("button", { name: "Zamknout docházku" })
-      .click();
-    await expect(
-      augustAttendanceSheet.getByRole("button", { name: "Odemknout docházku" }),
-    ).toBeVisible();
-    await augustAttendanceSheet
-      .getByRole("button", { name: "Odemknout docházku" })
-      .click();
-    await expect(
-      augustAttendanceSheet.getByRole("button", { name: "Zamknout docházku" }),
-    ).toBeVisible();
+    await page.getByRole("button", { name: "Zamknout docházku" }).first().click();
+    await expect(page.getByRole("button", { name: "Odemknout docházku" }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Odemknout docházku" }).first().click();
+    await expect(page.getByRole("button", { name: "Zamknout docházku" }).first()).toBeVisible();
     await page.getByLabel("Měsíc").fill("6");
-    const lockedAttendanceSheet = page
-      .locator(".admin-attendance-matrix [data-testid^='admin-attendance-']")
-      .filter({ hasText: "E2E provozní úvazek" });
     await expect(
-      lockedAttendanceSheet.getByLabel(/2026-06-08 PRŮCHOD 1/),
+      page.getByTestId(/admin-attendance-/).filter({ hasText: "E2E provozní úvazek" }).getByLabel(/2026-06-08 PRŮCHOD 1/),
     ).toBeDisabled();
     await page.goto("/admin/plan-sluzeb");
     await expect(page.getByTestId(/admin-shift-plan-/).first()).toBeVisible();
