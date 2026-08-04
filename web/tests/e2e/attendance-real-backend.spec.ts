@@ -177,4 +177,27 @@ test.describe("real event backend", () => {
       .filter({ hasText: "E2E externí fakturace" });
     await expect(externalPlan).toBeVisible();
   });
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 768, height: 1024 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`admin attendance parses compact times at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await loginAdmin(page);
+      await page.getByLabel("Měsíc").fill("7");
+      const attendance = page
+        .getByTestId(/admin-attendance-/)
+        .filter({ hasText: "E2E provozní úvazek" });
+      const firstPass = attendance.getByLabel(/2026-07-01 PRŮCHOD 1/);
+      await expect(firstPass).toHaveValue("08:00");
+      await firstPass.fill("124");
+      await firstPass.press("Enter");
+      await expect(firstPass).toHaveValue("01:24");
+      await firstPass.fill("08");
+      await firstPass.press("Enter");
+      await expect(firstPass).toHaveValue("08:00");
+    });
+  }
 });

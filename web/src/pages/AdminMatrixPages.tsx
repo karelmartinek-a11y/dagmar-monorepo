@@ -17,6 +17,7 @@ import { Button, Panel, StatusMessage } from "../components/Primitives";
 import { ClockInput } from "../components/ClockInput";
 import { formatHours } from "../utils/hoursFormat";
 import { chronologicalPlanBoundaries, formatPragueTime } from "../utils/presentationAdapters";
+import { normalizeTimeInput } from "../utils/timeInput";
 
 const metricLabels: Record<MetricKey, string> = {
   total: "Odpracováno",
@@ -41,7 +42,9 @@ function eventTime(event: AttendanceEvent) {
 
 function AdminAttendanceMatrix({ sheets, refresh, onLock, onBreaks }: { sheets: AdminAttendanceSheet[]; refresh: () => void; onLock: (sheet: AdminAttendanceSheet) => void; onBreaks: (sheet: AdminAttendanceSheet) => void; }) {
   const [context, setContext] = useState<{ sheet: AdminAttendanceSheet; day: AttendanceDay; x: number; y: number } | null>(null);
-  const update = async (sheet: AdminAttendanceSheet, day: AttendanceDay, event: AttendanceEvent | undefined, value: string) => {
+  const update = async (sheet: AdminAttendanceSheet, day: AttendanceDay, event: AttendanceEvent | undefined, rawValue: string) => {
+    const value = normalizeTimeInput(rawValue);
+    if (value === null) throw new Error("Neplatný čas, použijte HH:mm.");
     if (!event && value) await api.admin("/api/v1/admin/attendance/events", { method: "POST", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: day.next_event_type }) });
     else if (event && !value) await api.admin(`/api/v1/admin/attendance/events/${event.id}${event.deletion_partner_id == null ? "" : `?paired_event_id=${event.deletion_partner_id}`}`, { method: "DELETE" });
     else if (event && value !== eventTime(event)) await api.admin(`/api/v1/admin/attendance/events/${event.id}`, { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: event.event_type }) });
