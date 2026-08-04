@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ from fastapi.routing import APIRoute
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "docs/current-state-manifest.yaml"
+SSOT_PATH = ROOT / "docs/SSOT_CURRENT.md"
 
 FRONTEND_ROUTES = [
     "/",
@@ -133,7 +135,14 @@ def build_manifest() -> dict[str, object]:
             "web/src/App.tsx",
             "web/src/api/client.ts",
             ".github/workflows/ci-cd.yml",
+            "docs/SSOT_CURRENT.md",
         ],
+        "normative_ssot": {
+            "path": "docs/SSOT_CURRENT.md",
+            "revision": "FORENSIC-FINAL-2026-08-03",
+            "line_count": len(SSOT_PATH.read_text(encoding="utf-8").splitlines()),
+            "sha256": hashlib.sha256(SSOT_PATH.read_bytes()).hexdigest(),
+        },
         "repository_layout": REPOSITORY_LAYOUT,
         "production": {
             "domain": "https://dagmar.hcasc.cz",

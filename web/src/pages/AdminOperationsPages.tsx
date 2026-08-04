@@ -3,6 +3,7 @@ import { Download, Printer, Settings, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Button, Field, Panel, StatusMessage } from "../components/Primitives";
 import { api } from "../api/client";
 import type {
@@ -13,6 +14,12 @@ import type {
 } from "../api/types";
 import { asPragueDate, getWeekdayLongLabel } from "../utils/calendar";
 import { formatHours as formatHoursValue } from "../utils/hoursFormat";
+import {
+  chronologicalPlanBoundaries,
+  humanEventHeaders,
+  isPrintCapacityExceeded,
+  maxEventColumns,
+} from "../utils/presentationAdapters";
 
 type EmploymentChoice = {
   id: number;
@@ -75,21 +82,15 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-const PRINT_EVENT_COLUMNS = 4;
-
 function formatEventTime(day: AttendanceDay, index: number) {
   const event = day.events[index];
-  if (!event) return "—";
+  if (!event) return "";
   const time = new Intl.DateTimeFormat("cs-CZ", {
     timeZone: "Europe/Prague",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(event.occurred_at));
-  const extra =
-    index === PRINT_EVENT_COLUMNS - 1 && day.events.length > PRINT_EVENT_COLUMNS
-      ? ` +${day.events.length - PRINT_EVENT_COLUMNS}`
-      : "";
-  return `${event.event_type} ${time}${extra}`;
+  return time;
 }
 
 const metricLabels: Record<MetricKey, string> = {
@@ -99,6 +100,10 @@ const metricLabels: Record<MetricKey, string> = {
   weekend: "Víkend",
   public_holiday: "Svátek",
 };
+function translatedMetricLabel(t: TFunction, key: MetricKey) {
+  const paths: Record<MetricKey, string> = { total: "employee.metrics.worked", afternoon: "employee.metrics.afternoon", night: "employee.metrics.night", weekend: "employee.metrics.weekendHoliday", public_holiday: "employee.metrics.weekendHoliday" };
+  return t(paths[key], metricLabels[key]);
+}
 const attendanceStatusLabels: Record<string, string> = {
   HOLIDAY: "Dovolená",
   SICKNESS: "Nemoc",
@@ -106,7 +111,7 @@ const attendanceStatusLabels: Record<string, string> = {
   PARAGRAPH: "Paragraf",
 };
 const formatMetric = (value: { hours: number } | null | undefined) =>
-  value == null ? "—" : formatHoursValue(value.hours, "cs-CZ");
+  value == null ? "" : formatHoursValue(value.hours, "cs-CZ");
 
 function AttendancePrint({
   sheets,
@@ -115,20 +120,33 @@ function AttendancePrint({
   sheets: AttendanceMonth[];
   kind: "summary" | "detail";
 }) {
+  const { t } = useTranslation();
   return (
-    <div
-      className={`print-sheet print-sheet--attendance-detail ${kind === "summary" ? "print-sheet--attendance-summary" : ""}`}
-    >
-      {sheets.map((sheet) => (
-        <article className="print-attendance-card" key={sheet.employment_id}>
+    <div className="print-report-pages">
+      {sheets.map((sheet) => {
+        const eventColumns = maxEventColumns(sheet.days);
+        const capacityExceeded = sheet.days.some((day) =>
+          isPrintCapacityExceeded(sheet.days.length, day.events.length, sheet.display_metrics),
+        );
+        return (
+        <article
+          className={`print-sheet print-sheet--attendance-detail ${kind === "summary" ? "print-sheet--attendance-summary" : ""}`}
+          key={sheet.employment_id}
+        >
           <header>
             <h2>{sheet.employment_label}</h2>
             <p>Docházkový list · {kind === "summary" ? "souhrn" : "detail"}</p>
           </header>
-          <table className="print-attendance-table">
+          {capacityExceeded ? (
+            <StatusMessage
+              kind="error"
+              title={t("adminOps.prints.capacityExceeded")}
+            />
+          ) : null}
+          {!capacityExceeded && <table className="print-attendance-table">
             <colgroup>
               <col className="print-attendance-col-date" />
-              {Array.from({ length: PRINT_EVENT_COLUMNS }, (_, index) => (
+              {Array.from({ length: eventColumns }, (_, index) => (
                 <col className="print-attendance-col-event" key={index} />
               ))}
               {sheet.display_metrics.map((key) => (
@@ -137,12 +155,12 @@ function AttendancePrint({
             </colgroup>
             <thead>
               <tr>
-                <th>Datum / den</th>
-                {Array.from({ length: PRINT_EVENT_COLUMNS }, (_, index) => (
-                  <th key={index}>Průchod {index + 1}</th>
+                <th>{t("employee.page.table.date", "Datum / den")}</th>
+                {humanEventHeaders(eventColumns).map((header) => (
+                  <th key={header}>{header}</th>
                 ))}
                 {sheet.display_metrics.map((key) => (
-                  <th key={key}>{metricLabels[key]}</th>
+                  <th key={key}>{translatedMetricLabel(t, key)}</th>
                 ))}
               </tr>
             </thead>
@@ -171,7 +189,7 @@ function AttendancePrint({
                         </small>
                       )}
                     </td>
-                    {Array.from({ length: PRINT_EVENT_COLUMNS }, (_, index) => (
+                    {Array.from({ length: eventColumns }, (_, index) => (
                       <td className="print-event-cell" key={index}>
                         {formatEventTime(day, index)}
                       </td>
@@ -183,15 +201,16 @@ function AttendancePrint({
                 );
               })}
               <tr className="print-attendance-total">
-                <th colSpan={1 + PRINT_EVENT_COLUMNS}>Součet</th>
+                <th colSpan={1 + eventColumns}>{t("employee.page.table.sum", "Součet")}</th>
                 {sheet.display_metrics.map((key) => (
                   <th key={key}>{formatMetric(sheet.worked?.[key])}</th>
                 ))}
               </tr>
             </tbody>
-          </table>
+          </table>}
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -510,6 +529,7 @@ export function AdminPrintsPage() {
 export function AdminPrintPreviewPage() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
   const month = params.get("month") ?? currentMonth();
   const type = (params.get("type") ?? "attendance") as PrintType;
@@ -578,6 +598,12 @@ export function AdminPrintPreviewPage() {
             <Button onClick={downloadPdf}>
               <Download />
               {t("adminOps.prints.downloadPdf")}
+              </Button>
+          )}
+          {(
+            <Button variant="quiet" onClick={() => navigate(`/admin/export?month=${month}`)}>
+              <Download />
+              {t("adminOps.prints.completeExport")}
             </Button>
           )}
         </div>
@@ -638,7 +664,9 @@ type ShiftPlanReport = {
       off_days: number;
       cells: Array<{
         date_iso: string;
-        interval_label: string;
+        arrival_time: string | null;
+        departure_time: string | null;
+        carryover_departure_time: string | null;
         planned_metrics: Partial<
           Record<MetricKey, { minutes: number; tenths: number; hours: number }>
         >;
@@ -652,96 +680,35 @@ type ShiftPlanReport = {
 };
 
 function ShiftPlanPreview({ report }: { report: ShiftPlanReport }) {
+  const { t } = useTranslation();
+  const employments = report.pages.flatMap((page) => page.employments);
   return (
     <div className="print-report-pages">
-      {report.pages.map((page) => (
-        <article
-          className="print-sheet print-sheet--shift-plan"
-          key={page.page_number}
-        >
+      {employments.map((employment) => {
+        const planColumns = Math.max(2, ...employment.cells.map((cell) => chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length));
+        return <article className="print-sheet print-sheet--shift-plan" key={employment.employment_id}>
           <header>
-            <h2>Plán služeb · {report.month_label}</h2>
-            <small>
-              Vygenerováno {report.generated_at_label} · Strana{" "}
-              {page.page_number} z {report.pages.length}
-            </small>
+            <h2>{employment.display_label}</h2>
+            <small>Plán služeb · {report.month_label} · {report.generated_at_label}</small>
           </header>
-          <table className="print-shift-plan-table">
-            <thead>
-              <tr>
-                <th>Úvazek</th>
-                <th>Součet</th>
-                {report.day_headers.map((day) => (
-                  <th key={day.date_iso}>
-                    <strong>{day.day_number}.</strong>
-                    <span>{day.weekday_short}</span>
-                    {day.holiday_label && <small>{day.holiday_label}</small>}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+          {isPrintCapacityExceeded(employment.cells.length, Math.max(0, ...employment.cells.map((cell) => [cell.carryover_departure_time, cell.arrival_time, cell.departure_time].filter(Boolean).length)), employment.display_metrics) ? <StatusMessage kind="error" title={t("adminOps.prints.capacityExceeded")} /> : <table className="print-shift-plan-detail-table">
+            <thead><tr><th>{t("employee.page.table.date", "Datum")}</th>{Array.from({ length: planColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass", "PRŮCHOD")} {index + 1}</th>)}<th>{t("employee.page.table.status", "Stav")}</th>{employment.display_metrics.map((key) => <th key={key}>{translatedMetricLabel(t, key)} (h)</th>)}</tr></thead>
             <tbody>
-              {page.employments.map((employment) => (
-                <tr key={employment.employment_id}>
-                  <td>
-                    <strong>{employment.user_name}</strong>
-                    <span>{employment.display_label}</span>
-                    <small>
-                      {employment.employment_type} · {employment.title}
-                    </small>
-                  </td>
-                  <td>
-                    {employment.display_metrics.map((key) =>
-                      employment.planned_metrics[key] ? (
-                        <strong key={key}>
-                          {metricLabels[key]}{" "}
-                          {formatHoursValue(
-                            employment.planned_metrics[key]!.hours,
-                            "cs-CZ",
-                          )}
-                        </strong>
-                      ) : null,
-                    )}
-                    <span>{employment.scheduled_days} směn</span>
-                    <small>
-                      D {employment.holiday_days} · V {employment.off_days}
-                    </small>
-                  </td>
-                  {employment.cells.map((cell) => (
-                    <td key={cell.date_iso}>
-                      <strong>{cell.interval_label}</strong>
-                      {employment.display_metrics.map((key) =>
-                        cell.planned_metrics[key] ? (
-                          <span key={key}>
-                            {metricLabels[key]}{" "}
-                            {formatHoursValue(
-                              cell.planned_metrics[key]!.hours,
-                              "cs-CZ",
-                            )}
-                          </span>
-                        ) : null,
-                      )}
-                      {cell.status_label && <small>{cell.status_label}</small>}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {employment.cells.map((cell) => <tr key={cell.date_iso}>
+                <td>{cell.date_iso}</td>
+                {chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).map((time, index) => <td key={index}>{time}</td>)}
+                {Array.from({ length: planColumns - chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length }, (_, index) => <td key={`empty-${index}`} />)}
+                <td>{cell.status_label ?? ""}</td>
+                {employment.display_metrics.map((key) => <td key={key}>{cell.planned_metrics[key] ? formatHoursValue(cell.planned_metrics[key]!.hours, "cs-CZ") : ""}</td>)}
+              </tr>)}
+              <tr className="print-attendance-total"><th colSpan={2 + planColumns}>{t("employee.page.table.sum", "Součet")}</th>{employment.display_metrics.map((key) => <th key={key}>{employment.planned_metrics[key] ? formatHoursValue(employment.planned_metrics[key]!.hours, "cs-CZ") : ""}</th>)}</tr>
             </tbody>
-          </table>
-          <footer>
-            <strong>Legenda</strong>
-            <ul>
-              {report.legend.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </footer>
+          </table>}
         </article>
-      ))}
+      })}
     </div>
   );
 }
-
 export function AdminSettingsPage() {
   const { t } = useTranslation();
   return (

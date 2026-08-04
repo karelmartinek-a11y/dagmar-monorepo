@@ -337,11 +337,9 @@ def build_shift_plan_report(
             effective_status = day_summary.effective_status
             interval_parts: list[str] = []
             if carryover_plan is not None:
-                interval_parts.append(f"do {carryover_plan.departure_time}")
+                interval_parts.append(carryover_plan.departure_time)
             if plan and plan.arrival_time and plan.departure_time:
-                interval_parts.append(f"{plan.arrival_time}-{plan.departure_time}")
-            elif effective_status:
-                interval_parts.append(STATUS_LABELS.get(effective_status, "Bez směny"))
+                interval_parts.extend([plan.arrival_time, plan.departure_time])
             duration_minutes = day_summary.planned_minutes
             if plan and plan.arrival_time and plan.departure_time:
                 scheduled_days += 1
@@ -373,11 +371,7 @@ def build_shift_plan_report(
                     status_label=STATUS_LABELS.get(effective_status)
                     if effective_status
                     else None,
-                    interval_label="; ".join(interval_parts)
-                    if interval_parts
-                    else "Bez směny"
-                    if is_within_employment_period
-                    else "Mimo období",
+                    interval_label="; ".join(interval_parts),
                     duration_label=_format_hours(day_summary.planned_hours)
                     if show_total and duration_minutes > 0
                     else "",
@@ -428,10 +422,9 @@ def build_shift_plan_report(
         day_headers=day_headers,
         pages=pages,
         legend=[
-            "V buňce je vždy plánovaný čas směny nebo celodenní stav.",
+            "V buňce jsou chronologické plánované časy nebo celodenní stav.",
             "Dovolená = celodenní stav z plánu směn.",
             "Volno = celodenní stav bez plánované směny.",
-            "Bez směny = v daný den není naplánovaná směna.",
             "Šedé buňky označují víkend, béžové státní svátek.",
         ],
     )
@@ -503,6 +496,18 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
     images: list[Image.Image] = []
     page_count = max(1, len(report.pages))
     days_count = max(1, len(report.day_headers))
+    max_plan_passes = max(
+        1,
+        min(
+            4,
+            max(
+                len([value for value in cell.interval_label.split("; ") if value])
+                for page in report.pages
+                for employment in page.employments
+                for cell in employment.cells
+            ),
+        ),
+    )
     usable_width = PAGE_WIDTH - (2 * PAGE_MARGIN_X)
     table_top = PAGE_MARGIN_Y + HEADER_HEIGHT
     table_height = PAGE_HEIGHT - table_top - LEGEND_HEIGHT - FOOTER_HEIGHT - PAGE_MARGIN_Y
@@ -599,6 +604,14 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             )
             draw.text((x + 7, y0 + 8), str(header["day_number"]), font=strong_font, fill="#111111")
             draw.text((x + 7, y0 + 32), str(header["weekday_short"]), font=small, fill="#333333")
+            pass_width = day_column_width / max_plan_passes
+            for pass_index in range(max_plan_passes):
+                draw.text(
+                    (x + (pass_index * pass_width) + 2, y0 + 48),
+                    f"PRŮCHOD {pass_index + 1}",
+                    font=tiny,
+                    fill="#333333",
+                )
             holiday_label = header["holiday_label"]
             if isinstance(holiday_label, str) and holiday_label:
                 short_label = holiday_label[: max(4, min(14, (day_column_width // 8)))]
@@ -632,7 +645,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             )
             draw.multiline_text(
                 (x0 + LABEL_COLUMN_WIDTH + 10, row_top + 12),
-                f"{_metric_summary_label(employment.planned_metrics) or '—'}\n{employment.scheduled_days} směn",
+                f"{_metric_summary_label(employment.planned_metrics) or ''}\n{employment.scheduled_days} směn",
                 font=small,
                 fill="#111111",
                 spacing=5,
@@ -662,19 +675,29 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                 draw.rectangle(
                     (cell_left + 1, cell_top + 1, cell_right - 1, cell_bottom - 1), fill=fill
                 )
-                text_y = cell_top + 10
-                text = cell.interval_label
-                if len(text) > 11:
-                    parts = text.split(" ")
-                    text = "\n".join(parts[:2]) if len(parts) > 1 else text
-                draw.multiline_text(
-                    (cell_left + 5, text_y),
-                    text,
-                    font=tiny,
-                    fill="#111111" if cell.is_within_employment_period else "#777777",
-                    spacing=3,
-                    align="center",
-                )
+                pass_times = [value for value in cell.interval_label.split("; ") if value]
+                pass_width = day_column_width / max_plan_passes
+                for pass_index in range(1, max_plan_passes):
+                    draw.line(
+                        (cell_left + (pass_index * pass_width), cell_top, cell_left + (pass_index * pass_width), cell_bottom),
+                        fill="#dddddd",
+                        width=1,
+                    )
+                for pass_index in range(max_plan_passes):
+                    if pass_index < len(pass_times):
+                        draw.text(
+                            (cell_left + (pass_index * pass_width) + 2, cell_top + 10),
+                            pass_times[pass_index],
+                            font=tiny,
+                            fill="#111111" if cell.is_within_employment_period else "#777777",
+                        )
+                if cell.status_label:
+                    draw.text(
+                        (cell_left + 5, cell_top + 30),
+                        cell.status_label,
+                        font=tiny,
+                        fill="#8a4b08",
+                    )
                 metric_label = _metric_cell_label(cell.planned_metrics)
                 if metric_label:
                     metric_lines = metric_label.count("\n") + 1

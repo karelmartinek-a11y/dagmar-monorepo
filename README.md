@@ -4,9 +4,9 @@ Produkční monorepozitář docházkového systému KájovoDagmar pro `https://d
 
 ## Zdroj pravdy
 
-Nejvyšší autoritou je aktuální funkční zdrojový kód v tomto checkoutu. Když se dokumentace nebo testy rozcházejí s kódem, nejprve se ověřuje aktivní implementace a teprve potom se opravuje doprovodný artefakt.
+Normativní cílový stav je přesně uložen v [docs/SSOT_CURRENT.md](docs/SSOT_CURRENT.md). Aktivní zdrojový kód a backendový kontrakt jsou autoritou pro baseline fakta, která SSOT výslovně nenahrazuje. Rozpor cílového SSOT s aktuální implementací je implementační mezera, nikoli důvod požadavek oslabit nebo označit za historický.
 
-Kanonický technický přehled je v [docs/SSOT_CURRENT.md](docs/SSOT_CURRENT.md) a strojově čitelný manifest v [docs/current-state-manifest.yaml](docs/current-state-manifest.yaml).
+Strojově čitelný manifest je v [docs/current-state-manifest.yaml](docs/current-state-manifest.yaml). Staré aktivní UI a dokumentační alternativy se odstraňují; historii nahrazených řešení uchovává Git.
 
 ## Aktuální struktura
 

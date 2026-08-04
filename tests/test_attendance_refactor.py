@@ -1276,19 +1276,19 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
         assert report_employment["planned_metrics"]["night"]["hours"] == 4.0
         assert "planned_hours" not in report_employment
         assert report_employment["cells"][2]["planned_metrics"]["night"]["hours"] == 2.0
-        assert report_employment["cells"][3]["interval_label"] == "do 02:00; 08:00-16:00"
+        assert report_employment["cells"][3]["interval_label"] == "02:00; 08:00; 16:00"
         assert report_employment["cells"][3]["carryover_departure_time"] == "02:00"
         assert report_employment["cells"][3]["planned_metrics"]["night"]["hours"] == 2.0
         assert report_employment["cells"][4]["status"] == "SICKNESS"
         assert report_employment["cells"][4]["status_label"] == "Nemoc"
-        assert report_employment["cells"][4]["interval_label"] == "Nemoc"
+        assert report_employment["cells"][4]["interval_label"] == ""
         csv_text = _csv_for_employment(
             db=db,
             employment=employment,
             start=date(2026, 8, 1),
             end=date(2026, 9, 1),
         ).decode("utf-8")
-        assert "plan_presah_do" in csv_text
+        assert "PLÁN – PRŮCHOD 1" in csv_text
         assert "2026-08-04" in csv_text and "02:00" in csv_text
 
 

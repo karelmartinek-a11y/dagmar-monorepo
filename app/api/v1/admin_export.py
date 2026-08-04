@@ -5,7 +5,7 @@ import csv
 import io
 import zipfile
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -17,6 +17,7 @@ from ...api.v1.attendance import _build_month
 from ...db.models import Employment
 from ...db.session import get_db
 from ...security.csrf import require_csrf
+from ...services.prague_time import PRAGUE_TIMEZONE
 from ...services.shift_plan_reports import (
     build_shift_plan_report,
     render_shift_plan_report_pdf,
@@ -74,6 +75,24 @@ def _csv_for_employment(
         "weekend": "vikend_h",
         "public_holiday": "svatek_h",
     }
+    event_column_count = max(4, max((len(day.events) for day in month_data.days), default=0))
+    plan_column_count = max(
+        3,
+        max(
+            (
+                sum(
+                    value is not None
+                    for value in (
+                        day.planned_carryover_departure_time,
+                        day.planned_arrival_time,
+                        day.planned_departure_time,
+                    )
+                )
+                for day in month_data.days
+            ),
+            default=0,
+        ),
+    )
 
     buf = io.StringIO(newline="")
     w = csv.writer(buf, delimiter=",", quoting=csv.QUOTE_MINIMAL)
@@ -83,11 +102,9 @@ def _csv_for_employment(
             "uvazek",
             "typ_uvazku",
             "datum",
-            "pruchody",
             "stav_dne",
-            "plan_prichod",
-            "plan_odchod",
-            "plan_presah_do",
+            *[f"PRŮCHOD {index}" for index in range(1, event_column_count + 1)],
+            *[f"PLÁN – PRŮCHOD {index}" for index in range(1, plan_column_count + 1)],
             *[metric_labels[key] for key in month_data.display_metrics],
         ]
     )
@@ -121,11 +138,24 @@ def _csv_for_employment(
                 employment.title,
                 employment.employment_type,
                 day.date,
-                ";".join(f"{row.event_type.value}:{row.occurred_at}" for row in day.events),
                 day.effective_status or "",
-                day.planned_arrival_time or "",
-                day.planned_departure_time or "",
-                day.planned_carryover_departure_time or "",
+                *[
+                    datetime.fromisoformat(day.events[index].occurred_at)
+                    .astimezone(PRAGUE_TIMEZONE)
+                    .strftime("%H:%M")
+                    if index < len(day.events)
+                    else ""
+                    for index in range(event_column_count)
+                ],
+                *[
+                    value
+                    for value in (
+                        day.planned_carryover_departure_time,
+                        day.planned_arrival_time,
+                        day.planned_departure_time,
+                    )
+                ],
+                *["" for _ in range(plan_column_count - 3)],
                 *[displayed_hours(day, key) for key in month_data.display_metrics],
             ]
         )

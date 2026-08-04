@@ -38,7 +38,15 @@ REMOVED_PATHS = [
 FORBIDDEN_REFERENCES = {
     "karelmartinek-a11y/dagmar-backend": {"scripts/check_repo_invariants.py"},
     "karelmartinek-a11y/dagmar-frontend": {"scripts/check_repo_invariants.py"},
-    "dochazka.hcasc.cz": {"app/config.py", "tests/test_forbidden_domain.py", "scripts/check_repo_invariants.py"},
+    # The byte-exact canonical SSOT contains one forensic baseline mention of
+    # the retired domain. It is not an active runtime or documentation
+    # contract and cannot be edited without invalidating the supplied SSOT.
+    "dochazka.hcasc.cz": {
+        "app/config.py",
+        "tests/test_forbidden_domain.py",
+        "scripts/check_repo_invariants.py",
+        "docs/SSOT_CURRENT.md",
+    },
 }
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 KEY_DOCS = {
@@ -86,6 +94,12 @@ KEY_DOCS = {
         "git diff --exit-code",
         "git status --short",
         "Povinný závěrečný report",
+    ],
+    Path("docs/SSOT_IMPLEMENTATION_MATRIX.md"): [
+        "docs/SSOT_CURRENT.md",
+        "PRŮCHOD 1..N",
+        "print_capacity_exceeded",
+        "blocker",
     ],
 }
 LEGACY_LAYOUT_PATTERNS = (

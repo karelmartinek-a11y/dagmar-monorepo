@@ -123,9 +123,9 @@ describe("attendance print layout", () => {
     renderPreview();
 
     expect(
-      await screen.findByRole("columnheader", { name: "Průchod 4" }),
+      await screen.findByRole("columnheader", { name: "PRŮCHOD 4" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("OUT 12:00")).toBeInTheDocument();
+    expect(screen.getByText("12:00")).toBeInTheDocument();
     expect(screen.getAllByText("10,5 h")).toHaveLength(2);
     expect(screen.getByText("sobota")).toBeInTheDocument();
     expect(screen.getByText("Nemoc")).toBeInTheDocument();

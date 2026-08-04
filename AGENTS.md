@@ -9,15 +9,15 @@ Tento monorepozitář je jediný pracovní cíl a produkční zdroj pravdy pro K
 
 Autorita má toto pořadí:
 
-1. aktuální zdrojový kód v tomto repozitáři
-2. aktivní backendový kontrakt a databázové invarianty
+1. `docs/SSOT_CURRENT.md` pro kanonický požadovaný cílový stav
+2. aktuální vykonávaný zdrojový kód a aktivní backendový/databázový kontrakt pro baseline fakta, která SSOT výslovně nenahrazuje
 3. skutečné produkční chování na `https://dagmar.hcasc.cz`
 4. migrace, testy, CI/CD, deploy a provozní konfigurace
-5. aktuální dokumentace
+5. README, manifest a další aktivní dokumentace
 6. komentáře, docstringy, poznámky a příklady
 7. git historie pouze jako forenzní reference
 
-Pokud se dokumentace, komentáře, testy nebo manifest rozcházejí s funkčním kódem, nejprve ověř aktivní kódovou cestu a potom oprav neaktuální doprovodný artefakt. Funkční produkční kód se nesmí měnit jen proto, aby odpovídal starému textu.
+Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační mezeru, kterou je nutné uzavřít; SSOT se nesmí oslabit označením požadavku za historický nebo neaktivní. Pokud se dokumentace, komentáře, testy nebo manifest rozcházejí s aktivní cestou či SSOT, oprav neaktuální artefakt. Historii nahrazených řešení uchovává pouze Git.
 
 ## Aktuální struktura repozitáře
 
@@ -60,6 +60,9 @@ Pokud se dokumentace, komentáře, testy nebo manifest rozcházejí s funkčním
 - všechny mutace eventů, plánů a celodenních stavů stejného úvazku se serializují databázovým `SELECT FOR UPDATE`; po získání zámku se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele. Mutace eventu zachovává posloupnost začínající `IN`, ověřuje zámek každého měsíce, jehož interval nebo metriky by změnila, a průchod nesmí překrýt den s celodenní nepřítomností. Historický uzavřený interval se vkládá atomicky pomocí `paired_occurred_at` a prostřední interval nebo fyzická pauza se odstraňuje atomicky pomocí `paired_event_id`; databáze nikdy nepersistuje přechodně neplatnou posloupnost
 - přeshraniční plán se validuje a zamyká ve všech dotčených dnech a měsících, nesmí se překrývat s jiným plánem stejného úvazku; carryover v následujícím dni je v DTO explicitní a časová pole samotného carryover jsou v UI pouze ke čtení. Pokud ve stejném dni začíná další nepřekrývající se směna, DTO, UI i report zobrazí oba intervaly
 - pracovní fond a bilanční porovnávání s fondem nebo plánem nejsou aktivní kontrakt
+- lidské UI, screen-reader texty, tisky, PDF a CSV/ZIP používají pouze neutrální lokalizovaný pojem `PRŮCHOD`; interní `IN`/`OUT` zůstávají pouze strojovým kontraktem
+- docházkové a plánové detaily zachovávají jeden den v jednom řádku; hromadné pohledy zachovávají jeden `employment_id` v jednom řádku a den v jednom sloupci
+- `ClockInput` je jediný editor ručně zadávaných časů a `timeInput.ts` jediný parser; běžné zadávání času nesmí používat boční editor, formulář, kartu ani modal
 
 ## Povinná disciplína změn
 
@@ -124,6 +127,13 @@ Každá změna, včetně malé opravy, musí být před commitem uzavřena např
 
 ## Validace
 
+### Design gate
+
+- Finální vizuální posouzení provádí designový agent v tomto workspace; jeho písemný verdikt `SCHVÁLENO` je povinný důkaz uzavření design gate.
+- Důkazem jsou skutečné lokální rendery z reálného lokálního backendu a frontendu, uložené mimo repozitář; produkční screenshoty nejsou požadované a produkce se při design review nesmí měnit.
+- Rendery musí pokrýt všechny dotčené role a plochy, desktop 1440×900, tablet 768×1024, mobil 390×844, relevantní jazyky a tiskový náhled. Samotný build nebo unit test design gate neuzavírá.
+- Pokud designový agent uvede P0/P1 nález nebo chybí některá požadovaná evidence, stav zůstává blokovaný a implementace se nesmí vydávat za dokončenou.
+
 Spusť relevantní kontroly pro dotčenou oblast a v závěrečném reportu uveď přesné příkazy, které byly skutečně spuštěny.
 
 Backend a repozitář:
@@ -146,6 +156,8 @@ npm run check:branding
 npm run lint
 npm run typecheck
 npm test
+npm run test:a11y
+npm run test:visual
 npm run build
 npm run test:e2e
 ```

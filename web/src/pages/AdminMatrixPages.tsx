@@ -2,10 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LockKeyhole,
-  Plus,
-  Trash2,
   UnlockKeyhole,
-  Utensils,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api } from "../api/client";
@@ -19,7 +16,7 @@ import type {
 import { Button, Panel, StatusMessage } from "../components/Primitives";
 import { ClockInput } from "../components/ClockInput";
 import { formatHours } from "../utils/hoursFormat";
-import { plannedHintForEvent } from "../utils/plannedEventHint";
+import { chronologicalPlanBoundaries, edgeEvents, formatPragueTime } from "../utils/presentationAdapters";
 
 const metricLabels: Record<MetricKey, string> = {
   total: "Odpracováno",
@@ -32,206 +29,74 @@ const plannedMetricLabels: Record<MetricKey, string> = {
   ...metricLabels,
   total: "Plán",
 };
-const statusLabels: Record<string, string> = {
-  HOLIDAY: "Dovolená",
-  OFF: "Volno",
-  SICKNESS: "Nemoc",
-  PARAGRAPH: "Paragraf",
-};
-const attendanceStatuses = new Set(["SICKNESS", "PARAGRAPH"]);
-const planStatuses = new Set(["HOLIDAY", "OFF"]);
 
 function monthParts() {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
-function displayDate(value: string) {
-  return new Intl.DateTimeFormat("cs-CZ").format(new Date(`${value}T12:00:00`));
-}
-
 function eventTime(event: AttendanceEvent) {
-  return new Intl.DateTimeFormat("cs-CZ", {
-    timeZone: "Europe/Prague",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(event.occurred_at));
+  return formatPragueTime(event.occurred_at);
 }
 
-function EventEditor({
-  day,
-  sheet,
+function AdminAttendanceMatrix({
+  sheets,
   refresh,
-  report,
+  onLock,
+  onBreaks,
 }: {
-  day: AttendanceDay;
-  sheet: AdminAttendanceSheet;
+  sheets: AdminAttendanceSheet[];
   refresh: () => void;
-  report: (message: string) => void;
+  onLock: (sheet: AdminAttendanceSheet) => void;
+  onBreaks: (sheet: AdminAttendanceSheet) => void;
 }) {
-  const [newTime, setNewTime] = useState("");
-  const [newEndTime, setNewEndTime] = useState("");
-  const [newEndDate, setNewEndDate] = useState(day.date);
-  const disabled =
-    sheet.attendance_locked ||
-    !day.is_within_employment_period ||
-    Boolean(day.effective_status);
-  const update = async (event: AttendanceEvent, time: string) => {
-    if (!time) {
-      await remove(event.id, event.deletion_partner_id ?? undefined, false);
-      return;
-    }
-    if (time === eventTime(event)) return;
+  const { t } = useTranslation();
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const days = sheets[0]?.days ?? [];
+  const update = async (sheet: AdminAttendanceSheet, day: AttendanceDay, event: AttendanceEvent | undefined, value: string) => {
     try {
-      await api.admin(`/api/v1/admin/attendance/events/${event.id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          employment_id: sheet.employment_id,
-          occurred_at: `${day.date}T${time}:00`,
-          event_type: event.event_type,
-        }),
-      });
+      if (!event && value) {
+        await api.admin("/api/v1/admin/attendance/events", { method: "POST", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: day.next_event_type }) });
+      } else if (event && !value) {
+        await api.admin(`/api/v1/admin/attendance/events/${event.id}${event.deletion_partner_id == null ? "" : `?paired_event_id=${event.deletion_partner_id}`}`, { method: "DELETE" });
+      } else if (event && value !== eventTime(event)) {
+        await api.admin(`/api/v1/admin/attendance/events/${event.id}`, { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, occurred_at: `${day.date}T${value}:00`, event_type: event.event_type }) });
+      } else return;
       refresh();
     } catch (reason) {
-      report(
-        reason instanceof Error
-          ? reason.message
-          : "Průchod se nepodařilo upravit.",
-      );
+      throw reason instanceof Error ? reason : new Error("PRŮCHOD se nepodařilo uložit.");
     }
   };
-  const remove = async (
-    eventId: number,
-    pairedEventId?: number,
-    confirm = true,
-  ) => {
-    if (
-      confirm &&
-      !window.confirm(
-        pairedEventId == null
-          ? "Odstranit tento průchod?"
-          : "Odstranit vybraný pár průchodů?",
-      )
-    )
-      return;
-    try {
-      await api.admin(`/api/v1/admin/attendance/events/${eventId}${pairedEventId == null ? "" : `?paired_event_id=${pairedEventId}`}`, {
-        method: "DELETE",
-      });
-      refresh();
-    } catch (reason) {
-      report(
-        reason instanceof Error
-          ? reason.message
-          : "Průchod se nepodařilo odstranit.",
-      );
-    }
-  };
-  const add = async (startTime = newTime, endTime = newEndTime) => {
-    if (!startTime) return;
-    try {
-      await api.admin("/api/v1/admin/attendance/events", {
-        method: "POST",
-        body: JSON.stringify({
-          employment_id: sheet.employment_id,
-          occurred_at: `${day.date}T${startTime}:00`,
-          event_type: endTime ? "IN" : day.next_event_type,
-          ...(endTime
-            ? { paired_occurred_at: `${newEndDate}T${endTime}:00` }
-            : {}),
-        }),
-      });
-      setNewTime("");
-      setNewEndTime("");
-      setNewEndDate(day.date);
-      refresh();
-    } catch (reason) {
-      report(
-        reason instanceof Error
-          ? reason.message
-          : "Průchod se nepodařilo přidat.",
-      );
-    }
+  const updateStatus = async (sheet: AdminAttendanceSheet, day: AttendanceDay, status: string) => {
+    await api.admin("/api/v1/admin/day-status", { method: "PUT", body: JSON.stringify({ employment_id: sheet.employment_id, date: day.date, status: status || null, confirm_delete_conflicts: Boolean(status) }) });
+    refresh();
   };
   return (
-    <div className="matrix-events">
-      {day.events.map((event, index) => {
-        const plannedTime = plannedHintForEvent(day, index);
-        return <label className="matrix-event" key={event.id}>
-          <span>
-            {event.event_type === "IN" ? "Příchod" : "Odchod"} {index + 1}
-          </span>
-          <em>{plannedTime ? `plán ${plannedTime}` : ""}</em>
-          <ClockInput
-            aria-label={`${sheet.employment_label} ${day.date} ${event.event_type} ${index + 1}`}
-            value={eventTime(event)}
-            disabled={disabled}
-            onCommit={(time) => void update(event, time)}
-          />
-          {event.event_type === "IN" ? (
-            <button
-              type="button"
-              aria-label={`Odstranit interval ${day.date}`}
-              disabled={disabled}
-              onClick={() => void remove(event.id, event.deletion_partner_id ?? undefined)}
-            >
-              <Trash2 size={13} />
-            </button>
-          ) : event.deletion_partner_id != null ? (
-            <button
-              type="button"
-              aria-label={`Odstranit pauzu ${day.date}`}
-              disabled={disabled}
-              onClick={() => void remove(event.id, event.deletion_partner_id ?? undefined)}
-            >
-              <Trash2 size={13} />
-            </button>
-          ) : null}
-        </label>;
-      })}
-      <div className="matrix-event matrix-event--new">
-        <span>
-          {newEndTime || day.next_event_type === "IN" ? "Nový příchod" : "Nový odchod"}
-        </span>
-        <ClockInput
-          aria-label={`Nový průchod ${sheet.employment_label} ${day.date}`}
-          value={newTime}
-          disabled={disabled}
-          onDraftChange={setNewTime}
-          onCommit={(value) => {
-            setNewTime(value);
-            void add(value);
-          }}
-        />
-        <ClockInput
-          aria-label={`Nový odchod páru ${sheet.employment_label} ${day.date}`}
-          value={newEndTime}
-          disabled={disabled}
-          onDraftChange={setNewEndTime}
-          onCommit={(value) => {
-            setNewEndTime(value);
-            if (newTime) void add(newTime, value);
-          }}
-        />
-        {newEndTime ? (
-          <input
-            type="date"
-            aria-label={`Datum odchodu páru ${sheet.employment_label} ${day.date}`}
-            value={newEndDate}
-            disabled={disabled}
-            onChange={(event) => setNewEndDate(event.target.value)}
-          />
-        ) : null}
-        <button
-          type="button"
-          aria-label={`Přidat průchod ${day.date}`}
-          disabled={disabled || !newTime}
-          onClick={() => void add()}
-        >
-          <Plus size={14} />
-        </button>
-      </div>
+    <div className="data-table-wrap group-plan-table-wrap admin-attendance-matrix-wrap">
+      <table className="data-table matrix admin-attendance-matrix">
+        <thead><tr><th className="matrix__sticky-left">{t("adminMatrix.common.employment")}</th>{days.map((day) => <th className="matrix__day-head" key={day.date}><strong>{day.date.slice(-2)}</strong><span>{new Intl.DateTimeFormat("cs-CZ", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</span></th>)}<th>{t("adminMatrix.common.completed")}</th></tr></thead>
+        <tbody>
+          {sheets.map((sheet) => (
+            <tr key={sheet.employment_id} data-testid={`admin-attendance-${sheet.employment_id}`}>
+              <th className="matrix__sticky-left"><div className="matrix-user"><strong>{sheet.employment_label}</strong><small>{sheet.attendance_locked ? "Zamčeno" : "Odemčeno"}</small><span className="matrix-user__actions"><Button variant="quiet" onClick={() => onLock(sheet)}>{sheet.attendance_locked ? <UnlockKeyhole /> : <LockKeyhole />}{sheet.attendance_locked ? "Odemknout docházku" : "Zamknout docházku"}</Button><Button variant="quiet" onClick={() => onBreaks(sheet)}>Přidej pauzy</Button></span></div></th>
+              {sheet.days.map((day) => {
+                const edges = edgeEvents(day.events);
+                const disabled = sheet.attendance_locked || !day.is_within_employment_period || Boolean(day.effective_status);
+                const dayKey = `${sheet.employment_id}-${day.date}`;
+                const visibleEvents: (AttendanceEvent | undefined)[] = expandedDays.has(dayKey) ? [...day.events, undefined] : day.events.length === 0 ? [undefined] : day.events.length === 1 ? [edges.first, undefined] : [edges.first, edges.last];
+                return <td className="day-cell" key={day.date}>
+                  {edges.middleCount ? <button type="button" className="matrix-middle-count" onClick={() => setExpandedDays((current) => { const next = new Set(current); if (next.has(dayKey)) next.delete(dayKey); else next.add(dayKey); return next; })} aria-expanded={expandedDays.has(dayKey)}>{expandedDays.has(dayKey) ? t("adminMatrix.common.collapse") : `${t("adminMatrix.common.expand")} (+${edges.middleCount})`}</button> : null}
+                  <div className="matrix-day-editor">
+                    {visibleEvents.map((event, index) => <ClockInput key={event?.id ?? `append-${index}`} aria-label={`${sheet.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={event ? eventTime(event) : ""} disabled={disabled || (!event && index !== day.events.length)} onCommit={(value) => update(sheet, day, event, value)} />)}
+                    <select aria-label={`Nepřítomnost ${sheet.employment_label} ${day.date}`} value={day.effective_status ?? ""} disabled={sheet.attendance_locked || !day.is_within_employment_period} onChange={(event) => { if (event.target.value && !window.confirm("Nahradit docházku celodenním stavem?")) return; void updateStatus(sheet, day, event.target.value); }}><option value="">{t("adminMatrix.common.workday")}</option><option value="SICKNESS">{t("adminMatrix.statuses.SICKNESS")}</option><option value="PARAGRAPH">{t("adminMatrix.statuses.PARAGRAPH")}</option><option value="HOLIDAY">{t("adminMatrix.statuses.HOLIDAY")}</option><option value="OFF">{t("adminMatrix.statuses.OFF")}</option></select>
+                  </div>
+                </td>;
+              })}
+              <td className="matrix__summary">{sheet.display_metrics.map((key) => <span key={key}>{metricLabels[key]}: {sheet.worked?.[key] ? formatHours(sheet.worked[key]!.hours, "cs-CZ") : "—"}</span>)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -244,10 +109,6 @@ export function AdminAttendancePage() {
   const [month, setMonth] = useState(initial.month);
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Set<number> | null>(null);
-  const [notice, setNotice] = useState<{
-    kind: "success" | "error";
-    title: string;
-  } | null>(null);
   const sheets = useQuery({
     queryKey: ["admin-attendance-month", year, month],
     queryFn: () =>
@@ -259,6 +120,16 @@ export function AdminAttendancePage() {
     void queryClient.invalidateQueries({
       queryKey: ["admin-attendance-month", year, month],
     });
+  const lock = useMutation({
+    mutationFn: (sheet: AdminAttendanceSheet) =>
+      api.admin("/api/v1/admin/locks", { method: "PUT", body: JSON.stringify({ lock_type: "attendance", year, month, locked: !sheet.attendance_locked, employment_ids: [sheet.employment_id] }) }),
+    onSuccess: refresh,
+  });
+  const addBreaks = useMutation({
+    mutationFn: (sheet: AdminAttendanceSheet) =>
+      api.admin("/api/v1/admin/attendance/breaks", { method: "POST", body: JSON.stringify({ employment_id: sheet.employment_id, year, month, confirmed: true }) }),
+    onSuccess: refresh,
+  });
   const availableSheets = useMemo(() => sheets.data?.data ?? [], [sheets.data]);
   const selectedIds = useMemo(
     () =>
@@ -285,102 +156,6 @@ export function AdminAttendancePage() {
       else next.add(id);
       return next;
     });
-  const lock = useMutation({
-    mutationFn: ({
-      sheet,
-      lockType,
-      locked,
-    }: {
-      sheet: AdminAttendanceSheet;
-      lockType: "attendance" | "shift_plan";
-      locked: boolean;
-    }) =>
-      api.admin("/api/v1/admin/locks", {
-        method: "PUT",
-        body: JSON.stringify({
-          lock_type: lockType,
-          year,
-          month,
-          locked,
-          employment_ids: [sheet.employment_id],
-        }),
-      }),
-    onSuccess: refresh,
-    onError: (reason) =>
-      setNotice({
-        kind: "error",
-        title:
-          reason instanceof Error
-            ? reason.message
-            : "Zámek se nepodařilo změnit.",
-      }),
-  });
-  const addBreaks = async (sheet: AdminAttendanceSheet) => {
-    if (
-      !window.confirm(
-        `Doplnit zákonné pauzy do docházky ${sheet.employment_label}? Změnu nelze hromadně vrátit.`,
-      )
-    )
-      return;
-    try {
-      const result = await api.admin<{
-        inserted_pairs: number;
-        inserted_events: number;
-      }>("/api/v1/admin/attendance/breaks", {
-        method: "POST",
-        body: JSON.stringify({
-          employment_id: sheet.employment_id,
-          year,
-          month,
-          confirmed: true,
-        }),
-      });
-      setNotice({
-        kind: "success",
-        title: `Doplněno ${result.inserted_pairs} pauz (${result.inserted_events} průchodů).`,
-      });
-      refresh();
-    } catch (reason) {
-      setNotice({
-        kind: "error",
-        title:
-          reason instanceof Error
-            ? reason.message
-            : "Pauzy se nepodařilo doplnit.",
-      });
-    }
-  };
-  const saveStatus = async (
-    sheet: AdminAttendanceSheet,
-    day: AttendanceDay,
-    status: string,
-  ) => {
-    if (
-      status &&
-      !window.confirm(`Nastavit ${statusLabels[status]} pro ${day.date}?`)
-    )
-      return;
-    try {
-      await api.admin("/api/v1/admin/day-status", {
-        method: "PUT",
-        body: JSON.stringify({
-          employment_id: sheet.employment_id,
-          date: day.date,
-          status: status || null,
-          confirm_delete_conflicts: true,
-        }),
-      });
-      refresh();
-    } catch (reason) {
-      setNotice({
-        kind: "error",
-        title:
-          reason instanceof Error
-            ? reason.message
-            : "Stav dne se nepodařilo uložit.",
-      });
-    }
-  };
   return (
     <Panel title={t("adminMatrix.attendance.title")}>
       <div className="panel-body">
@@ -418,7 +193,6 @@ export function AdminAttendancePage() {
             />
           </label>
         </div>
-        {notice && <StatusMessage kind={notice.kind} title={notice.title} />}
         {sheets.isPending && (
           <StatusMessage
             kind="loading"
@@ -462,193 +236,9 @@ export function AdminAttendancePage() {
                 title={t("adminMatrix.attendance.empty")}
               />
             ) : (
-              visibleSheets.map((sheet) => (
-                <section
-                  className="attendance-sheet"
-                  key={sheet.employment_id}
-                  data-testid={`admin-attendance-${sheet.employment_id}`}
-                >
-                  <header className="attendance-sheet__header">
-                    <div>
-                      <h3>{sheet.employment_label}</h3>
-                      <small>
-                        {displayDate(sheet.start_date)} –{" "}
-                        {sheet.end_date
-                          ? displayDate(sheet.end_date)
-                          : "bez omezení"}
-                      </small>
-                    </div>
-                    <div className="action-row action-row--wrap">
-                      <Button
-                        variant="quiet"
-                        onClick={() =>
-                          lock.mutate({
-                            sheet,
-                            lockType: "attendance",
-                            locked: !sheet.attendance_locked,
-                          })
-                        }
-                      >
-                        {sheet.attendance_locked ? (
-                          <UnlockKeyhole />
-                        ) : (
-                          <LockKeyhole />
-                        )}
-                        {sheet.attendance_locked
-                          ? "Odemknout docházku"
-                          : "Zamknout docházku"}
-                      </Button>
-                      <Button
-                        variant="quiet"
-                        onClick={() =>
-                          lock.mutate({
-                            sheet,
-                            lockType: "shift_plan",
-                            locked: !sheet.shift_plan_locked,
-                          })
-                        }
-                      >
-                        {sheet.shift_plan_locked ? (
-                          <UnlockKeyhole />
-                        ) : (
-                          <LockKeyhole />
-                        )}
-                        {sheet.shift_plan_locked
-                          ? "Odemknout plán"
-                          : "Zamknout plán"}
-                      </Button>
-                      <Button
-                        disabled={sheet.attendance_locked}
-                        onClick={() => void addBreaks(sheet)}
-                      >
-                        <Utensils />
-                        Přidej pauzy
-                      </Button>
-                    </div>
-                  </header>
-                  <div className="data-table-wrap">
-                    <table className="data-table attendance-matrix">
-                      <thead>
-                        <tr>
-                          <th>Datum</th>
-                          <th>Průchody</th>
-                          <th>Nepřítomnost</th>
-                          {sheet.display_metrics.map((key) => (
-                            <th key={key}>{metricLabels[key]} (h)</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sheet.days.map((day) => (
-                          <tr key={day.date}>
-                            <td data-label="Datum">
-                              {new Intl.DateTimeFormat("cs-CZ").format(
-                                new Date(`${day.date}T12:00:00`),
-                              )}
-                              {day.planned_carryover_departure_time ? (
-                                <small className="matrix-date-note">
-                                  Přesah plánu do {day.planned_carryover_departure_time}
-                                </small>
-                              ) : null}
-                            </td>
-                            <td data-label="Průchody">
-                              <EventEditor
-                                day={day}
-                                sheet={sheet}
-                                refresh={refresh}
-                                report={(message) =>
-                                  setNotice({ kind: "error", title: message })
-                                }
-                              />
-                            </td>
-                            <td data-label="Nepřítomnost">
-                              <select
-                                aria-label={`Nepřítomnost ${sheet.employment_label} ${day.date}`}
-                                value={day.effective_status ?? ""}
-                                disabled={
-                                  !day.is_within_employment_period ||
-                                  (sheet.attendance_locked &&
-                                    sheet.shift_plan_locked) ||
-                                  (sheet.attendance_locked &&
-                                    attendanceStatuses.has(
-                                      day.effective_status ?? "",
-                                    )) ||
-                                  (sheet.shift_plan_locked &&
-                                    planStatuses.has(
-                                      day.effective_status ?? "",
-                                    )) ||
-                                  (sheet.attendance_locked &&
-                                    day.events.length > 0) ||
-                                  (sheet.shift_plan_locked &&
-                                    Boolean(
-                                      day.planned_arrival_time ||
-                                        day.planned_departure_time ||
-                                        day.planned_carryover_departure_time ||
-                                        day.planned_status,
-                                    ))
-                                }
-                                onChange={(event) =>
-                                  void saveStatus(
-                                    sheet,
-                                    day,
-                                    event.target.value,
-                                  )
-                                }
-                              >
-                                <option value="">Pracovní den</option>
-                                <option
-                                  value="HOLIDAY"
-                                  disabled={sheet.shift_plan_locked}
-                                >
-                                  Dovolená
-                                </option>
-                                <option
-                                  value="SICKNESS"
-                                  disabled={sheet.attendance_locked}
-                                >
-                                  Nemoc
-                                </option>
-                                <option
-                                  value="OFF"
-                                  disabled={sheet.shift_plan_locked}
-                                >
-                                  Volno
-                                </option>
-                                <option
-                                  value="PARAGRAPH"
-                                  disabled={sheet.attendance_locked}
-                                >
-                                  Paragraf
-                                </option>
-                              </select>
-                            </td>
-                            {sheet.display_metrics.map((key) => (
-                              <td
-                                key={key}
-                                data-label={`${metricLabels[key]} (h)`}
-                              >
-                                {day.worked?.[key]
-                                  ? formatHours(day.worked[key]!.hours, "cs-CZ")
-                                  : "—"}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                        <tr>
-                          <th colSpan={3}>Součet</th>
-                          {sheet.display_metrics.map((key) => (
-                            <th key={key}>
-                              {sheet.worked?.[key]
-                                ? formatHours(sheet.worked[key]!.hours, "cs-CZ")
-                                : "—"}
-                            </th>
-                          ))}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              ))
+              <>
+                <AdminAttendanceMatrix sheets={visibleSheets} refresh={refresh} onLock={(sheet) => lock.mutate(sheet)} onBreaks={(sheet) => { if (window.confirm("Doplnit chybějící zákonné pauzy?")) addBreaks.mutate(sheet); }} />
+              </>
             )}
           </>
         )}
@@ -843,168 +433,55 @@ export function AdminShiftPlanPage() {
                 title={t("adminMatrix.shiftPlan.empty")}
               />
             ) : (
-              rows.map((row) => (
-                <section
-                  className="attendance-sheet"
-                  key={row.employment_id}
-                  data-testid={`admin-shift-plan-${row.employment_id}`}
-                >
-                  <header className="attendance-sheet__header">
-                    <h3>{row.display_label}</h3>
-                    <Button
-                      variant="quiet"
-                      onClick={() =>
-                        lock.mutate({ row, locked: !row.shift_plan_locked })
-                      }
-                    >
-                      {row.shift_plan_locked ? (
-                        <UnlockKeyhole />
-                      ) : (
-                        <LockKeyhole />
-                      )}
-                      {row.shift_plan_locked
-                        ? "Odemknout plán"
-                        : "Zamknout plán"}
-                    </Button>
-                  </header>
-                  <div className="data-table-wrap">
-                    <table className="data-table shift-plan-matrix">
-                      <thead>
-                        <tr>
-                          <th>Datum</th>
-                          <th>Příchod</th>
-                          <th>Odchod</th>
-                          <th>Stav</th>
-                          {row.display_metrics.map((key) => (
-                            <th key={key}>{plannedMetricLabels[key]} (h)</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {row.days.map((day) => (
-                          <tr key={day.date}>
-                            <td data-label="Datum">
-                              {new Intl.DateTimeFormat("cs-CZ").format(
-                                new Date(`${day.date}T12:00:00`),
-                              )}
-                              {day.carryover_departure_time ? (
-                                <small className="matrix-date-note">
-                                  Přesah do {day.carryover_departure_time}
-                                </small>
-                              ) : null}
+              <div className="data-table-wrap group-plan-table-wrap admin-shift-plan-matrix-wrap">
+                <table className="data-table matrix shift-plan-matrix">
+                  <thead>
+                    <tr>
+                      <th className="matrix__sticky-left">Úvazek</th>
+                      {rows[0]?.days.map((day) => (
+                        <th className="matrix__day-head" key={day.date}>
+                          <strong>{day.date.slice(-2)}</strong>
+                          <span>{new Intl.DateTimeFormat("cs-CZ", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</span>
+                        </th>
+                      ))}
+                      <th>Souhrn</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.employment_id} data-testid={`admin-shift-plan-${row.employment_id}`}>
+                        <th className="matrix__sticky-left">
+                          <div className="matrix-user">
+                            <strong>{row.display_label}</strong>
+                            <Button variant="quiet" onClick={() => lock.mutate({ row, locked: !row.shift_plan_locked })}>
+                              {row.shift_plan_locked ? <UnlockKeyhole /> : <LockKeyhole />}
+                              {row.shift_plan_locked ? "Odemknout plán" : "Zamknout plán"}
+                            </Button>
+                          </div>
+                        </th>
+                        {row.days.map((day) => {
+                          const disabled = row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status);
+                          const planTimes = chronologicalPlanBoundaries({ planned_carryover_departure_time: day.carryover_departure_time, planned_arrival_time: day.arrival_time, planned_departure_time: day.departure_time });
+                          const carryover = Boolean(day.carryover_departure_time);
+                          return (
+                            <td className="day-cell" key={day.date}>
+                              <div className="matrix-day-editor">
+                                {Array.from({ length: Math.max(2, planTimes.length) }, (_, index) => <ClockInput key={index} aria-label={`${row.display_label} ${day.date} PRŮCHOD ${index + 1}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />)}
+                                <select aria-label={`Stav plánu ${row.display_label} ${day.date}`} value={day.status ?? ""} disabled={disabled || Boolean(day.carryover_departure_time)} onChange={(event) => { const nextStatus = event.target.value || null; if (nextStatus && (day.arrival_time || day.departure_time) && !window.confirm("Nahradit existující směnu celodenním stavem? Časy směny budou odstraněny.")) return; void save.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: null, departure_time: null, status: nextStatus, confirm_delete_conflicts: Boolean(nextStatus) }); }}>
+                                  <option value="">Směna</option><option value="HOLIDAY">Dovolená</option><option value="OFF">Volno</option>
+                                </select>
+                              </div>
                             </td>
-                            <td data-label="Příchod">
-                              <ClockInput
-                                aria-label={`${row.display_label} ${day.date} příchod`}
-                                value={day.arrival_time ?? ""}
-                                disabled={
-                                  row.shift_plan_locked ||
-                                  !day.is_within_employment_period ||
-                                  Boolean(day.effective_status) ||
-                                  day.is_carryover
-                                }
-                                onCommit={(value) =>
-                                  save.mutate({
-                                    employment_id: row.employment_id,
-                                    date: day.date,
-                                    arrival_time: value || null,
-                                    departure_time: day.departure_time,
-                                    status: day.status,
-                                  })
-                                }
-                              />
-                            </td>
-                            <td data-label="Odchod">
-                              <ClockInput
-                                aria-label={`${row.display_label} ${day.date} odchod`}
-                                value={day.departure_time ?? ""}
-                                disabled={
-                                  row.shift_plan_locked ||
-                                  !day.is_within_employment_period ||
-                                  Boolean(day.effective_status) ||
-                                  day.is_carryover
-                                }
-                                onCommit={(value) =>
-                                  save.mutate({
-                                    employment_id: row.employment_id,
-                                    date: day.date,
-                                    arrival_time: day.arrival_time,
-                                    departure_time: value || null,
-                                    status: day.status,
-                                  })
-                                }
-                              />
-                            </td>
-                            <td data-label="Stav">
-                              <select
-                                aria-label={`Stav plánu ${row.display_label} ${day.date}`}
-                                value={day.status ?? ""}
-                                disabled={
-                                  row.shift_plan_locked ||
-                                  !day.is_within_employment_period ||
-                                  Boolean(day.carryover_departure_time) ||
-                                  Boolean(day.effective_status && !day.status)
-                                }
-                                onChange={(event) => {
-                                  const nextStatus = event.target.value || null;
-                                  if (
-                                    nextStatus &&
-                                    (day.arrival_time || day.departure_time) &&
-                                    !window.confirm(
-                                      "Nahradit existující směnu celodenním stavem? Časy směny budou odstraněny.",
-                                    )
-                                  )
-                                    return;
-                                  save.mutate({
-                                    employment_id: row.employment_id,
-                                    date: day.date,
-                                    arrival_time: null,
-                                    departure_time: null,
-                                    status: nextStatus,
-                                    confirm_delete_conflicts: Boolean(nextStatus),
-                                  });
-                                }}
-                              >
-                                <option value="">Směna</option>
-                                <option value="HOLIDAY">Dovolená</option>
-                                <option value="OFF">Volno</option>
-                              </select>
-                            </td>
-                            {row.display_metrics.map((key) => (
-                              <td
-                                key={key}
-                                data-label={`${plannedMetricLabels[key]} (h)`}
-                              >
-                                {day.planned?.[key]
-                                  ? formatHours(
-                                      day.planned[key]!.hours,
-                                      "cs-CZ",
-                                    )
-                                  : "—"}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                        {row.display_metrics.length > 0 ? (
-                          <tr>
-                            <th colSpan={4}>Součet</th>
-                            {row.display_metrics.map((key) => (
-                              <th key={key}>
-                                {row.summary.planned?.[key]
-                                  ? formatHours(
-                                      row.summary.planned[key]!.hours,
-                                      "cs-CZ",
-                                    )
-                                  : "—"}
-                              </th>
-                            ))}
-                          </tr>
-                        ) : null}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              ))
+                          );
+                        })}
+                        <td className="matrix__summary">
+                          {row.display_metrics.map((key) => <span key={key}>{plannedMetricLabels[key]}: {row.summary.planned?.[key] ? formatHours(row.summary.planned[key]!.hours, "cs-CZ") : "—"}</span>)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}

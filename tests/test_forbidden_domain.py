@@ -31,6 +31,7 @@ TEXT_SUFFIXES = {
 BACKEND_ALLOWED = {
     Path("AGENTS.md"),
     Path("app/config.py"),
+    Path("docs/SSOT_CURRENT.md"),
     Path("scripts/check_repo_invariants.py"),
     Path("tests/test_forbidden_domain.py"),
 }

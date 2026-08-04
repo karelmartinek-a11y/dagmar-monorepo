@@ -914,7 +914,8 @@
     "app/api/v1/",
     "web/src/App.tsx",
     "web/src/api/client.ts",
-    ".github/workflows/ci-cd.yml"
+    ".github/workflows/ci-cd.yml",
+    "docs/SSOT_CURRENT.md"
   ],
   "main_components": [
     "app/main.py",
@@ -942,6 +943,12 @@
     "external_auth_linking",
     "public_instance_registration"
   ],
+  "normative_ssot": {
+    "line_count": 1998,
+    "path": "docs/SSOT_CURRENT.md",
+    "revision": "FORENSIC-FINAL-2026-08-03",
+    "sha256": "4624b5b06590b1009b5062e6c67e055cd18bd5cffa2ac0ccf01f8443dabfa0e9"
+  },
   "production": {
     "api_base_path": "/api/v1/",
     "backend_bind": "127.0.0.1:8101",

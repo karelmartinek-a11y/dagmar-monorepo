@@ -49,26 +49,16 @@ test.describe("real event backend", () => {
     await expect(page.getByTestId("attendance-day-2026-08-03")).toContainText(
       "plán 08:30",
     );
-    const deleteEvent = page
-      .getByTestId("attendance-day-2026-08-03")
-      .getByRole("button", { name: /Odstranit/ })
-      .first();
-    page.once("dialog", async (dialog) => {
-      expect(dialog.message()).toContain("Opravdu odstranit vybraný pár průchodů");
-      await dialog.dismiss();
-    });
-    await deleteEvent.click();
-    await expect(deleteEvent).toBeVisible();
     await expect(
       page.getByLabel("Celodenní nepřítomnost 2026-08-11"),
     ).toHaveValue("PARAGRAPH");
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
-    await expect(page.getByLabel("Plánovaný odchod 2026-08-01")).toHaveValue(
+    await expect(page.getByLabel("Plánovaný PRŮCHOD 2 2026-08-01")).toHaveValue(
       "02:00",
     );
-    await expect(page.getByLabel("Plánovaný odchod 2026-08-01")).toBeDisabled();
+    await expect(page.getByLabel("Plánovaný PRŮCHOD 2 2026-08-01")).toBeDisabled();
     await expect(
-      page.getByText("přesah z předchozího dne", { exact: true }),
+      page.getByText("plán z předchozího dne", { exact: true }),
     ).toBeVisible();
     await page.getByRole("tab", { name: "Docházka", exact: true }).click();
 
@@ -77,23 +67,8 @@ test.describe("real event backend", () => {
       page.getByText("červenec 2026", { exact: false }),
     ).toBeVisible();
     await expect(page.getByText("Plán zamčen")).toBeVisible();
-    const overnightDay = page.getByTestId("attendance-day-2026-07-02");
-    await overnightDay.getByLabel("Nový IN 2026-07-02").fill("22:00");
-    await overnightDay
-      .getByLabel("Nový odchod páru 2026-07-02")
-      .fill("02:00");
-    await overnightDay
-      .getByLabel("Datum odchodu páru 2026-07-02")
-      .fill("2026-07-03");
-    await overnightDay.getByRole("button", { name: "Přidat" }).click();
-    await expect(overnightDay.getByLabel("2026-07-02 IN 1")).toHaveValue(
-      "22:00",
-    );
-    page.once("dialog", (dialog) => dialog.accept());
-    await overnightDay
-      .getByRole("button", { name: "Odstranit interval 2026-07-02" })
-      .click();
-    await expect(overnightDay.getByLabel("2026-07-02 IN 1")).toHaveCount(0);
+    const overnightPass = page.getByLabel(/2026-07-02 PRŮCHOD 1/);
+    await expect(overnightPass).toHaveValue("22:00");
     const julyStatus = page.getByLabel("Celodenní nepřítomnost 2026-07-03");
     await expect(julyStatus).toBeEnabled();
     await expect(julyStatus.locator('option[value="HOLIDAY"]')).toHaveAttribute(
@@ -118,7 +93,7 @@ test.describe("real event backend", () => {
     await expect(juneStatus).toBeDisabled();
 
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
-    await expect(page.getByLabel("Plánovaný příchod 2026-06-08")).toHaveValue(
+    await expect(page.getByLabel("Plánovaný PRŮCHOD 1 2026-06-08")).toHaveValue(
       "08:00",
     );
     await page.getByRole("tab", { name: "Skupinový plán služeb" }).click();
@@ -183,7 +158,7 @@ test.describe("real event backend", () => {
       page.getByText("E2E skrytý úvazek", { exact: false }),
     ).toHaveCount(0);
     const augustAttendanceSheet = page
-      .getByTestId(/admin-attendance-/)
+      .locator(".admin-attendance-matrix tbody tr")
       .filter({ hasText: "E2E provozní úvazek" });
     await augustAttendanceSheet
       .getByRole("button", { name: "Zamknout docházku" })
@@ -211,14 +186,14 @@ test.describe("real event backend", () => {
     ).toBeVisible();
     await page.getByLabel("Měsíc").fill("6");
     const lockedAttendanceSheet = page
-      .getByTestId(/admin-attendance-/)
+      .locator(".admin-attendance-matrix tbody tr")
       .filter({ hasText: "E2E provozní úvazek" });
     await expect(
       lockedAttendanceSheet.getByLabel(/Nepřítomnost .* 2026-06-08/),
     ).toBeDisabled();
     await page.goto("/admin/plan-sluzeb");
     await expect(page.getByTestId(/admin-shift-plan-/).first()).toBeVisible();
-    await expect(page.getByLabel(/2026-08-03 příchod/).first()).toBeVisible();
+    await expect(page.getByLabel(/2026-08-03 PRŮCHOD 1/).first()).toBeVisible();
     const ownPlan = page
       .getByTestId(/admin-shift-plan-/)
       .filter({ hasText: "E2E provozní úvazek" });
