@@ -64,8 +64,8 @@ test.describe("real event backend", () => {
       page.getByText("červenec 2026", { exact: false }),
     ).toBeVisible();
     await expect(page.getByText("Plán zamčen")).toBeVisible();
-    const overnightPass = page.getByLabel(/2026-07-02 PRŮCHOD 1/);
-    await expect(overnightPass).toHaveValue("22:00");
+    const julyFirstPass = page.getByLabel(/2026-07-01 PRŮCHOD 1/);
+    await expect(julyFirstPass).toHaveValue("08:00");
     const julyStatus = page.getByLabel("Celodenní nepřítomnost 2026-07-03");
     await expect(julyStatus).toBeEnabled();
     await expect(julyStatus.locator('option[value="HOLIDAY"]')).toHaveAttribute(
@@ -90,7 +90,7 @@ test.describe("real event backend", () => {
     await expect(juneStatus).toBeDisabled();
 
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
-    await expect(page.getByLabel("Plánovaný PRŮCHOD 1 2026-06-08")).toHaveValue(
+    await expect(page.getByLabel("PLÁN – PRŮCHOD 1 2026-06-08")).toHaveValue(
       "08:00",
     );
     await page.getByRole("tab", { name: "Skupinový plán služeb" }).click();
