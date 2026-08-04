@@ -189,7 +189,9 @@ test.describe("real event backend", () => {
     ).toBeDisabled();
     await page.goto("/admin/plan-sluzeb");
     await expect(page.getByTestId(/admin-shift-plan-/).first()).toBeVisible();
-    await expect(page.getByLabel(/2026-08-03 PRŮCHOD 1/).first()).toBeVisible();
+    await expect(
+      page.getByLabel(/PLÁN – PRŮCHOD 1 2026-08-03/).first(),
+    ).toBeVisible();
     const ownPlan = page
       .getByTestId(/admin-shift-plan-/)
       .filter({ hasText: "E2E provozní úvazek" });
