@@ -88,7 +88,7 @@ test.describe("real event backend", () => {
       page
         .locator(".group-plan-table-wrap .admin-employment-table")
         .filter({ hasText: "E2E provozní úvazek" })
-        .getByText("Volno", { exact: true }),
+        .getByText("Volno", { exact: true }).first(),
     ).toBeVisible();
     await page.getByLabel("Skupina").selectOption("");
     await expect(page.getByText("Načítám skupinový plán")).not.toBeVisible();
