@@ -279,8 +279,8 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .employee-nowbar { bottom:var(--employee-keyboard-offset,0px);transition:bottom .12s ease-out; }
 
 @media (max-width:760px) {
-  html,body { overflow-x:hidden; }
-  .employee-app,.employee-main,.employee-page { width:100%;max-width:100%;min-width:0;overflow:visible; }
+  html,body,#root { width:100%;max-width:100%;overflow-x:clip; }
+  .employee-app,.employee-main,.employee-page { width:100%;max-width:100%;min-width:0;overflow-x:clip; }
   .employee-topbar { top:0;height:54px;max-height:15svh;padding:env(safe-area-inset-top) max(.45rem,env(safe-area-inset-right)) 0 max(.45rem,env(safe-area-inset-left));gap:.3rem; }
   .employee-topbar>span { display:none; }
   .employee-topbar .brand { flex:0 1 auto; }
