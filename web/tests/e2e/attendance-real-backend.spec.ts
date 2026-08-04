@@ -80,9 +80,7 @@ test.describe("real event backend", () => {
     await page.getByRole("tab", { name: "Skupinový plán služeb" }).click();
     await expect(page.getByLabel("Skupina")).not.toHaveValue("");
     await expect(
-      page
-        .locator(".group-plan-table")
-        .getByRole("columnheader", { name: "Plán (h)" }),
+      page.locator(".group-plan-table .employee-month-table thead"),
     ).toBeVisible();
     await page.getByRole("button", { name: "›" }).click();
     await page.getByRole("button", { name: "›" }).click();
