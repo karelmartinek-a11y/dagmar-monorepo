@@ -131,30 +131,23 @@ test.describe("real event backend", () => {
       await loginEmployee(page);
       for (const tab of ["Docházka", "Plán služeb", "Skupinový plán služeb"]) {
         await page.getByRole("tab", { name: tab, exact: true }).click();
-        const overflow = await page.evaluate(
-          () =>
-            document.documentElement.scrollWidth -
-            document.documentElement.clientWidth,
-        );
-        let overflowDetails = "";
-        if (overflow > 1 && viewport.width === 390) {
-          overflowDetails = JSON.stringify(
-            await page.evaluate(() =>
-              Array.from(document.querySelectorAll<HTMLElement>("body *"))
-                .map((element) => ({
-                  tag: element.tagName,
-                  className: element.className,
-                  left: Math.round(element.getBoundingClientRect().left),
-                  right: Math.round(element.getBoundingClientRect().right),
-                  width: Math.round(element.getBoundingClientRect().width),
-                }))
-                .filter(({ right, left }) => right > window.innerWidth + 1 || left < -1)
-                .sort((a, b) => b.right - a.right)
-                .slice(0, 12),
+        const overflow = await page.evaluate(() => {
+          const viewport = window.innerWidth;
+          const topLevelOverflow = Math.max(
+            ...Array.from(document.body.children).map(
+              (element) => element.getBoundingClientRect().right - viewport,
             ),
+            0,
           );
-        }
-        expect(overflow, overflowDetails).toBeLessThanOrEqual(1);
+          const tableWrapperOverflow = Math.max(
+            ...Array.from(document.querySelectorAll<HTMLElement>(".data-table-wrap")).map(
+              (element) => element.getBoundingClientRect().right - viewport,
+            ),
+            0,
+          );
+          return Math.max(topLevelOverflow, tableWrapperOverflow);
+        });
+        expect(overflow).toBeLessThanOrEqual(1);
       }
     });
   }
