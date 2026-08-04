@@ -247,7 +247,7 @@ function EmployeeAttendanceTable({
               {Array.from({ length: PASS_COLUMNS }, (_, index) => {
                 const event = day.events[index];
                 const plannedTime = plannedHintForEvent(day, index);
-                const editable = index <= day.events.length && !locked && day.is_within_employment_period && !day.effective_status;
+                const editable = !locked && day.is_within_employment_period && !day.effective_status;
                 return (
                   <td key={index}>
                     {day.effective_status ? <strong className="day-absence-label">{absenceLabel(day.effective_status)}</strong> : <><em className="planned-hint">{plannedTime ? `plán ${plannedTime}` : ""}</em><ClockInput aria-label={`${month.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={event ? eventTime(event) : ""} disabled={!editable} onCommit={(value) => update(day, event, value)} /></>}

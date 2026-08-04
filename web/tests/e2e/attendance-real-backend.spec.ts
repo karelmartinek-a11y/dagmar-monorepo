@@ -49,6 +49,9 @@ test.describe("real event backend", () => {
     await expect(page.getByTestId("attendance-day-2026-08-03")).toContainText(
       "plán 08:30",
     );
+    await expect(
+      page.getByTestId("attendance-day-2026-08-03").getByLabel(/PRŮCHOD 3/),
+    ).toBeEnabled();
     await expect(page.getByTestId("attendance-day-2026-08-11")).toContainText("Paragraf");
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
     await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toHaveValue(
