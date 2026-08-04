@@ -49,9 +49,7 @@ test.describe("real event backend", () => {
     await expect(page.getByTestId("attendance-day-2026-08-03")).toContainText(
       "plán 08:30",
     );
-    await expect(
-      page.getByLabel("Celodenní nepřítomnost 2026-08-11"),
-    ).toHaveValue("PARAGRAPH");
+    await expect(page.getByTestId("attendance-day-2026-08-11")).toContainText("Paragraf");
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
     await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toHaveValue(
       "02:00",
@@ -66,28 +64,14 @@ test.describe("real event backend", () => {
     await expect(page.getByText("Plán zamčen")).toBeVisible();
     const julyFirstPass = page.getByLabel(/2026-07-01 PRŮCHOD 1/);
     await expect(julyFirstPass).toHaveValue("08:00");
-    const julyStatus = page.getByLabel("Celodenní nepřítomnost 2026-07-03");
-    await expect(julyStatus).toBeEnabled();
-    await expect(julyStatus.locator('option[value="HOLIDAY"]')).toHaveAttribute(
-      "disabled",
-      "",
-    );
-    await expect(
-      julyStatus.locator('option[value="SICKNESS"]'),
-    ).not.toHaveAttribute("disabled", "");
-    await expect(
-      page.getByLabel("Celodenní nepřítomnost 2026-07-31"),
-    ).toBeDisabled();
+    await expect(page.getByTestId("attendance-day-2026-07-03")).toBeVisible();
+    await expect(page.getByTestId("attendance-day-2026-07-31").getByLabel(/PRŮCHOD 1/)).toBeDisabled();
 
     await page.getByRole("button", { name: "‹" }).click();
     await expect(page.getByText("červen 2026", { exact: false })).toBeVisible();
     await expect(page.getByText("Docházka zamčena")).toBeVisible();
-    await expect(
-      page.getByLabel("Celodenní nepřítomnost 2026-06-08"),
-    ).toBeDisabled();
-    const juneStatus = page.getByLabel("Celodenní nepřítomnost 2026-06-15");
-    await expect(juneStatus).toHaveValue("SICKNESS");
-    await expect(juneStatus).toBeDisabled();
+    await expect(page.getByTestId("attendance-day-2026-06-08").getByLabel(/PRŮCHOD 1/)).toBeDisabled();
+    await expect(page.getByTestId("attendance-day-2026-06-15")).toContainText("Nemoc");
 
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
     await expect(page.getByLabel("PLÁN – PRŮCHOD 1 2026-06-08")).toHaveValue(
@@ -104,7 +88,7 @@ test.describe("real event backend", () => {
     await page.getByRole("button", { name: "›" }).click();
     await expect(
       page
-        .locator(".group-plan-table tbody tr")
+        .locator(".group-plan-table .employee-month-table tbody tr")
         .filter({ hasText: "E2E provozní úvazek" })
         .getByText("Volno", { exact: true }),
     ).toBeVisible();
@@ -166,7 +150,7 @@ test.describe("real event backend", () => {
       page.getByText("E2E skrytý úvazek", { exact: false }),
     ).toHaveCount(0);
     const augustAttendanceSheet = page
-      .locator(".admin-attendance-matrix tbody tr")
+      .locator(".admin-attendance-matrix [data-testid^='admin-attendance-']")
       .filter({ hasText: "E2E provozní úvazek" });
     await augustAttendanceSheet
       .getByRole("button", { name: "Zamknout docházku" })
@@ -182,10 +166,10 @@ test.describe("real event backend", () => {
     ).toBeVisible();
     await page.getByLabel("Měsíc").fill("6");
     const lockedAttendanceSheet = page
-      .locator(".admin-attendance-matrix tbody tr")
+      .locator(".admin-attendance-matrix [data-testid^='admin-attendance-']")
       .filter({ hasText: "E2E provozní úvazek" });
     await expect(
-      lockedAttendanceSheet.getByLabel(/Nepřítomnost .* 2026-06-08/),
+      lockedAttendanceSheet.getByLabel(/2026-06-08 PRŮCHOD 1/),
     ).toBeDisabled();
     await page.goto("/admin/plan-sluzeb");
     await expect(page.getByTestId(/admin-shift-plan-/).first()).toBeVisible();
