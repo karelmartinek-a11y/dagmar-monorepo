@@ -90,16 +90,32 @@ def add_event_with_breaks(
         (item for item in reversed(existing) if prague_now(item.occurred_at) < event_time),
         None,
     )
-    additions = [event]
-    if event.event_type == AttendanceEventType.OUT and previous is not None and employment.automatic_breaks_enabled:
-        for occurred_at, event_type in automatic_break_events(prague_now(previous.occurred_at), prague_now(event.occurred_at)):
-            break_event = AttendanceEvent(
-                employment_id=employment.id,
-                occurred_at=occurred_at,
-                event_type=AttendanceEventType(event_type),
-            )
-            additions.append(break_event)
-    if not _strict_sequence([*existing, *additions]):
-        raise ValueError("Průchody musí střídat IN a OUT.")
-    db.add_all(additions)
-    return additions
+    requested_type = event.event_type
+    alternate_type = (
+        AttendanceEventType.OUT
+        if requested_type == AttendanceEventType.IN
+        else AttendanceEventType.IN
+    )
+    for candidate_type in (requested_type, alternate_type):
+        event.event_type = candidate_type
+        additions = [event]
+        if (
+            candidate_type == AttendanceEventType.OUT
+            and previous is not None
+            and employment.automatic_breaks_enabled
+        ):
+            for occurred_at, break_type in automatic_break_events(
+                prague_now(previous.occurred_at), prague_now(event.occurred_at)
+            ):
+                additions.append(
+                    AttendanceEvent(
+                        employment_id=employment.id,
+                        occurred_at=occurred_at,
+                        event_type=AttendanceEventType(break_type),
+                    )
+                )
+        if _strict_sequence([*existing, *additions]):
+            db.add_all(additions)
+            return additions
+    event.event_type = requested_type
+    raise ValueError("Průchody musí střídat IN a OUT.")

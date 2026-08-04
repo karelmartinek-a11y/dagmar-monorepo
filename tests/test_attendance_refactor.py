@@ -483,6 +483,38 @@ def test_event_creation_validates_period_and_chronological_neighbors() -> None:
             add_event_with_breaks(db, employment=employment, event=same_timestamp)
 
 
+def test_event_creation_uses_chronological_slot_when_requested_type_is_stale() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db, EmploymentType.DPP_DPC)
+        db.add_all(
+            [
+                _event(employment.id, datetime(2026, 8, 1, 8), AttendanceEventType.IN),
+                _event(employment.id, datetime(2026, 8, 1, 16), AttendanceEventType.OUT),
+            ]
+        )
+        db.flush()
+        inserted = _event(
+            employment.id,
+            datetime(2026, 8, 2, 8),
+            AttendanceEventType.OUT,
+        )
+
+        add_event_with_breaks(db, employment=employment, event=inserted)
+
+        assert inserted.event_type == AttendanceEventType.IN
+        assert has_strict_event_sequence(
+            list(
+                db.execute(
+                    select(AttendanceEvent)
+                    .where(AttendanceEvent.employment_id == employment.id)
+                    .order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
+                ).scalars()
+            )
+        )
+
+
 def test_event_creation_rejects_any_addition_to_malformed_migrated_sequence() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
