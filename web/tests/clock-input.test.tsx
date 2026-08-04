@@ -74,6 +74,16 @@ describe("ClockInput", () => {
     expect(input).toHaveValue("09:00");
   });
 
+  it("clears an insertion cell after a successful commit so refreshed data owns its position", async () => {
+    const onCommit = vi.fn();
+    render(<ClockInput aria-label="Nový průchod" value="" onCommit={onCommit} />);
+    const input = screen.getByLabelText("Nový průchod");
+    fireEvent.change(input, { target: { value: "124" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith("01:24"));
+    expect(input).toHaveValue("");
+  });
+
   it("cancels a changed value with Escape without committing it", () => {
     const onCommit = vi.fn();
     render(<ClockInput aria-label="Čas" value="08:00" onCommit={onCommit} />);

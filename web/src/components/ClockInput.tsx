@@ -61,7 +61,7 @@ export function ClockInput({
       setError(null);
       try {
         await onCommit(normalized);
-        setDraft(normalized);
+        setDraft(value === "" && normalized !== "" ? "" : normalized);
         setSaved(true);
         if (savedTimer.current) clearTimeout(savedTimer.current);
         savedTimer.current = setTimeout(() => setSaved(false), 650);
