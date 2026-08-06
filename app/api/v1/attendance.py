@@ -16,7 +16,6 @@ from app.services.attendance_events import add_closed_interval_with_breaks, add_
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
-    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -547,10 +546,6 @@ def update_attendance_event(
     before_intervals = interval_signatures([*events, event])
     event.occurred_at = occurred_at
     ordered = sorted([*events, event], key=lambda item: (prague_now(item.occurred_at), item.id))
-    if not has_strict_event_sequence(ordered):
-        raise_api_error(
-            409, "attendance_event_alternation_conflict", "Průchody musí střídat IN a OUT."
-        )
     try:
         db.flush()
     except Exception:
@@ -633,12 +628,6 @@ def delete_attendance_event(
         deleted_ids.add(paired.id)
         timestamps.append(prague_now(paired.occurred_at))
     remaining_events = [item for item in events if item.id not in deleted_ids]
-    if not has_strict_event_sequence(remaining_events):
-        raise_api_error(
-            409,
-            "attendance_event_alternation_conflict",
-            "Samostatný průchod nelze odstranit, protože by se porušilo pořadí IN a OUT.",
-        )
     changed_days = changed_event_days(
         before_intervals, interval_signatures(remaining_events), timestamps=tuple(timestamps)
     )

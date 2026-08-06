@@ -12,21 +12,6 @@ from app.services.prague_time import prague_now
 from app.services.time_intervals import automatic_break_events
 
 
-def _strict_sequence(events: list[AttendanceEvent]) -> bool:
-    ordered = sorted(
-        events,
-        key=lambda item: (
-            prague_now(item.occurred_at),
-            item.id if item.id is not None else -1,
-        ),
-    )
-    return all(
-        event.event_type
-        == (AttendanceEventType.IN if index % 2 == 0 else AttendanceEventType.OUT)
-        for index, event in enumerate(ordered)
-    )
-
-
 def add_closed_interval_with_breaks(
     db: Session,
     *,
@@ -39,13 +24,6 @@ def add_closed_interval_with_breaks(
     end = prague_now(ended_at)
     if end <= start:
         raise ValueError("Odchod musí následovat po příchodu.")
-    existing = list(
-        db.execute(
-            select(AttendanceEvent)
-            .where(AttendanceEvent.employment_id == employment.id)
-            .order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
-        ).scalars()
-    )
     additions = [
         AttendanceEvent(
             employment_id=employment.id,
@@ -69,8 +47,6 @@ def add_closed_interval_with_breaks(
             event_type=AttendanceEventType.OUT,
         )
     )
-    if not _strict_sequence([*existing, *additions]):
-        raise ValueError("Průchody musí střídat IN a OUT.")
     db.add_all(additions)
     return additions
 
@@ -91,31 +67,21 @@ def add_event_with_breaks(
         None,
     )
     requested_type = event.event_type
-    alternate_type = (
-        AttendanceEventType.OUT
-        if requested_type == AttendanceEventType.IN
-        else AttendanceEventType.IN
-    )
-    for candidate_type in (requested_type, alternate_type):
-        event.event_type = candidate_type
-        additions = [event]
-        if (
-            candidate_type == AttendanceEventType.OUT
-            and previous is not None
-            and employment.automatic_breaks_enabled
+    additions = [event]
+    if (
+        requested_type == AttendanceEventType.OUT
+        and previous is not None
+        and employment.automatic_breaks_enabled
+    ):
+        for occurred_at, break_type in automatic_break_events(
+            prague_now(previous.occurred_at), prague_now(event.occurred_at)
         ):
-            for occurred_at, break_type in automatic_break_events(
-                prague_now(previous.occurred_at), prague_now(event.occurred_at)
-            ):
-                additions.append(
-                    AttendanceEvent(
-                        employment_id=employment.id,
-                        occurred_at=occurred_at,
-                        event_type=AttendanceEventType(break_type),
-                    )
+            additions.append(
+                AttendanceEvent(
+                    employment_id=employment.id,
+                    occurred_at=occurred_at,
+                    event_type=AttendanceEventType(break_type),
                 )
-        if _strict_sequence([*existing, *additions]):
-            db.add_all(additions)
-            return additions
-    event.event_type = requested_type
-    raise ValueError("Průchody musí střídat IN a OUT.")
+            )
+    db.add_all(additions)
+    return additions

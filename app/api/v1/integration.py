@@ -25,7 +25,6 @@ from app.services.attendance_events import add_closed_interval_with_breaks, add_
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
-    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -147,30 +146,6 @@ def _ensure_attendance_months_unlocked(
                 "attendance_month_locked",
                 "Docházka za zvolené období je uzamčena.",
             )
-
-
-def _validate_event_order(
-    db: Session, *, event: models.AttendanceEvent, exclude_id: int | None = None
-) -> None:
-    query = select(models.AttendanceEvent).where(
-        models.AttendanceEvent.employment_id == event.employment_id
-    )
-    if exclude_id is not None:
-        query = query.where(models.AttendanceEvent.id != exclude_id)
-    existing = list(db.execute(query).scalars())
-    ordered = sorted(
-        [*existing, event],
-        key=lambda item: (prague_now(item.occurred_at), item.id or 0),
-    )
-    if ordered[0].event_type != models.AttendanceEventType.IN or any(
-        left.event_type == right.event_type
-        for left, right in zip(ordered, ordered[1:], strict=False)
-    ):
-        raise_integration_error(
-            status.HTTP_409_CONFLICT,
-            "attendance_event_alternation_conflict",
-            "Průchody musí střídat IN a OUT.",
-        )
 
 
 def _page(rows: list[dict[str, Any]], limit: int) -> ListResponse:
@@ -457,7 +432,6 @@ def update_attendance_event(
     )
     before_intervals = interval_signatures([*existing_events, event])
     event.occurred_at = payload.occurred_at
-    _validate_event_order(db, event=event, exclude_id=event.id)
     try:
         db.flush()
     except Exception:
@@ -540,12 +514,6 @@ def delete_attendance_event(
         deleted_ids.add(paired.id)
         timestamps.append(prague_now(paired.occurred_at))
     remaining_events = [item for item in events if item.id not in deleted_ids]
-    if not has_strict_event_sequence(remaining_events):
-        raise_integration_error(
-            status.HTTP_409_CONFLICT,
-            "attendance_event_alternation_conflict",
-            "Samostatný průchod nelze odstranit, protože by se porušilo pořadí IN a OUT.",
-        )
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(remaining_events),

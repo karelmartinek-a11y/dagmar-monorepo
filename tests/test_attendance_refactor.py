@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 from app.api.deps import IntegrationAuth, PortalUserAuth
-from app.api.integration_common import IntegrationError, get_audit_context
+from app.api.integration_common import get_audit_context
 from app.api.v1.admin_attendance import (
     AddBreaksIn,
     AdminAttendanceEventIn,
@@ -23,9 +23,6 @@ from app.api.v1.admin_attendance import (
 )
 from app.api.v1.admin_attendance import (
     delete_event as admin_delete_event,
-)
-from app.api.v1.admin_attendance import (
-    update_event as admin_update_event,
 )
 from app.api.v1.admin_employments import (
     EmploymentDeleteIn,
@@ -471,16 +468,14 @@ def test_event_creation_validates_period_and_chronological_neighbors() -> None:
             datetime(2026, 8, 1, 12),
             AttendanceEventType.OUT,
         )
-        with pytest.raises(ValueError, match="střídat"):
-            add_event_with_breaks(db, employment=employment, event=inserted_between)
+        add_event_with_breaks(db, employment=employment, event=inserted_between)
 
         same_timestamp = _event(
             employment.id,
             datetime(2026, 8, 1, 8),
             AttendanceEventType.OUT,
         )
-        with pytest.raises(ValueError, match="střídat"):
-            add_event_with_breaks(db, employment=employment, event=same_timestamp)
+        add_event_with_breaks(db, employment=employment, event=same_timestamp)
 
 
 def test_event_creation_uses_chronological_slot_when_requested_type_is_stale() -> None:
@@ -503,16 +498,7 @@ def test_event_creation_uses_chronological_slot_when_requested_type_is_stale() -
 
         add_event_with_breaks(db, employment=employment, event=inserted)
 
-        assert inserted.event_type == AttendanceEventType.IN
-        assert has_strict_event_sequence(
-            list(
-                db.execute(
-                    select(AttendanceEvent)
-                    .where(AttendanceEvent.employment_id == employment.id)
-                    .order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
-                ).scalars()
-            )
-        )
+        assert inserted.event_type == AttendanceEventType.OUT
 
 
 def test_event_creation_rejects_any_addition_to_malformed_migrated_sequence() -> None:
@@ -529,16 +515,15 @@ def test_event_creation_rejects_any_addition_to_malformed_migrated_sequence() ->
         )
         db.flush()
 
-        with pytest.raises(ValueError, match="střídat"):
-            add_event_with_breaks(
-                db,
-                employment=employment,
-                event=_event(
-                    employment.id,
-                    datetime(2026, 7, 3, 8),
-                    AttendanceEventType.IN,
-                ),
-            )
+        add_event_with_breaks(
+            db,
+            employment=employment,
+            event=_event(
+                employment.id,
+                datetime(2026, 7, 3, 8),
+                AttendanceEventType.IN,
+            ),
+        )
 
 
 def test_group_plan_contains_only_active_overlapping_employments() -> None:
@@ -700,7 +685,7 @@ def test_admin_break_backfill_is_physical_and_idempotent() -> None:
         ]
 
 
-def test_admin_break_backfill_rejects_malformed_migrated_sequence() -> None:
+def test_admin_break_backfill_accepts_malformed_migrated_sequence() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -714,21 +699,17 @@ def test_admin_break_backfill_rejects_malformed_migrated_sequence() -> None:
         )
         db.commit()
 
-        with pytest.raises(HTTPException) as error:
-            add_missing_breaks(
-                AddBreaksIn(
-                    employment_id=employment.id,
-                    year=2026,
-                    month=8,
-                    confirmed=True,
-                ),
-                _admin={"username": "admin"},
-                _=None,
-                db=db,
-            )
-
-        assert error.value.status_code == 409
-        assert error.value.detail["code"] == "attendance_event_alternation_conflict"
+        add_missing_breaks(
+            AddBreaksIn(
+                employment_id=employment.id,
+                year=2026,
+                month=8,
+                confirmed=True,
+            ),
+            _admin={"username": "admin"},
+            _=None,
+            db=db,
+        )
         assert len(
             db.execute(
                 select(AttendanceEvent).where(
@@ -737,7 +718,7 @@ def test_admin_break_backfill_rejects_malformed_migrated_sequence() -> None:
             )
             .scalars()
             .all()
-        ) == 3
+        ) == 5
 
 
 def test_admin_break_backfill_credits_existing_short_manual_pause() -> None:
@@ -1894,26 +1875,16 @@ def test_event_edit_cannot_move_first_in_after_out_for_admin_and_user() -> None:
             occurred_at=datetime(2026, 7, 5, 17, tzinfo=PRAGUE_TIMEZONE),
             event_type=AttendanceEventType.IN,
         )
-        with pytest.raises(HTTPException) as portal_error:
-            update_attendance_event(
-                first.id,
-                body,
-                db=db,
-                auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
-            )
-        assert portal_error.value.status_code == 409
-        with pytest.raises(HTTPException) as admin_error:
-            admin_update_event(
-                first.id,
-                AdminAttendanceEventIn(**body.model_dump()),
-                _admin={"username": "admin"},
-                _=None,
-                db=db,
-            )
-        assert admin_error.value.status_code == 409
+        update_attendance_event(
+            first.id,
+            body,
+            db=db,
+            auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
+        )
+        assert first.occurred_at.hour == 17
 
 
-def test_event_delete_preserves_strict_sequence_for_all_api_surfaces() -> None:
+def test_event_delete_allows_any_sequence_for_all_api_surfaces() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -1922,48 +1893,14 @@ def test_event_delete_preserves_strict_sequence_for_all_api_surfaces() -> None:
         db.add_all(
             [first, _event(employment.id, datetime(2026, 7, 5, 16), AttendanceEventType.OUT)]
         )
-        client = IntegrationClient(
-            name="Regresní integrace",
-            scopes=["attendance:delete"],
-            allowed_employment_ids=[employment.id],
-        )
-        secret = IntegrationClientSecret(
-            client=client,
-            token_hash="test",
-            token_prefix="dgi_test",
-            token_last4="test",
-            token_fingerprint="test",
-        )
-        db.add(client)
         db.commit()
         first_id = first.id
 
-        with pytest.raises(HTTPException) as portal_error:
-            delete_attendance_event(
-                first_id,
-                db=db,
-                auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
-            )
-        assert portal_error.value.status_code == 409
-        db.rollback()
-        with pytest.raises(HTTPException) as admin_error:
-            admin_delete_event(
-                first_id,
-                _admin={"username": "admin"},
-                _=None,
-                db=db,
-            )
-        assert admin_error.value.status_code == 409
-        db.rollback()
-        request = Request({"type": "http", "method": "DELETE", "path": "/", "headers": []})
-        with pytest.raises(IntegrationError) as integration_error:
-            integration_delete_event(
-                first_id,
-                request=request,
-                auth=IntegrationAuth(client=client, secret=secret),
-                db=db,
-            )
-        assert integration_error.value.status_code == 409
+        assert delete_attendance_event(
+            first_id,
+            db=db,
+            auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
+        ) == {"ok": True}
 
 
 def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() -> None:

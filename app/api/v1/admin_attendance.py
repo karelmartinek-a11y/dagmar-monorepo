@@ -18,7 +18,6 @@ from app.services.attendance_events import add_closed_interval_with_breaks, add_
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
-    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -201,12 +200,6 @@ def add_missing_breaks(
             .order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
         ).scalars()
     )
-    if not has_strict_event_sequence(events):
-        raise_api_error(
-            409,
-            "attendance_event_alternation_conflict",
-            "Pauzy nelze doplnit, dokud průchody netvoří platnou posloupnost IN a OUT.",
-        )
     before_intervals = interval_signatures(events)
     existing_times = {prague_now(event.occurred_at) for event in events}
     inserted_pairs = 0
@@ -275,27 +268,6 @@ def add_missing_breaks(
         inserted_pairs=inserted_pairs,
         inserted_events=inserted_events,
     )
-
-
-def _validate_alternation(
-    db: Session,
-    employment_id: int,
-    event_type: AttendanceEventType,
-    *,
-    exclude_id: int | None = None,
-) -> None:
-    query = (
-        select(AttendanceEvent)
-        .where(AttendanceEvent.employment_id == employment_id)
-        .order_by(AttendanceEvent.occurred_at.desc(), AttendanceEvent.id.desc())
-    )
-    if exclude_id is not None:
-        query = query.where(AttendanceEvent.id != exclude_id)
-    latest = db.execute(query).scalars().first()
-    if latest is not None and latest.event_type == event_type:
-        raise_api_error(
-            409, "attendance_event_alternation_conflict", "Průchody musí střídat IN a OUT."
-        )
 
 
 @router.post("/api/v1/admin/attendance/events", response_model=AdminAttendanceEventOut)
@@ -468,10 +440,6 @@ def update_event(
     before_intervals = interval_signatures([*events, event])
     event.occurred_at = body.occurred_at
     ordered = sorted([*events, event], key=lambda item: (prague_now(item.occurred_at), item.id))
-    if not has_strict_event_sequence(ordered):
-        raise_api_error(
-            409, "attendance_event_alternation_conflict", "Průchody musí střídat IN a OUT."
-        )
     try:
         db.flush()
     except Exception:
@@ -543,12 +511,6 @@ def delete_event(
         deleted_ids.add(paired.id)
         timestamps.append(prague_now(paired.occurred_at))
     remaining_events = [item for item in events if item.id not in deleted_ids]
-    if not has_strict_event_sequence(remaining_events):
-        raise_api_error(
-            409,
-            "attendance_event_alternation_conflict",
-            "Samostatný průchod nelze odstranit, protože by se porušilo pořadí IN a OUT.",
-        )
     changed_days = changed_event_days(
         before_intervals, interval_signatures(remaining_events), timestamps=tuple(timestamps)
     )
