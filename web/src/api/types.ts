@@ -157,6 +157,9 @@ export interface AdminUser {
   phone?: string | null;
   role: string;
   is_active: boolean;
+  is_blocked: boolean;
+  login_status?: string;
+  login_status_reason?: string | null;
   last_login_at?: string | null;
   instance_id?: number | null;
   employment_count?: number;

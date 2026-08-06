@@ -131,6 +131,26 @@ export function AdminUsersPage() {
       },
     });
 
+  const toggleBlocked = (user: AdminUser) =>
+    setConfirm({
+      title: user.is_blocked
+        ? t("users.profile.unblockTitle", { name: user.name })
+        : t("users.profile.blockTitle", { name: user.name }),
+      description: user.is_blocked
+        ? t("users.profile.unblockDescription")
+        : t("users.profile.blockDescription"),
+      operation: {
+        path: `/api/v1/admin/users/${user.id}/block`,
+        options: {
+          method: "PUT",
+          body: JSON.stringify({ blocked: !user.is_blocked }),
+        },
+        success: user.is_blocked
+          ? t("users.unblocked")
+          : t("users.blocked"),
+      },
+    });
+
   return (
     <div className="page">
       <header className="page-heading">
@@ -254,7 +274,9 @@ export function AdminUsersPage() {
                   <div>
                     <span>{t("users.profile.accessState")}</span>
                     <strong>
-                      {selected.is_active
+                      {selected.is_blocked
+                        ? t("users.profile.accessBlocked")
+                        : selected.is_active
                         ? t("users.profile.accessEnabled")
                         : t("users.profile.accessDisabled")}
                     </strong>
@@ -262,6 +284,15 @@ export function AdminUsersPage() {
                 </div>
               </div>
               <div className="action-row action-row--wrap">
+                <Button
+                  variant={selected.is_blocked ? "quiet" : "danger"}
+                  onClick={() => toggleBlocked(selected)}
+                >
+                  <ShieldCheck />
+                  {selected.is_blocked
+                    ? t("users.profile.unblock")
+                    : t("users.profile.block")}
+                </Button>
                 <Button
                   variant="quiet"
                   onClick={() => setEditingUser((value) => !value)}

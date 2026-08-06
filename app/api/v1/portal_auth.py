@@ -36,6 +36,8 @@ from app.services.prague_time import prague_today
 
 router = APIRouter(prefix="/api/v1/portal", tags=["portal-auth"])
 
+PORTAL_ACCOUNT_BLOCKED_MESSAGE = "Váš přístup byl zablokován, obraťte se na svého nadřízeného."
+
 
 class PortalLoginIn(BaseModel):
     email: str = Field(min_length=3, max_length=160)
@@ -96,6 +98,8 @@ def _to_login_employment_out(employment: Employment, today) -> LoginEmploymentOu
 
 def issue_portal_login(user: PortalUser, db: Session) -> PortalLoginOut:
     """Issue the existing Dagmar bearer login for an already verified employee."""
+    if user.is_blocked:
+        raise_api_error(403, "portal_account_blocked", PORTAL_ACCOUNT_BLOCKED_MESSAGE)
     if not user.is_active or user.role != PortalUserRole.EMPLOYEE:
         raise_api_error(403, "external_account_inactive", "Interní účet není aktivní.")
     if not user.instance_id or user.instance is None:
@@ -152,6 +156,10 @@ def portal_login(payload: PortalLoginIn, db: Session = Depends(get_db)):
         user.password_hash = hash_password(payload.password).value
         db.add(user)
 
+    if user.is_blocked:
+        db.commit()
+        raise_api_error(403, "portal_account_blocked", PORTAL_ACCOUNT_BLOCKED_MESSAGE)
+
     login = issue_portal_login(user, db)
     clear_user_lockout(db, actor_type="portal", principal=email)
     db.commit()
@@ -171,6 +179,8 @@ def portal_reset(payload: PortalResetIn, db: Session = Depends(get_db)):
 
     if not row or not row.user or not row.user.is_active:
         raise_api_error(400, "portal_reset_token_invalid", "Odkaz je neplatný nebo vypršel.")
+    if row.user.is_blocked:
+        raise_api_error(403, "portal_account_blocked", PORTAL_ACCOUNT_BLOCKED_MESSAGE)
 
     try:
         new_hash = hash_password(payload.password)

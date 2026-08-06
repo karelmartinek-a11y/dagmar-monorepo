@@ -64,6 +64,7 @@ class PortalUserOut(BaseModel):
     role: str
     has_password: bool
     is_active: bool
+    is_blocked: bool
     is_locked: bool = False
     locked_until: str | None = None
     login_status: str
@@ -74,6 +75,10 @@ class PortalUserOut(BaseModel):
 
 class PortalUserListOut(BaseModel):
     users: list[PortalUserOut]
+
+
+class PortalUserBlockIn(BaseModel):
+    blocked: bool
 
 
 class PortalUserCreateIn(BaseModel):
@@ -272,6 +277,8 @@ def _to_employment_out(employment: Employment) -> EmploymentOut:
 
 
 def _user_login_status(user: PortalUser) -> tuple[str, str | None]:
+    if getattr(user, "is_blocked", False):
+        return "BLOCKED", "Váš přístup byl zablokován, obraťte se na svého nadřízeného."
     if not user.is_active:
         return "DEACTIVATED", "Ucet je rucne deaktivovany administratorem."
     today = prague_today()
@@ -299,6 +306,7 @@ def _to_user_out(user: PortalUser, lock_state: AuthLockoutState | None = None) -
         role=user.role.value if hasattr(user.role, "value") else str(user.role or ""),
         has_password=bool(user.password_hash),
         is_active=user.is_active,
+        is_blocked=bool(getattr(user, "is_blocked", False)),
         is_locked=is_locked(lock_state),
         locked_until=locked_until.isoformat() if locked_until is not None else None,
         login_status=login_status,
@@ -348,6 +356,7 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
             users_table.c.phone,
             users_table.c.password_hash,
             users_table.c.is_active,
+            users_table.c.is_blocked,
             instances_table.c.last_seen_at.label("last_login_at"),
         )
         .select_from(users_table.outerjoin(instances_table, instances_table.c.id == users_table.c.instance_id))
@@ -447,6 +456,7 @@ def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
                 role=SimpleNamespace(value="employee"),
                 password_hash=row["password_hash"],
                 is_active=bool(row["is_active"]),
+                is_blocked=bool(row["is_blocked"]),
                 instance=SimpleNamespace(last_seen_at=row["last_login_at"]) if row["last_login_at"] is not None else None,
                 employments=employments,
             )
@@ -502,6 +512,7 @@ def create_user(
         role=role_enum,
         password_hash=None,
         is_active=payload.is_active,
+        is_blocked=False,
         instance_id=inst.id,
     )
     db.add(user)
@@ -518,6 +529,32 @@ def create_user(
         .scalars()
         .one()
     )
+    return _to_user_out(user)
+
+
+@router.put("/{user_id}/block", response_model=PortalUserOut)
+def block_user(
+    user_id: int,
+    payload: PortalUserBlockIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).where(PortalUser.id == int(user_id)))
+        .scalars()
+        .first()
+    )
+    if user is None:
+        raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
+
+    user.is_blocked = payload.blocked
+    if payload.blocked:
+        db.execute(delete(PortalUserResetToken).where(PortalUserResetToken.user_id == user.id))
+        _invalidate_instance_token(user, db)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return _to_user_out(user)
 
 
@@ -645,6 +682,8 @@ def send_reset_link(
     user = db.get(PortalUser, int(user_id))
     if not user or not user.is_active:
         raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
+    if user.is_blocked:
+        raise_api_error(403, "portal_account_blocked", "Váš přístup byl zablokován, obraťte se na svého nadřízeného.")
 
     raw_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()

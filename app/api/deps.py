@@ -100,6 +100,14 @@ def require_portal_user_auth(
     )
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="K tokenu neni prirazen uzivatel")
+    if user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "portal_account_blocked",
+                "message": "Váš přístup byl zablokován, obraťte se na svého nadřízeného.",
+            },
+        )
     return PortalUserAuth(instance=auth.instance, user=user)
 
 

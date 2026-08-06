@@ -408,6 +408,8 @@ def _complete_login(db: Session, transaction: OAuthTransaction, claims: Provider
         ).scalar_one_or_none()
         if user is None or not user.is_active:
             raise ExternalAuthError("external_account_inactive")
+        if user.is_blocked:
+            raise ExternalAuthError("portal_account_blocked")
         return issue_portal_login(user, db)
     if not settings.admin_password_hash or identity.admin_username != settings.admin_username.lower():
         raise ExternalAuthError("external_account_inactive")

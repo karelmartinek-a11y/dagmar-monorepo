@@ -74,7 +74,7 @@ def _build_app():
 
     get_settings.cache_clear()
     settings = get_settings()
-    return create_app(settings)
+    return create_app(settings=settings)
 
 
 def _auth_mode(path: str, methods: list[str]) -> str:

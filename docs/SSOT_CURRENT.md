@@ -342,7 +342,7 @@ Následující seznam je uzavřený inventář aktivních SQLAlchemy entit audit
 | Tabulka / entita | Primární klíč | Klíčová data a omezení | Životní cyklus |
 |---|---|---|---|
 | `instances` / `Instance` | UUID string | client type WEB/ANDROID, fingerprint, device JSON, status, display name, volitelná self-FK profilová instance, token pouze jako hash, activation/revoke/deactivate/last-seen timestamps | veřejná registrace → pending; auditovaný repozitář nemá veřejný/admin API endpoint pro přechod pending→active; admin create-user vytváří active WEB instanci přímo; claim rotuje token; FK používají SET NULL |
-| `portal_users` / `PortalUser` | integer | unikátní e-mail, jméno, telefon, jediná role `employee`, password hash nullable, active, volitelná instance | vlastník úvazků; CASCADE na úvazky, reset tokeny a externí identity |
+| `portal_users` / `PortalUser` | integer | unikátní e-mail, jméno, telefon, jediná role `employee`, password hash nullable, active, samostatný `is_blocked`, volitelná instance | vlastník úvazků; blokace neodebírá profil ani data, ale ruší bearer a reset tokeny; CASCADE na úvazky, reset tokeny a externí identity |
 | `admin_users` / `AdminUser` | integer | unikátní username a password hash | kompatibilitní/seed evidence single-admin instalace; aktivní runtime identita a hash jsou současně přísně svázané s konfigurací |
 | `employments` / `Employment` | integer | user FK CASCADE, title, enum type, workload, metric flags, afternoon start, period, active, timestamps; DB check constraints profilu | hlavní scope všech doménových dat; CASCADE na docházku, eventy, metriky, plán, zámky, výběry a členství |
 | `employment_groups` | integer | case-insensitive unikátní name, timestamps | admin CRUD; samotné odstranění nemaže plány |
@@ -620,6 +620,8 @@ Aktivní baseline rozlišuje dvě cesty:
 Na auditovaném SHA vytvoření nového reset odkazu neruší starší dosud platné reset tokeny a self-service reset nerotuje existující instance bearer ani neruší ostatní reset tokeny. To je bezpečnostně významný baseline fakt, nikoli doporučený vzor. V rámci UI změny se nesmí potichu změnit; případná náprava vyžaduje samostatný bezpečnostní change set, testy souběhu tokenů a explicitní rozhodnutí o odhlášení všech zařízení.
 
 - reset je dostupný jen aktivnímu uživateli;
+- zablokovaný uživatel se správným heslem dostane `403 portal_account_blocked`, resetovací e-mail se nevytvoří a existující reset tokeny se při blokaci ruší;
+- odblokování pouze přepne `is_blocked` zpět; nový bearer vznikne až při novém úspěšném přihlášení;
 - e-mail obsahuje odkaz na `/reset` a následně login `/app`; tokenový řádek se commitne před SMTP odesláním, takže při chybě SMTP API vrátí `reset_email_failed`, ale nový hashovaný token v databázi zůstane platný a jeho plaintext už nelze znovu získat;
 - databáze nikdy neukládá plaintext reset token.
 
@@ -833,6 +835,7 @@ Běžné read endpointy vyžadují admin session a běžné mutace současně CS
 | auth | POST `/api/v1/admin/forgot-password` | public, neenumerující | při přesné shodě config e-mailu a dostupném SMTP pošle pouze help e-mail bez tokenu; vždy `{ok:true}` |
 | users | GET/POST `/api/v1/admin/users` | GET session; POST session + CSRF | seznam / vytvoření |
 | users | PUT/DELETE `/api/v1/admin/users/{user_id}` | admin session + CSRF | editace / okamžité serverové odstranění osoby a jejích úvazků; případné potvrzení zajišťuje klientské UI, endpoint nemá confirm flag ani dopadový preflight |
+| users | PUT `/api/v1/admin/users/{user_id}/block` | admin session + CSRF | zapnutí/vypnutí samostatné blokace přihlášení; při zapnutí ruší instance bearer a reset tokeny, administrátorský přístup zůstává |
 | users | GET `/api/v1/admin/users/{user_id}/employments` | admin session | úvazky uživatele |
 | users | POST `/api/v1/admin/users/{user_id}/set-password` | admin session + CSRF | přímé heslo |
 | users | POST `/api/v1/admin/users/{user_id}/send-reset` | admin session + CSRF | 24h reset odkaz |

@@ -385,6 +385,14 @@
       "path": "/api/v1/admin/users/{user_id}"
     },
     {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_users.block_user",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/api/v1/admin/users/{user_id}/block"
+    },
+    {
       "auth_mode": "admin_session",
       "handler": "app.api.v1.admin_users.list_user_employments",
       "methods": [
@@ -944,10 +952,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 1998,
+    "line_count": 2001,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "4624b5b06590b1009b5062e6c67e055cd18bd5cffa2ac0ccf01f8443dabfa0e9"
+    "sha256": "321c02e165e419a2319ee4e6ea628a99fd1cebe369507351d1902e85107c76c2"
   },
   "production": {
     "api_base_path": "/api/v1/",

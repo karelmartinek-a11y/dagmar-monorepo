@@ -435,6 +435,7 @@ class PortalUser(Base):
     )
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     instance_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("instances.id", ondelete="SET NULL"), nullable=True
