@@ -1269,7 +1269,7 @@ Minimální stabilní sloupce každého CSV:
 
 ### CI backend
 
-Na PostgreSQL 17 a Pythonu 3.11:
+Na PostgreSQL 17 a Pythonu 3.12:
 
 1. instalace přes hashovaný `requirements-dev.lock` s `pip==26.0`;
 2. compileall;
@@ -1284,7 +1284,7 @@ Na PostgreSQL 17 a Pythonu 3.11:
 11. čistý git diff/status.
 12. build aplikačního wheelu, kompletního Linux wheelhouse a offline instalační smoke stejného artefaktu.
 
-Python 3.11 locky generuje výhradně `scripts/update_python_locks.py` pomocí
+Python 3.12 locky generuje výhradně `scripts/update_python_locks.py` pomocí
 `pip-tools==7.6.0`; `scripts/check_python_lock.py` ověřuje jejich vazbu na `pyproject.toml`,
 úplné připnutí a SHA-256 hashe. Produkční dependency kontrakt je
 `requirements-prod.lock`, vývojový a CI kontrakt `requirements-dev.lock`.

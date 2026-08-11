@@ -28,6 +28,7 @@ def compile_lock(output: str, *, extra: str | None = None) -> None:
         "--generate-hashes",
         "--resolver=backtracking",
         "--strip-extras",
+        "--allow-unsafe",
         f"--output-file={temporary_name}",
     ]
     if extra is not None:
@@ -44,7 +45,7 @@ def compile_lock(output: str, *, extra: str | None = None) -> None:
     )
     command_label = "python scripts/update_python_locks.py"
     canonical_header = (
-        "#\n# Generated deterministically by pip-tools 7.6.0 with Python 3.11 and pip 26.0.\n"
+        "#\n# Generated deterministically by pip-tools 7.6.0 with Python 3.12 and pip 26.0.\n"
         f"# Regenerate with: {command_label}\n#\n"
     )
     marker = f"# pyproject-sha256: {dependency_digest()}\n"

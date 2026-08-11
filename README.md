@@ -44,7 +44,7 @@ Strojově čitelný manifest je v [docs/current-state-manifest.yaml](docs/curren
 ### Backend a repozitář
 
 ```bash
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/pip install pip==26.0
 .venv/bin/pip install --require-hashes -r requirements-dev.lock
 .venv/bin/python -m compileall -q app
