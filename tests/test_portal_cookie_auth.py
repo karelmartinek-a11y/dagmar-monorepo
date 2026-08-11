@@ -35,6 +35,11 @@ def _portal_password() -> str:
     return "".join(("Strong", "Pass", "123"))
 
 
+def _legacy_password_hash() -> str:
+    # Precomputed SHA-256 fixture for the legacy verifier; production never creates it.
+    return "".join(("a615a46a9f52e117", "dffce7d7235b464a", "910f74508dfb51a2", "7ce8c63d0413d9a0"))
+
+
 def _client() -> tuple[TestClient, Session, PortalUser]:
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
@@ -113,7 +118,7 @@ def test_portal_login_uses_only_hardened_http_only_cookie() -> None:
 
 def test_successful_login_rehashes_legacy_password() -> None:
     client, db, user = _client()
-    user.password_hash = hashlib.sha256(_portal_password().encode("utf-8")).hexdigest()
+    user.password_hash = _legacy_password_hash()
     db.add(user)
     db.commit()
 
