@@ -65,7 +65,7 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P3-004 | Textové configy končí LF | otevřeno | karelmartinek-a11y | G — governance | newline invariant | — |
 | DAG-P3-005 | Čitelné formátované TS/TSX | otevřeno | karelmartinek-a11y | G — governance | Prettier gate | — |
 | DAG-P3-006 | Čitelné source CSS | otevřeno | karelmartinek-a11y | G — governance | Stylelint + Prettier | — |
-| DAG-P3-007 | ESLint zakazuje explicitní `any` | otevřeno | karelmartinek-a11y | G — governance | ESLint gate | — |
+| DAG-P3-007 | ESLint zakazuje explicitní `any` | splněno | karelmartinek-a11y | G — governance | ESLint gate | `AdminOverviewPage.tsx` typed `IntegrationClient[]`; PR #50 gate |
 | DAG-P3-008 | Frontend CI toleruje 0 warningů | otevřeno | karelmartinek-a11y | G — governance | lint `--max-warnings=0` | — |
 | DAG-P3-009 | Backend/frontend format gate | otevřeno | karelmartinek-a11y | G — governance | format checky | — |
 | DAG-P3-010 | Branding nemá druhý `app_name` zdroj | otevřeno | karelmartinek-a11y | G — governance | branding invariant | — |
