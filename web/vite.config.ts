@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     proxy: { "/api": { target: env.VITE_API_PROXY || "http://127.0.0.1:8101", changeOrigin: true, secure: true } },
   },
   build: {
-    target: "es2022",
+    target: "es2020",
     sourcemap: false,
     rollupOptions: {
       output: {
