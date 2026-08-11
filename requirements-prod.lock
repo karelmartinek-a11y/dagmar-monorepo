@@ -1,4 +1,4 @@
-# pyproject-sha256: 567748df13eda5ca49bebe3f3908eb7da72680e6309edbdd486d6547db573eb0
+# pyproject-sha256: 49a15c8d71cdea0ce20cfe0977c1fb3c3c780f174aa5c0d73abdcdb54a4ef459
 #
 # Generated deterministically by pip-tools 7.6.0 with Python 3.12 and pip 26.0.
 # Regenerate with: python scripts/update_python_locks.py

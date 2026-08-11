@@ -28,6 +28,7 @@ def compile_lock(output: str, *, extra: str | None = None) -> None:
         "--generate-hashes",
         "--resolver=backtracking",
         "--strip-extras",
+        "--allow-unsafe",
         f"--output-file={temporary_name}",
     ]
     if extra is not None:
