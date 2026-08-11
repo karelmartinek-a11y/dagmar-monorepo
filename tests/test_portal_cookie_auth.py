@@ -4,6 +4,7 @@ import hashlib
 import os
 from datetime import UTC, date, datetime, timedelta
 
+import bcrypt
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -36,8 +37,7 @@ def _portal_password() -> str:
 
 
 def _legacy_password_hash() -> str:
-    # Precomputed SHA-256 fixture for the legacy verifier; production never creates it.
-    return "".join(("a615a46a9f52e117", "dffce7d7235b464a", "910f74508dfb51a2", "7ce8c63d0413d9a0"))
+    return bcrypt.hashpw(_portal_password().encode(), bcrypt.gensalt()).decode("ascii")
 
 
 def _client() -> tuple[TestClient, Session, PortalUser]:
