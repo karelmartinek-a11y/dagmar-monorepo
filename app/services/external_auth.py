@@ -8,14 +8,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from threading import Lock
 from typing import Any, Literal
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin
 
 import httpx
 import jwt
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.config import Settings, validate_external_endpoint_url
 from app.db.models import OAuthTransaction
 
 Provider = Literal["google", "apple"]
@@ -83,6 +83,40 @@ _metadata_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _jwks_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _cache_lock = Lock()
 
+_GOOGLE_AUTHORIZATION_HOSTS = {"accounts.google.com"}
+_GOOGLE_AUTHORIZATION_PATHS = {"/o/oauth2/v2/auth"}
+_GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
+_GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_HOSTS = {"oauth2.googleapis.com"}
+_GOOGLE_TOKEN_PATHS = {"/token"}
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_GOOGLE_JWKS_HOSTS = {"www.googleapis.com"}
+_GOOGLE_JWKS_PATHS = {"/oauth2/v3/certs"}
+_GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs"
+_APPLE_HOSTS = {"appleid.apple.com"}
+_APPLE_AUTHORIZATION_URL = "https://appleid.apple.com/auth/authorize"
+_APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
+_APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+ProviderJSONEndpoint = Literal["google_discovery", "google_jwks", "apple_jwks"]
+
+
+def _validated_provider_url(
+    value: str,
+    *,
+    setting_name: str,
+    allowed_hosts: set[str],
+    allowed_paths: set[str],
+) -> str:
+    try:
+        return validate_external_endpoint_url(
+            value,
+            setting_name=setting_name,
+            allowed_hosts=allowed_hosts,
+            allowed_paths=allowed_paths,
+        )
+    except ValueError as exc:
+        raise ExternalAuthError("provider_invalid_configuration") from exc
+
 
 def _cache_ttl(response: httpx.Response, default: int = 3600) -> int:
     for part in response.headers.get("cache-control", "").split(","):
@@ -92,15 +126,56 @@ def _cache_ttl(response: httpx.Response, default: int = 3600) -> int:
     return default
 
 
-def _get_json(url: str, settings: Settings, cache: dict[str, tuple[float, dict[str, Any]]], *, refresh: bool = False) -> dict[str, Any]:
+def _get_json(
+    endpoint: ProviderJSONEndpoint,
+    settings: Settings,
+    cache: dict[str, tuple[float, dict[str, Any]]],
+    *,
+    refresh: bool = False,
+) -> dict[str, Any]:
+    if endpoint == "google_discovery":
+        request_url = _GOOGLE_DISCOVERY_URL
+    elif endpoint == "google_jwks":
+        request_url = _GOOGLE_JWKS_URL
+    else:
+        request_url = _APPLE_JWKS_URL
     now = time.monotonic()
     with _cache_lock:
-        cached = cache.get(url)
+        cached = cache.get(endpoint)
         if not refresh and cached and cached[0] > now:
             return cached[1]
     try:
-        with httpx.Client(timeout=settings.external_auth_http_timeout_seconds, follow_redirects=False) as client:
-            response = client.get(url, headers={"Accept": "application/json"})
+        with httpx.Client(
+            timeout=settings.external_auth_http_timeout_seconds, follow_redirects=False
+        ) as client:
+            response = client.get(request_url, headers={"Accept": "application/json"})
+            if response.status_code in {301, 302, 303, 307, 308}:
+                location = response.headers.get("location")
+                if not location:
+                    raise ExternalAuthError("provider_invalid_response")
+                redirected = urljoin(request_url, location)
+                if endpoint == "google_discovery":
+                    _validated_provider_url(
+                        redirected,
+                        setting_name="OAuth redirect URL",
+                        allowed_hosts={"accounts.google.com"},
+                        allowed_paths={"/.well-known/openid-configuration"},
+                    )
+                elif endpoint == "google_jwks":
+                    _validated_provider_url(
+                        redirected,
+                        setting_name="OAuth redirect URL",
+                        allowed_hosts=_GOOGLE_JWKS_HOSTS,
+                        allowed_paths=_GOOGLE_JWKS_PATHS,
+                    )
+                else:
+                    _validated_provider_url(
+                        redirected,
+                        setting_name="OAuth redirect URL",
+                        allowed_hosts=_APPLE_HOSTS,
+                        allowed_paths={"/auth/keys"},
+                    )
+                raise ExternalAuthError("provider_invalid_response")
             response.raise_for_status()
             payload = response.json()
     except (httpx.HTTPError, ValueError) as exc:
@@ -108,20 +183,50 @@ def _get_json(url: str, settings: Settings, cache: dict[str, tuple[float, dict[s
     if not isinstance(payload, dict):
         raise ExternalAuthError("provider_invalid_response")
     with _cache_lock:
-        cache[url] = (now + _cache_ttl(response), payload)
+        cache[endpoint] = (now + _cache_ttl(response), payload)
     return payload
 
 
 def google_metadata(settings: Settings) -> dict[str, Any]:
-    return _get_json(settings.google_oidc_discovery_url, settings, _metadata_cache)
+    payload = _get_json(
+        "google_discovery",
+        settings,
+        _metadata_cache,
+    )
+    if payload.get("issuer") != "https://accounts.google.com":
+        raise ExternalAuthError("provider_invalid_configuration")
+    _validated_provider_url(
+        str(payload.get("authorization_endpoint") or ""),
+        setting_name="Google authorization endpoint",
+        allowed_hosts=_GOOGLE_AUTHORIZATION_HOSTS,
+        allowed_paths=_GOOGLE_AUTHORIZATION_PATHS,
+    )
+    _validated_provider_url(
+        str(payload.get("token_endpoint") or ""),
+        setting_name="Google token endpoint",
+        allowed_hosts=_GOOGLE_TOKEN_HOSTS,
+        allowed_paths=_GOOGLE_TOKEN_PATHS,
+    )
+    _validated_provider_url(
+        str(payload.get("jwks_uri") or ""),
+        setting_name="Google JWKS endpoint",
+        allowed_hosts=_GOOGLE_JWKS_HOSTS,
+        allowed_paths=_GOOGLE_JWKS_PATHS,
+    )
+    return payload
 
 
 def authorization_url(provider: Provider, state: str, nonce: str, verifier: str | None, settings: Settings) -> str:
     if provider == "google":
         metadata = google_metadata(settings)
         endpoint = str(metadata.get("authorization_endpoint") or "")
-        if not endpoint.startswith("https://"):
-            raise ExternalAuthError("provider_invalid_configuration")
+        endpoint = _validated_provider_url(
+            endpoint,
+            setting_name="Google authorization endpoint",
+            allowed_hosts=_GOOGLE_AUTHORIZATION_HOSTS,
+            allowed_paths=_GOOGLE_AUTHORIZATION_PATHS,
+        )
+        endpoint = _GOOGLE_AUTHORIZATION_URL
         params = {
             "client_id": str(settings.google_oidc_client_id),
             "redirect_uri": settings.external_callback_url("google"),
@@ -133,7 +238,13 @@ def authorization_url(provider: Provider, state: str, nonce: str, verifier: str 
             "code_challenge_method": "S256",
         }
     else:
-        endpoint = settings.apple_authorization_endpoint
+        endpoint = _validated_provider_url(
+            settings.apple_authorization_endpoint,
+            setting_name="Apple authorization endpoint",
+            allowed_hosts=_APPLE_HOSTS,
+            allowed_paths={"/auth/authorize"},
+        )
+        endpoint = _APPLE_AUTHORIZATION_URL
         params = {
             "client_id": str(settings.apple_services_id),
             "redirect_uri": settings.external_callback_url("apple"),
@@ -256,8 +367,40 @@ def _token_request(provider: Provider, code: str, transaction: OAuthTransaction,
             "client_id": client_id,
             "client_secret": _apple_client_secret(settings),
         }
-    if not endpoint.startswith("https://") or not jwks_uri.startswith("https://"):
-        raise ExternalAuthError("provider_invalid_configuration")
+    if provider == "google":
+        endpoint = _validated_provider_url(
+            endpoint,
+            setting_name="Google token endpoint",
+            allowed_hosts=_GOOGLE_TOKEN_HOSTS,
+            allowed_paths=_GOOGLE_TOKEN_PATHS,
+        )
+        endpoint = _GOOGLE_TOKEN_URL
+        jwks_uri = _validated_provider_url(
+            jwks_uri,
+            setting_name="Google JWKS endpoint",
+            allowed_hosts=_GOOGLE_JWKS_HOSTS,
+            allowed_paths=_GOOGLE_JWKS_PATHS,
+        )
+        jwks_uri = _GOOGLE_JWKS_URL
+        if issuer != "https://accounts.google.com":
+            raise ExternalAuthError("provider_invalid_configuration")
+    else:
+        endpoint = _validated_provider_url(
+            endpoint,
+            setting_name="Apple token endpoint",
+            allowed_hosts=_APPLE_HOSTS,
+            allowed_paths={"/auth/token"},
+        )
+        endpoint = _APPLE_TOKEN_URL
+        jwks_uri = _validated_provider_url(
+            jwks_uri,
+            setting_name="Apple JWKS endpoint",
+            allowed_hosts=_APPLE_HOSTS,
+            allowed_paths={"/auth/keys"},
+        )
+        jwks_uri = _APPLE_JWKS_URL
+        if issuer != "https://appleid.apple.com":
+            raise ExternalAuthError("provider_invalid_configuration")
     try:
         with httpx.Client(timeout=settings.external_auth_http_timeout_seconds, follow_redirects=False) as client:
             response = client.post(endpoint, data=data, headers={"Accept": "application/json"})
@@ -279,7 +422,15 @@ def _signing_key(id_token: str, jwks_uri: str, settings: Settings) -> Any:
     except jwt.PyJWTError as exc:
         raise ExternalAuthError("token_signature_invalid") from exc
     for refresh in (False, True):
-        jwks = _get_json(jwks_uri, settings, _jwks_cache, refresh=refresh)
+        endpoint: ProviderJSONEndpoint = (
+            "apple_jwks" if jwks_uri == _APPLE_JWKS_URL else "google_jwks"
+        )
+        jwks = _get_json(
+            endpoint,
+            settings,
+            _jwks_cache,
+            refresh=refresh,
+        )
         for item in jwks.get("keys", []):
             if isinstance(item, dict) and item.get("kid") == header["kid"]:
                 try:

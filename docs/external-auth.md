@@ -17,7 +17,7 @@ Apple client secret se generuje serverově jako krátkodobý ES256 JWT. Google c
 
 ## Bezpečnostní model
 
-OAuth transakce jsou v PostgreSQL, mají 10minutovou expiraci, kryptografický `state`, `nonce`, browser binding, explicitní `employee/admin` a `login/link` kontext a jednorázové spotřebování. Google používá PKCE S256. ID tokeny se ověřují proti discovery/JWKS včetně podpisu, `iss`, `aud`, `exp`, `iat`, `nonce` a `azp`. JWKS respektují cache a při neznámém `kid` se jednou obnoví.
+OAuth transakce jsou v PostgreSQL, mají 10minutovou expiraci, kryptografický `state`, `nonce`, browser binding, explicitní `employee/admin` a `login/link` kontext a jednorázové spotřebování. Google používá PKCE S256. ID tokeny se ověřují proti discovery/JWKS včetně podpisu, `iss`, `aud`, `exp`, `iat`, `nonce` a `azp`. JWKS respektují cache a při neznámém `kid` se jednou obnoví. Produkční discovery, metadata endpointy, JWKS i redirecty procházejí přesným HTTPS allowlistem oficiálních Google/Apple hostů a cest; userinfo, porty, IP adresy, localhost, private/link-local cíle a cizí redirecty se odmítají.
 
 Propojení i odpojení vyžaduje aktuální interní heslo. Povolené návratové cesty jsou pevně omezené na `/app`, `/admin/prehled` a `/admin/ucet`. Externí token se nikdy nestává Dagmar autorizací.
 

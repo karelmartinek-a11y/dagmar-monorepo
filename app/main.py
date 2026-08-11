@@ -49,6 +49,7 @@ from app.db.session import get_sessionmaker
 from app.security.rate_limit import init_rate_limiting, limiter
 from app.services.attendance_reminders import run_attendance_reminders_once
 from app.services.prague_time import prague_time_payload
+from app.services.readiness import check_readiness
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +252,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/health", include_in_schema=False)
     async def health_compat() -> dict[str, Any]:
         return await _health_payload()
+
+    @app.get("/api/v1/readiness", include_in_schema=False)
+    async def readiness_v1() -> JSONResponse:
+        try:
+            status = check_readiness()
+        except Exception as exc:
+            logger.warning("Readiness dependency check failed error_type=%s", type(exc).__name__)
+            return JSONResponse(
+                status_code=503,
+                content={"ok": False, "status": "not_ready"},
+            )
+        if not status.ready:
+            logger.warning(
+                "Readiness revision mismatch expected=%s actual=%s",
+                status.expected_revision,
+                status.actual_revision,
+            )
+            return JSONResponse(
+                status_code=503,
+                content={"ok": False, "status": "not_ready"},
+            )
+        return JSONResponse(
+            status_code=200,
+            content={"ok": True, "status": "ready"},
+        )
 
     @app.get("/api/version", include_in_schema=False)
     async def version() -> dict[str, Any]:

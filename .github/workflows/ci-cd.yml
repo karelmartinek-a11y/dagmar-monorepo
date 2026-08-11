@@ -209,6 +209,7 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+          python ../scripts/check_web_artifact.py dist
       - name: Install browser
         working-directory: web
         run: npx playwright install --with-deps chromium
@@ -247,6 +248,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: backend-release
@@ -290,6 +297,10 @@ jobs:
             exec 9>"${HOME:-/root}/.dagmar-deploy.lock"
             flock 9
 
+            install -d "$RELEASES" "$WEB_RELEASES"
+            REQUIRED_KB=$(( ($(stat -c %s "$UPLOAD/backend-release.tgz") + $(stat -c %s "$UPLOAD/web-release.tgz")) / 1024 * 10 + 524288 ))
+            test "$(df -Pk "$RELEASES" | awk 'NR == 2 {print $4}')" -gt "$REQUIRED_KB"
+            test "$(df -Pk "$WEB_RELEASES" | awk 'NR == 2 {print $4}')" -gt "$REQUIRED_KB"
             install -d "$BACK_RELEASE" "$WEB_RELEASE"
             tar -xzf "$UPLOAD/backend-release.tgz" -C "$BACK_RELEASE"
             tar -xzf "$UPLOAD/web-release.tgz" -C "$WEB_RELEASE"
@@ -302,6 +313,10 @@ jobs:
             ln -s "$APP_DIR" "$BACK_RELEASE/app"
             install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
 
+            while IFS= read -r -d '' config; do
+              "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/check_git_config_credentials.py" "$config"
+            done < <(find /opt/dagmar /var/www/dagmar -path '*/.git/config' -type f -print0)
+
             switch_link() {
               local target="$1" current="$2"
               rm -f "$current.next"
@@ -311,6 +326,10 @@ jobs:
 
             test -r /etc/dagmar/backend.env
             cd "$BACK_RELEASE"
+            PREV_BACK=$(readlink -f "$CURRENT_BACK" 2>/dev/null || true)
+            PREV_WEB=$(readlink -f "$CURRENT_WEB" 2>/dev/null || true)
+            SCHEMA_BEFORE=$("$BACK_RELEASE/.venv/bin/python" -c 'from app.config import get_settings; from sqlalchemy import create_engine, text; engine=create_engine(get_settings().database_url); print(engine.connect().execute(text("SELECT version_num FROM alembic_version")).scalar_one())')
+            printf '%s\n%s\n%s\n%s\n%s\n' "$PREV_BACK" "$PREV_WEB" "$BACK_RELEASE" "$WEB_RELEASE" "$SCHEMA_BEFORE" > "$UPLOAD/deploy-state"
             BACKEND_STOPPED=false
             SCHEMA_CHANGE_STARTED=false
             trap 'if [ "$BACKEND_STOPPED" = true ]; then if [ "$SCHEMA_CHANGE_STARTED" = false ]; then systemctl start dagmar-backend; else systemctl stop dagmar-backend; fi; fi' EXIT
@@ -324,15 +343,12 @@ jobs:
             systemctl enable --now dagmar-shift-plan-month-auto-lock.timer
             nginx -t
 
-            PREV_BACK=$(readlink -f "$CURRENT_BACK" 2>/dev/null || true)
-            PREV_WEB=$(readlink -f "$CURRENT_WEB" 2>/dev/null || true)
             switch_link "$BACK_RELEASE" "$CURRENT_BACK"
             switch_link "$WEB_RELEASE" "$CURRENT_WEB"
             systemctl restart dagmar-backend
             for attempt in $(seq 1 15); do
-              if curl -fsS http://127.0.0.1:8101/api/v1/health >/dev/null; then break; fi
+              if curl -fsS http://127.0.0.1:8101/api/v1/readiness >/dev/null; then break; fi
               if [ "$attempt" -eq 15 ]; then
-                if [ -n "$PREV_WEB" ] && [ -e "$PREV_WEB" ]; then switch_link "$PREV_WEB" "$CURRENT_WEB"; fi
                 systemctl stop dagmar-backend
                 exit 1
               fi
@@ -340,6 +356,105 @@ jobs:
             done
             VERSION_JSON=$(curl -fsS http://127.0.0.1:8101/api/version)
             test "$(printf '%s' "$VERSION_JSON" | jq -r .backend_deploy_tag)" = "$SHORT_SHA"
+            SCHEMA_AFTER=$("$BACK_RELEASE/.venv/bin/python" -c 'from app.config import get_settings; from sqlalchemy import create_engine, text; engine=create_engine(get_settings().database_url); print(engine.connect().execute(text("SELECT version_num FROM alembic_version")).scalar_one())')
+            printf '%s\n' "$SCHEMA_AFTER" >> "$UPLOAD/deploy-state"
             BACKEND_STOPPED=false
             trap - EXIT
+      - name: Public HTTPS readiness, headers, version and browser smoke
+        working-directory: web
+        env:
+          DAGMAR_PRODUCTION_URL: https://dagmar.hcasc.cz
+          DAGMAR_EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${DAGMAR_EXPECTED_COMMIT:0:7}"
+          test "$(curl --proto '=https' --tlsv1.2 -fsS "$DAGMAR_PRODUCTION_URL/api/v1/readiness" | jq -r '.ok')" = true
+          test "$(curl --proto '=https' --tlsv1.2 -fsS "$DAGMAR_PRODUCTION_URL/api/version" | jq -r '.backend_deploy_tag')" = "$SHORT_SHA"
+          curl --proto '=https' --tlsv1.2 -fsS -D "$RUNNER_TEMP/dagmar-headers" -o /dev/null "$DAGMAR_PRODUCTION_URL/"
+          test "$(grep -ic '^strict-transport-security: max-age=31536000' "$RUNNER_TEMP/dagmar-headers")" -eq 1
+          test "$(grep -ic '^content-security-policy:' "$RUNNER_TEMP/dagmar-headers")" -eq 1
+          test "$(grep -ic '^cross-origin-opener-policy: same-origin-allow-popups' "$RUNNER_TEMP/dagmar-headers")" -eq 1
+          test "$(grep -ic '^cross-origin-resource-policy: same-origin' "$RUNNER_TEMP/dagmar-headers")" -eq 1
+          npm ci
+          npx playwright install --with-deps chromium
+          DAGMAR_EXPECTED_COMMIT="$SHORT_SHA" node scripts/production-smoke.mjs
+      - name: Roll back a failed public validation safely
+        if: failure()
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          password: ${{ secrets.DEPLOY_PASS }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            SHA="${{ github.sha }}"
+            UPLOAD="/tmp/dagmar-$SHA"
+            STATE="$UPLOAD/deploy-state"
+            CURRENT_BACK=/opt/dagmar/backend
+            CURRENT_WEB=/var/www/dagmar/frontend
+            test -r "$STATE" || exit 0
+            mapfile -t DEPLOY_STATE < "$STATE"
+            test "${#DEPLOY_STATE[@]}" -ge 5
+            PREV_BACK="${DEPLOY_STATE[0]}"
+            PREV_WEB="${DEPLOY_STATE[1]}"
+            BACK_RELEASE="${DEPLOY_STATE[2]}"
+            WEB_RELEASE="${DEPLOY_STATE[3]}"
+            SCHEMA_BEFORE="${DEPLOY_STATE[4]}"
+
+            switch_link() {
+              local target="$1" current="$2"
+              rm -f "$current.next"
+              ln -s "$target" "$current.next"
+              mv -Tf "$current.next" "$current"
+            }
+            case "$BACK_RELEASE" in /opt/dagmar/releases/$SHA-*) ;; *) exit 1 ;; esac
+            case "$WEB_RELEASE" in /var/www/dagmar/releases/$SHA-*) ;; *) exit 1 ;; esac
+            if [ -n "$PREV_WEB" ] && [ -d "$PREV_WEB" ]; then
+              case "$PREV_WEB" in /var/www/dagmar/releases/*) switch_link "$PREV_WEB" "$CURRENT_WEB" ;; *) exit 1 ;; esac
+            fi
+            if [ "${#DEPLOY_STATE[@]}" -ge 6 ]; then
+              SCHEMA_AFTER="${DEPLOY_STATE[5]}"
+            else
+              SCHEMA_AFTER="unknown"
+            fi
+            if [ "$SCHEMA_AFTER" = "$SCHEMA_BEFORE" ] && [ -n "$PREV_BACK" ] && [ -d "$PREV_BACK" ]; then
+              case "$PREV_BACK" in /opt/dagmar/releases/*) switch_link "$PREV_BACK" "$CURRENT_BACK" ;; *) exit 1 ;; esac
+              systemctl restart dagmar-backend
+              curl -fsS http://127.0.0.1:8101/api/v1/readiness >/dev/null
+            else
+              systemctl stop dagmar-backend
+            fi
+            install -d /opt/dagmar/releases/.release-status /var/www/dagmar/releases/.release-status
+            touch "/opt/dagmar/releases/.release-status/$(basename "$BACK_RELEASE").failed"
+            touch "/var/www/dagmar/releases/.release-status/$(basename "$WEB_RELEASE").failed"
+            rm -rf "$UPLOAD"
+      - name: Mark success and retain five safe releases
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          password: ${{ secrets.DEPLOY_PASS }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            SHA="${{ github.sha }}"
+            UPLOAD="/tmp/dagmar-$SHA"
+            mapfile -t DEPLOY_STATE < "$UPLOAD/deploy-state"
+            PREV_BACK="${DEPLOY_STATE[0]}"
+            PREV_WEB="${DEPLOY_STATE[1]}"
+            BACK_RELEASE="${DEPLOY_STATE[2]}"
+            WEB_RELEASE="${DEPLOY_STATE[3]}"
+            case "$BACK_RELEASE" in /opt/dagmar/releases/$SHA-*) ;; *) exit 1 ;; esac
+            case "$WEB_RELEASE" in /var/www/dagmar/releases/$SHA-*) ;; *) exit 1 ;; esac
+            install -d /opt/dagmar/releases/.release-status /var/www/dagmar/releases/.release-status
+            touch "/opt/dagmar/releases/.release-status/$(basename "$BACK_RELEASE").success"
+            touch "/var/www/dagmar/releases/.release-status/$(basename "$WEB_RELEASE").success"
+            BACK_PROTECT=(--protect "$BACK_RELEASE")
+            WEB_PROTECT=(--protect "$WEB_RELEASE")
+            if [ -n "$PREV_BACK" ] && [ -d "$PREV_BACK" ]; then BACK_PROTECT+=(--protect "$PREV_BACK"); fi
+            if [ -n "$PREV_WEB" ] && [ -d "$PREV_WEB" ]; then WEB_PROTECT+=(--protect "$PREV_WEB"); fi
+            "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/cleanup_releases.py" --root /opt/dagmar/releases --keep 5 "${BACK_PROTECT[@]}"
+            "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/cleanup_releases.py" --root /var/www/dagmar/releases --keep 5 "${WEB_PROTECT[@]}"
             rm -rf "$UPLOAD"

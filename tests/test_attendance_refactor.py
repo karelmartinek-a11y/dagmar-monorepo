@@ -2343,5 +2343,8 @@ def test_deploy_stops_backend_before_migration_and_metric_backfill() -> None:
     assert restart < version_check < release_trap
     assert "BACKEND_STOPPED=true" in workflow[stop:migration]
     assert "SCHEMA_CHANGE_STARTED=true" in workflow[stop:migration]
-    assert 'switch_link "$PREV_BACK"' not in workflow
+    rollback_guard = workflow.index('if [ "$SCHEMA_AFTER" = "$SCHEMA_BEFORE" ]')
+    rollback_switch = workflow.index('switch_link "$PREV_BACK"', rollback_guard)
+    rollback_stop = workflow.index("systemctl stop dagmar-backend", rollback_switch)
+    assert rollback_guard < rollback_switch < rollback_stop
     assert "else systemctl stop dagmar-backend" in workflow
