@@ -1,26 +1,92 @@
-# SSOT — implementační a důkazní matice
+# SSOT — atomická implementační a důkazní matice
 
-Tento dokument je aktuální předávací matice implementace uloženého `docs/SSOT_CURRENT.md`. Není historickým auditem ani alternativní specifikací; u každé oblasti uvádí současného vlastníka a skutečný stav ověření.
+Tato matice je současný ověřovací kontrakt. Stav `splněno` smí být nastaven pouze po
+úspěchu uvedeného regresního testu nebo gate a kontrole souvisejících dokumentů.
+Výchozím vlastníkem remediation je `karelmartinek-a11y`; výjimky jsou evidovány výhradně
+v `.security/audit-exceptions.yml`.
 
-| SSOT oblast | Aktivní vlastník | Implementace / změna | Automatický důkaz | Stav |
-|---|---|---|---|---|
-| Kanonický dokument | `docs/SSOT_CURRENT.md` | Přesná příloha, 1 998 řádků, revize `FORENSIC-FINAL-2026-08-03` | SHA-256 `4624b5b06590b1009b5062e6c67e055cd18bd5cffa2ac0ccf01f8443dabfa0e9` | splněno |
-| Autorita dokumentace | `AGENTS.md`, `README.md`, `scripts/generate_current_state_manifest.py` | SSOT je normativní cílový stav; manifest obsahuje revizi, počet řádků a hash | `generate_current_state_manifest.py --check`, repo invarianty | splněno |
-| Časový parser | `web/src/utils/timeInput.ts` | Jeden parser pro všechny časové buňky; zachována normalizace bez povinné dvojtečky | `web/tests/clock-input.test.tsx` | splněno |
-| Editor času | `web/src/components/ClockInput.tsx` | Awaitovatelný commit, saving/saved/error, Escape, Delete celé buňky před pohybem kurzoru, zachování draftu při chybě | `web/tests/clock-input.test.tsx` | splněno |
-| Prezentace eventů | `web/src/utils/presentationAdapters.ts` | Jednotná geometrie sloupců, chronologické hrany, plánové hranice, neutrální hlavičky, tisková kapacita | `web/tests/presentation-adapters.test.ts` | splněno |
-| Zaměstnanecká docházka | `web/src/pages/EmployeePage.tsx` | Aktivní detail je jedna tabulka, jeden den = jeden řádek, dynamické `PRŮCHOD` sloupce, metriky z backendu | frontend typecheck, lint, unit testy | splněno |
-| Zaměstnanecký plán | `web/src/pages/EmployeePage.tsx` | Aktivní detail je stejný tabulkový model, carryover zůstává read-only | frontend typecheck, lint, unit testy | splněno |
-| Adminská docházka | `web/src/pages/AdminMatrixPages.tsx` | Aktivní společná matice `employment_id × den`, dvě krajní buňky a `+N` pro mezilehlé eventy | frontend typecheck, lint, unit testy | splněno |
-| Adminský plán a skupinový plán | `web/src/pages/AdminMatrixPages.tsx`, `web/src/pages/EmployeePage.tsx` | Tabulkové matice zůstávají aktivní; staré paralelní skupinové karty byly odstraněny | frontend typecheck, lint, unit testy | částečně — nutná cílená E2E validace |
-| Lidský CSV/ZIP | `app/api/v1/admin_export.py` | Stabilní metadata, dynamické `PRŮCHOD 1..N`, `PLÁN – PRŮCHOD 1..M`, hodnoty `HH:mm` | `tests/test_attendance_refactor.py -k 'csv or export'` | splněno |
-| Browser tisk attendance | `web/src/pages/AdminOperationsPages.tsx`, `web/src/styles.css` | Jeden úvazek na jednu A4, neutrální chronologické časy, dynamický počet sloupců, explicitní `print_capacity_exceeded` | `web/tests/admin-print.test.tsx`, lokální design capture | částečně — A4 oddělení opraveno, čeká vizuální re-review |
-| Serverový shift-plan PDF | `app/services/shift_plan_reports.py` | Zachován jako samostatný souhrnný report | backend testy a manifest | zachováno |
-| Lokalizace | `web/src/i18n/` a dotčené stránky | Dotčené nové popisky používají neutrální `PRŮCHOD` | `web/tests/i18n-resources.test.ts` | částečně — nutná kontrola všech jazykových renderů |
-| Backendové invarianty | `app/`, `alembic/`, `tests/` | Bez změny employment scope, zámků, serializace, metrik a interního `IN`/`OUT` kontraktu | `compileall`, Ruff, mypy, pytest, repo invarianty | splněno |
-| Úplná a11y/E2E/visual sada | `web/tests/e2e/`, `web/playwright.config.ts` | Stávající sada je zachována, nové scénáře ještě nejsou plně uzavřeny | typecheck/lint/unit prošly | blocker |
-| Design gate | designový agent + lokální reálné rendery | Vyžaduje mobil 390×844, tablet 768×1024, desktop 1440×900, všechny dotčené jazyky, print a písemný finální souhlas; produkční screenshot není podmínka | `/tmp/dagmar-design-evidence-final.*` obsahuje 105 reálných PNG; agent potvrdil P0 tiskové kapacity a P1 lokalizace/mobilního overflow; P0 opraven, re-review ještě neproběhl | blokováno P1 review |
+Normativním zdrojem je `docs/SSOT_CURRENT.md`. Dynamický lidský kontrakt `PRŮCHOD 1..N`
+a explicitní tiskový stav `print_capacity_exceeded` zůstávají povinné; otevřený řádek
+nebo chybějící důkaz je blocker, nikoli částečné splnění.
 
-## Závěr
-
-Kódové a dokumentační změny jsou ověřeny dostupnými lokálními kontrolami. Implementace nesmí být označena za úplně uzavřenou ani nasazena, dokud nebude doplněna cílená E2E/a11y/visual/print evidence a dohledatelný finální souhlas designera podle SSOT.
+| ID | Požadovaný stav | Stav | Owner | Implementační celek | Ověřovací test / gate | Exception ID |
+|---|---|---|---|---|---|---|
+| DAG-P0-001 | Audit-clean hashovaný Python lock | otevřeno | karelmartinek-a11y | A — supply chain | `pip-audit -r requirements-prod.lock` | — |
+| DAG-P0-002 | Runtime enforcement integračního data scope | otevřeno | karelmartinek-a11y | C — integration API | negativní scope testy | — |
+| DAG-P0-003 | Reset revokuje všechny credentials | otevřeno | karelmartinek-a11y | B — auth lifecycle | reset/race/atomicity testy | — |
+| DAG-P0-004 | Povinné security a secret CI gate | otevřeno | karelmartinek-a11y | A — supply chain | CI `security` | — |
+| DAG-P1-001 | Frontend lock bez moderate/high advisory | otevřeno | karelmartinek-a11y | A — supply chain | `npm audit --audit-level=moderate` | — |
+| DAG-P1-002 | Přesná kanonická production doména | otevřeno | karelmartinek-a11y | D — production | parametrické config testy | — |
+| DAG-P1-003 | Odstraněný neúčinný CSRF secret | otevřeno | karelmartinek-a11y | B — auth lifecycle | repo invariant + CSRF testy | — |
+| DAG-P1-004 | Odstraněná falešná token-length volba | otevřeno | karelmartinek-a11y | B — auth lifecycle | token-format invariant | — |
+| DAG-P1-005 | Reset token má delivery/revocation lifecycle | otevřeno | karelmartinek-a11y | B — auth lifecycle | SMTP failure testy | — |
+| DAG-P1-006 | Nejvýše jeden aktivní reset token | otevřeno | karelmartinek-a11y | B — auth lifecycle | souběžný issuance test | — |
+| DAG-P1-007 | Auditovaná admin aktivace instance | otevřeno | karelmartinek-a11y | E — backend | register→activate→claim test | — |
+| DAG-P1-008 | Delete uživatele uklidí jeho WEB instanci | otevřeno | karelmartinek-a11y | B — auth lifecycle | lifecycle + migration test | — |
+| DAG-P1-009 | Reminder správně páruje eventy přes půlnoc | otevřeno | karelmartinek-a11y | E — backend | reminder chronology testy | — |
+| DAG-P1-010 | Oddělené integrační rate-limit buckety | otevřeno | karelmartinek-a11y | C — integration API | 429 parametrické testy | — |
+| DAG-P1-011 | Časově omezený admin account lockout | otevřeno | karelmartinek-a11y | B — auth lifecycle | admin lockout testy | — |
+| DAG-P1-012 | Veřejný build bez sourcemap | otevřeno | karelmartinek-a11y | D — production | artifact sourcemap gate | — |
+| DAG-P1-013 | Enforced production CSP | otevřeno | karelmartinek-a11y | D — production | Nginx header/browser test | — |
+| DAG-P1-014 | Deploy bez credentialu v Git remote | otevřeno | karelmartinek-a11y | D — production | deploy preflight | — |
+| DAG-P1-015 | Bezpečná retence release | otevřeno | karelmartinek-a11y | D — production | cleanup script unit testy | — |
+| DAG-P1-016 | DB a revision readiness | otevřeno | karelmartinek-a11y | D — production | readiness dependency testy | — |
+| DAG-P2-001 | Manifest odvozuje skutečný auth režim | otevřeno | karelmartinek-a11y | E — backend | manifest route testy | — |
+| DAG-P2-002 | Stabilní opaque cursor pagination | otevřeno | karelmartinek-a11y | C — integration API | cursor continuity testy | — |
+| DAG-P2-003 | Pouze routami vynucené scopes jsou dostupné | otevřeno | karelmartinek-a11y | C — integration API | scope-route invariant | — |
+| DAG-P2-004 | Jediná neintegrační error envelope | otevřeno | karelmartinek-a11y | E — backend | error contract testy | — |
+| DAG-P2-005 | External auth URL bez SSRF odchylek | otevřeno | karelmartinek-a11y | D — production | URL/redirect negativní testy | — |
+| DAG-P2-006 | Neplatné environment hodnoty fail-fast | otevřeno | karelmartinek-a11y | D — production | config testy | — |
+| DAG-P2-007 | Neplatné SameSite hodnoty fail-fast | otevřeno | karelmartinek-a11y | D — production | config testy | — |
+| DAG-P2-008 | Žádný produkční validační `assert` | otevřeno | karelmartinek-a11y | E — backend | repo invariant | — |
+| DAG-P2-009 | User listing nepolyká data chyby | otevřeno | karelmartinek-a11y | E — backend | integrity-error test | — |
+| DAG-P2-010 | Deploy-tag fallback je auditovatelný | otevřeno | karelmartinek-a11y | E — backend | logging test | — |
+| DAG-P2-011 | Calendar fetch pouze bezpečné HTTPS cíle | otevřeno | karelmartinek-a11y | E — backend | URL/size negativní testy | — |
+| DAG-P2-012 | Reprodukovatelný Python build | otevřeno | karelmartinek-a11y | A — supply chain | `check_python_lock.py` | — |
+| DAG-P2-013 | Actions připnuté na full SHA | otevřeno | karelmartinek-a11y | A — supply chain | `check_security_policy.py` | — |
+| DAG-P2-014 | Shodný připnutý pip/build toolchain | otevřeno | karelmartinek-a11y | A — supply chain | artifact build gate | — |
+| DAG-P2-015 | Hermetický backend artifact | otevřeno | karelmartinek-a11y | A — supply chain | offline wheelhouse install | — |
+| DAG-P2-016 | Veřejný HTTPS post-deploy smoke | otevřeno | karelmartinek-a11y | D — production | production smoke | — |
+| DAG-P2-017 | Roční production HSTS | otevřeno | karelmartinek-a11y | D — production | exact header test | — |
+| DAG-P2-018 | Title pro skupiny úvazků | otevřeno | karelmartinek-a11y | F — frontend | route-title test | — |
+| DAG-P2-019 | `/app` title reaguje na navigaci/jazyk | otevřeno | karelmartinek-a11y | F — frontend | navigation title test | — |
+| DAG-P2-020 | Kompletní lokalizace lidského UI | otevřeno | karelmartinek-a11y | F — frontend | literal gate + language E2E | — |
+| DAG-P2-021 | Přístupný potvrzovací dialog | otevřeno | karelmartinek-a11y | F — frontend | focus/keyboard/a11y testy | — |
+| DAG-P2-022 | Plně klávesová kontextová menu | otevřeno | karelmartinek-a11y | F — frontend | menu Playwright testy | — |
+| DAG-P2-023 | Neomezené dynamické průchody v UI | otevřeno | karelmartinek-a11y | F — frontend | 0/1/4/5/8 event testy | — |
+| DAG-P2-024 | Zod validace všech JSON kontraktů | otevřeno | karelmartinek-a11y | F — frontend | negativní contract testy | — |
+| DAG-P2-025 | Browser auth pouze HttpOnly cookie | otevřeno | karelmartinek-a11y | B — auth lifecycle | cookie/CSRF/storage testy | — |
+| DAG-P2-026 | Jediná admin session implementace | otevřeno | karelmartinek-a11y | B — auth lifecycle | auth-source invariant | — |
+| DAG-P2-027 | Config je jediný admin password source | otevřeno | karelmartinek-a11y | B — auth lifecycle | admin login source test | — |
+| DAG-P2-028 | Povinný backend suite má 0 skipped | otevřeno | karelmartinek-a11y | E — backend | pytest strict/zero-skip | — |
+| DAG-P3-001 | Explicitní Alembic path separator | otevřeno | karelmartinek-a11y | G — governance | `alembic heads` bez warningu | — |
+| DAG-P3-002 | Testy bez deprecation warnings | otevřeno | karelmartinek-a11y | B — auth lifecycle | pytest `-W error` | — |
+| DAG-P3-003 | Žádné auditované nepoužité `cls` | otevřeno | karelmartinek-a11y | G — governance | Vulture gate | — |
+| DAG-P3-004 | Textové configy končí LF | otevřeno | karelmartinek-a11y | G — governance | newline invariant | — |
+| DAG-P3-005 | Čitelné formátované TS/TSX | otevřeno | karelmartinek-a11y | G — governance | Prettier gate | — |
+| DAG-P3-006 | Čitelné source CSS | otevřeno | karelmartinek-a11y | G — governance | Stylelint + Prettier | — |
+| DAG-P3-007 | ESLint zakazuje explicitní `any` | otevřeno | karelmartinek-a11y | G — governance | ESLint gate | — |
+| DAG-P3-008 | Frontend CI toleruje 0 warningů | otevřeno | karelmartinek-a11y | G — governance | lint `--max-warnings=0` | — |
+| DAG-P3-009 | Backend/frontend format gate | otevřeno | karelmartinek-a11y | G — governance | format checky | — |
+| DAG-P3-010 | Branding nemá druhý `app_name` zdroj | otevřeno | karelmartinek-a11y | G — governance | branding invariant | — |
+| DAG-P3-011 | Provisioning komentáře odpovídají runtime | otevřeno | karelmartinek-a11y | G — governance | repo search | — |
+| DAG-P3-012 | Standardní dotenv parser | otevřeno | karelmartinek-a11y | G — governance | dotenv syntax testy | — |
+| DAG-P3-013 | Security headers nejsou duplicitní | otevřeno | karelmartinek-a11y | D — production | Nginx/curl test | — |
+| DAG-P3-014 | Explicitní HSTS subdomain rozhodnutí | otevřeno | karelmartinek-a11y | D — production | docs invariant | — |
+| DAG-P3-015 | Minimální Permissions-Policy | otevřeno | karelmartinek-a11y | D — production | header/browser smoke | — |
+| DAG-P3-016 | COOP a CORP chrání production | otevřeno | karelmartinek-a11y | D — production | OAuth/same-origin smoke | — |
+| DAG-P3-017 | Admin logout má UI error stav | otevřeno | karelmartinek-a11y | F — frontend | logout failure test | — |
+| DAG-P3-018 | CSRF replay pouze pro `csrf_invalid` | otevřeno | karelmartinek-a11y | F — frontend | request-count test | — |
+| DAG-P3-019 | Bezpečný RFC 5987 filename parser | otevřeno | karelmartinek-a11y | F — frontend | filename parser testy | — |
+| DAG-P3-020 | Zod chyby jsou bezpečný `ApiError` | otevřeno | karelmartinek-a11y | F — frontend | invalid-contract test | — |
+| DAG-P3-021 | Explicitní browser support a ES2020 | otevřeno | karelmartinek-a11y | F — frontend | build/compat smoke | — |
+| DAG-P3-022 | Browser a viewport testovací matice | otevřeno | karelmartinek-a11y | F — frontend | Playwright projects | — |
+| DAG-P3-023 | Strojově vynucený design gate | otevřeno | karelmartinek-a11y | F — frontend | `check_design_gate.py` | — |
+| DAG-P3-024 | Vizuální pokrytí kritických ploch | otevřeno | karelmartinek-a11y | F — frontend | visual snapshots | — |
+| DAG-P3-025 | Návrhové binárky jsou LFS pointery | otevřeno | karelmartinek-a11y | G — governance | LFS invariant | — |
+| DAG-P3-026 | Normalizované názvy podkladů | otevřeno | karelmartinek-a11y | G — governance | repo search + index | — |
+| DAG-P3-027 | Bez zbytečného Alembic `.gitkeep` | otevřeno | karelmartinek-a11y | G — governance | absence invariant | — |
+| DAG-P3-028 | Explicitní nevratná migrace a restore runbook | otevřeno | karelmartinek-a11y | E — backend | downgrade-boundary test | — |
+| DAG-P3-029 | Migrace `0002` nepolyká DB chyby | otevřeno | karelmartinek-a11y | E — backend | migration postcondition test | — |
+| DAG-P3-030 | Broad exceptions jen na procesních hranicích | otevřeno | karelmartinek-a11y | E — backend | `check_broad_exceptions.py` | — |
+| DAG-P3-031 | Řídicí artefakty nemaskují otevřené nálezy | otevřeno | karelmartinek-a11y | G — governance | matrix/invariant check | — |

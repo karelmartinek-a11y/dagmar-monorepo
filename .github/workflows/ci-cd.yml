@@ -5,14 +5,64 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
 
 concurrency:
   group: dagmar-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: github/codeql-action/init@24c7eb380a2dc368f2d129e4c65e51d172983a1e # v4
+        with:
+          languages: python,javascript-typescript
+      - name: Install audited tooling
+        run: |
+          python -m pip install --disable-pip-version-check pip==26.0
+          python -m pip install --require-hashes -r requirements-dev.lock
+          npm ci --prefix web
+      - name: Validate security policy and dependency locks
+        run: |
+          python scripts/check_python_lock.py
+          python scripts/check_security_policy.py
+          python scripts/check_release_gate.py
+      - name: Audit production dependencies
+        run: |
+          pip-audit -r requirements-prod.lock
+          npm audit --prefix web --package-lock-only --audit-level=moderate
+          bandit -r app scripts -ll
+      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: github/codeql-action/analyze@24c7eb380a2dc368f2d129e4c65e51d172983a1e # v4
+
   backend:
     runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
     services:
       postgres:
         image: postgres:17-alpine
@@ -25,20 +75,23 @@ jobs:
           --health-cmd "pg_isready -U dagmar -d dagmar_e2e_backend"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
+      PYTHONPATH: .
       DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_backend
       DAGMAR_DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_backend
       DAGMAR_SESSION_SECRET: ci-session-secret-ci-session-secret-1234
       DAGMAR_CSRF_SECRET: ci-csrf-secret-ci-csrf-secret-123456
       DAGMAR_E2E_SEED: "1"
     steps:
-      - uses: actions/checkout@v7
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-python@v6.2.0
-        with: { python-version: "3.11" }
-      - name: Install dependencies
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Install locked dependencies
         run: |
-          python -m pip install --upgrade "pip>=26.0"
-          pip install -e '.[dev]'
+          python -m pip install --disable-pip-version-check pip==26.0
+          python -m pip install --require-hashes -r requirements-dev.lock
       - name: Compile, lint and typecheck
         run: |
           python -m compileall -q app
@@ -59,11 +112,38 @@ jobs:
         run: |
           python scripts/check_repo_invariants.py
           python scripts/generate_current_state_manifest.py --check
+          python scripts/check_python_lock.py
+      - name: Build hermetic backend artifact
+        run: |
+          python -m build --wheel --no-isolation
+          mkdir -p backend-artifact/wheelhouse backend-artifact/dist
+          python -m pip download --require-hashes -r requirements-prod.lock -d backend-artifact/wheelhouse
+          python -m pip download --only-binary=:all: pip==26.0 -d backend-artifact/wheelhouse
+          cp dist/*.whl backend-artifact/dist/
+          cp requirements-prod.lock alembic.ini gunicorn.conf.py backend-artifact/
+          cp -R alembic ops scripts backend-artifact/
+          printf '{"backend_commit":"%s"}\n' "${GITHUB_SHA:0:7}" > backend-artifact/backend-version.json
+          (cd backend-artifact && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -C backend-artifact -cf - . | gzip -n > backend-release.tgz
+      - name: Verify wheelhouse offline
+        run: |
+          python -m venv /tmp/dagmar-wheel-test
+          /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/wheelhouse pip==26.0
+          /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/wheelhouse --require-hashes -r requirements-prod.lock
+          /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/dist --no-deps kajovodagmar
+          (cd /tmp && DAGMAR_DATABASE_URL="$DAGMAR_DATABASE_URL" DAGMAR_SESSION_SECRET="$DAGMAR_SESSION_SECRET" DAGMAR_CSRF_SECRET="$DAGMAR_CSRF_SECRET" /tmp/dagmar-wheel-test/bin/python -c 'from app.main import app; assert app.title')
       - name: Verify clean tree after backend checks
         run: |
           git diff --exit-code
-          git status --short
           test -z "$(git status --short)"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: backend-release
+          path: backend-release.tgz
+          if-no-files-found: error
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: backend-release.tgz
 
   web:
     runs-on: ubuntu-latest
@@ -79,6 +159,7 @@ jobs:
           --health-cmd "pg_isready -U dagmar -d dagmar_e2e_web"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
+      PYTHONPATH: .
       DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_web
       DAGMAR_DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_web
       DAGMAR_SESSION_SECRET: ci-session-secret-ci-session-secret-1234
@@ -93,15 +174,21 @@ jobs:
       DAGMAR_E2E_USER_PASSWORD: EmployeeE2E-Strong-123
       VITE_API_PROXY: http://127.0.0.1:8101
     steps:
-      - uses: actions/checkout@v7
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v6.4.0
-        with: { node-version: 20, cache: npm, cache-dependency-path: web/package-lock.json }
-      - uses: actions/setup-python@v6.2.0
-        with: { python-version: "3.11" }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
       - name: Prepare real backend
         run: |
-          pip install -e .
+          python -m pip install --disable-pip-version-check pip==26.0
+          python -m pip install --require-hashes -r requirements-prod.lock
           python scripts/create_e2e_schema_baseline.py
           alembic upgrade head
           python scripts/seed_e2e.py
@@ -109,15 +196,16 @@ jobs:
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8101 > /tmp/dagmar-e2e-backend.log 2>&1 &
           for attempt in $(seq 1 30); do
             curl -fsS http://127.0.0.1:8101/api/v1/health && break
-            if [ "$attempt" -eq 30 ]; then cat /tmp/dagmar-e2e-backend.log; exit 1; fi
+            if [ "$attempt" -eq 30 ]; then sed -n '1,240p' /tmp/dagmar-e2e-backend.log; exit 1; fi
             sleep 1
           done
-      - name: Install dependencies
+      - name: Install frontend dependencies
         working-directory: web
         run: npm ci
       - name: Static and unit checks
         working-directory: web
         run: |
+          npm audit --package-lock-only --audit-level=moderate
           npm run check:branding
           npm run lint
           npm run typecheck
@@ -132,40 +220,57 @@ jobs:
       - name: Verify clean tree after web checks
         run: |
           git diff --exit-code
-          git status --short
           test -z "$(git status --short)"
       - name: Package exact web artifact
-        run: tar -C web/dist -czf web-release.tgz .
-      - uses: actions/upload-artifact@v6
+        run: |
+          printf '{"frontend_commit":"%s"}\n' "${GITHUB_SHA:0:7}" > web/dist/frontend-version.json
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -C web/dist -cf - . | gzip -n > web-release.tgz
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: web-release
           path: web-release.tgz
           if-no-files-found: error
 
+  release-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.gate.outputs.allowed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - id: gate
+        run: python scripts/check_release_gate.py --github-output
+
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-gate.outputs.allowed == 'true'
+    needs: [security, backend, web, release-gate]
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/download-artifact@v7
-        with: { name: web-release }
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: backend-release
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: web-release
       - name: Check deployment secrets
         run: |
           test -n "${{ secrets.DEPLOY_HOST }}"
           test -n "${{ secrets.DEPLOY_USER }}"
           test -n "${{ secrets.DEPLOY_SSH_KEY }}"
-      - name: Upload immutable web artifact
-        uses: appleboy/scp-action@v1.0.0
+      - name: Upload immutable artifacts
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           password: ${{ secrets.DEPLOY_PASS }}
-          source: web-release.tgz
+          source: backend-release.tgz,web-release.tgz
           target: /tmp/dagmar-${{ github.sha }}
       - name: Install and atomically activate release
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -177,42 +282,27 @@ jobs:
             SHA="${{ github.sha }}"
             SHORT_SHA="${SHA:0:7}"
             ATTEMPT="${{ github.run_attempt }}"
-            LOCK_FILE="${HOME:-/root}/.dagmar-deploy.lock"
-            exec 9>"$LOCK_FILE"
-            flock 9
-
-            REPO=/srv/hcasc/_repos/dagmar-monorepo
+            UPLOAD="/tmp/dagmar-$SHA"
             RELEASES=/opt/dagmar/releases
             WEB_RELEASES=/var/www/dagmar/releases
             BACK_RELEASE="$RELEASES/$SHA-$ATTEMPT"
             WEB_RELEASE="$WEB_RELEASES/$SHA-$ATTEMPT"
             CURRENT_BACK=/opt/dagmar/backend
             CURRENT_WEB=/var/www/dagmar/frontend
-            STAMP=$(date +%Y%m%d%H%M%S)
+            exec 9>"${HOME:-/root}/.dagmar-deploy.lock"
+            flock 9
 
-            REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/karelmartinek-a11y/dagmar-monorepo.git"
-            if [ ! -d "$REPO/.git" ]; then git clone "$REPO_URL" "$REPO"; fi
-            git -C "$REPO" remote set-url origin "$REPO_URL"
-            git -C "$REPO" fetch origin main
-            git -C "$REPO" checkout main
-            git -C "$REPO" reset --hard "$SHA"
-            test "$(git -C "$REPO" rev-parse HEAD)" = "$SHA"
-
-            install -d "$BACK_RELEASE/app" "$BACK_RELEASE/alembic" "$WEB_RELEASE"
-            rsync -a "$REPO/app/" "$BACK_RELEASE/app/"
-            rsync -a "$REPO/alembic/" "$BACK_RELEASE/alembic/"
-            install -m 0644 "$REPO/pyproject.toml" "$REPO/README.md" "$REPO/alembic.ini" "$REPO/gunicorn.conf.py" "$BACK_RELEASE/"
-            install -m 0644 \
-              "$REPO/ops/systemd/dagmar-backend.service" \
-              "$REPO/ops/systemd/dagmar-shift-plan-month-auto-lock.service" \
-              "$REPO/ops/systemd/dagmar-shift-plan-month-auto-lock.timer" \
-              /etc/systemd/system/
+            install -d "$BACK_RELEASE" "$WEB_RELEASE"
+            tar -xzf "$UPLOAD/backend-release.tgz" -C "$BACK_RELEASE"
+            tar -xzf "$UPLOAD/web-release.tgz" -C "$WEB_RELEASE"
+            (cd "$BACK_RELEASE" && sha256sum -c SHA256SUMS)
             python3 -m venv "$BACK_RELEASE/.venv"
-            "$BACK_RELEASE/.venv/bin/pip" install --upgrade pip
-            "$BACK_RELEASE/.venv/bin/pip" install "$BACK_RELEASE"
-            printf '{"backend_commit":"%s"}\n' "$SHORT_SHA" > "$BACK_RELEASE/backend-version.json"
-            tar -xzf "/tmp/dagmar-$SHA/web-release.tgz" -C "$WEB_RELEASE"
-            printf '{"frontend_commit":"%s"}\n' "$SHORT_SHA" > "$WEB_RELEASE/frontend-version.json"
+            "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" pip==26.0
+            "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
+            "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
+            APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, app; print(pathlib.Path(app.__file__).parent)')
+            ln -s "$APP_DIR" "$BACK_RELEASE/app"
+            install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
 
             switch_link() {
               local target="$1" current="$2"
@@ -225,49 +315,33 @@ jobs:
             cd "$BACK_RELEASE"
             BACKEND_STOPPED=false
             SCHEMA_CHANGE_STARTED=false
-            trap 'if [ "$BACKEND_STOPPED" = true ]; then if [ "$SCHEMA_CHANGE_STARTED" = false ]; then systemctl start dagmar-backend || true; else systemctl stop dagmar-backend || true; fi; fi' EXIT
+            trap 'if [ "$BACKEND_STOPPED" = true ]; then if [ "$SCHEMA_CHANGE_STARTED" = false ]; then systemctl start dagmar-backend; else systemctl stop dagmar-backend; fi; fi' EXIT
             systemctl stop dagmar-backend
             BACKEND_STOPPED=true
             SCHEMA_CHANGE_STARTED=true
             "$BACK_RELEASE/.venv/bin/alembic" -c "$BACK_RELEASE/alembic.ini" upgrade head
-            "$BACK_RELEASE/.venv/bin/python" "$REPO/scripts/rebuild_daily_time_metrics.py" --apply
-            "$BACK_RELEASE/.venv/bin/python" "$REPO/scripts/rebuild_daily_time_metrics.py" --check
+            "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/rebuild_daily_time_metrics.py" --apply
+            "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/rebuild_daily_time_metrics.py" --check
             systemctl daemon-reload
             systemctl enable --now dagmar-shift-plan-month-auto-lock.timer
             nginx -t
 
             PREV_BACK=$(readlink -f "$CURRENT_BACK" 2>/dev/null || true)
             PREV_WEB=$(readlink -f "$CURRENT_WEB" 2>/dev/null || true)
-            if [ -d "$CURRENT_BACK" ] && [ ! -L "$CURRENT_BACK" ]; then
-              PREV_BACK="$RELEASES/preswitch-$STAMP"
-              mv "$CURRENT_BACK" "$PREV_BACK"
-            fi
-            if [ -d "$CURRENT_WEB" ] && [ ! -L "$CURRENT_WEB" ]; then
-              PREV_WEB="$WEB_RELEASES/preswitch-$STAMP"
-              mv "$CURRENT_WEB" "$PREV_WEB"
-            fi
-
             switch_link "$BACK_RELEASE" "$CURRENT_BACK"
             switch_link "$WEB_RELEASE" "$CURRENT_WEB"
             systemctl restart dagmar-backend
-
-            HEALTHY=false
-            for _ in $(seq 1 15); do
-              if curl -fsS http://127.0.0.1:8101/api/v1/health >/dev/null; then
-                HEALTHY=true
-                break
+            for attempt in $(seq 1 15); do
+              if curl -fsS http://127.0.0.1:8101/api/v1/health >/dev/null; then break; fi
+              if [ "$attempt" -eq 15 ]; then
+                if [ -n "$PREV_WEB" ] && [ -e "$PREV_WEB" ]; then switch_link "$PREV_WEB" "$CURRENT_WEB"; fi
+                systemctl stop dagmar-backend
+                exit 1
               fi
               sleep 2
             done
-            if [ "$HEALTHY" != true ]; then
-              if [ -n "$PREV_WEB" ] && [ -e "$PREV_WEB" ]; then switch_link "$PREV_WEB" "$CURRENT_WEB"; fi
-              systemctl stop dagmar-backend
-              exit 1
-            fi
             VERSION_JSON=$(curl -fsS http://127.0.0.1:8101/api/version)
             test "$(printf '%s' "$VERSION_JSON" | jq -r .backend_deploy_tag)" = "$SHORT_SHA"
-            test "$(jq -r .frontend_commit "$CURRENT_WEB/frontend-version.json")" = "$SHORT_SHA"
             BACKEND_STOPPED=false
             trap - EXIT
-            rm -rf "/tmp/dagmar-$SHA"
-            printf '%s KájovoDagmar atomic release %s\n' "$(date '+%F %T')" "$SHA" >> /var/log/dagmar/deploy.log || true
+            rm -rf "$UPLOAD"

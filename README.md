@@ -45,7 +45,8 @@ Strojově čitelný manifest je v [docs/current-state-manifest.yaml](docs/curren
 
 ```bash
 python3.11 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
+.venv/bin/pip install pip==26.0
+.venv/bin/pip install --require-hashes -r requirements-dev.lock
 .venv/bin/python -m compileall -q app
 .venv/bin/ruff check app tests scripts
 .venv/bin/mypy app
@@ -53,6 +54,10 @@ python3.11 -m venv .venv
 .venv/bin/pytest -q
 .venv/bin/python scripts/check_repo_invariants.py
 .venv/bin/python scripts/generate_current_state_manifest.py --check
+.venv/bin/python scripts/check_python_lock.py
+.venv/bin/python scripts/check_security_policy.py
+.venv/bin/pip-audit -r requirements-prod.lock
+.venv/bin/bandit -r app scripts -ll
 git diff --exit-code
 git status --short
 ```
@@ -62,6 +67,7 @@ git status --short
 ```bash
 cd web
 npm ci
+npm audit --package-lock-only --audit-level=moderate
 npm run check:branding
 npm run lint
 npm run typecheck

@@ -19,12 +19,34 @@ MONTHS = {
     "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
     "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12,
 }
+ALLOWED_FETCH_HOSTS = frozenset(
+    {"unpkg.com", "www.churchofengland.org", "namenstage.katholisch.de"}
+)
+MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+
+
+def validate_fetch_url(url: str) -> None:
+    parsed = urllib.parse.urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in ALLOWED_FETCH_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port is not None
+    ):
+        raise ValueError("Calendar source must be allowlisted HTTPS without userinfo or port.")
 
 
 def fetch(url: str) -> str:
+    validate_fetch_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "KajovoDagmar calendar snapshot maintainer/1.0"})
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - pinned maintenance sources
-        return response.read().decode("utf-8", errors="replace")
+    # B310 is safe here because both the requested and redirect-final URL are validated.
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
+        validate_fetch_url(response.geturl())
+        payload = response.read(MAX_RESPONSE_BYTES + 1)
+        if len(payload) > MAX_RESPONSE_BYTES:
+            raise ValueError("Calendar source exceeded the 5 MiB response limit.")
+        return payload.decode("utf-8", errors="replace")
 
 
 def parse_slovak(text: str) -> dict[str, list[str]]:

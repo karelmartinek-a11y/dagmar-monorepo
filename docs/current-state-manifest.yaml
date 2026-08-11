@@ -952,13 +952,14 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2001,
+    "line_count": 2013,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "321c02e165e419a2319ee4e6ea628a99fd1cebe369507351d1902e85107c76c2"
+    "sha256": "94f59527fd1076a658ee49d5c5fac486df7ef8430a89d0d8786183fd9abe601e"
   },
   "production": {
     "api_base_path": "/api/v1/",
+    "backend_artifact": "tested_wheel_plus_hashed_offline_wheelhouse",
     "backend_bind": "127.0.0.1:8101",
     "deploy_workflow": ".github/workflows/ci-cd.yml",
     "domain": "https://dagmar.hcasc.cz",
@@ -1014,5 +1015,19 @@
     "postgres_bind": "127.0.0.1:5433",
     "reverse_proxy_tls": "nginx",
     "timezone": "Europe/Prague"
+  },
+  "supply_chain": {
+    "audit_exception_registry": ".security/audit-exceptions.yml",
+    "pip_tools_version": "7.6.0",
+    "pip_version": "26.0",
+    "python_ci_lock": "requirements-dev.lock",
+    "python_runtime_lock": "requirements-prod.lock",
+    "security_gates": [
+      "pip-audit",
+      "npm-audit",
+      "bandit",
+      "codeql",
+      "secret-scan"
+    ]
   }
 }

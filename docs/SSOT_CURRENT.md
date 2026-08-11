@@ -153,8 +153,8 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 
 ### Frontend
 
-- Node.js `>=20`;
-- React 18, TypeScript a Vite 6;
+- Node.js `>=22`;
+- React 18, TypeScript a Vite 7;
 - TanStack Query pro server state;
 - i18next / react-i18next pro lokalizaci;
 - Zod pro validační hranici vybraných API odpovědí;
@@ -1279,7 +1279,7 @@ Minimální stabilní sloupce každého CSV:
 
 Na PostgreSQL 17 a Pythonu 3.11:
 
-1. instalace projektu s dev dependencies;
+1. instalace přes hashovaný `requirements-dev.lock` s `pip==26.0`;
 2. compileall;
 3. Ruff;
 4. mypy;
@@ -1290,10 +1290,16 @@ Na PostgreSQL 17 a Pythonu 3.11:
 9. repo invarianty;
 10. current-state manifest `--check`;
 11. čistý git diff/status.
+12. build aplikačního wheelu, kompletního Linux wheelhouse a offline instalační smoke stejného artefaktu.
+
+Python 3.11 locky generuje výhradně `scripts/update_python_locks.py` pomocí
+`pip-tools==7.6.0`; `scripts/check_python_lock.py` ověřuje jejich vazbu na `pyproject.toml`,
+úplné připnutí a SHA-256 hashe. Produkční dependency kontrakt je
+`requirements-prod.lock`, vývojový a CI kontrakt `requirements-dev.lock`.
 
 ### CI frontend
 
-Na Node 20 s reálným backendem a PostgreSQL 17:
+Na Node 22 s reálným backendem a PostgreSQL 17:
 
 1. backend install/migrate/seed/start;
 2. `npm ci`;
@@ -1306,9 +1312,14 @@ Na Node 20 s reálným backendem a PostgreSQL 17:
 9. čistý git diff/status;
 10. zabalení přesného web artefaktu.
 
+Povinný security job před merge i deployem navíc provádí Python a npm dependency audit,
+Bandit, CodeQL pro Python a JavaScript/TypeScript, secret scan a validaci centrálního
+registry `.security/audit-exceptions.yml`. Security kroky nejsou warning-only a každá
+GitHub Action je připnuta na plný commit SHA.
+
 ### Produkční deploy
 
-- běží pouze po úspěšném backend+web jobu při push na `main`;
+- běží pouze po úspěšném security+backend+web jobu při push na `main` a po uzavření všech P0/P1 v implementační matici;
 - release je immutable adresář identifikovaný přesným SHA;
 - používá deployment lock;
 - backend se zastaví před migrací;
@@ -1318,7 +1329,8 @@ Na Node 20 s reálným backendem a PostgreSQL 17:
 - systemd a Nginx konfigurace se validují;
 - ověří se health a přesná nasazená verze;
 - webový symlink lze při selhání vrátit, ale databázově nekompatibilní starý backend se nesmí spustit;
-- nasazený frontend a backend musí být z jednoho commitu.
+- nasazený frontend a backend musí být z jednoho commitu;
+- backend je nasazován pouze z CI vytvořeného wheelu a přibaleného wheelhouse s ověřeným SHA-256 manifestem; produkční server nestahuje balíčky z indexu ani nesestavuje runtime z Git checkoutu.
 
 ### Alembic
 
