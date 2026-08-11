@@ -275,7 +275,7 @@ jobs:
           source: backend-release.tgz,web-release.tgz
           target: /tmp/dagmar-${{ github.sha }}
       - name: Install and atomically activate release
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -379,7 +379,7 @@ jobs:
           DAGMAR_EXPECTED_COMMIT="$SHORT_SHA" node scripts/production-smoke.mjs
       - name: Roll back a failed public validation safely
         if: failure()
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -430,7 +430,7 @@ jobs:
             touch "/var/www/dagmar/releases/.release-status/$(basename "$WEB_RELEASE").failed"
             rm -rf "$UPLOAD"
       - name: Mark success and retain five safe releases
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
