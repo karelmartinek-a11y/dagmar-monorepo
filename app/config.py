@@ -7,6 +7,7 @@ from functools import lru_cache
 from typing import Literal, cast
 from urllib.parse import SplitResult, urlsplit
 
+from dotenv import dotenv_values
 from pydantic import BaseModel, Field
 
 
@@ -306,30 +307,11 @@ class Settings(BaseModel):
 
 
 def _load_env_file(path: str) -> None:
-    """Minimal dotenv loader.
+    """Load an optional dotenv file without overriding process environment."""
 
-    We intentionally avoid third-party dotenv libs to keep dependencies minimal.
-    Lines are KEY=VALUE, # comments allowed.
-
-    Environment variables already set are NOT overwritten.
-    """
-
-    if not os.path.exists(path):
-        return
-
-    with open(path, encoding="utf-8") as f:
-        for raw in f:
-            line = raw.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            k = k.strip()
-            v = v.strip().strip('"').strip("'")
-            if not k:
-                continue
-            os.environ.setdefault(k, v)
+    for key, value in dotenv_values(path).items():
+        if value is not None:
+            os.environ.setdefault(key, value)
 
 
 @lru_cache(maxsize=1)

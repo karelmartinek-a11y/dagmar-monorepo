@@ -48,13 +48,13 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P2-015 | Hermetický backend artifact | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: offline wheelhouse + provenance | — |
 | DAG-P2-016 | Veřejný HTTPS post-deploy smoke | splněno | karelmartinek-a11y | D — production | production smoke | PR #44, CI `31537398225`, deploy workflow policy test; execution remains gated by open E P1 |
 | DAG-P2-017 | Roční production HSTS | splněno | karelmartinek-a11y | D — production | exact header test | PR #44, CI `31537398225`, real Nginx HTTPS test |
-| DAG-P2-018 | Title pro skupiny úvazků | otevřeno | karelmartinek-a11y | F — frontend | route-title test | — |
-| DAG-P2-019 | `/app` title reaguje na navigaci/jazyk | otevřeno | karelmartinek-a11y | F — frontend | navigation title test | — |
+| DAG-P2-018 | Title pro skupiny úvazků | splněno | karelmartinek-a11y | F — frontend | route-title test | PR #49, `Root.tsx` route map |
+| DAG-P2-019 | `/app` title reaguje na navigaci/jazyk | splněno | karelmartinek-a11y | F — frontend | navigation title test | PR #49, `Root.tsx` + Employee title effect |
 | DAG-P2-020 | Kompletní lokalizace lidského UI | otevřeno | karelmartinek-a11y | F — frontend | literal gate + language E2E | — |
 | DAG-P2-021 | Přístupný potvrzovací dialog | otevřeno | karelmartinek-a11y | F — frontend | focus/keyboard/a11y testy | — |
 | DAG-P2-022 | Plně klávesová kontextová menu | otevřeno | karelmartinek-a11y | F — frontend | menu Playwright testy | — |
-| DAG-P2-023 | Neomezené dynamické průchody v UI | otevřeno | karelmartinek-a11y | F — frontend | 0/1/4/5/8 event testy | — |
-| DAG-P2-024 | Zod validace všech JSON kontraktů | otevřeno | karelmartinek-a11y | F — frontend | negativní contract testy | — |
+| DAG-P2-023 | Neomezené dynamické průchody v UI | splněno | karelmartinek-a11y | F — frontend | 0/1/4/5/8 event testy | PR #49, `Math.max(4, maximum)` in employee/admin matrices |
+| DAG-P2-024 | Zod validace všech JSON kontraktů | splněno | karelmartinek-a11y | F — frontend | negativní contract testy | PR #49, schema failures map to `invalid_response_contract` |
 | DAG-P2-025 | Browser auth pouze HttpOnly cookie | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: cookie/CSRF/storage + design `SCHVÁLENO` | — |
 | DAG-P2-026 | Jediná admin session implementace | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: auth-source invariant | — |
 | DAG-P2-027 | Config je jediný admin password source | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: admin login source test | — |
@@ -70,22 +70,22 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P3-009 | Backend/frontend format gate | otevřeno | karelmartinek-a11y | G — governance | format checky | — |
 | DAG-P3-010 | Branding nemá druhý `app_name` zdroj | otevřeno | karelmartinek-a11y | G — governance | branding invariant | — |
 | DAG-P3-011 | Provisioning komentáře odpovídají runtime | otevřeno | karelmartinek-a11y | G — governance | repo search | — |
-| DAG-P3-012 | Standardní dotenv parser | otevřeno | karelmartinek-a11y | G — governance | dotenv syntax testy | — |
+| DAG-P3-012 | Standardní dotenv parser | splněno | karelmartinek-a11y | G — governance | dotenv syntax testy | current `python-dotenv` loader + `tests/test_production_config.py` (23 passed) |
 | DAG-P3-013 | Security headers nejsou duplicitní | splněno | karelmartinek-a11y | D — production | Nginx/curl test | PR #44, CI `31537398225`, web/API/OAuth header assertions |
 | DAG-P3-014 | Explicitní HSTS subdomain rozhodnutí | splněno | karelmartinek-a11y | D — production | docs invariant | PR #44, `docs/SSOT_CURRENT.md`, exact header test |
 | DAG-P3-015 | Minimální Permissions-Policy | splněno | karelmartinek-a11y | D — production | header/browser smoke | PR #44, CI `31537398225`, Nginx policy/runtime tests |
 | DAG-P3-016 | COOP a CORP chrání production | splněno | karelmartinek-a11y | D — production | OAuth/same-origin smoke | PR #44, CI `31537398225`, OAuth callback + same-origin header tests |
 | DAG-P3-017 | Admin logout má UI error stav | otevřeno | karelmartinek-a11y | F — frontend | logout failure test | — |
-| DAG-P3-018 | CSRF replay pouze pro `csrf_invalid` | otevřeno | karelmartinek-a11y | F — frontend | request-count test | — |
-| DAG-P3-019 | Bezpečný RFC 5987 filename parser | otevřeno | karelmartinek-a11y | F — frontend | filename parser testy | — |
-| DAG-P3-020 | Zod chyby jsou bezpečný `ApiError` | otevřeno | karelmartinek-a11y | F — frontend | invalid-contract test | — |
-| DAG-P3-021 | Explicitní browser support a ES2020 | otevřeno | karelmartinek-a11y | F — frontend | build/compat smoke | — |
+| DAG-P3-018 | CSRF replay pouze pro `csrf_invalid` | splněno | karelmartinek-a11y | F — frontend | request-count test | PR #49, one guarded retry |
+| DAG-P3-019 | Bezpečný RFC 5987 filename parser | splněno | karelmartinek-a11y | F — frontend | filename parser testy | PR #49, RFC 5987 decode + sanitization |
+| DAG-P3-020 | Zod chyby jsou bezpečný `ApiError` | splněno | karelmartinek-a11y | F — frontend | invalid-contract test | PR #49, no raw payload |
+| DAG-P3-021 | Explicitní browser support a ES2020 | splněno | karelmartinek-a11y | F — frontend | build/compat smoke | PR #49, Vite target `es2020` |
 | DAG-P3-022 | Browser a viewport testovací matice | otevřeno | karelmartinek-a11y | F — frontend | Playwright projects | — |
 | DAG-P3-023 | Strojově vynucený design gate | otevřeno | karelmartinek-a11y | F — frontend | `check_design_gate.py` | — |
 | DAG-P3-024 | Vizuální pokrytí kritických ploch | otevřeno | karelmartinek-a11y | F — frontend | visual snapshots | — |
 | DAG-P3-025 | Návrhové binárky jsou LFS pointery | otevřeno | karelmartinek-a11y | G — governance | LFS invariant | — |
 | DAG-P3-026 | Normalizované názvy podkladů | otevřeno | karelmartinek-a11y | G — governance | repo search + index | — |
-| DAG-P3-027 | Bez zbytečného Alembic `.gitkeep` | otevřeno | karelmartinek-a11y | G — governance | absence invariant | — |
+| DAG-P3-027 | Bez zbytečného Alembic `.gitkeep` | splněno | karelmartinek-a11y | G — governance | absence invariant | commit removes `alembic/versions/.gitkeep` |
 | DAG-P3-028 | Explicitní nevratná migrace a restore runbook | splněno | karelmartinek-a11y | E — backend | `test_irreversible_employment_migration_raises_actionable_command_error` + restore runbook | — |
 | DAG-P3-029 | Migrace `0002` nepolyká DB chyby | splněno | karelmartinek-a11y | E — backend | `test_migration_0002_drops_only_named_unique_constraint` | — |
 | DAG-P3-030 | Broad exceptions jen na procesních hranicích | splněno | karelmartinek-a11y | E — backend | `scripts/check_broad_exceptions.py` allowlist gate | — |
