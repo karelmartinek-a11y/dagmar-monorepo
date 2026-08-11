@@ -52,7 +52,7 @@ jobs:
           pip-audit -r requirements-prod.lock
           npm audit --prefix web --package-lock-only --audit-level=moderate
           bandit -r app scripts -ll
-      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: github/codeql-action/analyze@24c7eb380a2dc368f2d129e4c65e51d172983a1e # v4
@@ -113,6 +113,10 @@ jobs:
           python scripts/check_repo_invariants.py
           python scripts/generate_current_state_manifest.py --check
           python scripts/check_python_lock.py
+      - name: Verify clean tree after backend checks
+        run: |
+          git diff --exit-code
+          test -z "$(git status --short)"
       - name: Build hermetic backend artifact
         run: |
           python -m build --wheel --no-isolation
@@ -132,10 +136,6 @@ jobs:
           /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/wheelhouse --require-hashes -r requirements-prod.lock
           /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/dist --no-deps kajovodagmar
           (cd /tmp && DAGMAR_DATABASE_URL="$DAGMAR_DATABASE_URL" DAGMAR_SESSION_SECRET="$DAGMAR_SESSION_SECRET" DAGMAR_CSRF_SECRET="$DAGMAR_CSRF_SECRET" /tmp/dagmar-wheel-test/bin/python -c 'from app.main import app; assert app.title')
-      - name: Verify clean tree after backend checks
-        run: |
-          git diff --exit-code
-          test -z "$(git status --short)"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: backend-release
