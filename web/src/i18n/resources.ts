@@ -798,7 +798,7 @@ export const resources = {
         },
       },
       api: {
-        genericError: "Požadavek skončil chybou {{status}}.",
+        genericError: "Požadavek skončil chybou {{status}}.", invalidResponseContract: "Odpověď serveru má neplatný formát.",
         offlineQueueBlocked:
           "Položka patří jinému účtu. Přihlaste se původním uživatelem.",
         offlineUnknown: "Neznámá chyba synchronizace",
@@ -1608,7 +1608,7 @@ export const resources = {
         },
       },
       api: {
-        genericError: "The request ended with error {{status}}.",
+        genericError: "The request ended with error {{status}}.", invalidResponseContract: "The server response has an invalid format.",
         offlineQueueBlocked:
           "This item belongs to another account. Sign in with the original user.",
         offlineUnknown: "Unknown synchronization error",
@@ -2413,7 +2413,7 @@ export const resources = {
         },
       },
       api: {
-        genericError: "Požiadavka skončila chybou {{status}}.",
+        genericError: "Požiadavka skončila chybou {{status}}.", invalidResponseContract: "Odpoveď servera má neplatný formát.",
         offlineQueueBlocked:
           "Položka patrí inému účtu. Prihláste sa pôvodným používateľom.",
         offlineUnknown: "Neznáma chyba synchronizácie",
@@ -3243,7 +3243,7 @@ export const resources = {
         },
       },
       api: {
-        genericError: "Die Anfrage endete mit Fehler {{status}}.",
+        genericError: "Die Anfrage endete mit Fehler {{status}}.", invalidResponseContract: "Die Serverantwort hat ein ungültiges Format.",
         offlineQueueBlocked:
           "Dieser Eintrag gehört zu einem anderen Konto. Melden Sie sich mit dem ursprünglichen Benutzer an.",
         offlineUnknown: "Unbekannter Synchronisierungsfehler",
@@ -3548,7 +3548,7 @@ export const resources = {
         },
       },
       api: {
-        genericError: "अनुरोध में त्रुटि {{status}} आई।",
+        genericError: "अनुरोध में त्रुटि {{status}} आई।", invalidResponseContract: "सर्वर उत्तर का प्रारूप अमान्य है।",
         offlineQueueBlocked:
           "यह रिकॉर्ड किसी अन्य खाते का है। मूल उपयोगकर्ता से लॉग इन करें।",
         offlineUnknown: "अज्ञात सिंक त्रुटि",

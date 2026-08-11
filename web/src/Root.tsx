@@ -24,6 +24,7 @@ function DocumentTitle() {
       if (pathname === "/admin/settings") return "adminOps.settings.title";
       if (pathname === "/admin/ucet") return "account.title";
       if (pathname === "/admin/integrace") return "adminOps.integrations.title";
+      if (pathname === "/admin/skupiny-uvazku") return "adminMatrix.shiftPlan.title";
       return "auth.notFound.title";
     })();
 

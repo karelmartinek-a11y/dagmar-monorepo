@@ -56,6 +56,7 @@ export async function request<T>(
   options: RequestInit = {},
   mode: Mode = "public",
   schema?: ZodType<T>,
+  retried = false,
 ): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
@@ -70,14 +71,23 @@ export async function request<T>(
     throw new ApiError(i18n.t("common.status.networkOffline"), 0, "offline", null);
   }
   if (!response.ok) {
-    if (response.status === 403 && mode === "admin") adminCsrfToken = null;
-    if (response.status === 403 && mode === "portal") portalCsrfToken = null;
-    throw await responseError(response);
+    const error = await responseError(response);
+    if (!retried && response.status === 403 && error.code === "csrf_invalid" && mode !== "public") {
+      if (mode === "admin") adminCsrfToken = null;
+      else portalCsrfToken = null;
+      return request(path, options, mode, schema, true);
+    }
+    throw error;
   }
   if (response.status === 204) return undefined as T;
   const contentType = response.headers.get("content-type") ?? "";
   const payload = contentType.includes("json") ? await response.json() : await response.text();
-  return schema ? schema.parse(payload) : payload as T;
+  if (!schema) return payload as T;
+  try {
+    return schema.parse(payload);
+  } catch {
+    throw new ApiError(i18n.t("api.invalidResponseContract"), response.status, "invalid_response_contract", response.headers.get("x-request-id"));
+  }
 }
 
 export async function requestBlob(
@@ -103,10 +113,18 @@ export async function requestBlob(
     throw await responseError(response);
   }
   const disposition = response.headers.get("content-disposition");
-  const match = disposition ? /filename="([^"]+)"/i.exec(disposition) : null;
+  const encoded = disposition ? /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1] : undefined;
+  const legacy = disposition ? /filename="([^"]+)"/i.exec(disposition)?.[1] : undefined;
+  let filename: string | null = null;
+  try {
+    const candidate = encoded ? decodeURIComponent(encoded) : legacy;
+    if (candidate) filename = candidate.replace(/[\\/\0\r\n]/g, "_").slice(0, 255);
+  } catch {
+    filename = null;
+  }
   return {
     blob: await response.blob(),
-    filename: match?.[1] ?? null,
+    filename,
     contentType: response.headers.get("content-type"),
   };
 }
