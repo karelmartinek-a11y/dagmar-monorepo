@@ -995,7 +995,7 @@
     "line_count": 1994,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "0ce98e24661c19e3f5187669d643853a920cce0821b23bd3ef6b252126b370c6"
+    "sha256": "b828e822114e25a92e1d603539fc4269405a137c380406c0678c764e73ca68bd"
   },
   "production": {
     "api_base_path": "/api/v1/",
