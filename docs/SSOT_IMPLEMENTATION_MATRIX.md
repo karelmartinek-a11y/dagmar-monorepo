@@ -11,11 +11,11 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 
 | ID | Požadovaný stav | Stav | Owner | Implementační celek | Ověřovací test / gate | Exception ID |
 |---|---|---|---|---|---|---|
-| DAG-P0-001 | Audit-clean hashovaný Python lock | otevřeno | karelmartinek-a11y | A — supply chain | `pip-audit -r requirements-prod.lock` | — |
+| DAG-P0-001 | Audit-clean hashovaný Python lock | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: `pip-audit` 0 advisories | — |
 | DAG-P0-002 | Runtime enforcement integračního data scope | otevřeno | karelmartinek-a11y | C — integration API | negativní scope testy | — |
 | DAG-P0-003 | Reset revokuje všechny credentials | otevřeno | karelmartinek-a11y | B — auth lifecycle | reset/race/atomicity testy | — |
-| DAG-P0-004 | Povinné security a secret CI gate | otevřeno | karelmartinek-a11y | A — supply chain | CI `security` | — |
-| DAG-P1-001 | Frontend lock bez moderate/high advisory | otevřeno | karelmartinek-a11y | A — supply chain | `npm audit --audit-level=moderate` | — |
+| DAG-P0-004 | Povinné security a secret CI gate | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: security/CodeQL/gitleaks | — |
+| DAG-P1-001 | Frontend lock bez moderate/high advisory | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: npm audit 0 advisories | — |
 | DAG-P1-002 | Přesná kanonická production doména | otevřeno | karelmartinek-a11y | D — production | parametrické config testy | — |
 | DAG-P1-003 | Odstraněný neúčinný CSRF secret | otevřeno | karelmartinek-a11y | B — auth lifecycle | repo invariant + CSRF testy | — |
 | DAG-P1-004 | Odstraněná falešná token-length volba | otevřeno | karelmartinek-a11y | B — auth lifecycle | token-format invariant | — |
@@ -41,11 +41,11 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P2-008 | Žádný produkční validační `assert` | otevřeno | karelmartinek-a11y | E — backend | repo invariant | — |
 | DAG-P2-009 | User listing nepolyká data chyby | otevřeno | karelmartinek-a11y | E — backend | integrity-error test | — |
 | DAG-P2-010 | Deploy-tag fallback je auditovatelný | otevřeno | karelmartinek-a11y | E — backend | logging test | — |
-| DAG-P2-011 | Calendar fetch pouze bezpečné HTTPS cíle | otevřeno | karelmartinek-a11y | E — backend | URL/size negativní testy | — |
-| DAG-P2-012 | Reprodukovatelný Python build | otevřeno | karelmartinek-a11y | A — supply chain | `check_python_lock.py` | — |
-| DAG-P2-013 | Actions připnuté na full SHA | otevřeno | karelmartinek-a11y | A — supply chain | `check_security_policy.py` | — |
-| DAG-P2-014 | Shodný připnutý pip/build toolchain | otevřeno | karelmartinek-a11y | A — supply chain | artifact build gate | — |
-| DAG-P2-015 | Hermetický backend artifact | otevřeno | karelmartinek-a11y | A — supply chain | offline wheelhouse install | — |
+| DAG-P2-011 | Calendar fetch pouze bezpečné HTTPS cíle | splněno | karelmartinek-a11y | A — supply chain prerequisite | CI run `31522955074`: 8 URL/redirect/size testů + Bandit | — |
+| DAG-P2-012 | Reprodukovatelný Python build | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: `check_python_lock.py` | — |
+| DAG-P2-013 | Actions připnuté na full SHA | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: `check_security_policy.py` | — |
+| DAG-P2-014 | Shodný připnutý pip/build toolchain | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: pinned toolchain artifact build | — |
+| DAG-P2-015 | Hermetický backend artifact | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: offline wheelhouse + provenance | — |
 | DAG-P2-016 | Veřejný HTTPS post-deploy smoke | otevřeno | karelmartinek-a11y | D — production | production smoke | — |
 | DAG-P2-017 | Roční production HSTS | otevřeno | karelmartinek-a11y | D — production | exact header test | — |
 | DAG-P2-018 | Title pro skupiny úvazků | otevřeno | karelmartinek-a11y | F — frontend | route-title test | — |
