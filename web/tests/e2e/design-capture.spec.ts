@@ -42,6 +42,16 @@ async function adminLogin(page: Page, language: string) {
 for (const language of languages) test(`capture ${language} responsive design views`, async ({ page }) => {
   test.setTimeout(60_000);
   test.skip(!output, "DAGMAR_DESIGN_OUTPUT is required.");
+  await page.goto("/integration-api");
+  await setLanguage(page, language);
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await expect(page.getByText("2026-08-11", { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: path.join(output!, `${language}-${viewport.name}-integration-api.png`),
+      fullPage: true,
+    });
+  }
   await employeeLogin(page, language);
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
@@ -69,6 +79,7 @@ for (const language of languages) test(`capture ${language} responsive design vi
   }
   await page.setViewportSize(viewports[0]);
   await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".skip-link")).toBeHidden();
   await expect(page.locator(".print-sheet").first()).toBeVisible();
   await page.locator(".print-sheet").first().screenshot({
     path: path.join(output!, `${language}-desktop-admin-print-media.png`),

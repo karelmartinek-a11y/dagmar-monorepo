@@ -105,7 +105,7 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 - pracovní fond a bilanční porovnávání nejsou aktivní součástí systému;
 - browserový login vrací pouze display name, `employment_id` a `available_employments`; credential je vydán výhradně jako HttpOnly cookie a `/api/v1/portal/session` obnovuje bezpečná metadata po reloadu;
 - zaměstnanec může pracovat jen s úvazkem, ke kterému má přístup;
-- integrační klienti mají endpointové scopes. Na auditovaném SHA runtime bezpečně vynucuje explicitní `allowed_employment_ids`; administrační režimy selected employees a active-only jsou uložená metadata, ale aktivní integration router je ještě plně neaplikuje. Tento rozdíl je níže uzamčen jako známá bezpečnostně významná asymetrie;
+- integrační klienti mají endpointové scopes a jednotně vynucený deny-by-default datový rozsah pro seznamy i přímé ID operace;
 - externí Google a Apple login slouží jen k ověření již propojeného interního účtu.
 
 
@@ -122,7 +122,7 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 | Nepřihlášený návštěvník | žádná | health, verze, serverový čas, registrace/status zařízení, login/reset, seznam externích providerů, veřejná integrační dokumentace |
 | Zaměstnanec | browserová HttpOnly cookie + CSRF pro mutace; explicitní bearer pouze pro non-browser instanci | vlastní dostupné úvazky, docházka, plán, skupinový plán, denní stavy, vlastní externí přihlašovací metody |
 | Administrátor | podepsaná admin cookie; u mutací navíc CSRF | uživatelé, úvazky, docházka, plán, skupiny, zámky, exporty, tisky, SMTP, integrace, adminský účet |
-| Integrační klient | bearer token `dgi_…` | endpointové scopes a skutečně runtime vynucený rozsah; na auditovaném SHA je úplně vynucen pouze explicitní seznam `allowed_employment_ids` |
+| Integrační klient | bearer token `dgi_…` | endpointové scopes a jednotně runtime vynucený deny-by-default datový rozsah |
 | Background reminder worker | interní proces backendu | vyhodnocení plánů a chybějících průchodů, odeslání e-mailů, idempotentní evidence |
 | Měsíční auto-lock timer | systemd timer / interní skript | jednorázové uzamčení plánu aktivních úvazků v aktuálním měsíci |
 | CI/CD | GitHub Actions | úplná validace, sestavení artefaktů a deterministický produkční deploy |
@@ -222,9 +222,9 @@ Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní 
 | `DAGMAR_RATE_LIMIT_ADMIN_LOGIN_PER_MINUTE` | načtený default `10`; login decorator má pevně `10/minute` | změna proměnné auditovaný login limit nezmění |
 | `DAGMAR_RATE_LIMIT_INSTANCE_STATUS_PER_MINUTE` | načtený default `60`, bez dedikovaného zapojení v public instance routeru | route podléhá obecnému limiteru, nikoli tomuto samostatnému nastavení |
 | `DAGMAR_RATE_LIMIT_INSTANCE_CLAIM_PER_MINUTE` | načtený default `30`, bez dedikovaného zapojení v public instance routeru | route podléhá obecnému limiteru, nikoli tomuto samostatnému nastavení |
-| `DAGMAR_RATE_LIMIT_INTEGRATION_HEALTH_PER_MINUTE` | načtený default `60`, bez samostatného enforcementu na auditovaném SHA | metadata konfigurace |
-| `DAGMAR_RATE_LIMIT_INTEGRATION_DATA_PER_MINUTE` | načtený default `120`; create-event má pevný guard `120`, ostatní data cesty nejsou konzistentně navázány | metadata konfigurace / částečně hardcoded enforcement |
-| `DAGMAR_RATE_LIMIT_INTEGRATION_OPENAPI_PER_MINUTE` | načtený default `10`, bez samostatného enforcementu na auditovaném SHA | metadata konfigurace |
+| `DAGMAR_RATE_LIMIT_INTEGRATION_HEALTH_PER_MINUTE` | `60` | samostatný health bucket |
+| `DAGMAR_RATE_LIMIT_INTEGRATION_DATA_PER_MINUTE` | `120` | společný bucket všech datových rout |
+| `DAGMAR_RATE_LIMIT_INTEGRATION_OPENAPI_PER_MINUTE` | `10` | samostatný OpenAPI bucket |
 | `DAGMAR_INTEGRATION_TOKEN_LENGTH` | `48`; generátor použije nejméně 16 bytů | délka náhodné části integračního tokenu `dgi_` |
 | `DAGMAR_GUNICORN_WORKERS` | výchozí `max(2, CPU count)` | počet workerů; aktivní kód nehlídá minimum |
 | `DAGMAR_GUNICORN_THREADS` | `1` | Gunicorn threads |
@@ -233,7 +233,7 @@ Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní 
 | `DAGMAR_FORWARDED_ALLOW_IPS` | `127.0.0.1` | důvěryhodné proxy adresy pro Uvicorn |
 | `DAGMAR_LOG_LEVEL` | `INFO` v app configu, `info` v Gunicornu | logování |
 | `DAGMAR_DISABLE_DOCS` | `true` | FastAPI docs |
-| `DAGMAR_INTEGRATION_CONTRACT_VERSION` | `2026-06-23` | integrační kontrakt |
+| `DAGMAR_INTEGRATION_CONTRACT_VERSION` | `2026-08-11` | integrační kontrakt |
 | `DAGMAR_EXTERNAL_AUTH_TRANSACTION_TTL_SECONDS` | `600`, rozsah 120–1800 | OAuth transakce |
 | `DAGMAR_EXTERNAL_AUTH_RESULT_TTL_SECONDS` | `120`, rozsah 30–600 | jednorázový SPA výsledek |
 | `DAGMAR_EXTERNAL_AUTH_HTTP_TIMEOUT_SECONDS` | `10`, rozsah 2–30 | provider HTTP |
@@ -642,15 +642,13 @@ Migrace `2026_08_11_0025` zneplatní nedoložitelně doručené starší reset t
 - databáze ukládá Argon2 hash, SHA-256 lookup prefix, fingerprint, poslední čtyři znaky, časy vydání/rotace/revokace a `last_used_at` klienta;
 - klient musí být `ACTIVE`, neexpirovaný, mít nerevokovaný secret a případně projít IP allowlistem;
 - endpointové scope se kontroluje v každém aktivním integračním handleru podle tabulky níže;
-- administrační model umí režimy `ALL_EMPLOYMENTS`, `ALL_ACTIVE_EMPLOYMENTS`, `SELECTED_EMPLOYEES` a `SELECTED_EMPLOYMENTS`, ale aktivní integration router na tomto SHA při autorizaci používá pouze `allowed_employment_ids`; neprázdný seznam je allowlist, prázdný seznam znamená bez omezení podle employment ID;
-- `allowed_employee_ids`, `data_scope_mode` a `include_inactive_employments` jsou na auditovaném SHA v adminském modelu a UI metadatech, ale integration router je při čtení a zápisu plně nevyhodnocuje. `SELECTED_EMPLOYEES` ani `ALL_ACTIVE_EMPLOYMENTS` proto samy o sobě runtime data neomezí;
-- list zaměstnání může při prázdném `allowed_employment_ids` vracet také neaktivní úvazky, protože aktivní read handler je nefiltroval podle aktivity;
-- tato asymetrie je bezpečnostní blocker pro tvrzení, že všechny čtyři režimy jsou vynucené. Reprodukce baseline ji musí výslovně přiznat; její odstranění je samostatná kompatibilní bezpečnostní oprava a vyžaduje negativní scope testy;
+- jediná scope služba vynucuje režimy `ALL_EMPLOYMENTS`, `ALL_ACTIVE_EMPLOYMENTS`, `SELECTED_EMPLOYEES` a `SELECTED_EMPLOYMENTS` na SQL seznamech i přímých ID operacích; neznámý režim a prázdný selektivní seznam nepovolí žádný úvazek;
+- `SELECTED_EMPLOYEES` respektuje `include_inactive_employments`; `ALL_ACTIVE_EMPLOYMENTS` vždy vyžaduje aktivní úvazek i uživatele a všechny zápisy tuto aktivitu vyžadují bez ohledu na režim;
 - IP restriction je buď žádná, nebo server-managed allowlist, který UI nesmí samo vymyslet;
 - expirace: žádná, 30, 90, 365 dní nebo custom datum;
 - klient lze enable/disable, rotate secret a revoke secret;
 - každá integration odpověď prochází audit middlewarem; mutace doplňují row count a vybraná before/after metadata;
-- specializované config hodnoty pro health/data/OpenAPI rate limits jsou načtené, ale auditovaný router je nepoužívá konzistentně jako tři samostatné limity. Aplikace má globální default a create-event navíc explicitní hardcoded guard 120/min; nelze tvrdit, že health skutečně běží na 60/min a OpenAPI na 10/min bez dalšího zapojení.
+- health, všechny datové routy a OpenAPI mají samostatné config-driven buckety podle integračního klienta; globální vypnutí rate limitingu vypne všechny tři.
 
 ## API kontrakt
 
@@ -870,28 +868,20 @@ Vše vyžaduje `dgi_` bearer a audit:
 
 | Metoda | Cesta | Scope | Chování |
 |---|---|---|---|
-| GET | `/api/v1/integration/health` | valid client | ok, client ID, timezone |
-| GET | `/api/v1/integration/openapi.json` | `employments:read` | OpenAPI 3.1 subset |
+| GET | `/api/v1/integration/health` | `integration:health` | ok, client ID, timezone a verze kontraktu |
+| GET | `/api/v1/integration/openapi.json` | `openapi:read` | OpenAPI 3.1 subset aktivních rout |
 | GET | `/api/v1/integration/employments` | `employments:read` | scoped employments a time profile |
 | GET | `/api/v1/integration/attendance-events` | `attendance:read` | scoped, date-filtered chronological list |
 | POST | `/api/v1/integration/attendance-events` | `attendance:create` | single/paired, strict full validation |
 | PATCH | `/api/v1/integration/attendance-events/{event_id}` | `attendance:update` | timestamp only |
 | DELETE | `/api/v1/integration/attendance-events/{event_id}` | `attendance:delete` | strict post-delete sequence |
-| GET | `/api/v1/integration/locks` | `locks:read` | attendance/plan locks pro employment IDs povolené aktivním `_allowed` filtrem |
+| GET | `/api/v1/integration/locks` | `locks:read` | attendance/plan locks pro povolené employment IDs |
 
-Seznamové odpovědi mají `{data, pagination}`; `limit` je 1–500, výchozí 100. Aktivní helper ořízne výsledek na `limit` a nastaví `has_more`, ale `next_cursor` nikdy nevyplní a router nemá parametr pro pokračování. Jde tedy o indikaci truncation, nikoli funkční cursor pagination. Každý event payload obsahuje interní typ, timezone `Europe/Prague` a `last_changed_at`, protože integrační API je strojový round-trip a nepodléhá zákazu lidského směrového labelu.
+Seznamové odpovědi mají `{data, pagination}`; `limit` je 1–500, výchozí 100. Opaque cursor je verzovaný a vázaný na zdroj: úvazky a zámky pokračují podle `id`, eventy podle `(occurred_at,id)`. Poškozený nebo cizí cursor vrací `invalid_cursor`. Každý event payload obsahuje interní typ, timezone `Europe/Prague` a `last_changed_at`, protože integrační API je strojový round-trip a nepodléhá zákazu lidského směrového labelu.
 
+Jediná scope služba vynucuje datový rozsah na SQL dotazech i přímých ID operacích. `ALL_EMPLOYMENTS` povoluje všechny úvazky; `ALL_ACTIVE_EMPLOYMENTS` pouze aktivní úvazky aktivních uživatelů; `SELECTED_EMPLOYEES` vyžaduje neprázdné employee IDs a respektuje include-inactive; `SELECTED_EMPLOYMENTS` vyžaduje neprázdné employment IDs. Neznámý nebo prázdný selektivní režim nepovolí nic. Zápis navíc vždy vyžaduje aktivní úvazek i uživatele.
 
-#### Známá asymetrie integračních scopes na auditovaném commitu
-
-Admin options definují scopes `integration:health`, `employments:read`, `shift_plan:read`, `attendance:read`, `attendance:create`, `attendance:update`, `attendance:delete`, `punches:read`, `locks:read`, `openapi:read` a unavailable `changes:read`. Runtime ale na tomto SHA má pouze endpointy uvedené v tabulce výše:
-
-- health pouze vyžaduje platný aktivní token; nekontroluje explicitně `integration:health`, přesto admin validátor tento scope povinně přiděluje každému klientovi;
-- `/openapi.json` kontroluje `employments:read`, nikoli deklarované `openapi:read`;
-- `shift_plan:read` a `punches:read` jsou dostupné v administračních profilech, ale odpovídající data endpoint v aktivním integration routeru není;
-- `changes:read` je správně označen `available=false` a nesmí být uložen.
-
-Jde o rekonstruovaný baseline, nikoli o doporučení. Reprodukce stávajícího programu tuto asymetrii zachová. Její budoucí narovnání je samostatná změna veřejného integračního kontraktu, vyžaduje verzi, kompatibilitu, OpenAPI, klientské testy a aktualizaci tohoto SSOT; implementátor ji nesmí provést mimo scope aktuální UI změny.
+Aktivní scopes mají invariantně propojenou skutečnou routu. `shift_plan:read`, `punches:read` a `changes:read` jsou nedostupné a nesmí být uloženy. Health, data a OpenAPI používají oddělené, konfigurovatelné rate-limit buckety; globální `rate_limit_enabled=false` je vypne společně.
 
 ## Frontendová architektura
 
@@ -1226,7 +1216,7 @@ Backendový kontrakt zahrnuje:
 - list: name, status/label, scopes/summary, data scope, IP restriction, expiry, last used, created/updated/by, secret fingerprint/last4, dostupné akce;
 - create/update jméno s povolenými písmeny, čísly, mezerami, pomlčkou a podtržítkem; zákaz URL, HTML a tajemství;
 - scopes a permission profiles;
-- data-scope konfiguraci active-only / selected employees / selected employments / all; jde o adminský kontrakt, jehož runtime enforcement je na auditovaném SHA neúplný podle známé asymetrie;
+- data-scope konfiguraci active-only / selected employees / selected employments / all, kterou runtime jednotně vynucuje deny-by-default;
 - include inactive jen tam, kde jej režim podporuje;
 - server-managed IP mode pouze pokud už technický allowlist existuje;
 - expiry option;
@@ -1344,18 +1334,12 @@ Tyto nesoulady byly nalezeny mezi aktivními vrstvami. Pro reprodukci platí vý
 |---|---|---|
 | manifest auth mode vs router dependencies | generovaný manifest klasifikuje některé bootstrap admin cesty jako session/CSRF | skutečné chování routerů je public login/forgot/csrf/me/logout dle API sekce; manifest se má opravit, ne runtime zpřísnit bez samostatné změny |
 | frontend `Instance` typ vs backend | historický TS interface používá numerické/odlišné fields | backend UUID `Instance` je autorita; dormant interface se nesmí použít jako nový kontrakt |
-| integrační scopes vs endpointy | administrační options obsahují scopes bez aktivního routeru a OpenAPI scope není runtime enforcement | zachovat přesně známou asymetrii nebo ji změnit pouze verzovanou integrační změnou |
-| integrační data-scope metadata vs runtime | admin ukládá selected employees, active-only a include-inactive, ale aktivní router filtruje jen `allowed_employment_ids`; prázdný seznam je neomezený | baseline musí být popsán pravdivě; bezpečné zapojení všech režimů je samostatná security oprava s negativními testy |
-| integration pagination | response model nabízí `next_cursor`, helper ale vrací jen `has_more` a žádný pokračovací cursor | nesmí být dokumentováno jako funkční cursor pagination |
-| konfigurované integrační rate limits vs router | config má 60/120/10, router je neváže konzistentně na health/data/OpenAPI | netvrdit specializované limity; změna enforcementu je samostatná provozní kontraktní oprava |
 | běžné API error envelope | doménové chyby používají objekt v `detail`, request validation používá `error`, část dependencies textový `detail` | frontend musí zpracovat všechny varianty; sjednocení je samostatná veřejná změna |
 | public instance activation | register vytváří `PENDING`, claim vyžaduje `ACTIVE`, ale auditovaný HTTP API nemá activation endpoint | neimprovizovat nový endpoint; aktivace je externí provisioning/ruční mezera |
 | `last_login_at` v admin users | hodnota pochází z `Instance.last_seen_at` a je nastavena už při vytvoření | prezentovat jako poslední aktivitu instance, ne auditně přesný login |
 | reminder „otevřená směna“ | worker testuje `any(IN) and not any(OUT)` v jednotlivém kalendářním dni, nikoli poslední event/párování přes půlnoc | zachovat baseline nebo opravit samostatnou změnou algoritmu a testy cross-midnight |
 | portal/admin event update DTO | update přijímá plný create-like payload a kontroluje immutable employment/type; integration PATCH jen timestamp | klient nesmí zjednodušit portal/admin payload na `{occurred_at}` bez kompatibilní změny API |
-| specializované rate-limit envs | část hodnot je pouze načtená, zatímco routy používají global default nebo hardcoded limity | dokumentace nesmí tvrdit dynamický enforcement nepropojených hodnot |
 | bind settings vs production Gunicorn | app Settings načte host/port, `gunicorn.conf.py` binduje pevně loopback 8101 | produkční reprodukce používá Gunicorn fakt; změna bindu vyžaduje úpravu jeho konfigurace |
-| veřejná integrační dokumentace vs validační middleware | auditovaná dokumentační stránka uvádí mezi příklady stav `422`, zatímco globální API validation handler mapuje Pydantic/FastAPI request validation na `400 invalid_request` | reprodukovat aktuální obrazovku i runtime pouze jako zdokumentovanou asymetrii; narovnání dokumentace je samostatná kompatibilní docs oprava |
 | SMTP a integration admin UI vs API | backend CRUD existuje, auditované routes jsou informační | reprodukovat API i informační UI; nevymýšlet plný editor bez schváleného scope |
 | current human export/print vs schválený cíl | baseline propouští směrové typy a overflow | cílový `PRŮCHOD` kontrakt níže je normativní a baseline prezentaci nahrazuje |
 
@@ -1406,7 +1390,7 @@ Následující scénáře jsou minimální behaviorální fingerprint systému:
 21. **Reset lifecycle:** nový reset revokuje starší odkazy; použití platného `SENT` odkazu v jedné transakci změní heslo, revokuje všechny reset/unlock tokeny i non-browser instance bearer a okamžitě zneplatní všechny browserové relace navázané na předchozí password credential.
 22. **Integration data-scope baseline:** explicitní `allowed_employment_ids` omezuje data; samotný `SELECTED_EMPLOYEES` nebo `ALL_ACTIVE_EMPLOYMENTS` bez naplněného seznamu employment IDs aktivní router neomezí.
 23. **Error variants:** frontend správně zobrazí doménový objekt v `detail`, request-validation objekt v `error` i textový `detail`.
-24. **Pagination truth:** `has_more=true` bez `next_cursor` se nesmí vydávat za možnost načíst další stránku.
+24. **Pagination truth:** každé `has_more=true` obsahuje neprázdný `next_cursor`; cizí nebo poškozený cursor vrací `invalid_cursor`.
 25. **Update DTO compatibility:** portal/admin update odmítne změněný `employment_id`, změněný `event_type` nebo nenulový `paired_occurred_at`; integration PATCH přijme pouze timestamp.
 26. **Instance lifecycle:** public register vytvoří pending instanci, claim selže 409 bez externí aktivace; admin create-user vytvoří active WEB instanci přímo.
 27. **Reminder edge:** den s IN–OUT–IN nesplní same-day `not any(OUT)` a cross-midnight IN z předchozího dne může splnit previous-day reminder podmínku.
@@ -1974,7 +1958,7 @@ Strukturální kontrola tohoto vydání explicitně inventarizuje aktivní perzi
 | plán | shift plan API/services | cross-midnight, overlap, carryover, groups, locks | unit/API/E2E |
 | metriky | interval, metrics, daily persistence, month summary | přesné algoritmy a rounding | known-value tests + rebuild `--check` |
 | reminders/auto-lock | background služby | časování, dedupe, advisory/idempotence | deterministic clock tests |
-| API | current-state manifest + přímo čtené router dependencies + DTO | endpoint inventory, skutečné auth výjimky, více chybových obálek a známé integration asymetrie | manifest generation `--check` + targeted contract tests |
+| API | current-state manifest + přímo čtené router dependencies + DTO | endpoint inventory, skutečné auth výjimky, integrační scope/cursor/rate-limit kontrakt a více chybových obálek | manifest generation `--check` + targeted contract tests |
 | frontend | routes, API client, pages, components, state | route ownership, screen states, query/session behavior | component + Playwright |
 | design/i18n/a11y | styles, resources, visual/a11y tests | tokeny, breakpoints, language surface, target table rules | renders, axe, visual snapshots, designer sign-off |
 | export/tisk | admin export, reports, print UI | PRŮCHOD target, bezeztrátový CSV a explicitní A4 kapacitní hranice | CSV/PDF fixtures, one-A4 assertions a capacity-exceeded test |

@@ -734,7 +734,7 @@
       "id": "employment_scope",
       "rule": "Attendance, shift plan, locks and exports stay scoped by employment_id.",
       "tests": [
-        "tests/test_integration_api.py",
+        "tests/test_integration_contract.py",
         "web/tests/employee-page-editing.test.tsx",
         "web/tests/admin-pages.test.tsx"
       ]
@@ -753,7 +753,7 @@
       "rule": "Admin uses session plus CSRF, employee uses bearer token, integrations use dgi_ bearer tokens.",
       "tests": [
         "tests/test_admin_auth.py",
-        "tests/test_integration_api.py",
+        "tests/test_integration_contract.py",
         "web/tests/api.test.ts"
       ]
     },
@@ -968,10 +968,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2001,
+    "line_count": 1985,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "3d9078bf90bc7b6d1d612d5b12b4c75a391839a3278de93643fe2411ca8bf977"
+    "sha256": "50071a2f569913a1f67dbdd6bac21fbcb1082187db9485a84621418241281481"
   },
   "production": {
     "api_base_path": "/api/v1/",

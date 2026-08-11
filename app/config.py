@@ -34,9 +34,7 @@ def _coerce_cookie_samesite(value: str) -> Literal["lax", "strict"]:
 class Settings(BaseModel):
     # --- App basics ---
     app_name: str = Field(default="DAGMAR", description="Human-readable app name")
-    environment: Literal["production", "staging", "development"] = Field(
-        default="production"
-    )
+    environment: Literal["production", "staging", "development"] = Field(default="production")
 
     # --- Network / public URLs ---
     # Canonical domain required by spec.
@@ -97,12 +95,14 @@ class Settings(BaseModel):
     rate_limit_integration_openapi_per_minute: int = Field(default=10)
 
     # --- Security / tokens ---
-    integration_token_length: int = Field(default=48, description="Random token length for integration clients")
+    integration_token_length: int = Field(
+        default=48, description="Random token length for integration clients"
+    )
 
     # --- Logging ---
     log_level: str = Field(default="INFO")
     disable_docs: bool = Field(default=True)
-    integration_contract_version: str = Field(default="2026-06-23")
+    integration_contract_version: str = Field(default="2026-08-11")
 
     # --- Optional external sign-in (OIDC) ---
     external_auth_transaction_ttl_seconds: int = Field(default=600, ge=120, le=1800)
@@ -138,7 +138,9 @@ class Settings(BaseModel):
             raise ValueError(f"Invalid domain detected in public_base_url: {bad} is forbidden")
         for origin in self.cors_allow_origins:
             if bad in origin:
-                raise ValueError(f"Invalid domain detected in cors_allow_origins: {bad} is forbidden")
+                raise ValueError(
+                    f"Invalid domain detected in cors_allow_origins: {bad} is forbidden"
+                )
 
     def validate_external_auth(self) -> None:
         canonical = self.public_base_url.rstrip("/")
@@ -157,8 +159,13 @@ class Settings(BaseModel):
             ]
             if missing:
                 raise ValueError(f"Google OIDC je zapnutý, ale chybí: {', '.join(missing)}")
-            if self.google_oidc_callback_url and self.google_oidc_callback_url != expected_callbacks["google"]:
-                raise ValueError("Google callback URL musí přesně odpovídat kanonické HTTPS callback cestě.")
+            if (
+                self.google_oidc_callback_url
+                and self.google_oidc_callback_url != expected_callbacks["google"]
+            ):
+                raise ValueError(
+                    "Google callback URL musí přesně odpovídat kanonické HTTPS callback cestě."
+                )
             if not self.google_oidc_discovery_url.startswith("https://"):
                 raise ValueError("Google discovery URL musí používat HTTPS.")
         if self.apple_signin_enabled:
@@ -177,7 +184,9 @@ class Settings(BaseModel):
             if not os.path.isfile(str(self.apple_private_key_path)):
                 raise ValueError("DAGMAR_APPLE_PRIVATE_KEY_PATH neodkazuje na čitelný soubor.")
             if self.apple_callback_url and self.apple_callback_url != expected_callbacks["apple"]:
-                raise ValueError("Apple callback URL musí přesně odpovídat kanonické HTTPS callback cestě.")
+                raise ValueError(
+                    "Apple callback URL musí přesně odpovídat kanonické HTTPS callback cestě."
+                )
             for endpoint in (
                 self.apple_authorization_endpoint,
                 self.apple_token_endpoint,
@@ -188,9 +197,15 @@ class Settings(BaseModel):
 
     def external_callback_url(self, provider: str) -> str:
         if provider == "google":
-            return self.google_oidc_callback_url or f"{self.public_base_url.rstrip('/')}/api/v1/auth/google/callback"
+            return (
+                self.google_oidc_callback_url
+                or f"{self.public_base_url.rstrip('/')}/api/v1/auth/google/callback"
+            )
         if provider == "apple":
-            return self.apple_callback_url or f"{self.public_base_url.rstrip('/')}/api/v1/auth/apple/callback"
+            return (
+                self.apple_callback_url
+                or f"{self.public_base_url.rstrip('/')}/api/v1/auth/apple/callback"
+            )
         raise ValueError("Nepodporovaný poskytovatel.")
 
     # Property aliases used by call sites that access settings in attribute-style uppercase form.
@@ -269,7 +284,13 @@ def get_settings(env_file: str = "/etc/dagmar/backend.env") -> Settings:
         cookie_samesite=_coerce_cookie_samesite(os.getenv("DAGMAR_COOKIE_SAMESITE", "lax")),
         cors_enabled=os.getenv("DAGMAR_CORS_ENABLED", "false").lower() == "true",
         cors_allow_origins=(
-            [o.strip() for o in os.getenv("DAGMAR_CORS_ALLOW_ORIGINS", "https://dagmar.hcasc.cz").split(",") if o.strip()]
+            [
+                o.strip()
+                for o in os.getenv("DAGMAR_CORS_ALLOW_ORIGINS", "https://dagmar.hcasc.cz").split(
+                    ","
+                )
+                if o.strip()
+            ]
         ),
         rate_limit_enabled=os.getenv("DAGMAR_RATE_LIMIT_ENABLED", "true").lower() == "true",
         rate_limit_default_per_minute=int(os.getenv("DAGMAR_RATE_LIMIT_DEFAULT_PER_MINUTE", "120")),
@@ -294,15 +315,26 @@ def get_settings(env_file: str = "/etc/dagmar/backend.env") -> Settings:
         integration_token_length=int(os.getenv("DAGMAR_INTEGRATION_TOKEN_LENGTH", "48")),
         log_level=os.getenv("DAGMAR_LOG_LEVEL", "INFO"),
         disable_docs=os.getenv("DAGMAR_DISABLE_DOCS", "true").lower() == "true",
-        integration_contract_version=os.getenv("DAGMAR_INTEGRATION_CONTRACT_VERSION", "2026-06-23"),
-        external_auth_transaction_ttl_seconds=int(os.getenv("DAGMAR_EXTERNAL_AUTH_TRANSACTION_TTL_SECONDS", "600")),
-        external_auth_result_ttl_seconds=int(os.getenv("DAGMAR_EXTERNAL_AUTH_RESULT_TTL_SECONDS", "120")),
-        external_auth_http_timeout_seconds=float(os.getenv("DAGMAR_EXTERNAL_AUTH_HTTP_TIMEOUT_SECONDS", "10")),
-        external_auth_clock_skew_seconds=int(os.getenv("DAGMAR_EXTERNAL_AUTH_CLOCK_SKEW_SECONDS", "30")),
+        integration_contract_version=os.getenv("DAGMAR_INTEGRATION_CONTRACT_VERSION", "2026-08-11"),
+        external_auth_transaction_ttl_seconds=int(
+            os.getenv("DAGMAR_EXTERNAL_AUTH_TRANSACTION_TTL_SECONDS", "600")
+        ),
+        external_auth_result_ttl_seconds=int(
+            os.getenv("DAGMAR_EXTERNAL_AUTH_RESULT_TTL_SECONDS", "120")
+        ),
+        external_auth_http_timeout_seconds=float(
+            os.getenv("DAGMAR_EXTERNAL_AUTH_HTTP_TIMEOUT_SECONDS", "10")
+        ),
+        external_auth_clock_skew_seconds=int(
+            os.getenv("DAGMAR_EXTERNAL_AUTH_CLOCK_SKEW_SECONDS", "30")
+        ),
         google_oidc_enabled=os.getenv("DAGMAR_GOOGLE_OIDC_ENABLED", "false").lower() == "true",
         google_oidc_client_id=os.getenv("DAGMAR_GOOGLE_OIDC_CLIENT_ID") or None,
         google_oidc_client_secret=os.getenv("DAGMAR_GOOGLE_OIDC_CLIENT_SECRET") or None,
-        google_oidc_discovery_url=os.getenv("DAGMAR_GOOGLE_OIDC_DISCOVERY_URL", "https://accounts.google.com/.well-known/openid-configuration"),
+        google_oidc_discovery_url=os.getenv(
+            "DAGMAR_GOOGLE_OIDC_DISCOVERY_URL",
+            "https://accounts.google.com/.well-known/openid-configuration",
+        ),
         google_oidc_callback_url=os.getenv("DAGMAR_GOOGLE_OIDC_CALLBACK_URL") or None,
         apple_signin_enabled=os.getenv("DAGMAR_APPLE_SIGNIN_ENABLED", "false").lower() == "true",
         apple_services_id=os.getenv("DAGMAR_APPLE_SERVICES_ID") or None,
@@ -310,9 +342,15 @@ def get_settings(env_file: str = "/etc/dagmar/backend.env") -> Settings:
         apple_key_id=os.getenv("DAGMAR_APPLE_KEY_ID") or None,
         apple_private_key_path=os.getenv("DAGMAR_APPLE_PRIVATE_KEY_PATH") or None,
         apple_issuer=os.getenv("DAGMAR_APPLE_ISSUER", "https://appleid.apple.com"),
-        apple_authorization_endpoint=os.getenv("DAGMAR_APPLE_AUTHORIZATION_ENDPOINT", "https://appleid.apple.com/auth/authorize"),
-        apple_token_endpoint=os.getenv("DAGMAR_APPLE_TOKEN_ENDPOINT", "https://appleid.apple.com/auth/token"),
-        apple_jwks_endpoint=os.getenv("DAGMAR_APPLE_JWKS_ENDPOINT", "https://appleid.apple.com/auth/keys"),
+        apple_authorization_endpoint=os.getenv(
+            "DAGMAR_APPLE_AUTHORIZATION_ENDPOINT", "https://appleid.apple.com/auth/authorize"
+        ),
+        apple_token_endpoint=os.getenv(
+            "DAGMAR_APPLE_TOKEN_ENDPOINT", "https://appleid.apple.com/auth/token"
+        ),
+        apple_jwks_endpoint=os.getenv(
+            "DAGMAR_APPLE_JWKS_ENDPOINT", "https://appleid.apple.com/auth/keys"
+        ),
         apple_callback_url=os.getenv("DAGMAR_APPLE_CALLBACK_URL") or None,
         deploy_tag=os.getenv(
             "DAGMAR_DEPLOY_TAG",

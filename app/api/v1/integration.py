@@ -3,24 +3,31 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import IntegrationAuth, require_integration_auth
 from app.api.integration_common import (
+    decode_resource_cursor,
+    encode_resource_cursor,
     get_audit_context,
     parse_iso_date,
     raise_integration_error,
     utc_isoformat,
 )
+from app.config import Settings, get_settings
 from app.db import models
 from app.db.session import get_db
-from app.security.integration_rate_limit import rate_limit_dependency
+from app.security.integration_rate_limit import (
+    integration_data_rate_limit,
+    integration_health_rate_limit,
+    integration_openapi_rate_limit,
+)
 from app.services.attendance_events import add_closed_interval_with_breaks, add_event_with_breaks
 from app.services.attendance_mutations import (
     changed_event_days,
@@ -34,11 +41,33 @@ from app.services.employment_access import (
     lock_employment_for_time_mutation,
     locked_employment_has_active_user,
 )
+from app.services.integration_admin import (
+    SCOPE_ATTENDANCE,
+    SCOPE_ATTENDANCE_CREATE,
+    SCOPE_ATTENDANCE_DELETE,
+    SCOPE_ATTENDANCE_UPDATE,
+    SCOPE_EMPLOYMENTS,
+    SCOPE_HEALTH,
+    SCOPE_LOCKS,
+    SCOPE_OPENAPI,
+)
+from app.services.integration_scope import employment_scope_predicate, require_employment_access
 from app.services.locks import LockType, is_month_locked
 from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
 
 router = APIRouter(prefix="/api/v1/integration", tags=["integration"])
 TIMEZONE = "Europe/Prague"
+
+INTEGRATION_SCOPE_ROUTES: dict[str, tuple[tuple[str, str], ...]] = {
+    SCOPE_HEALTH: (("GET", "/health"),),
+    SCOPE_OPENAPI: (("GET", "/openapi.json"),),
+    SCOPE_EMPLOYMENTS: (("GET", "/employments"),),
+    SCOPE_ATTENDANCE: (("GET", "/attendance-events"),),
+    SCOPE_ATTENDANCE_CREATE: (("POST", "/attendance-events"),),
+    SCOPE_ATTENDANCE_UPDATE: (("PATCH", "/attendance-events/{event_id}"),),
+    SCOPE_ATTENDANCE_DELETE: (("DELETE", "/attendance-events/{event_id}"),),
+    SCOPE_LOCKS: (("GET", "/locks"),),
+}
 
 
 class PaginationOut(BaseModel):
@@ -86,11 +115,6 @@ def _require_scope(auth: IntegrationAuth, scope: str) -> None:
         raise_integration_error(
             status.HTTP_403_FORBIDDEN, "insufficient_scope", "Klient nemá požadovaný scope."
         )
-
-
-def _allowed(auth: IntegrationAuth, employment_id: int) -> bool:
-    allowed = {int(item) for item in (auth.client.allowed_employment_ids or [])}
-    return not allowed or employment_id in allowed
 
 
 def _employment(db: Session, employment_id: int) -> models.Employment:
@@ -148,10 +172,93 @@ def _ensure_attendance_months_unlocked(
             )
 
 
-def _page(rows: list[dict[str, Any]], limit: int) -> ListResponse:
+def _page(
+    rows: list[dict[str, Any]],
+    *,
+    limit: int,
+    resource: str,
+    cursor_key: object | None,
+) -> ListResponse:
+    has_more = len(rows) > limit
+    page_rows = rows[:limit]
     return ListResponse(
-        data=rows[:limit], pagination=PaginationOut(limit=limit, has_more=len(rows) > limit)
+        data=page_rows,
+        pagination=PaginationOut(
+            limit=limit,
+            has_more=has_more,
+            next_cursor=(
+                encode_resource_cursor(resource, cursor_key) if has_more and page_rows else None
+            ),
+        ),
     )
+
+
+def _integer_cursor(cursor: str | None, *, resource: str) -> int | None:
+    key = decode_resource_cursor(cursor, resource=resource)
+    if key is None:
+        return None
+    if isinstance(key, bool) or not isinstance(key, int) or key < 1:
+        raise_integration_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_cursor", "Cursor není platný."
+        )
+    return key
+
+
+def _attendance_cursor(cursor: str | None) -> tuple[datetime, int] | None:
+    key = decode_resource_cursor(cursor, resource="attendance-events")
+    if key is None:
+        return None
+    if (
+        not isinstance(key, list)
+        or len(key) != 2
+        or not isinstance(key[0], str)
+        or isinstance(key[1], bool)
+        or not isinstance(key[1], int)
+        or key[1] < 1
+    ):
+        raise_integration_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_cursor", "Cursor není platný."
+        )
+    try:
+        occurred_at = datetime.fromisoformat(key[0])
+    except ValueError:
+        raise_integration_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_cursor", "Cursor není platný."
+        )
+    if occurred_at.tzinfo is None:
+        raise_integration_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_cursor", "Cursor není platný."
+        )
+    return occurred_at.astimezone(UTC), key[1]
+
+
+def _utc_cursor_value(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat()
+
+
+def _employment_payload(employment: models.Employment) -> dict[str, Any]:
+    return {
+        "id": employment.id,
+        "employment_id": employment.id,
+        "employee_id": employment.user_id,
+        "title": employment.title,
+        "employment_type": employment.employment_type.value,
+        "label": employment_label(employment),
+        "start_date": employment.start_date.isoformat(),
+        "end_date": employment.end_date.isoformat() if employment.end_date else None,
+        "is_active": employment.is_active,
+        "time_profile": {
+            "total_hours_enabled": employment.total_hours_enabled,
+            "automatic_breaks_enabled": employment.automatic_breaks_enabled,
+            "afternoon_hours_enabled": employment.afternoon_hours_enabled,
+            "afternoon_start_minutes": employment.afternoon_start_minutes,
+            "night_hours_enabled": employment.night_hours_enabled,
+            "weekend_hours_enabled": employment.weekend_hours_enabled,
+            "public_holiday_hours_enabled": employment.public_holiday_hours_enabled,
+        },
+    }
 
 
 def _event_payload(event: models.AttendanceEvent) -> dict[str, Any]:
@@ -166,20 +273,39 @@ def _event_payload(event: models.AttendanceEvent) -> dict[str, Any]:
 
 
 @router.get("/health")
-def integration_health(auth: IntegrationAuth = Depends(require_integration_auth)) -> dict[str, Any]:
-    return {"ok": True, "client_id": auth.client.id, "timezone": TIMEZONE}
+def integration_health(
+    auth: IntegrationAuth = Depends(require_integration_auth),
+    settings: Settings = Depends(get_settings),
+    _limit_guard: None = Depends(integration_health_rate_limit),
+) -> dict[str, Any]:
+    _require_scope(auth, SCOPE_HEALTH)
+    return {
+        "ok": True,
+        "service": "KájovoDagmar Integration API",
+        "api_version": "v1",
+        "contract_version": settings.integration_contract_version,
+        "client_id": auth.client.id,
+        "timezone": TIMEZONE,
+    }
 
 
 @router.get("/openapi.json")
 def integration_openapi(
     auth: IntegrationAuth = Depends(require_integration_auth),
+    settings: Settings = Depends(get_settings),
+    _limit_guard: None = Depends(integration_openapi_rate_limit),
 ) -> dict[str, Any]:
-    _require_scope(auth, "employments:read")
+    _require_scope(auth, SCOPE_OPENAPI)
     return {
         "openapi": "3.1.0",
-        "info": {"title": "KájovoDagmar Integration API", "version": "1"},
+        "info": {
+            "title": "KájovoDagmar Integration API",
+            "version": settings.integration_contract_version,
+        },
         "servers": [{"url": "/api/v1/integration"}],
         "paths": {
+            "/health": {"get": {"summary": "Check integration client health"}},
+            "/openapi.json": {"get": {"summary": "Read the protected API contract"}},
             "/employments": {"get": {"summary": "List scoped employments"}},
             "/attendance-events": {
                 "get": {"summary": "List events"},
@@ -197,40 +323,26 @@ def integration_openapi(
 @router.get("/employments", response_model=ListResponse)
 def list_employments(
     limit: int = Query(100, ge=1, le=500),
+    cursor: str | None = Query(default=None),
     auth: IntegrationAuth = Depends(require_integration_auth),
+    _limit_guard: None = Depends(integration_data_rate_limit),
     db: Session = Depends(get_db),
 ) -> ListResponse:
-    _require_scope(auth, "employments:read")
-    rows = []
-    for employment in db.execute(
+    _require_scope(auth, SCOPE_EMPLOYMENTS)
+    cursor_id = _integer_cursor(cursor, resource="employments")
+    query = (
         select(models.Employment)
         .options(joinedload(models.Employment.user))
+        .where(employment_scope_predicate(auth.client))
         .order_by(models.Employment.id)
-    ).scalars():
-        if _allowed(auth, employment.id):
-            rows.append(
-                {
-                    "id": employment.id,
-                    "employment_id": employment.id,
-                    "employee_id": employment.user_id,
-                    "title": employment.title,
-                    "employment_type": employment.employment_type.value,
-                    "label": employment_label(employment),
-                    "start_date": employment.start_date.isoformat(),
-                    "end_date": employment.end_date.isoformat() if employment.end_date else None,
-                    "is_active": employment.is_active,
-                    "time_profile": {
-                        "total_hours_enabled": employment.total_hours_enabled,
-                        "automatic_breaks_enabled": employment.automatic_breaks_enabled,
-                        "afternoon_hours_enabled": employment.afternoon_hours_enabled,
-                        "afternoon_start_minutes": employment.afternoon_start_minutes,
-                        "night_hours_enabled": employment.night_hours_enabled,
-                        "weekend_hours_enabled": employment.weekend_hours_enabled,
-                        "public_holiday_hours_enabled": employment.public_holiday_hours_enabled,
-                    },
-                }
-            )
-    return _page(rows, limit)
+        .limit(limit + 1)
+    )
+    if cursor_id is not None:
+        query = query.where(models.Employment.id > cursor_id)
+    employments = list(db.execute(query).scalars())
+    rows = [_employment_payload(employment) for employment in employments]
+    cursor_key = rows[min(limit, len(rows)) - 1]["id"] if rows else None
+    return _page(rows, limit=limit, resource="employments", cursor_key=cursor_key)
 
 
 @router.get("/attendance-events", response_model=ListResponse)
@@ -239,39 +351,56 @@ def list_attendance_events(
     date_from: str | None = None,
     date_to: str | None = None,
     limit: int = Query(100, ge=1, le=500),
+    cursor: str | None = Query(default=None),
     auth: IntegrationAuth = Depends(require_integration_auth),
+    _limit_guard: None = Depends(integration_data_rate_limit),
     db: Session = Depends(get_db),
 ) -> ListResponse:
-    _require_scope(auth, "attendance:read")
-    query = select(models.AttendanceEvent).order_by(
-        models.AttendanceEvent.occurred_at, models.AttendanceEvent.id
+    _require_scope(auth, SCOPE_ATTENDANCE)
+    cursor_key = _attendance_cursor(cursor)
+    query = (
+        select(models.AttendanceEvent)
+        .where(models.AttendanceEvent.employment.has(employment_scope_predicate(auth.client)))
+        .order_by(models.AttendanceEvent.occurred_at, models.AttendanceEvent.id)
     )
     if employment_id is not None:
-        if not _allowed(auth, employment_id):
-            raise_integration_error(
-                status.HTTP_403_FORBIDDEN, "insufficient_scope", "Úvazek není v rozsahu klienta."
-            )
+        require_employment_access(db, client=auth.client, employment_id=employment_id)
         query = query.where(models.AttendanceEvent.employment_id == employment_id)
-    rows = [
-        _event_payload(event)
-        for event in db.execute(query).scalars()
-        if _allowed(auth, event.employment_id)
-    ]
     if date_from:
         start = parse_iso_date(date_from, field_name="date_from")
-        rows = [
-            row
-            for row in rows
-            if prague_now(datetime.fromisoformat(row["occurred_at"])).date() >= start
-        ]
+        query = query.where(
+            models.AttendanceEvent.occurred_at
+            >= datetime.combine(start, time.min, tzinfo=PRAGUE_TIMEZONE)
+        )
     if date_to:
         end = parse_iso_date(date_to, field_name="date_to")
-        rows = [
-            row
-            for row in rows
-            if prague_now(datetime.fromisoformat(row["occurred_at"])).date() <= end
-        ]
-    return _page(rows, limit)
+        query = query.where(
+            models.AttendanceEvent.occurred_at
+            < datetime.combine(end + timedelta(days=1), time.min, tzinfo=PRAGUE_TIMEZONE)
+        )
+    if cursor_key is not None:
+        cursor_at, cursor_id = cursor_key
+        query = query.where(
+            or_(
+                models.AttendanceEvent.occurred_at > cursor_at,
+                and_(
+                    models.AttendanceEvent.occurred_at == cursor_at,
+                    models.AttendanceEvent.id > cursor_id,
+                ),
+            )
+        )
+    events = list(db.execute(query.limit(limit + 1)).scalars())
+    rows = [_event_payload(event) for event in events]
+    next_key = None
+    if rows:
+        last = events[min(limit, len(events)) - 1]
+        next_key = [_utc_cursor_value(last.occurred_at), last.id]
+    return _page(
+        rows,
+        limit=limit,
+        resource="attendance-events",
+        cursor_key=next_key,
+    )
 
 
 @router.post("/attendance-events", status_code=status.HTTP_201_CREATED)
@@ -279,25 +408,18 @@ def create_attendance_event(
     payload: IntegrationEventIn,
     request: Request,
     auth: IntegrationAuth = Depends(require_integration_auth),
-    _limit_guard: None = Depends(rate_limit_dependency("integration-data", 120)),
+    _limit_guard: None = Depends(integration_data_rate_limit),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    _require_scope(auth, "attendance:create")
-    if not _allowed(auth, payload.employment_id):
-        raise_integration_error(
-            status.HTTP_403_FORBIDDEN, "insufficient_scope", "Úvazek není v rozsahu klienta."
-        )
+    _require_scope(auth, SCOPE_ATTENDANCE_CREATE)
+    require_employment_access(db, client=auth.client, employment_id=payload.employment_id)
     employment = _employment(db, payload.employment_id)
     employment = lock_employment_for_time_mutation(db, employment.id)
     if not locked_employment_has_active_user(db, employment):
-        raise_integration_error(
-            status.HTTP_404_NOT_FOUND, "not_found", "Úvazek nebyl nalezen."
-        )
+        raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Úvazek nebyl nalezen.")
     local = prague_now(payload.occurred_at)
     paired_local = (
-        prague_now(payload.paired_occurred_at)
-        if payload.paired_occurred_at is not None
-        else None
+        prague_now(payload.paired_occurred_at) if payload.paired_occurred_at is not None else None
     )
     mutation_dates = [local.date()]
     if paired_local is not None:
@@ -337,9 +459,7 @@ def create_attendance_event(
             event = additions[0]
             inserted_count = len(additions)
         else:
-            inserted_count = len(
-                add_event_with_breaks(db, employment=employment, event=event)
-            )
+            inserted_count = len(add_event_with_breaks(db, employment=employment, event=event))
     except ValueError as exc:
         raise_integration_error(
             status.HTTP_409_CONFLICT, "attendance_event_alternation_conflict", str(exc)
@@ -389,19 +509,19 @@ def update_attendance_event(
     payload: IntegrationEventPatchIn,
     request: Request,
     auth: IntegrationAuth = Depends(require_integration_auth),
+    _limit_guard: None = Depends(integration_data_rate_limit),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    _require_scope(auth, "attendance:update")
+    _require_scope(auth, SCOPE_ATTENDANCE_UPDATE)
     event = db.get(models.AttendanceEvent, event_id)
-    if event is None or not _allowed(auth, event.employment_id):
+    if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
     assert event is not None
+    require_employment_access(db, client=auth.client, employment_id=event.employment_id)
     employment = event.employment
     employment = lock_employment_for_time_mutation(db, employment.id)
     if not locked_employment_has_active_user(db, employment):
-        raise_integration_error(
-            status.HTTP_404_NOT_FOUND, "not_found", "Úvazek nebyl nalezen."
-        )
+        raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Úvazek nebyl nalezen.")
     event = db.execute(
         select(models.AttendanceEvent)
         .where(models.AttendanceEvent.id == event_id)
@@ -471,19 +591,19 @@ def delete_attendance_event(
     request: Request,
     paired_event_id: int | None = None,
     auth: IntegrationAuth = Depends(require_integration_auth),
+    _limit_guard: None = Depends(integration_data_rate_limit),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    _require_scope(auth, "attendance:delete")
+    _require_scope(auth, SCOPE_ATTENDANCE_DELETE)
     event = db.get(models.AttendanceEvent, event_id)
-    if event is None or not _allowed(auth, event.employment_id):
+    if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
     assert event is not None
+    require_employment_access(db, client=auth.client, employment_id=event.employment_id)
     employment = event.employment
     employment = lock_employment_for_time_mutation(db, employment.id)
     if not locked_employment_has_active_user(db, employment):
-        raise_integration_error(
-            status.HTTP_404_NOT_FOUND, "not_found", "Úvazek nebyl nalezen."
-        )
+        raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Úvazek nebyl nalezen.")
     event = db.execute(
         select(models.AttendanceEvent)
         .where(models.AttendanceEvent.id == event_id)
@@ -537,10 +657,23 @@ def delete_attendance_event(
 def list_locks(
     year: int,
     month: int,
+    limit: int = Query(100, ge=1, le=500),
+    cursor: str | None = Query(default=None),
     auth: IntegrationAuth = Depends(require_integration_auth),
+    _limit_guard: None = Depends(integration_data_rate_limit),
     db: Session = Depends(get_db),
 ) -> ListResponse:
-    _require_scope(auth, "locks:read")
+    _require_scope(auth, SCOPE_LOCKS)
+    cursor_id = _integer_cursor(cursor, resource="locks")
+    query = (
+        select(models.Employment)
+        .where(employment_scope_predicate(auth.client))
+        .order_by(models.Employment.id)
+        .limit(limit + 1)
+    )
+    if cursor_id is not None:
+        query = query.where(models.Employment.id > cursor_id)
+    employments = list(db.execute(query).scalars())
     rows = [
         {
             "employment_id": employment.id,
@@ -559,7 +692,7 @@ def list_locks(
                 month=month,
             ),
         }
-        for employment in db.execute(select(models.Employment)).scalars()
-        if _allowed(auth, employment.id)
+        for employment in employments
     ]
-    return _page(rows, len(rows) or 1)
+    cursor_key = rows[min(limit, len(rows)) - 1]["employment_id"] if rows else None
+    return _page(rows, limit=limit, resource="locks", cursor_key=cursor_key)

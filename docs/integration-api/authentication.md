@@ -1,99 +1,35 @@
-# Autentizace a scopes
+# Autentizace, scopes a datový rozsah
 
-## Účel tokenu
-
-Integrační API používá samostatný bearer token určený pro externí integrace s read endpointy a volitelně i se zápisem docházky podle přidělených scopes.
-
-Tento token je oddělený od:
-
-- admin session cookie + CSRF
-- zaměstnaneckého bearer tokenu pro zaměstnaneckou část
-
-Externí partner musí používat pouze integrační bearer token.
-
-## Formát hlavičky
-
-Požadavek musí posílat hlavičku:
+## Bearer token
 
 ```http
-Authorization: Bearer dgi_REPLACE_WITH_TOKEN
+Authorization: Bearer dgi_jednorazove_predany_token
 ```
 
-Aktuální implementace očekává token s prefixem `dgi_`.
+Server ukládá pouze hash tajné části tokenu. Chybějící, neplatný, expirovaný, deaktivovaný nebo IP pravidlu nevyhovující token vrací integrační error envelope a HTTP `401` nebo `403`.
 
-## Jak partner token získá
+## Dostupné scopes
 
-Token vydává správce Dagmar při vytvoření nebo rotaci integračního klienta.
+| Scope | Endpoint |
+|---|---|
+| `integration:health` | `GET /health` |
+| `openapi:read` | `GET /openapi.json` |
+| `employments:read` | `GET /employments` |
+| `attendance:read` | `GET /attendance-events` |
+| `attendance:create` | `POST /attendance-events` |
+| `attendance:update` | `PATCH /attendance-events/{event_id}` |
+| `attendance:delete` | `DELETE /attendance-events/{event_id}` |
+| `locks:read` | `GET /locks` |
 
-- token se předává mimo API, bezpečným komunikačním kanálem
-- token není možné získat z admin session
-- token není možné odvodit z OpenAPI ani z veřejné dokumentace
+Scopes `shift_plan:read`, `punches:read` a `changes:read` nejsou v kontraktu `2026-08-11` dostupné, nelze je uložit do nového klienta a migrace `0026` je odstraňuje z existujících klientů.
 
-## Co znamenají typické autentizační chyby
+## Datový rozsah
 
-| Stav | `error.code` | Význam |
-| --- | --- | --- |
-| `401` | `missing_token` | Požadavek neposlal bearer token. |
-| `401` | `invalid_token` | Token neodpovídá aktivnímu secretu. Stejně se projeví i starý token po rotaci nebo revokaci secretu. |
-| `403` | `client_disabled` | Klient je zakázaný nebo expiroval. |
-| `403` | `ip_forbidden` | Požadavek přišel z IP adresy mimo allowlist klienta. |
+Jediná backendová služba aplikuje stejný SQL predicate na všechny seznamy i přímé ID operace:
 
-## IP allowlist
+- `ALL_EMPLOYMENTS`: všechny úvazky;
+- `ALL_ACTIVE_EMPLOYMENTS`: pouze aktivní úvazky aktivních uživatelů;
+- `SELECTED_EMPLOYEES`: úvazky osob z neprázdného `allowed_employee_ids`; neaktivní úvazky se zahrnou jen při `include_inactive_employments=true`;
+- `SELECTED_EMPLOYMENTS`: úvazky z neprázdného `allowed_employment_ids`.
 
-Aktuální implementace podporuje:
-
-- jednotlivé IP adresy
-- CIDR rozsahy
-
-Pokud má klient allowlist prázdný, IP omezení se neuplatní. Pokud allowlist nastavený je, požadavek mimo povolený rozsah skončí `403 ip_forbidden`.
-
-## Scopes
-
-Aktuálně implementované scopes:
-
-| Scope | Význam |
-| --- | --- |
-| `integration:health` | Přístup na `GET /health`. |
-| `employments:read` | Čtení seznamu úvazků přes `GET /employments`. |
-| `shift_plan:read` | Čtení plánu směn přes `GET /shift-plan`. |
-| `attendance:read` | Čtení denní docházky přes `GET /attendances`. |
-| `attendance:create` | Vytvoření docházky přes `POST /attendances`. |
-| `attendance:update` | Částečná úprava docházky přes `PATCH /attendances/{attendance_id}`. |
-| `attendance:delete` | Smazání docházky přes `DELETE /attendances/{attendance_id}`. |
-| `punches:read` | Čtení odvozených průchodů přes `GET /punches`. |
-| `locks:read` | Čtení měsíčních zámků přes `GET /locks`. |
-| `openapi:read` | Přístup na chráněný `GET /openapi.json`. |
-
-## Omezení datového rozsahu
-
-Klient může být v implementaci omezen na:
-
-- konkrétní `employment_id`
-- konkrétní `employee_id`
-
-Chování je dvojí:
-
-- bez explicitního filtru API vrací jen záznamy spadající do povoleného rozsahu
-- pokud klient explicitně požádá o `employment_id` nebo `employee_id` mimo svůj povolený rozsah, vrátí API `403 insufficient_scope`
-
-## Chování při nedostatečném scope
-
-Pokud klient nemá potřebný scope pro endpoint, API vrátí:
-
-```json
-{
-  "error": {
-    "code": "insufficient_scope",
-    "message": "Klient nemá oprávnění pro tento endpoint.",
-    "request_id": "..."
-  }
-}
-```
-
-## Bezpečnostní pravidla pro partnera
-
-- používejte pouze HTTPS
-- neposílejte token v URL, query stringu ani logovaných parametrech
-- neukládejte token do klientských logů v plaintextu
-- token nesdílejte mezi více systémy bez vědomí správce Dagmar
-- po podezření na únik tokenu požádejte správce Dagmar o okamžitou rotaci
+Neznámý režim nebo prázdný seznam u selektivního režimu nepovolí žádný úvazek. Zápisové endpointy bez ohledu na režim odmítnou neaktivní úvazek nebo neaktivního uživatele.
