@@ -299,6 +299,19 @@ jobs:
             exec 9>"${HOME:-/root}/.dagmar-deploy.lock"
             flock 9
 
+            echo "production_arch=$(uname -m)"
+            echo "production_python=$(python3 --version 2>&1 || true)"
+            if ! command -v python3.11 >/dev/null 2>&1; then
+              if [ "$(id -u)" -eq 0 ]; then
+                apt-get update
+                DEBIAN_FRONTEND=noninteractive apt-get install -y python3.11 python3.11-venv
+              else
+                sudo -n apt-get update
+                sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y python3.11 python3.11-venv
+              fi
+            fi
+            command -v python3.11
+
             install -d "$RELEASES" "$WEB_RELEASES"
             REQUIRED_KB=$(( ($(stat -c %s "$UPLOAD/backend-release.tgz") + $(stat -c %s "$UPLOAD/web-release.tgz")) / 1024 * 10 + 524288 ))
             test "$(df -Pk "$RELEASES" | awk 'NR == 2 {print $4}')" -gt "$REQUIRED_KB"
@@ -307,7 +320,6 @@ jobs:
             tar -xzf "$UPLOAD/backend-release.tgz" -C "$BACK_RELEASE"
             tar -xzf "$UPLOAD/web-release.tgz" -C "$WEB_RELEASE"
             (cd "$BACK_RELEASE" && sha256sum -c SHA256SUMS)
-            command -v python3.11
             python3.11 --version | grep -Eq '^Python 3\.11\.'
             python3.11 -m venv "$BACK_RELEASE/.venv"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" pip==26.0
