@@ -307,7 +307,9 @@ jobs:
             tar -xzf "$UPLOAD/backend-release.tgz" -C "$BACK_RELEASE"
             tar -xzf "$UPLOAD/web-release.tgz" -C "$WEB_RELEASE"
             (cd "$BACK_RELEASE" && sha256sum -c SHA256SUMS)
-            python3 -m venv "$BACK_RELEASE/.venv"
+            command -v python3.11
+            python3.11 --version | grep -Eq '^Python 3\.11\.'
+            python3.11 -m venv "$BACK_RELEASE/.venv"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" pip==26.0
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --only-binary=:all: --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
