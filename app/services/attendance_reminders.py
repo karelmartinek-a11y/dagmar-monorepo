@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from email.message import EmailMessage
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import Settings
@@ -56,7 +56,9 @@ def _smtp_sender(settings: Settings, cfg: AppSettings) -> ReminderSender:
     if port is None:
         raise ValueError("SMTP port neni nastaven.")
     smtp_secret = settings.smtp_password_secret or settings.session_secret
-    decrypted_password = decrypt_secret(cfg.smtp_password, secret=smtp_secret) if cfg.smtp_password else None
+    decrypted_password = (
+        decrypt_secret(cfg.smtp_password, secret=smtp_secret) if cfg.smtp_password else None
+    )
     password = decrypted_password.strip() if decrypted_password else None
     security = (cfg.smtp_security or "SSL").strip().upper()
     from_email = (cfg.smtp_from_email or username or "").strip()
@@ -88,7 +90,9 @@ def _smtp_sender(settings: Settings, cfg: AppSettings) -> ReminderSender:
     return send_email
 
 
-def _scheduled_attempt_count(now: datetime, first_at: datetime, interval_minutes: int, max_attempts: int) -> int:
+def _scheduled_attempt_count(
+    now: datetime, first_at: datetime, interval_minutes: int, max_attempts: int
+) -> int:
     if now < first_at:
         return 0
     elapsed_minutes = int((now - first_at).total_seconds() // 60)
@@ -96,10 +100,18 @@ def _scheduled_attempt_count(now: datetime, first_at: datetime, interval_minutes
 
 
 def _already_sent_keys(db: Session, attendance_date: date) -> set[tuple[int, date, str, int]]:
-    rows = db.execute(
-        select(AttendanceReminderEvent).where(AttendanceReminderEvent.attendance_date == attendance_date)
-    ).scalars().all()
-    return {(row.employment_id, row.attendance_date, row.reminder_type, row.sequence_no) for row in rows}
+    rows = (
+        db.execute(
+            select(AttendanceReminderEvent).where(
+                AttendanceReminderEvent.attendance_date == attendance_date
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return {
+        (row.employment_id, row.attendance_date, row.reminder_type, row.sequence_no) for row in rows
+    }
 
 
 def _record_sent(
@@ -128,7 +140,11 @@ def _try_advisory_lock(db: Session) -> bool:
     bind = db.get_bind()
     if bind is None or bind.dialect.name != "postgresql":
         return True
-    return bool(db.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": SCHEDULER_ADVISORY_LOCK}).scalar())
+    return bool(
+        db.execute(
+            text("SELECT pg_try_advisory_lock(:key)"), {"key": SCHEDULER_ADVISORY_LOCK}
+        ).scalar()
+    )
 
 
 def _release_advisory_lock(db: Session) -> None:
@@ -137,6 +153,34 @@ def _release_advisory_lock(db: Session) -> None:
         return
     db.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": SCHEDULER_ADVISORY_LOCK})
     db.commit()
+
+
+def _last_events_by_employment(
+    db: Session, employment_ids: list[int]
+) -> dict[int, AttendanceEvent]:
+    ranked = (
+        select(
+            AttendanceEvent.id.label("event_id"),
+            func.row_number()
+            .over(
+                partition_by=AttendanceEvent.employment_id,
+                order_by=(AttendanceEvent.occurred_at.desc(), AttendanceEvent.id.desc()),
+            )
+            .label("event_rank"),
+        )
+        .where(AttendanceEvent.employment_id.in_(employment_ids))
+        .subquery()
+    )
+    events = (
+        db.execute(
+            select(AttendanceEvent)
+            .join(ranked, ranked.c.event_id == AttendanceEvent.id)
+            .where(ranked.c.event_rank == 1)
+        )
+        .scalars()
+        .all()
+    )
+    return {event.employment_id: event for event in events}
 
 
 def process_attendance_reminders(
@@ -178,17 +222,32 @@ def process_attendance_reminders(
         return 0
 
     employment_ids = [employment.id for employment in eligible_employments]
-    plans = db.execute(
-        select(ShiftPlan).where(ShiftPlan.date.in_([today, yesterday]), ShiftPlan.employment_id.in_(employment_ids))
-    ).scalars().all()
-    events = db.execute(
-        select(AttendanceEvent).where(AttendanceEvent.employment_id.in_(employment_ids))
-    ).scalars().all()
+    plans = (
+        db.execute(
+            select(ShiftPlan).where(
+                ShiftPlan.date.in_([today, yesterday]), ShiftPlan.employment_id.in_(employment_ids)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    today_start = combine_prague(today, 0, 0)
+    tomorrow_start = today_start + timedelta(days=1)
+    today_events = (
+        db.execute(
+            select(AttendanceEvent).where(
+                AttendanceEvent.employment_id.in_(employment_ids),
+                AttendanceEvent.occurred_at >= today_start,
+                AttendanceEvent.occurred_at < tomorrow_start,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    last_event_by_employment = _last_events_by_employment(db, employment_ids)
 
     plan_by_key = {(plan.employment_id, plan.date): plan for plan in plans}
-    event_by_key: dict[tuple[int, date], list[AttendanceEvent]] = {}
-    for event in events:
-        event_by_key.setdefault((event.employment_id, prague_now(event.occurred_at).date()), []).append(event)
+    today_event_ids = {event.employment_id for event in today_events}
     already_sent = _already_sent_keys(db, today) | _already_sent_keys(db, yesterday)
     sent_count = 0
 
@@ -196,10 +255,13 @@ def process_attendance_reminders(
         user = employment.user
         plan = plan_by_key.get((employment.id, today))
 
-        today_events = event_by_key.get((employment.id, today), [])
-        if plan and plan.arrival_time and not today_events:
+        last_event = last_event_by_employment.get(employment.id)
+        last_event_date = prague_now(last_event.occurred_at).date() if last_event else None
+        if plan and plan.arrival_time and employment.id not in today_event_ids:
             first_at = combine_prague_hhmm(today, plan.arrival_time) + timedelta(minutes=5)
-            due_attempts = _scheduled_attempt_count(current, first_at, interval_minutes=10, max_attempts=5)
+            due_attempts = _scheduled_attempt_count(
+                current, first_at, interval_minutes=10, max_attempts=5
+            )
             for sequence_no in range(1, due_attempts + 1):
                 key = (employment.id, today, ARRIVAL_REMINDER, sequence_no)
                 if key in already_sent:
@@ -213,9 +275,17 @@ def process_attendance_reminders(
                 already_sent.add(key)
                 sent_count += 1
 
-        if plan and plan.departure_time and any(event.event_type == AttendanceEventType.IN for event in today_events) and not any(event.event_type == AttendanceEventType.OUT for event in today_events):
+        if (
+            plan
+            and plan.departure_time
+            and last_event is not None
+            and last_event.event_type == AttendanceEventType.IN
+            and last_event_date == today
+        ):
             first_at = combine_prague_hhmm(today, plan.departure_time) + timedelta(hours=2)
-            due_attempts = _scheduled_attempt_count(current, first_at, interval_minutes=10, max_attempts=5)
+            due_attempts = _scheduled_attempt_count(
+                current, first_at, interval_minutes=10, max_attempts=5
+            )
             for sequence_no in range(1, due_attempts + 1):
                 key = (employment.id, today, SAME_DAY_DEPARTURE_REMINDER, sequence_no)
                 if key in already_sent:
@@ -226,14 +296,22 @@ def process_attendance_reminders(
                     "Mas naplanovane ukonceni smeny, ale stale nemas zapsan odchod.\n\n"
                     "Jsi jeste v praci, nebo jsi jen zapomnel zapsat odchod? Prosim zkontroluj dnesni dochazku.",
                 )
-                _record_sent(db, employment, today, SAME_DAY_DEPARTURE_REMINDER, sequence_no, user.email)
+                _record_sent(
+                    db, employment, today, SAME_DAY_DEPARTURE_REMINDER, sequence_no, user.email
+                )
                 already_sent.add(key)
                 sent_count += 1
 
-        previous_events = event_by_key.get((employment.id, yesterday), [])
-        if any(event.event_type == AttendanceEventType.IN for event in previous_events) and not any(event.event_type == AttendanceEventType.OUT for event in previous_events):
+        if (
+            last_event is not None
+            and last_event.event_type == AttendanceEventType.IN
+            and last_event_date is not None
+            and last_event_date <= yesterday
+        ):
             first_at = combine_prague(today, 8, 0)
-            due_attempts = _scheduled_attempt_count(current, first_at, interval_minutes=10, max_attempts=5)
+            due_attempts = _scheduled_attempt_count(
+                current, first_at, interval_minutes=10, max_attempts=5
+            )
             for sequence_no in range(1, due_attempts + 1):
                 key = (employment.id, yesterday, PREVIOUS_DAY_DEPARTURE_REMINDER, sequence_no)
                 if key in already_sent:
@@ -244,24 +322,35 @@ def process_attendance_reminders(
                     "Vcera mas zapsan prichod bez odchodu.\n\n"
                     "Nezapomnel(a) jsi dopsat vcerejsi odchod z prace? Prosim zkontroluj dochazku za predchozi den.",
                 )
-                _record_sent(db, employment, yesterday, PREVIOUS_DAY_DEPARTURE_REMINDER, sequence_no, user.email)
+                _record_sent(
+                    db,
+                    employment,
+                    yesterday,
+                    PREVIOUS_DAY_DEPARTURE_REMINDER,
+                    sequence_no,
+                    user.email,
+                )
                 already_sent.add(key)
                 sent_count += 1
 
     return sent_count
 
 
-def run_attendance_reminders_once(settings: Settings, session_factory: Callable[[], Session], *, now: datetime | None = None) -> int:
+def run_attendance_reminders_once(
+    settings: Settings, session_factory: Callable[[], Session], *, now: datetime | None = None
+) -> int:
     with session_factory() as db:
         try:
             if not _try_advisory_lock(db):
                 return 0
             return process_attendance_reminders(db, settings, now=now)
+        # process-boundary: the background worker must survive one failed scheduler iteration.
         except Exception:
             logger.exception("Attendance reminder processing failed.")
             return 0
         finally:
             try:
                 _release_advisory_lock(db)
+            # process-boundary: cleanup failure must not terminate the background worker.
             except Exception:
                 logger.exception("Attendance reminder advisory lock release failed.")

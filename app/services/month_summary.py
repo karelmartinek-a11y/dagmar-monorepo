@@ -71,7 +71,11 @@ def _month_range(year: int, month: int) -> tuple[date, date]:
 
 def _sum(values: list[DailyMetrics], key: str) -> MetricValue | None:
     items = [getattr(value, key) for value in values if getattr(value, key) is not None]
-    return MetricValue(sum(item.minutes for item in items), sum(item.tenths for item in items)) if items else None
+    return (
+        MetricValue(sum(item.minutes for item in items), sum(item.tenths for item in items))
+        if items
+        else None
+    )
 
 
 def _stored_metrics(
@@ -103,39 +107,62 @@ def build_month_summaries(
     start, end = _month_range(year, month)
     result: dict[int, MonthSummary] = {}
     for employment in employments:
-        events = list(db.execute(select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id).order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)).scalars())
+        events = list(
+            db.execute(
+                select(AttendanceEvent)
+                .where(AttendanceEvent.employment_id == employment.id)
+                .order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
+            ).scalars()
+        )
         intervals = pair_events(events) if events else []
         closed_event_ids = paired_event_ids(events)
-        attendance = {row.date: row for row in db.execute(select(Attendance).where(Attendance.employment_id == employment.id, Attendance.date >= start, Attendance.date < end)).scalars()}
-        plan_rows = list(db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == employment.id, ShiftPlan.date >= start - timedelta(days=1), ShiftPlan.date < end)).scalars())
-        plans = {row.date: row for row in plan_rows if row.date >= start}
-        planned_intervals = shift_plan_intervals(plan_rows)
-        stored = {
-            (row.metric_date, row.source): row
+        attendance = {
+            row.date: row
             for row in db.execute(
-                select(EmploymentDailyTimeMetric).where(
-                    EmploymentDailyTimeMetric.employment_id == employment.id,
-                    EmploymentDailyTimeMetric.metric_date >= start,
-                    EmploymentDailyTimeMetric.metric_date < end,
+                select(Attendance).where(
+                    Attendance.employment_id == employment.id,
+                    Attendance.date >= start,
+                    Attendance.date < end,
                 )
             ).scalars()
-        } if use_persisted else {}
+        }
+        plan_rows = list(
+            db.execute(
+                select(ShiftPlan).where(
+                    ShiftPlan.employment_id == employment.id,
+                    ShiftPlan.date >= start - timedelta(days=1),
+                    ShiftPlan.date < end,
+                )
+            ).scalars()
+        )
+        plans = {row.date: row for row in plan_rows if row.date >= start}
+        planned_intervals = shift_plan_intervals(plan_rows)
+        stored = (
+            {
+                (row.metric_date, row.source): row
+                for row in db.execute(
+                    select(EmploymentDailyTimeMetric).where(
+                        EmploymentDailyTimeMetric.employment_id == employment.id,
+                        EmploymentDailyTimeMetric.metric_date >= start,
+                        EmploymentDailyTimeMetric.metric_date < end,
+                    )
+                ).scalars()
+            }
+            if use_persisted
+            else {}
+        )
         days: list[DaySummary] = []
         worked_values: list[DailyMetrics] = []
         planned_values: list[DailyMetrics] = []
         for offset in range((end - start).days):
             day = start + timedelta(days=offset)
             worked = (
-                _stored_metrics(
-                    stored.get((day, DailyMetricSource.ATTENDANCE)), employment
-                )
+                _stored_metrics(stored.get((day, DailyMetricSource.ATTENDANCE)), employment)
                 if use_persisted
                 else calculate_daily_metrics(employment, day, intervals)
             )
             planned = (
-                _stored_metrics(
-                    stored.get((day, DailyMetricSource.SHIFT_PLAN)), employment
-                )
+                _stored_metrics(stored.get((day, DailyMetricSource.SHIFT_PLAN)), employment)
                 if use_persisted
                 else calculate_daily_metrics(employment, day, planned_intervals)
             )
@@ -146,10 +173,47 @@ def build_month_summaries(
             day_events = [event for event in events if prague_now(event.occurred_at).date() == day]
             attendance_row = attendance.get(day)
             plan_row = plans.get(day)
-            effective_status = attendance_row.status if attendance_row is not None else plan_row.status if plan_row is not None else None
-            worked_state = "complete" if day_events and all(event.id in closed_event_ids for event in day_events) else "incomplete" if day_events else "empty"
-            days.append(DaySummary(day, attendance_row, plan_row, effective_status, worked, planned, worked_state, "complete" if planned and planned.total.minutes else "empty"))
-        result[employment.id] = MonthSummary(days, {key: _sum(worked_values, key) for key in ("total", "afternoon", "night", "weekend", "public_holiday")} if worked_values else None, {key: _sum(planned_values, key) for key in ("total", "afternoon", "night", "weekend", "public_holiday")} if planned_values else None)
+            effective_status = (
+                attendance_row.status
+                if attendance_row is not None
+                else plan_row.status
+                if plan_row is not None
+                else None
+            )
+            worked_state = (
+                "complete"
+                if day_events and all(event.id in closed_event_ids for event in day_events)
+                else "incomplete"
+                if day_events
+                else "empty"
+            )
+            days.append(
+                DaySummary(
+                    day,
+                    attendance_row,
+                    plan_row,
+                    effective_status,
+                    worked,
+                    planned,
+                    worked_state,
+                    "complete" if planned and planned.total.minutes else "empty",
+                )
+            )
+        result[employment.id] = MonthSummary(
+            days,
+            {
+                key: _sum(worked_values, key)
+                for key in ("total", "afternoon", "night", "weekend", "public_holiday")
+            }
+            if worked_values
+            else None,
+            {
+                key: _sum(planned_values, key)
+                for key in ("total", "afternoon", "night", "weekend", "public_holiday")
+            }
+            if planned_values
+            else None,
+        )
     return result
 
 

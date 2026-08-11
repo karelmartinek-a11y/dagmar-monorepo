@@ -93,11 +93,15 @@ def _decrypt_stored_password(st: AppSettings, settings: Settings) -> str | None:
     return decrypted.strip() if decrypted else None
 
 
-def _step(label_map: dict[str, str], key: str, status: str = "pending", detail: str | None = None) -> SmtpTestStepOut:
+def _step(
+    label_map: dict[str, str], key: str, status: str = "pending", detail: str | None = None
+) -> SmtpTestStepOut:
     return SmtpTestStepOut(key=key, label=label_map[key], status=status, detail=detail)
 
 
-def _set_step(steps: list[SmtpTestStepOut], key: str, *, status: str, detail: str | None = None) -> None:
+def _set_step(
+    steps: list[SmtpTestStepOut], key: str, *, status: str, detail: str | None = None
+) -> None:
     for step in steps:
         if step.key == key:
             step.status = status
@@ -113,38 +117,68 @@ def _map_smtp_exception(exc: Exception) -> SmtpTestErrorOut:
     if isinstance(exc, ValueError):
         message = str(exc)
         if "admin_email" in message:
-            return _smtp_test_error("admin_email_missing", "Aktuální administrátor nemá nastavený e-mail pro doručení testu.", message)
+            return _smtp_test_error(
+                "admin_email_missing",
+                "Aktuální administrátor nemá nastavený e-mail pro doručení testu.",
+                message,
+            )
         if "host" in message.lower():
             return _smtp_test_error("smtp_host_missing", "Chybí SMTP server.", message)
         if "port" in message.lower():
-            return _smtp_test_error("smtp_port_invalid", "SMTP port není vyplněný nebo má neplatnou hodnotu.", message)
+            return _smtp_test_error(
+                "smtp_port_invalid", "SMTP port není vyplněný nebo má neplatnou hodnotu.", message
+            )
         if "odesilaci" in message.lower() or "from_email" in message.lower():
             return _smtp_test_error("smtp_sender_missing", "Chybí e-mail odesílatele.", message)
         return _smtp_test_error("smtp_validation_failed", "SMTP konfigurace není úplná.", message)
     if isinstance(exc, socket.gaierror):
-        return _smtp_test_error("smtp_dns_failed", "Název SMTP serveru se nepodařilo přeložit v DNS.", str(exc))
+        return _smtp_test_error(
+            "smtp_dns_failed", "Název SMTP serveru se nepodařilo přeložit v DNS.", str(exc)
+        )
     if isinstance(exc, (TimeoutError, socket.timeout)):
         return _smtp_test_error("smtp_timeout", "Připojení k SMTP serveru vypršelo.", str(exc))
     if isinstance(exc, ConnectionRefusedError):
-        return _smtp_test_error("smtp_connection_refused", "SMTP server odmítl spojení na zadaném portu.", str(exc))
+        return _smtp_test_error(
+            "smtp_connection_refused", "SMTP server odmítl spojení na zadaném portu.", str(exc)
+        )
     if isinstance(exc, ssl.SSLError):
-        return _smtp_test_error("smtp_tls_failed", "TLS handshake se nezdařil. Zkontrolujte režim zabezpečení a certifikát serveru.", str(exc))
+        return _smtp_test_error(
+            "smtp_tls_failed",
+            "TLS handshake se nezdařil. Zkontrolujte režim zabezpečení a certifikát serveru.",
+            str(exc),
+        )
     if isinstance(exc, smtplib.SMTPNotSupportedError):
-        return _smtp_test_error("smtp_starttls_unsupported", "SMTP server nepodporuje požadovaný režim STARTTLS nebo AUTH.", str(exc))
+        return _smtp_test_error(
+            "smtp_starttls_unsupported",
+            "SMTP server nepodporuje požadovaný režim STARTTLS nebo AUTH.",
+            str(exc),
+        )
     if isinstance(exc, smtplib.SMTPAuthenticationError):
-        return _smtp_test_error("smtp_auth_failed", "SMTP server odmítl přihlašovací údaje.", str(exc))
+        return _smtp_test_error(
+            "smtp_auth_failed", "SMTP server odmítl přihlašovací údaje.", str(exc)
+        )
     if isinstance(exc, smtplib.SMTPSenderRefused):
-        return _smtp_test_error("smtp_sender_rejected", "SMTP server odmítl adresu odesílatele.", str(exc))
+        return _smtp_test_error(
+            "smtp_sender_rejected", "SMTP server odmítl adresu odesílatele.", str(exc)
+        )
     if isinstance(exc, smtplib.SMTPRecipientsRefused):
-        return _smtp_test_error("smtp_recipient_rejected", "SMTP server odmítl cílovou adresu administrátora.", str(exc))
+        return _smtp_test_error(
+            "smtp_recipient_rejected", "SMTP server odmítl cílovou adresu administrátora.", str(exc)
+        )
     if isinstance(exc, smtplib.SMTPConnectError):
-        return _smtp_test_error("smtp_connect_failed", "Nepodařilo se navázat SMTP spojení.", str(exc))
+        return _smtp_test_error(
+            "smtp_connect_failed", "Nepodařilo se navázat SMTP spojení.", str(exc)
+        )
     if isinstance(exc, smtplib.SMTPServerDisconnected):
-        return _smtp_test_error("smtp_server_disconnected", "SMTP server spojení předčasně ukončil.", str(exc))
+        return _smtp_test_error(
+            "smtp_server_disconnected", "SMTP server spojení předčasně ukončil.", str(exc)
+        )
     return _smtp_test_error("smtp_unknown_error", "SMTP test selhal z neznámého důvodu.", str(exc))
 
 
-def _run_smtp_test(payload: SmtpIn, *, admin: object, settings: Settings, st: AppSettings) -> SmtpTestOut:
+def _run_smtp_test(
+    payload: SmtpIn, *, admin: object, settings: Settings, st: AppSettings
+) -> SmtpTestOut:
     labels = {
         "validate": "Kontrola vyplněných údajů",
         "sender": "Sestavení odesílatele",
@@ -169,7 +203,9 @@ def _run_smtp_test(payload: SmtpIn, *, admin: object, settings: Settings, st: Ap
         admin_email = _admin_username(admin).lower()
         if not _looks_like_email(admin_email):
             raise ValueError("admin_email missing")
-        _set_step(steps, "validate", status="success", detail=f"Test bude doručen na {admin_email}.")
+        _set_step(
+            steps, "validate", status="success", detail=f"Test bude doručen na {admin_email}."
+        )
 
         _set_step(steps, "sender", status="running")
         username = (payload.username or "").strip()
@@ -233,13 +269,20 @@ def _run_smtp_test(payload: SmtpIn, *, admin: object, settings: Settings, st: Ap
         _set_step(steps, "quit", status="success", detail="SMTP relace byla korektně ukončena.")
 
         return SmtpTestOut(ok=True, steps=steps, target_email=admin_email)
-    except Exception as exc:
+    except (OSError, ValueError, smtplib.SMTPException, ssl.SSLError) as exc:
         if server is not None:
             try:
                 server.quit()
-                _set_step(steps, "quit", status="success", detail="SMTP relace byla ukončena po chybě.")
-            except Exception:
-                _set_step(steps, "quit", status="error", detail="SMTP relaci se po chybě nepodařilo ukončit korektně.")
+                _set_step(
+                    steps, "quit", status="success", detail="SMTP relace byla ukončena po chybě."
+                )
+            except (OSError, smtplib.SMTPException):
+                _set_step(
+                    steps,
+                    "quit",
+                    status="error",
+                    detail="SMTP relaci se po chybě nepodařilo ukončit korektně.",
+                )
 
         error = _map_smtp_exception(exc)
         for step in steps:

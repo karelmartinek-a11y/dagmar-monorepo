@@ -14,7 +14,9 @@ def main() -> None:
     parser.add_argument("--github-output", action="store_true")
     args = parser.parse_args()
     statuses: dict[str, str] = {}
-    for line in (ROOT / "docs/SSOT_IMPLEMENTATION_MATRIX.md").read_text(encoding="utf-8").splitlines():
+    for line in (
+        (ROOT / "docs/SSOT_IMPLEMENTATION_MATRIX.md").read_text(encoding="utf-8").splitlines()
+    ):
         match = ROW.match(line)
         if match:
             statuses[match.group(1)] = match.group(2)

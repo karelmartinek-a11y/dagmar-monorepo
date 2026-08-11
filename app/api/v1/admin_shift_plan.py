@@ -354,7 +354,8 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         while cur < end:
             direct_row = plan_map.get((employment_id, cur))
             employment_plans = [
-                row for (row_employment_id, _date), row in plan_map.items()
+                row
+                for (row_employment_id, _date), row in plan_map.items()
                 if row_employment_id == employment_id
             ]
             carryover = shift_plan_carryover(cast(list[ShiftPlan], employment_plans), cur)
@@ -366,9 +367,7 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 and direct_row.arrival_time is not None
                 and direct_row.departure_time is not None
             )
-            holiday_days += int(
-                direct_row is not None and direct_row.status == DAY_STATUS_HOLIDAY
-            )
+            holiday_days += int(direct_row is not None and direct_row.status == DAY_STATUS_HOLIDAY)
             off_days += int(direct_row is not None and direct_row.status == DAY_STATUS_OFF)
             days.append(
                 ShiftPlanDayOut(
@@ -555,9 +554,10 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
                 "employment_period_mismatch",
                 "Přeshraniční směna zasahuje mimo období platnosti úvazku.",
             )
-        if candidate_day != day and get_day_status(
-            db, employment_id=employment.id, day=candidate_day
-        ) is not None:
+        if (
+            candidate_day != day
+            and get_day_status(db, employment_id=employment.id, day=candidate_day) is not None
+        ):
             raise_api_error(
                 409,
                 "shift_plan_blocked_by_day_status",

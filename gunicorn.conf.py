@@ -18,7 +18,7 @@ import os
 def _int(env_name: str, default: int) -> int:
     try:
         return int(os.getenv(env_name, str(default)))
-    except Exception:
+    except ValueError:
         return default
 
 

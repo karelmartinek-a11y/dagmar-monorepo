@@ -153,6 +153,7 @@ mypy app
 alembic heads
 pytest -q
 python scripts/check_repo_invariants.py
+python scripts/check_broad_exceptions.py
 python scripts/generate_current_state_manifest.py --check
 python scripts/check_python_lock.py
 python scripts/check_security_policy.py

@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import PortalUserAuth, require_portal_user_auth
@@ -51,9 +52,7 @@ router = APIRouter(tags=["attendance"])
 def _require_locked_active_employment(
     db: Session, employment: Employment, auth: PortalUserAuth
 ) -> None:
-    if employment.user_id != auth.user.id or not locked_employment_has_active_user(
-        db, employment
-    ):
+    if employment.user_id != auth.user.id or not locked_employment_has_active_user(db, employment):
         raise_api_error(
             409,
             "employment_not_active",
@@ -243,8 +242,7 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
         elif (
             event.event_type == AttendanceEventType.OUT
             and following.event_type == AttendanceEventType.IN
-            and prague_now(event.occurred_at).date()
-            == prague_now(following.occurred_at).date()
+            and prague_now(event.occurred_at).date() == prague_now(following.occurred_at).date()
         ):
             # OUT+IN is removable as one physical pause only inside the same local day.
             deletion_partners[event.id] = following.id
@@ -325,6 +323,7 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
             db, lock_type=LockType.SHIFT_PLAN, employment_id=employment.id, year=year, month=month
         ),
     )
+
 
 @router.get("/api/v1/attendance", response_model=AttendanceMonthOut)
 def get_month_attendance(
@@ -439,7 +438,7 @@ def create_attendance_event(
         raise_api_error(409, "attendance_event_alternation_conflict", str(exc))
     try:
         db.flush()
-    except Exception:
+    except IntegrityError:
         db.rollback()
         raise_api_error(
             409, "attendance_event_conflict", "Průchod se překrývá s existujícím průchodem."
@@ -452,9 +451,7 @@ def create_attendance_event(
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(after_events),
-        timestamps=tuple(
-            value for value in (occurred_at, paired_occurred_at) if value is not None
-        ),
+        timestamps=tuple(value for value in (occurred_at, paired_occurred_at) if value is not None),
     )
     try:
         ensure_days_have_no_status(db, employment_id=employment.id, days=changed_days)
@@ -476,7 +473,7 @@ def create_attendance_event(
                 "Do dne s celodenní nepřítomností nelze zapsat průchod.",
             )
         raise
-    except Exception:
+    except SQLAlchemyError:
         db.rollback()
         raise
     sync_employment_metric_months(db, employment=employment, months=affected_months)
@@ -498,7 +495,9 @@ def update_attendance_event(
     auth: PortalUserAuth = Depends(require_portal_user_auth),
 ) -> AttendanceEventOut:
     if body.paired_occurred_at is not None:
-        raise_api_error(400, "attendance_event_pair_update_forbidden", "Pár lze měnit po jednom průchodu.")
+        raise_api_error(
+            400, "attendance_event_pair_update_forbidden", "Pár lze měnit po jednom průchodu."
+        )
     event = db.get(AttendanceEvent, event_id)
     if event is None:
         raise_api_error(404, "attendance_event_not_found", "Průchod nebyl nalezen.")
@@ -548,7 +547,7 @@ def update_attendance_event(
     ordered = sorted([*events, event], key=lambda item: (prague_now(item.occurred_at), item.id))
     try:
         db.flush()
-    except Exception:
+    except IntegrityError:
         db.rollback()
         raise_api_error(
             409, "attendance_event_conflict", "Průchod se překrývá s existujícím průchodem."
@@ -578,7 +577,7 @@ def update_attendance_event(
                 "Do dne s celodenní nepřítomností nelze zapsat průchod.",
             )
         raise
-    except Exception:
+    except SQLAlchemyError:
         db.rollback()
         raise
     sync_employment_metric_months(db, employment=employment, months=affected_months)

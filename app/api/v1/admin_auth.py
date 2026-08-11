@@ -128,9 +128,13 @@ async def _parse_admin_login_body(request: Request) -> AdminLoginBody | None:
                 password=raw_password if isinstance(raw_password, str) else "",
             )
         except ValidationError:
-            raise_api_error(400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo.")
-        except Exception:
-            raise_api_error(400, "admin_login_invalid_payload", "Nelze zpracovat přihlašovací údaje.")
+            raise_api_error(
+                400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo."
+            )
+        except (RuntimeError, ValueError):
+            raise_api_error(
+                400, "admin_login_invalid_payload", "Nelze zpracovat přihlašovací údaje."
+            )
 
     return payload
 
@@ -190,11 +194,15 @@ async def admin_login(
 
     payload = await _parse_admin_login_body(request)
     if not payload:
-        raise_api_error(400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo.")
+        raise_api_error(
+            400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo."
+        )
 
     username = (payload.username or payload.email or "").strip().lower()
     if not username or not payload.password:
-        raise_api_error(400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo.")
+        raise_api_error(
+            400, "admin_login_missing_credentials", "Vyplňte uživatelské jméno a heslo."
+        )
 
     user_ok = username == configured_user
     pass_ok = verify_password(payload.password, configured_hash)

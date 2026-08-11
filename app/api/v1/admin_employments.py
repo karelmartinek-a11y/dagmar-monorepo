@@ -49,7 +49,9 @@ class EmploymentCreateIn(BaseModel):
     start_date: str = Field(description="YYYY-MM-DD")
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
     is_active: bool = True
-    workload_fraction: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1.000"))
+    workload_fraction: Decimal | None = Field(
+        default=None, ge=Decimal("0.001"), le=Decimal("1.000")
+    )
     total_hours_enabled: bool = True
     automatic_breaks_enabled: bool = False
     afternoon_hours_enabled: bool = False
@@ -85,7 +87,17 @@ class EmploymentCreateIn(BaseModel):
             self.weekend_hours_enabled = False
             self.public_holiday_hours_enabled = False
         try:
-            validate_time_profile(employment_type=self.employment_type, workload_fraction=self.workload_fraction, total_hours_enabled=self.total_hours_enabled, automatic_breaks_enabled=self.automatic_breaks_enabled, afternoon_hours_enabled=self.afternoon_hours_enabled, afternoon_start_minutes=self.afternoon_start_minutes, night_hours_enabled=self.night_hours_enabled, weekend_hours_enabled=self.weekend_hours_enabled, public_holiday_hours_enabled=self.public_holiday_hours_enabled)
+            validate_time_profile(
+                employment_type=self.employment_type,
+                workload_fraction=self.workload_fraction,
+                total_hours_enabled=self.total_hours_enabled,
+                automatic_breaks_enabled=self.automatic_breaks_enabled,
+                afternoon_hours_enabled=self.afternoon_hours_enabled,
+                afternoon_start_minutes=self.afternoon_start_minutes,
+                night_hours_enabled=self.night_hours_enabled,
+                weekend_hours_enabled=self.weekend_hours_enabled,
+                public_holiday_hours_enabled=self.public_holiday_hours_enabled,
+            )
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
         return self
@@ -98,7 +110,9 @@ class EmploymentUpdateIn(BaseModel):
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
     is_active: bool | None = None
     confirm_delete_out_of_range: bool = False
-    workload_fraction: Decimal | None = Field(default=None, ge=Decimal("0.001"), le=Decimal("1.000"))
+    workload_fraction: Decimal | None = Field(
+        default=None, ge=Decimal("0.001"), le=Decimal("1.000")
+    )
     total_hours_enabled: bool | None = None
     automatic_breaks_enabled: bool | None = None
     afternoon_hours_enabled: bool | None = None
@@ -181,12 +195,16 @@ def _parse_date(value: str | None, field_name: str) -> date | None:
     try:
         return date.fromisoformat(value)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Pole {field_name} musí být v backendovém formátu YYYY-MM-DD.") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Pole {field_name} musí být v backendovém formátu YYYY-MM-DD."
+        ) from exc
 
 
 def _validate_period(start_date: date, end_date: date | None) -> None:
     if end_date is not None and end_date < start_date:
-        raise HTTPException(status_code=400, detail="Datum ukončení nesmí být dříve než datum začátku.")
+        raise HTTPException(
+            status_code=400, detail="Datum ukončení nesmí být dříve než datum začátku."
+        )
 
 
 def _is_date_out_of_range(day: date, start_date: date, end_date: date | None) -> bool:
@@ -202,7 +220,9 @@ def _month_bounds(year: int, month: int) -> tuple[date, date]:
     return date(year, month, 1), date(year, month, last_day)
 
 
-def _month_record_out_of_range(year: int, month: int, start_date: date, end_date: date | None) -> bool:
+def _month_record_out_of_range(
+    year: int, month: int, start_date: date, end_date: date | None
+) -> bool:
     month_start, month_end = _month_bounds(year, month)
     if month_end < start_date:
         return True
@@ -226,14 +246,19 @@ def _out_of_range_event_ids(
     return ids
 
 
-def _collect_range_conflicts(employment_id: int, start_date: date, end_date: date | None, db: Session) -> RangeConflictSummary:
+def _collect_range_conflicts(
+    employment_id: int, start_date: date, end_date: date | None, db: Session
+) -> RangeConflictSummary:
     summary = RangeConflictSummary()
 
-    attendance_rows = (
-        db.execute(select(Attendance.date).where(Attendance.employment_id == employment_id).order_by(Attendance.date.asc()))
-        .all()
-    )
-    offending_attendance = [row[0] for row in attendance_rows if _is_date_out_of_range(row[0], start_date, end_date)]
+    attendance_rows = db.execute(
+        select(Attendance.date)
+        .where(Attendance.employment_id == employment_id)
+        .order_by(Attendance.date.asc())
+    ).all()
+    offending_attendance = [
+        row[0] for row in attendance_rows if _is_date_out_of_range(row[0], start_date, end_date)
+    ]
     if offending_attendance:
         summary.attendance_count = len(offending_attendance)
         summary.touch(offending_attendance[0], offending_attendance[-1])
@@ -269,58 +294,68 @@ def _collect_range_conflicts(employment_id: int, start_date: date, end_date: dat
         summary.shift_plan_count = len(offending_shift)
         summary.touch(offending_shift[0], offending_shift[-1])
 
-    lock_rows = (
-        db.execute(
-            select(AttendanceLock.year, AttendanceLock.month)
-            .where(AttendanceLock.employment_id == employment_id)
-            .order_by(AttendanceLock.year.asc(), AttendanceLock.month.asc())
-        ).all()
-    )
-    offending_lock_months = [row for row in lock_rows if _month_record_out_of_range(row[0], row[1], start_date, end_date)]
+    lock_rows = db.execute(
+        select(AttendanceLock.year, AttendanceLock.month)
+        .where(AttendanceLock.employment_id == employment_id)
+        .order_by(AttendanceLock.year.asc(), AttendanceLock.month.asc())
+    ).all()
+    offending_lock_months = [
+        row for row in lock_rows if _month_record_out_of_range(row[0], row[1], start_date, end_date)
+    ]
     if offending_lock_months:
         summary.attendance_lock_count = len(offending_lock_months)
         first_lock = _month_bounds(offending_lock_months[0][0], offending_lock_months[0][1])
         last_lock = _month_bounds(offending_lock_months[-1][0], offending_lock_months[-1][1])
         summary.touch(first_lock[0], last_lock[1])
 
-    shift_plan_lock_rows = (
-        db.execute(
-            select(ShiftPlanLock.year, ShiftPlanLock.month)
-            .where(ShiftPlanLock.employment_id == employment_id)
-            .order_by(ShiftPlanLock.year.asc(), ShiftPlanLock.month.asc())
-        ).all()
-    )
+    shift_plan_lock_rows = db.execute(
+        select(ShiftPlanLock.year, ShiftPlanLock.month)
+        .where(ShiftPlanLock.employment_id == employment_id)
+        .order_by(ShiftPlanLock.year.asc(), ShiftPlanLock.month.asc())
+    ).all()
     offending_shift_plan_lock_months = [
-        row for row in shift_plan_lock_rows if _month_record_out_of_range(row[0], row[1], start_date, end_date)
+        row
+        for row in shift_plan_lock_rows
+        if _month_record_out_of_range(row[0], row[1], start_date, end_date)
     ]
     if offending_shift_plan_lock_months:
         summary.shift_plan_lock_count = len(offending_shift_plan_lock_months)
-        first_lock = _month_bounds(offending_shift_plan_lock_months[0][0], offending_shift_plan_lock_months[0][1])
-        last_lock = _month_bounds(offending_shift_plan_lock_months[-1][0], offending_shift_plan_lock_months[-1][1])
+        first_lock = _month_bounds(
+            offending_shift_plan_lock_months[0][0], offending_shift_plan_lock_months[0][1]
+        )
+        last_lock = _month_bounds(
+            offending_shift_plan_lock_months[-1][0], offending_shift_plan_lock_months[-1][1]
+        )
         summary.touch(first_lock[0], last_lock[1])
 
-    selection_rows = (
-        db.execute(
-            select(ShiftPlanMonthInstance.year, ShiftPlanMonthInstance.month)
-            .where(ShiftPlanMonthInstance.employment_id == employment_id)
-            .order_by(ShiftPlanMonthInstance.year.asc(), ShiftPlanMonthInstance.month.asc())
-        ).all()
-    )
-    offending_selection_months = [row for row in selection_rows if _month_record_out_of_range(row[0], row[1], start_date, end_date)]
+    selection_rows = db.execute(
+        select(ShiftPlanMonthInstance.year, ShiftPlanMonthInstance.month)
+        .where(ShiftPlanMonthInstance.employment_id == employment_id)
+        .order_by(ShiftPlanMonthInstance.year.asc(), ShiftPlanMonthInstance.month.asc())
+    ).all()
+    offending_selection_months = [
+        row
+        for row in selection_rows
+        if _month_record_out_of_range(row[0], row[1], start_date, end_date)
+    ]
     if offending_selection_months:
         summary.shift_plan_selection_count = len(offending_selection_months)
-        first_selection = _month_bounds(offending_selection_months[0][0], offending_selection_months[0][1])
-        last_selection = _month_bounds(offending_selection_months[-1][0], offending_selection_months[-1][1])
+        first_selection = _month_bounds(
+            offending_selection_months[0][0], offending_selection_months[0][1]
+        )
+        last_selection = _month_bounds(
+            offending_selection_months[-1][0], offending_selection_months[-1][1]
+        )
         summary.touch(first_selection[0], last_selection[1])
 
-    reminder_rows = (
-        db.execute(
-            select(AttendanceReminderEvent.attendance_date)
-            .where(AttendanceReminderEvent.employment_id == employment_id)
-            .order_by(AttendanceReminderEvent.attendance_date.asc())
-        ).all()
-    )
-    offending_reminders = [row[0] for row in reminder_rows if _is_date_out_of_range(row[0], start_date, end_date)]
+    reminder_rows = db.execute(
+        select(AttendanceReminderEvent.attendance_date)
+        .where(AttendanceReminderEvent.employment_id == employment_id)
+        .order_by(AttendanceReminderEvent.attendance_date.asc())
+    ).all()
+    offending_reminders = [
+        row[0] for row in reminder_rows if _is_date_out_of_range(row[0], start_date, end_date)
+    ]
     if offending_reminders:
         summary.reminder_count = len(offending_reminders)
         summary.touch(offending_reminders[0], offending_reminders[-1])
@@ -340,8 +375,12 @@ def _raise_range_conflict(summary: RangeConflictSummary) -> None:
             "shift_plan_lock_count": summary.shift_plan_lock_count,
             "shift_plan_selection_count": summary.shift_plan_selection_count,
             "reminder_count": summary.reminder_count,
-            "problem_range_start": summary.min_date.isoformat() if summary.min_date is not None else None,
-            "problem_range_end": summary.max_date.isoformat() if summary.max_date is not None else None,
+            "problem_range_start": summary.min_date.isoformat()
+            if summary.min_date is not None
+            else None,
+            "problem_range_end": summary.max_date.isoformat()
+            if summary.max_date is not None
+            else None,
             "requires_confirmation": True,
         },
     )
@@ -359,8 +398,12 @@ def _raise_delete_conflict(summary: RangeConflictSummary) -> None:
             "shift_plan_lock_count": summary.shift_plan_lock_count,
             "shift_plan_selection_count": summary.shift_plan_selection_count,
             "reminder_count": summary.reminder_count,
-            "problem_range_start": summary.min_date.isoformat() if summary.min_date is not None else None,
-            "problem_range_end": summary.max_date.isoformat() if summary.max_date is not None else None,
+            "problem_range_start": summary.min_date.isoformat()
+            if summary.min_date is not None
+            else None,
+            "problem_range_end": summary.max_date.isoformat()
+            if summary.max_date is not None
+            else None,
             "requires_confirmation": True,
         },
     )
@@ -370,7 +413,9 @@ def _collect_related_data_summary(employment_id: int, db: Session) -> RangeConfl
     summary = RangeConflictSummary()
 
     attendance_dates = db.execute(
-        select(Attendance.date).where(Attendance.employment_id == employment_id).order_by(Attendance.date.asc())
+        select(Attendance.date)
+        .where(Attendance.employment_id == employment_id)
+        .order_by(Attendance.date.asc())
     ).all()
     if attendance_dates:
         summary.attendance_count = len(attendance_dates)
@@ -389,7 +434,9 @@ def _collect_related_data_summary(employment_id: int, db: Session) -> RangeConfl
         summary.touch(event_dates[0], event_dates[-1])
 
     shift_dates = db.execute(
-        select(ShiftPlan.date).where(ShiftPlan.employment_id == employment_id).order_by(ShiftPlan.date.asc())
+        select(ShiftPlan.date)
+        .where(ShiftPlan.employment_id == employment_id)
+        .order_by(ShiftPlan.date.asc())
     ).all()
     if shift_dates:
         summary.shift_plan_count = len(shift_dates)
@@ -450,7 +497,9 @@ def _out_of_range_clause(column, start_date: date, end_date: date | None):
     return or_(column < start_date, column > end_date)
 
 
-def _delete_out_of_range_records(employment_id: int, start_date: date, end_date: date | None, db: Session) -> EmploymentDeleteOut:
+def _delete_out_of_range_records(
+    employment_id: int, start_date: date, end_date: date | None, db: Session
+) -> EmploymentDeleteOut:
     attendance_deleted = _delete_row_count(
         cast(
             CursorResult[Any],
@@ -483,58 +532,86 @@ def _delete_out_of_range_records(employment_id: int, start_date: date, end_date:
         for row in db.execute(
             select(ShiftPlan).where(ShiftPlan.employment_id == employment_id)
         ).scalars()
-        if any(
-            _is_date_out_of_range(day, start_date, end_date)
-            for day in shift_plan_days(row)
-        )
+        if any(_is_date_out_of_range(day, start_date, end_date) for day in shift_plan_days(row))
     ]
-    shift_plan_deleted = _delete_row_count(
-        cast(
-            CursorResult[Any],
-            db.execute(
-                delete(ShiftPlan).where(
-                    ShiftPlan.id.in_(shift_plan_ids),
-                )
-            ),
+    shift_plan_deleted = (
+        _delete_row_count(
+            cast(
+                CursorResult[Any],
+                db.execute(
+                    delete(ShiftPlan).where(
+                        ShiftPlan.id.in_(shift_plan_ids),
+                    )
+                ),
+            )
         )
-    ) if shift_plan_ids else 0
-
-    lock_rows = (
-        db.execute(select(AttendanceLock.id, AttendanceLock.year, AttendanceLock.month).where(AttendanceLock.employment_id == employment_id))
-        .all()
+        if shift_plan_ids
+        else 0
     )
-    lock_ids = [row[0] for row in lock_rows if _month_record_out_of_range(row[1], row[2], start_date, end_date)]
+
+    lock_rows = db.execute(
+        select(AttendanceLock.id, AttendanceLock.year, AttendanceLock.month).where(
+            AttendanceLock.employment_id == employment_id
+        )
+    ).all()
+    lock_ids = [
+        row[0]
+        for row in lock_rows
+        if _month_record_out_of_range(row[1], row[2], start_date, end_date)
+    ]
     attendance_lock_deleted = (
-        _delete_row_count(cast(CursorResult[Any], db.execute(delete(AttendanceLock).where(AttendanceLock.id.in_(lock_ids)))))
+        _delete_row_count(
+            cast(
+                CursorResult[Any],
+                db.execute(delete(AttendanceLock).where(AttendanceLock.id.in_(lock_ids))),
+            )
+        )
         if lock_ids
         else 0
     )
 
-    shift_plan_lock_rows = (
-        db.execute(select(ShiftPlanLock.id, ShiftPlanLock.year, ShiftPlanLock.month).where(ShiftPlanLock.employment_id == employment_id))
-        .all()
-    )
+    shift_plan_lock_rows = db.execute(
+        select(ShiftPlanLock.id, ShiftPlanLock.year, ShiftPlanLock.month).where(
+            ShiftPlanLock.employment_id == employment_id
+        )
+    ).all()
     shift_plan_lock_ids = [
-        row[0] for row in shift_plan_lock_rows if _month_record_out_of_range(row[1], row[2], start_date, end_date)
+        row[0]
+        for row in shift_plan_lock_rows
+        if _month_record_out_of_range(row[1], row[2], start_date, end_date)
     ]
     shift_plan_lock_deleted = (
         _delete_row_count(
-            cast(CursorResult[Any], db.execute(delete(ShiftPlanLock).where(ShiftPlanLock.id.in_(shift_plan_lock_ids))))
+            cast(
+                CursorResult[Any],
+                db.execute(delete(ShiftPlanLock).where(ShiftPlanLock.id.in_(shift_plan_lock_ids))),
+            )
         )
         if shift_plan_lock_ids
         else 0
     )
 
-    selection_rows = (
-        db.execute(
-            select(ShiftPlanMonthInstance.id, ShiftPlanMonthInstance.year, ShiftPlanMonthInstance.month).where(
-                ShiftPlanMonthInstance.employment_id == employment_id
-            )
-        ).all()
-    )
-    selection_ids = [row[0] for row in selection_rows if _month_record_out_of_range(row[1], row[2], start_date, end_date)]
+    selection_rows = db.execute(
+        select(
+            ShiftPlanMonthInstance.id, ShiftPlanMonthInstance.year, ShiftPlanMonthInstance.month
+        ).where(ShiftPlanMonthInstance.employment_id == employment_id)
+    ).all()
+    selection_ids = [
+        row[0]
+        for row in selection_rows
+        if _month_record_out_of_range(row[1], row[2], start_date, end_date)
+    ]
     shift_plan_selection_deleted = (
-        _delete_row_count(cast(CursorResult[Any], db.execute(delete(ShiftPlanMonthInstance).where(ShiftPlanMonthInstance.id.in_(selection_ids)))))
+        _delete_row_count(
+            cast(
+                CursorResult[Any],
+                db.execute(
+                    delete(ShiftPlanMonthInstance).where(
+                        ShiftPlanMonthInstance.id.in_(selection_ids)
+                    )
+                ),
+            )
+        )
         if selection_ids
         else 0
     )
@@ -545,7 +622,9 @@ def _delete_out_of_range_records(employment_id: int, start_date: date, end_date:
             db.execute(
                 delete(AttendanceReminderEvent).where(
                     AttendanceReminderEvent.employment_id == employment_id,
-                    _out_of_range_clause(AttendanceReminderEvent.attendance_date, start_date, end_date),
+                    _out_of_range_clause(
+                        AttendanceReminderEvent.attendance_date, start_date, end_date
+                    ),
                 )
             ),
         )
@@ -581,24 +660,45 @@ def _delete_all_related_records(employment_id: int, db: Session) -> EmploymentDe
         ok=True,
         deleted_attendance_count=attendance_deleted,
         deleted_shift_plan_count=_delete_row_count(
-            cast(CursorResult[Any], db.execute(delete(ShiftPlan).where(ShiftPlan.employment_id == employment_id)))
+            cast(
+                CursorResult[Any],
+                db.execute(delete(ShiftPlan).where(ShiftPlan.employment_id == employment_id)),
+            )
         ),
         deleted_attendance_lock_count=_delete_row_count(
-            cast(CursorResult[Any], db.execute(delete(AttendanceLock).where(AttendanceLock.employment_id == employment_id)))
+            cast(
+                CursorResult[Any],
+                db.execute(
+                    delete(AttendanceLock).where(AttendanceLock.employment_id == employment_id)
+                ),
+            )
         ),
         deleted_shift_plan_lock_count=_delete_row_count(
-            cast(CursorResult[Any], db.execute(delete(ShiftPlanLock).where(ShiftPlanLock.employment_id == employment_id)))
+            cast(
+                CursorResult[Any],
+                db.execute(
+                    delete(ShiftPlanLock).where(ShiftPlanLock.employment_id == employment_id)
+                ),
+            )
         ),
         deleted_shift_plan_selection_count=_delete_row_count(
             cast(
                 CursorResult[Any],
-                db.execute(delete(ShiftPlanMonthInstance).where(ShiftPlanMonthInstance.employment_id == employment_id)),
+                db.execute(
+                    delete(ShiftPlanMonthInstance).where(
+                        ShiftPlanMonthInstance.employment_id == employment_id
+                    )
+                ),
             )
         ),
         deleted_reminder_count=_delete_row_count(
             cast(
                 CursorResult[Any],
-                db.execute(delete(AttendanceReminderEvent).where(AttendanceReminderEvent.employment_id == employment_id)),
+                db.execute(
+                    delete(AttendanceReminderEvent).where(
+                        AttendanceReminderEvent.employment_id == employment_id
+                    )
+                ),
             )
         ),
     )
@@ -621,7 +721,8 @@ def create_employment(
 
     start_date = _parse_date(payload.start_date, "start_date")
     end_date = _parse_date(payload.end_date, "end_date")
-    assert start_date is not None
+    if start_date is None:
+        raise_api_error(400, "invalid_employment_start_date", "Datum začátku úvazku je povinné.")
     _validate_period(start_date, end_date)
 
     employment = Employment(
@@ -646,7 +747,9 @@ def create_employment(
     return _to_employment_out(employment)
 
 
-@router.put("/api/v1/admin/employments/{employment_id}", response_model=EmploymentDeleteOut | EmploymentOut)
+@router.put(
+    "/api/v1/admin/employments/{employment_id}", response_model=EmploymentDeleteOut | EmploymentOut
+)
 def update_employment(
     employment_id: int,
     payload: EmploymentUpdateIn,
@@ -660,15 +763,30 @@ def update_employment(
     employment = lock_employment_for_time_mutation(db, employment.id)
 
     next_title = payload.title.strip() if payload.title is not None else employment.title
-    next_type = payload.employment_type if payload.employment_type is not None else employment.employment_type
+    next_type = (
+        payload.employment_type
+        if payload.employment_type is not None
+        else employment.employment_type
+    )
     next_type_value = str(getattr(next_type, "value", next_type))
-    current_type_value = str(getattr(employment.employment_type, "value", employment.employment_type))
+    current_type_value = str(
+        getattr(employment.employment_type, "value", employment.employment_type)
+    )
     if not employment_type_is_valid(next_type):
         raise_api_error(400, "invalid_employment_type", "Neplatný typ úvazku.")
 
-    next_start_date = _parse_date(payload.start_date, "start_date") if payload.start_date is not None else employment.start_date
-    next_end_date = _parse_date(payload.end_date, "end_date") if payload.end_date is not None else employment.end_date
-    assert next_start_date is not None
+    next_start_date = (
+        _parse_date(payload.start_date, "start_date")
+        if payload.start_date is not None
+        else employment.start_date
+    )
+    next_end_date = (
+        _parse_date(payload.end_date, "end_date")
+        if payload.end_date is not None
+        else employment.end_date
+    )
+    if next_start_date is None:
+        raise_api_error(400, "invalid_employment_start_date", "Datum začátku úvazku je povinné.")
     _validate_period(next_start_date, next_end_date)
     period_changed = (
         next_start_date != employment.start_date or next_end_date != employment.end_date
@@ -690,7 +808,9 @@ def update_employment(
 
     delete_summary = None
     if has_conflicts and payload.confirm_delete_out_of_range:
-        delete_summary = _delete_out_of_range_records(employment.id, next_start_date, next_end_date, db)
+        delete_summary = _delete_out_of_range_records(
+            employment.id, next_start_date, next_end_date, db
+        )
 
     employment.title = next_title
     employment.employment_type = EmploymentType(next_type)
@@ -708,14 +828,28 @@ def update_employment(
     else:
         requested_afternoon_minutes = employment.afternoon_start_minutes
     profile_values: dict[str, Any] = {
-        "workload_fraction": payload.workload_fraction if "workload_fraction" in payload.model_fields_set else employment.workload_fraction,
-        "total_hours_enabled": payload.total_hours_enabled if payload.total_hours_enabled is not None else employment.total_hours_enabled,
-        "automatic_breaks_enabled": payload.automatic_breaks_enabled if payload.automatic_breaks_enabled is not None else employment.automatic_breaks_enabled,
-        "afternoon_hours_enabled": payload.afternoon_hours_enabled if payload.afternoon_hours_enabled is not None else employment.afternoon_hours_enabled,
+        "workload_fraction": payload.workload_fraction
+        if "workload_fraction" in payload.model_fields_set
+        else employment.workload_fraction,
+        "total_hours_enabled": payload.total_hours_enabled
+        if payload.total_hours_enabled is not None
+        else employment.total_hours_enabled,
+        "automatic_breaks_enabled": payload.automatic_breaks_enabled
+        if payload.automatic_breaks_enabled is not None
+        else employment.automatic_breaks_enabled,
+        "afternoon_hours_enabled": payload.afternoon_hours_enabled
+        if payload.afternoon_hours_enabled is not None
+        else employment.afternoon_hours_enabled,
         "afternoon_start_minutes": requested_afternoon_minutes,
-        "night_hours_enabled": payload.night_hours_enabled if payload.night_hours_enabled is not None else employment.night_hours_enabled,
-        "weekend_hours_enabled": payload.weekend_hours_enabled if payload.weekend_hours_enabled is not None else employment.weekend_hours_enabled,
-        "public_holiday_hours_enabled": payload.public_holiday_hours_enabled if payload.public_holiday_hours_enabled is not None else employment.public_holiday_hours_enabled,
+        "night_hours_enabled": payload.night_hours_enabled
+        if payload.night_hours_enabled is not None
+        else employment.night_hours_enabled,
+        "weekend_hours_enabled": payload.weekend_hours_enabled
+        if payload.weekend_hours_enabled is not None
+        else employment.weekend_hours_enabled,
+        "public_holiday_hours_enabled": payload.public_holiday_hours_enabled
+        if payload.public_holiday_hours_enabled is not None
+        else employment.public_holiday_hours_enabled,
     }
     profile_values = _normalize_profile_for_type(
         next_type_value,

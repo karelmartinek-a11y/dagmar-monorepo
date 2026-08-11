@@ -205,7 +205,14 @@ def _find_permission_profile(scope_ids: list[str]) -> str | None:
 
 
 def _active_secret(client: models.IntegrationClient) -> models.IntegrationClientSecret | None:
-    return next((item for item in sorted(client.secrets, key=lambda row: row.id, reverse=True) if item.revoked_at is None), None)
+    return next(
+        (
+            item
+            for item in sorted(client.secrets, key=lambda row: row.id, reverse=True)
+            if item.revoked_at is None
+        ),
+        None,
+    )
 
 
 def _serialize_configuration(client: models.IntegrationClient) -> IntegrationClientConfigurationOut:
@@ -243,7 +250,9 @@ def _serialize_list_item(client: models.IntegrationClient) -> IntegrationClientL
         created_at=utc_isoformat(client.created_at) or "",
         updated_at=utc_isoformat(client.updated_at) or "",
         created_by=client.created_by,
-        active_secret_fingerprint=active_secret.token_fingerprint if active_secret is not None else None,
+        active_secret_fingerprint=active_secret.token_fingerprint
+        if active_secret is not None
+        else None,
         active_secret_last4=active_secret.token_last4 if active_secret is not None else None,
         available_actions=allowed_actions_for_client(client),
     )
@@ -265,11 +274,15 @@ def _serialize_detail(client: models.IntegrationClient, db: Session) -> Integrat
 
 
 def _client_query(db: Session):
-    return db.execute(
-        select(models.IntegrationClient)
-        .options(selectinload(models.IntegrationClient.secrets))
-        .order_by(models.IntegrationClient.name.asc(), models.IntegrationClient.id.asc())
-    ).scalars().all()
+    return (
+        db.execute(
+            select(models.IntegrationClient)
+            .options(selectinload(models.IntegrationClient.secrets))
+            .order_by(models.IntegrationClient.name.asc(), models.IntegrationClient.id.asc())
+        )
+        .scalars()
+        .all()
+    )
 
 
 def _get_client_or_404(client_id: int, db: Session) -> models.IntegrationClient:
@@ -306,10 +319,14 @@ def _apply_payload_to_client(
     client.allowed_employment_ids = []
 
     if payload.data_scope_mode == DATA_SCOPE_SELECTED_EMPLOYEES:
-        client.allowed_employee_ids = validate_selected_employee_ids(db, payload.selected_employee_ids)
+        client.allowed_employee_ids = validate_selected_employee_ids(
+            db, payload.selected_employee_ids
+        )
         client.include_inactive_employments = bool(payload.include_inactive_employments)
     elif payload.data_scope_mode == DATA_SCOPE_SELECTED_EMPLOYMENTS:
-        client.allowed_employment_ids = validate_selected_employment_ids(db, payload.selected_employment_ids)
+        client.allowed_employment_ids = validate_selected_employment_ids(
+            db, payload.selected_employment_ids
+        )
     elif payload.data_scope_mode == DATA_SCOPE_ALL:
         client.include_inactive_employments = True
     elif payload.data_scope_mode == DATA_SCOPE_ACTIVE_ONLY:
@@ -325,7 +342,9 @@ def _apply_payload_to_client(
             detail="IP omezení spravované mimo UI lze použít jen u klienta, který ho už má nastavené technicky.",
         )
 
-    client.expires_at = expiration_from_choice(payload.expiration_choice, payload.custom_expiration_date)
+    client.expires_at = expiration_from_choice(
+        payload.expiration_choice, payload.custom_expiration_date
+    )
 
 
 @router.get("/clients/options", response_model=IntegrationClientOptionsOut)
@@ -413,11 +432,32 @@ def get_integration_client_options(
             ),
         ],
         expiration_options=[
-            ExpirationOptionOut(id=EXPIRATION_NONE, label="Bez expirace", description="Token platí do ruční změny stavu nebo rotace."),
-            ExpirationOptionOut(id=EXPIRATION_30_DAYS, label="30 dní", description="Vhodné pro krátkodobé ověření nebo onboarding partnera."),
-            ExpirationOptionOut(id=EXPIRATION_90_DAYS, label="90 dní", description="Rozumná výchozí volba pro pilotní provoz."),
-            ExpirationOptionOut(id=EXPIRATION_1_YEAR, label="1 rok", description="Vhodné pro stabilní dlouhodobé napojení."),
-            ExpirationOptionOut(id=EXPIRATION_CUSTOM, label="Vlastní datum", description="Vyberte konkrétní den v date pickeru.", requires_custom_date=True),
+            ExpirationOptionOut(
+                id=EXPIRATION_NONE,
+                label="Bez expirace",
+                description="Token platí do ruční změny stavu nebo rotace.",
+            ),
+            ExpirationOptionOut(
+                id=EXPIRATION_30_DAYS,
+                label="30 dní",
+                description="Vhodné pro krátkodobé ověření nebo onboarding partnera.",
+            ),
+            ExpirationOptionOut(
+                id=EXPIRATION_90_DAYS,
+                label="90 dní",
+                description="Rozumná výchozí volba pro pilotní provoz.",
+            ),
+            ExpirationOptionOut(
+                id=EXPIRATION_1_YEAR,
+                label="1 rok",
+                description="Vhodné pro stabilní dlouhodobé napojení.",
+            ),
+            ExpirationOptionOut(
+                id=EXPIRATION_CUSTOM,
+                label="Vlastní datum",
+                description="Vyberte konkrétní den v date pickeru.",
+                requires_custom_date=True,
+            ),
         ],
         statuses=[
             {
@@ -472,9 +512,13 @@ def create_integration_client(
     settings: Settings = Depends(get_settings),
 ) -> IntegrationClientSecretOut:
     normalized_name = validate_client_name(payload.name)
-    existing = db.execute(select(models.IntegrationClient).where(models.IntegrationClient.name == normalized_name)).scalar_one_or_none()
+    existing = db.execute(
+        select(models.IntegrationClient).where(models.IntegrationClient.name == normalized_name)
+    ).scalar_one_or_none()
     if existing is not None:
-        raise HTTPException(status_code=409, detail="Integrační klient se stejným názvem už existuje.")
+        raise HTTPException(
+            status_code=409, detail="Integrační klient se stejným názvem už existuje."
+        )
 
     client = models.IntegrationClient(
         name=normalized_name,
@@ -497,7 +541,9 @@ def create_integration_client(
     db.add(secret)
     db.commit()
     client = _get_client_or_404(client.id, db)
-    return IntegrationClientSecretOut(client=_serialize_detail(client, db), plaintext_token=plaintext)
+    return IntegrationClientSecretOut(
+        client=_serialize_detail(client, db), plaintext_token=plaintext
+    )
 
 
 @router.put("/clients/{client_id}", response_model=IntegrationClientDetailOut)
@@ -511,10 +557,14 @@ def update_integration_client(
     client = _get_client_or_404(client_id, db)
     normalized_name = validate_client_name(payload.name)
     name_owner = db.execute(
-        select(models.IntegrationClient).where(models.IntegrationClient.name == normalized_name).where(models.IntegrationClient.id != client_id)
+        select(models.IntegrationClient)
+        .where(models.IntegrationClient.name == normalized_name)
+        .where(models.IntegrationClient.id != client_id)
     ).scalar_one_or_none()
     if name_owner is not None:
-        raise HTTPException(status_code=409, detail="Integrační klient se stejným názvem už existuje.")
+        raise HTTPException(
+            status_code=409, detail="Integrační klient se stejným názvem už existuje."
+        )
     _apply_payload_to_client(client=client, payload=payload, db=db)
     db.add(client)
     db.commit()
@@ -553,7 +603,9 @@ def rotate_integration_client_secret(
         db.add(client)
     db.commit()
     client = _get_client_or_404(client.id, db)
-    return IntegrationClientSecretOut(client=_serialize_detail(client, db), plaintext_token=plaintext)
+    return IntegrationClientSecretOut(
+        client=_serialize_detail(client, db), plaintext_token=plaintext
+    )
 
 
 @router.post("/clients/{client_id}/disable", response_model=IntegrationClientDetailOut)

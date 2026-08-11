@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import hashlib
 from datetime import UTC, date, datetime, timedelta
 
 import bcrypt
@@ -32,7 +31,7 @@ from app.security.lockout import (
     issue_unlock_token,
     record_failed_login,
 )
-from app.security.passwords import hash_password, verify_password_details
+from app.security.passwords import hash_password, is_password_hash_outdated, verify_password_details
 from app.security.tokens import (
     generate_instance_token,
     issue_instance_token_once,
@@ -57,13 +56,10 @@ def test_new_password_hash_is_argon2_and_malformed_hash_is_rejected() -> None:
     assert verify_password_details("StrongPass123", "$argon2id$broken").valid is False
 
 
-def test_legacy_plain_sha256_is_constant_time_verified_and_requires_rehash() -> None:
-    legacy = hashlib.sha256(b"LegacyPass123").hexdigest()
-    valid = verify_password_details("LegacyPass123", legacy)
-    invalid = verify_password_details("wrong", legacy)
-    assert valid.valid is True
-    assert valid.needs_rehash is True
-    assert invalid.valid is False
+def test_legacy_plain_sha256_password_hash_is_rejected() -> None:
+    legacy = "0" * 64
+    assert verify_password_details("LegacyPass123", legacy).valid is False
+    assert is_password_hash_outdated(legacy) is False
 
 
 def test_removed_ineffective_auth_settings_and_dead_admin_session_api_stay_absent() -> None:

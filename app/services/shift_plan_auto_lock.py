@@ -53,9 +53,7 @@ def auto_lock_current_shift_plan_month(
 
     employments = (
         db.execute(
-            select(Employment)
-            .options(joinedload(Employment.user))
-            .order_by(Employment.id.asc())
+            select(Employment).options(joinedload(Employment.user)).order_by(Employment.id.asc())
         )
         .unique()
         .scalars()

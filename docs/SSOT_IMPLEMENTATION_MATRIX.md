@@ -21,9 +21,9 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P1-004 | Odstraněná falešná token-length volba | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: token-format invariant | — |
 | DAG-P1-005 | Reset token má delivery/revocation lifecycle | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: SMTP failure testy | — |
 | DAG-P1-006 | Nejvýše jeden aktivní reset token | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: souběžný issuance test | — |
-| DAG-P1-007 | Auditovaná admin aktivace instance | otevřeno | karelmartinek-a11y | E — backend | register→activate→claim test | — |
+| DAG-P1-007 | Auditovaná admin aktivace instance | splněno | karelmartinek-a11y | E — backend | `tests/test_admin_instances.py`; lokální PostgreSQL suite 211 passed | — |
 | DAG-P1-008 | Delete uživatele uklidí jeho WEB instanci | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: lifecycle + migrace 0025 | — |
-| DAG-P1-009 | Reminder správně páruje eventy přes půlnoc | otevřeno | karelmartinek-a11y | E — backend | reminder chronology testy | — |
+| DAG-P1-009 | Reminder správně páruje eventy přes půlnoc | splněno | karelmartinek-a11y | E — backend | `tests/test_attendance_reminders.py`; lokální PostgreSQL suite 211 passed | — |
 | DAG-P1-010 | Oddělené integrační rate-limit buckety | splněno | karelmartinek-a11y | C — integration API | 429 parametrické testy | PR #43, CI `31534619320`, `test_health_data_and_openapi_have_separate_configured_rate_buckets` |
 | DAG-P1-011 | Časově omezený admin account lockout | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: admin lockout testy | — |
 | DAG-P1-012 | Veřejný build bez sourcemap | splněno | karelmartinek-a11y | D — production | artifact sourcemap gate | PR #44, CI `31537398225`, `check_web_artifact.py` |
@@ -31,16 +31,16 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P1-014 | Deploy bez credentialu v Git remote | splněno | karelmartinek-a11y | D — production | deploy preflight | PR #44, CI `31537398225`, deploy policy + credential scanner |
 | DAG-P1-015 | Bezpečná retence release | splněno | karelmartinek-a11y | D — production | cleanup script unit testy | PR #44, CI `31537398225`, `tests/test_cleanup_releases.py` |
 | DAG-P1-016 | DB a revision readiness | splněno | karelmartinek-a11y | D — production | readiness dependency testy | PR #44, CI `31537398225`, `tests/test_readiness.py` |
-| DAG-P2-001 | Manifest odvozuje skutečný auth režim | otevřeno | karelmartinek-a11y | E — backend | manifest route testy | — |
+| DAG-P2-001 | Manifest odvozuje skutečný auth režim | splněno | karelmartinek-a11y | E — backend | `test_manifest_auth_modes_follow_route_dependencies_and_explicit_bootstrap_map` | — |
 | DAG-P2-002 | Stabilní opaque cursor pagination | splněno | karelmartinek-a11y | C — integration API | cursor continuity testy | PR #43, CI `31534619320`, `test_cursor_pagination_is_stable_and_endpoint_specific` |
 | DAG-P2-003 | Pouze routami vynucené scopes jsou dostupné | splněno | karelmartinek-a11y | C — integration API | scope-route invariant | PR #43, CI `31534619320`, scope-route + per-route enforcement testy |
-| DAG-P2-004 | Jediná neintegrační error envelope | otevřeno | karelmartinek-a11y | E — backend | error contract testy | — |
+| DAG-P2-004 | Jediná neintegrační error envelope | splněno | karelmartinek-a11y | E — backend | `tests/test_error_envelope.py`; frontend parser unit suite | — |
 | DAG-P2-005 | External auth URL bez SSRF odchylek | splněno | karelmartinek-a11y | D — production | URL/redirect negativní testy | PR #44, CI `31537398225`, CodeQL + `tests/test_external_auth_security.py` |
 | DAG-P2-006 | Neplatné environment hodnoty fail-fast | splněno | karelmartinek-a11y | D — production | config testy | PR #44, CI `31537398225`, `tests/test_production_config.py` |
 | DAG-P2-007 | Neplatné SameSite hodnoty fail-fast | splněno | karelmartinek-a11y | D — production | config testy | PR #44, CI `31537398225`, `tests/test_production_config.py` |
-| DAG-P2-008 | Žádný produkční validační `assert` | otevřeno | karelmartinek-a11y | E — backend | repo invariant | — |
-| DAG-P2-009 | User listing nepolyká data chyby | otevřeno | karelmartinek-a11y | E — backend | integrity-error test | — |
-| DAG-P2-010 | Deploy-tag fallback je auditovatelný | otevřeno | karelmartinek-a11y | E — backend | logging test | — |
+| DAG-P2-008 | Žádný produkční validační `assert` | splněno | karelmartinek-a11y | E — backend | `check_broad_exceptions.py` AST gate | — |
+| DAG-P2-009 | User listing nepolyká data chyby | splněno | karelmartinek-a11y | E — backend | `test_admin_list_fails_whole_response_on_data_integrity_error` | — |
+| DAG-P2-010 | Deploy-tag fallback je auditovatelný | splněno | karelmartinek-a11y | E — backend | `test_deploy_tag_fallback_logs_path_and_error_type_without_file_content` | — |
 | DAG-P2-011 | Calendar fetch pouze bezpečné HTTPS cíle | splněno | karelmartinek-a11y | A — supply chain prerequisite | CI run `31522955074`: 8 URL/redirect/size testů + Bandit | — |
 | DAG-P2-012 | Reprodukovatelný Python build | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: `check_python_lock.py` | — |
 | DAG-P2-013 | Actions připnuté na full SHA | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: `check_security_policy.py` | — |
@@ -58,7 +58,7 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P2-025 | Browser auth pouze HttpOnly cookie | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: cookie/CSRF/storage + design `SCHVÁLENO` | — |
 | DAG-P2-026 | Jediná admin session implementace | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: auth-source invariant | — |
 | DAG-P2-027 | Config je jediný admin password source | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: admin login source test | — |
-| DAG-P2-028 | Povinný backend suite má 0 skipped | otevřeno | karelmartinek-a11y | E — backend | pytest strict/zero-skip | — |
+| DAG-P2-028 | Povinný backend suite má 0 skipped | splněno | karelmartinek-a11y | E — backend | PostgreSQL `pytest --strict-markers`: 211 passed, 0 skipped | — |
 | DAG-P3-001 | Explicitní Alembic path separator | splněno | karelmartinek-a11y | B — auth prerequisite | CI `31530934021`: Alembic bez warningu | — |
 | DAG-P3-002 | Testy bez deprecation warnings | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: pytest `-W error` | — |
 | DAG-P3-003 | Žádné auditované nepoužité `cls` | otevřeno | karelmartinek-a11y | G — governance | Vulture gate | — |
@@ -86,7 +86,7 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P3-025 | Návrhové binárky jsou LFS pointery | otevřeno | karelmartinek-a11y | G — governance | LFS invariant | — |
 | DAG-P3-026 | Normalizované názvy podkladů | otevřeno | karelmartinek-a11y | G — governance | repo search + index | — |
 | DAG-P3-027 | Bez zbytečného Alembic `.gitkeep` | otevřeno | karelmartinek-a11y | G — governance | absence invariant | — |
-| DAG-P3-028 | Explicitní nevratná migrace a restore runbook | otevřeno | karelmartinek-a11y | E — backend | downgrade-boundary test | — |
-| DAG-P3-029 | Migrace `0002` nepolyká DB chyby | otevřeno | karelmartinek-a11y | E — backend | migration postcondition test | — |
-| DAG-P3-030 | Broad exceptions jen na procesních hranicích | otevřeno | karelmartinek-a11y | E — backend | `check_broad_exceptions.py` | — |
+| DAG-P3-028 | Explicitní nevratná migrace a restore runbook | splněno | karelmartinek-a11y | E — backend | `test_irreversible_employment_migration_raises_actionable_command_error` + restore runbook | — |
+| DAG-P3-029 | Migrace `0002` nepolyká DB chyby | splněno | karelmartinek-a11y | E — backend | `test_migration_0002_drops_only_named_unique_constraint` | — |
+| DAG-P3-030 | Broad exceptions jen na procesních hranicích | splněno | karelmartinek-a11y | E — backend | `scripts/check_broad_exceptions.py` allowlist gate | — |
 | DAG-P3-031 | Řídicí artefakty nemaskují otevřené nálezy | otevřeno | karelmartinek-a11y | G — governance | matrix/invariant check | — |

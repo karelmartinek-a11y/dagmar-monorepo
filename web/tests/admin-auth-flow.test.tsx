@@ -150,7 +150,7 @@ describe("admin authentication flow", () => {
       const url = new URL(String(input), window.location.origin);
       if (url.pathname === "/api/v1/admin/csrf") return jsonResponse({ csrf_token: "csrf-token" });
       if (url.pathname === "/api/v1/admin/login" && init?.method === "POST") {
-        return jsonResponse({ detail: { code: "admin_login_invalid_credentials", message: "Neplatné přihlašovací údaje" } }, { status: 401 });
+        return jsonResponse({ error: { code: "admin_login_invalid_credentials", message: "Neplatné přihlašovací údaje", request_id: "test-request" } }, { status: 401 });
       }
       throw new Error(`Unhandled fetch ${url.pathname}`);
     });

@@ -34,27 +34,21 @@ async function csrf(mode: "admin" | "portal"): Promise<string> {
 async function responseError(response: Response): Promise<ApiError> {
   let message: string = String(i18n.t("api.genericError", { status: response.status }));
   let code: string | null = null;
+  let requestId: string | null = response.headers.get("x-request-id");
   try {
     const body = await response.json() as {
-      detail?: unknown;
-      error?: { message?: string; code?: string; params?: Record<string, unknown> };
+      error?: { message?: string; code?: string; details?: Record<string, unknown>; request_id?: string };
     };
-    const detailObject = typeof body.detail === "object" && body.detail !== null
-      ? body.detail as { code?: string; message?: string; params?: Record<string, unknown> }
-      : null;
-    const params = body.error?.params ?? detailObject?.params ?? {};
-    code = body.error?.code ?? detailObject?.code ?? null;
+    const params = body.error?.details ?? {};
+    code = body.error?.code ?? null;
+    requestId = body.error?.request_id ?? requestId;
     if (code && i18n.exists(`apiErrors.${code}`)) {
       message = String(i18n.t(`apiErrors.${code}`, params));
-    } else if (typeof body.detail === "string") {
-      message = body.detail;
-    } else if (detailObject?.message) {
-      message = detailObject.message;
     } else if (body.error?.message) {
       message = body.error.message;
     }
   } catch { /* response is not JSON */ }
-  return new ApiError(message, response.status, code, response.headers.get("x-request-id"));
+  return new ApiError(message, response.status, code, requestId);
 }
 
 export async function request<T>(

@@ -68,7 +68,9 @@ def token_prefix(token: str) -> str:
 
 
 def token_fingerprint(token: str) -> str:
-    return hashlib.sha256(("fingerprint:" + token).encode("utf-8")).hexdigest()[:TOKEN_FINGERPRINT_LEN]
+    return hashlib.sha256(("fingerprint:" + token).encode("utf-8")).hexdigest()[
+        :TOKEN_FINGERPRINT_LEN
+    ]
 
 
 def hash_token(token: str) -> str:
@@ -136,13 +138,17 @@ def verify_integration_token(
         return None
 
     prefix = token_prefix(raw_token)
-    candidates = db.execute(
-        select(models.IntegrationClientSecret)
-        .join(models.IntegrationClient)
-        .where(models.IntegrationClientSecret.token_prefix == prefix)
-        .where(models.IntegrationClientSecret.revoked_at.is_(None))
-        .order_by(models.IntegrationClientSecret.id.desc())
-    ).scalars().all()
+    candidates = (
+        db.execute(
+            select(models.IntegrationClientSecret)
+            .join(models.IntegrationClient)
+            .where(models.IntegrationClientSecret.token_prefix == prefix)
+            .where(models.IntegrationClientSecret.revoked_at.is_(None))
+            .order_by(models.IntegrationClientSecret.id.desc())
+        )
+        .scalars()
+        .all()
+    )
 
     for secret in candidates:
         client = secret.client

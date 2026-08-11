@@ -203,12 +203,18 @@ def get_portal_session(request: Request, settings: Settings) -> PortalSession:
         issued_at = int(data.get("iat") or 0)
     except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
         return invalid
-    if user_id <= 0 or not credential_tag or int(time.time()) - issued_at > settings.session_max_age_seconds:
+    if (
+        user_id <= 0
+        or not credential_tag
+        or int(time.time()) - issued_at > settings.session_max_age_seconds
+    ):
         return PortalSession(user_id=None, credential_tag=None, issued_at=issued_at)
     return PortalSession(user_id=user_id, credential_tag=credential_tag, issued_at=issued_at)
 
 
-def portal_session_matches_password(session: PortalSession, password_hash: str, settings: Settings) -> bool:
+def portal_session_matches_password(
+    session: PortalSession, password_hash: str, settings: Settings
+) -> bool:
     if not session.is_authenticated or session.credential_tag is None:
         return False
     expected = _portal_credential_tag(password_hash, settings.session_secret)

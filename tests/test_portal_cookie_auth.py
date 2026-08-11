@@ -4,10 +4,11 @@ import hashlib
 import os
 from datetime import UTC, date, datetime, timedelta
 
+import bcrypt
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-from starlette.testclient import TestClient
 
 os.environ.setdefault("DAGMAR_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("DAGMAR_SESSION_SECRET", "x" * 32)
@@ -36,8 +37,7 @@ def _portal_password() -> str:
 
 
 def _legacy_password_hash() -> str:
-    # Precomputed SHA-256 fixture for the legacy verifier; production never creates it.
-    return "".join(("a615a46a9f52e117", "dffce7d7235b464a", "910f74508dfb51a2", "7ce8c63d0413d9a0"))
+    return bcrypt.hashpw(_portal_password().encode(), bcrypt.gensalt()).decode("ascii")
 
 
 def _client() -> tuple[TestClient, Session, PortalUser]:
@@ -160,8 +160,7 @@ def test_cookie_mutation_requires_portal_csrf_but_bearer_contract_does_not() -> 
         headers={"Authorization": f"Bearer {raw_token}"},
     )
     assert not (
-        bearer.status_code == 403
-        and bearer.json().get("error", {}).get("code") == "csrf_invalid"
+        bearer.status_code == 403 and bearer.json().get("error", {}).get("code") == "csrf_invalid"
     )
     assert login.status_code == 200
 

@@ -13,7 +13,11 @@ def test_old_data_does_not_reactivate_employment_outside_selected_month() -> Non
     Base.metadata.create_all(engine)
 
     with Session(engine) as db:
-        user = PortalUser(email="historical@example.test", name="Historický uživatel", role=PortalUserRole.EMPLOYEE)
+        user = PortalUser(
+            email="historical@example.test",
+            name="Historický uživatel",
+            role=PortalUserRole.EMPLOYEE,
+        )
         db.add(user)
         db.flush()
         employment = Employment(

@@ -15,7 +15,9 @@ def validate_actions() -> list[str]:
     for workflow in sorted((ROOT / ".github/workflows").glob("*.y*ml")):
         for number, line in enumerate(workflow.read_text(encoding="utf-8").splitlines(), start=1):
             if "uses:" in line and not SHA_ACTION.match(line):
-                errors.append(f"{workflow.relative_to(ROOT)}:{number}: action is not pinned to 40hex SHA")
+                errors.append(
+                    f"{workflow.relative_to(ROOT)}:{number}: action is not pinned to 40hex SHA"
+                )
     return errors
 
 

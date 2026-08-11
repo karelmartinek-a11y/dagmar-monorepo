@@ -84,7 +84,11 @@ def _record_login_failure(db: Session, *, email: str, detail: str) -> NoReturn:
     db.add(state)
     db.commit()
     if locked_now or is_locked(state):
-        raise_api_error(423, "portal_account_locked", "Účet je dočasně uzamčen po opakovaných neplatných pokusech.")
+        raise_api_error(
+            423,
+            "portal_account_locked",
+            "Účet je dočasně uzamčen po opakovaných neplatných pokusech.",
+        )
     raise_api_error(401, "portal_invalid_credentials", detail)
 
 
@@ -108,7 +112,9 @@ def issue_portal_login(user: PortalUser, db: Session) -> PortalLoginOut:
     if not user.is_active or user.role != PortalUserRole.EMPLOYEE:
         raise_api_error(403, "external_account_inactive", "Interní účet není aktivní.")
     if not user.instance_id or user.instance is None:
-        raise_api_error(409, "portal_missing_instance_token", "Uživatel nemá připravený přístupový token.")
+        raise_api_error(
+            409, "portal_missing_instance_token", "Uživatel nemá připravený přístupový token."
+        )
     if user.instance.status != InstanceStatus.ACTIVE:
         raise_api_error(403, "portal_instance_inactive", "Přístupová instance není aktivní.")
     today = prague_today()
@@ -124,7 +130,9 @@ def issue_portal_login(user: PortalUser, db: Session) -> PortalLoginOut:
     return PortalLoginOut(
         display_name=user.name,
         employment_id=selection.default.id if selection.default is not None else None,
-        available_employments=[_to_login_employment_out(item, today) for item in selection.available],
+        available_employments=[
+            _to_login_employment_out(item, today) for item in selection.available
+        ],
     )
 
 
@@ -139,7 +147,11 @@ def portal_login(
     lock_state = get_lockout_state(db, actor_type="portal", principal=email, create=True)
     if lock_state is not None and is_locked(lock_state):
         db.commit()
-        raise_api_error(423, "portal_account_locked", "Účet je dočasně uzamčen po opakovaných neplatných pokusech.")
+        raise_api_error(
+            423,
+            "portal_account_locked",
+            "Účet je dočasně uzamčen po opakovaných neplatných pokusech.",
+        )
 
     user = (
         db.execute(
@@ -188,7 +200,9 @@ def portal_session(auth: PortalUserAuth = Depends(require_portal_user_auth)):
     return PortalLoginOut(
         display_name=auth.user.name,
         employment_id=selection.default.id if selection.default is not None else None,
-        available_employments=[_to_login_employment_out(item, today) for item in selection.available],
+        available_employments=[
+            _to_login_employment_out(item, today) for item in selection.available
+        ],
     )
 
 
@@ -219,14 +233,18 @@ def portal_reset(
 ):
     token_hash = hashlib.sha256(payload.token.encode("utf-8")).hexdigest()
     now = datetime.now(UTC)
-    row = db.execute(
-        select(PortalUserResetToken)
-        .where(PortalUserResetToken.token_hash == token_hash)
-        .where(PortalUserResetToken.used_at.is_(None))
-        .where(PortalUserResetToken.revoked_at.is_(None))
-        .where(PortalUserResetToken.delivery_state == ResetDeliveryState.SENT)
-        .where(PortalUserResetToken.expires_at > now)
-    ).scalars().first()
+    row = (
+        db.execute(
+            select(PortalUserResetToken)
+            .where(PortalUserResetToken.token_hash == token_hash)
+            .where(PortalUserResetToken.used_at.is_(None))
+            .where(PortalUserResetToken.revoked_at.is_(None))
+            .where(PortalUserResetToken.delivery_state == ResetDeliveryState.SENT)
+            .where(PortalUserResetToken.expires_at > now)
+        )
+        .scalars()
+        .first()
+    )
 
     if not row or not row.user or not row.user.is_active:
         raise_api_error(400, "portal_reset_token_invalid", "Odkaz je neplatný nebo vypršel.")
