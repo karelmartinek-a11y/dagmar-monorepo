@@ -63,10 +63,6 @@ class Settings(BaseModel):
 
     # --- Admin auth (single admin account) ---
     admin_username: str = Field(default=ADMIN_IDENTITY_EMAIL)
-    # Provide either admin_password (to be hashed on seed) OR admin_password_hash.
-    admin_password: str | None = Field(
-        default=None, description="Plain password used only by seed_admin.sh"
-    )
     admin_password_hash: str | None = Field(
         default=None,
         description="Password hash stored/used by backend. Preferred in production.",
@@ -75,7 +71,6 @@ class Settings(BaseModel):
     # --- Session & CSRF secrets ---
     # These must be set in /etc/dagmar/backend.env
     session_secret: str = Field(..., min_length=32)
-    csrf_secret: str = Field(..., min_length=32)
     smtp_password_secret: str | None = Field(default=None, min_length=32)
 
     # Cookie name for admin session.
@@ -102,7 +97,6 @@ class Settings(BaseModel):
     rate_limit_integration_openapi_per_minute: int = Field(default=10)
 
     # --- Security / tokens ---
-    instance_token_length: int = Field(default=48, description="Random token length")
     integration_token_length: int = Field(default=48, description="Random token length for integration clients")
 
     # --- Logging ---
@@ -264,10 +258,8 @@ def get_settings(env_file: str = "/etc/dagmar/backend.env") -> Settings:
         db_max_overflow=int(os.getenv("DAGMAR_DB_MAX_OVERFLOW", "10")),
         db_pool_timeout_seconds=int(os.getenv("DAGMAR_DB_POOL_TIMEOUT_SECONDS", "30")),
         admin_username=ADMIN_IDENTITY_EMAIL,
-        admin_password=os.getenv("DAGMAR_ADMIN_PASSWORD") or None,
         admin_password_hash=os.getenv("DAGMAR_ADMIN_PASSWORD_HASH") or None,
         session_secret=os.environ["DAGMAR_SESSION_SECRET"],
-        csrf_secret=os.environ["DAGMAR_CSRF_SECRET"],
         smtp_password_secret=os.getenv("DAGMAR_SMTP_PASSWORD_SECRET") or None,
         admin_session_cookie=os.getenv(
             "DAGMAR_ADMIN_SESSION_COOKIE", os.getenv("DAGMAR_COOKIE_NAME", "dagmar_admin_session")
@@ -299,7 +291,6 @@ def get_settings(env_file: str = "/etc/dagmar/backend.env") -> Settings:
         rate_limit_integration_openapi_per_minute=int(
             os.getenv("DAGMAR_RATE_LIMIT_INTEGRATION_OPENAPI_PER_MINUTE", "10")
         ),
-        instance_token_length=int(os.getenv("DAGMAR_INSTANCE_TOKEN_LENGTH", "48")),
         integration_token_length=int(os.getenv("DAGMAR_INTEGRATION_TOKEN_LENGTH", "48")),
         log_level=os.getenv("DAGMAR_LOG_LEVEL", "INFO"),
         disable_docs=os.getenv("DAGMAR_DISABLE_DOCS", "true").lower() == "true",

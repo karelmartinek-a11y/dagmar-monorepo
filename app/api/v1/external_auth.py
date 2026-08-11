@@ -16,7 +16,10 @@ from starlette.responses import RedirectResponse
 
 from app.api.deps import PortalUserAuth, require_admin, require_portal_user_auth
 from app.api.errors import raise_api_error
-from app.api.v1.portal_auth import PortalLoginOut, issue_portal_login
+from app.api.v1.portal_auth import (
+    PortalLoginOut,
+    issue_portal_login,
+)
 from app.config import Settings, get_settings
 from app.db.models import ExternalAuthAuditLog, ExternalIdentity, OAuthTransaction, PortalUser
 from app.db.session import get_db
@@ -24,7 +27,7 @@ from app.security.crypto import decrypt_secret, encrypt_secret
 from app.security.csrf import require_csrf
 from app.security.passwords import verify_password
 from app.security.rate_limit import limiter
-from app.security.sessions import set_admin_session
+from app.security.sessions import set_admin_session, set_portal_session
 from app.services.external_auth import (
     ExternalAuthError,
     Portal,
@@ -385,7 +388,12 @@ def _complete_link(db: Session, request: Request, settings: Settings, transactio
         raise ExternalAuthError("identity_link_conflict") from exc
 
 
-def _complete_login(db: Session, transaction: OAuthTransaction, claims: ProviderClaims, settings: Settings) -> PortalLoginOut | None:
+def _complete_login(
+    db: Session,
+    transaction: OAuthTransaction,
+    claims: ProviderClaims,
+    settings: Settings,
+) -> tuple[PortalLoginOut, PortalUser] | None:
     identity = db.execute(
         select(ExternalIdentity).where(
             ExternalIdentity.provider == transaction.provider,
@@ -406,11 +414,11 @@ def _complete_login(db: Session, transaction: OAuthTransaction, claims: Provider
             .options(selectinload(PortalUser.employments), selectinload(PortalUser.instance))
             .where(PortalUser.id == identity.portal_user_id)
         ).scalar_one_or_none()
-        if user is None or not user.is_active:
+        if user is None or not user.is_active or user.password_hash is None:
             raise ExternalAuthError("external_account_inactive")
         if user.is_blocked:
             raise ExternalAuthError("portal_account_blocked")
-        return issue_portal_login(user, db)
+        return issue_portal_login(user, db), user
     if not settings.admin_password_hash or identity.admin_username != settings.admin_username.lower():
         raise ExternalAuthError("external_account_inactive")
     return None
@@ -447,15 +455,28 @@ def _handle_callback(
             db.commit()
             response = RedirectResponse(transaction.return_path + "?external_auth_linked=" + provider, status_code=303)
         else:
-            login = _complete_login(db, transaction, claims, settings)
+            login_issue = _complete_login(db, transaction, claims, settings)
             _audit(db, request, settings, portal=transaction.portal, provider=provider, event="login", outcome="success", account_ref=account_ref, subject=claims.subject)
             if transaction.portal == "employee":
-                transaction.result_payload = encrypt_secret(login.model_dump_json(), secret=settings.session_secret) if login else None
+                if login_issue is None:
+                    raise ExternalAuthError("external_account_inactive")
+                login, portal_user = login_issue
+                if portal_user.password_hash is None:
+                    raise ExternalAuthError("external_account_inactive")
+                transaction.result_payload = encrypt_secret(
+                    login.model_dump_json(), secret=settings.session_secret
+                )
                 transaction.result_expires_at = datetime.now(UTC) + timedelta(seconds=settings.external_auth_result_ttl_seconds)
                 db.add(transaction)
                 db.commit()
                 response = RedirectResponse(safe_return_path("employee", "login", transaction.return_path) + "?external_auth=complete", status_code=303)
                 response.set_cookie(RESULT_COOKIE, transaction.id, max_age=settings.external_auth_result_ttl_seconds, secure=settings.cookie_secure, httponly=True, samesite="lax", path="/api/v1/auth/result")
+                set_portal_session(
+                    response,
+                    user_id=portal_user.id,
+                    password_hash=portal_user.password_hash,
+                    settings=settings,
+                )
             else:
                 db.commit()
                 response = RedirectResponse(safe_return_path("admin", "login", transaction.return_path), status_code=303)

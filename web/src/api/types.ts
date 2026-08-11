@@ -31,7 +31,6 @@ export const employmentSchema = z.object({
   time_profile: z.record(z.string(), z.unknown()).optional(),
 });
 export const portalLoginSchema = z.object({
-  instance_token: z.string(),
   display_name: z.string(),
   employment_id: z.number().nullable(),
   available_employments: z.array(employmentSchema),

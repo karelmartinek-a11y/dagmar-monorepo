@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
 from alembic.config import Config
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
 
 from alembic import command
+from app.api.v1 import admin_users
+from app.api.v1.admin_users import send_reset_link
 from scripts.create_e2e_schema_baseline import main as create_e2e_schema_baseline
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,10 +75,67 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
                 sa.text("SELECT occurred_at FROM attendance_events ORDER BY id LIMIT 1")
             ).scalar_one()
         assert first_event.astimezone(ZoneInfo("Europe/Prague")).hour == 8
+        with engine.begin() as connection:
+            connection.execute(
+                sa.text(
+                    "INSERT INTO portal_user_reset_tokens "
+                    "(user_id, token_hash, expires_at) VALUES "
+                    "(1, 'legacy-reset-token', CURRENT_TIMESTAMP + interval '1 day')"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO instances "
+                    "(id, client_type, device_fingerprint, status) VALUES "
+                    "('orphan-web-instance', 'WEB', 'user:deleted@example.test', 'ACTIVE'), "
+                    "('linked-web-instance', 'WEB', 'user:migration@example.test', 'ACTIVE')"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "UPDATE portal_users SET instance_id = 'linked-web-instance' WHERE id = 1"
+                )
+            )
+            connection.execute(
+                sa.text("CREATE TABLE admin_users (id integer PRIMARY KEY, username text, password_hash text)")
+            )
+            connection.execute(
+                sa.text("CREATE TABLE admin_sessions (id integer PRIMARY KEY, session_id_hash text)")
+            )
         engine.dispose()
 
         command.upgrade(cfg, "head")
         engine = sa.create_engine(temp_url)
+
+        monkeypatch.setattr(admin_users, "_send_reset_email", lambda **_kwargs: None)
+        start = threading.Barrier(2)
+
+        def issue_reset(request_id: str) -> None:
+            with Session(engine) as session:
+                start.wait(timeout=5)
+                send_reset_link(
+                    1,
+                    SimpleNamespace(state=SimpleNamespace(request_id=request_id)),
+                    object(),
+                    None,
+                    session,
+                    SimpleNamespace(public_base_url="https://dagmar.hcasc.cz"),
+                )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(issue_reset, f"race-{index}") for index in range(2)]
+            for future in futures:
+                future.result(timeout=10)
+
+        with engine.connect() as connection:
+            active_reset_count = connection.execute(
+                sa.text(
+                    "SELECT count(*) FROM portal_user_reset_tokens "
+                    "WHERE delivery_state = 'SENT' AND used_at IS NULL AND revoked_at IS NULL"
+                )
+            ).scalar_one()
+        assert active_reset_count == 1
+
         with engine.begin() as connection:
             connection.execute(
                 sa.text(
@@ -107,6 +170,20 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
             attendance_lock = connection.execute(sa.text("SELECT count(*) FROM attendance_locks WHERE employment_id = 10 AND year = 2026 AND month = 6")).scalar_one()
             plan_lock = connection.execute(sa.text("SELECT count(*) FROM shift_plan_locks WHERE employment_id = 10 AND year = 2026 AND month = 7")).scalar_one()
             selections = connection.execute(sa.text("SELECT employment_id FROM shift_plan_month_instances WHERE year = 2026 AND month = 7 ORDER BY employment_id")).scalars().all()
+            reset_lifecycle = connection.execute(
+                sa.text(
+                    "SELECT delivery_state::text, revoked_at IS NOT NULL "
+                    "FROM portal_user_reset_tokens WHERE token_hash = 'legacy-reset-token'"
+                )
+            ).one()
+            web_instances = connection.execute(
+                sa.text("SELECT id FROM instances WHERE id IN ('orphan-web-instance', 'linked-web-instance') ORDER BY id")
+            ).scalars().all()
+            inactive_admin_tables = {
+                name
+                for name in ("admin_sessions", "admin_users")
+                if sa.inspect(connection).has_table(name)
+            }
         engine.dispose()
 
         assert employments == [(10, "WORK_CONTRACT", True, True), (11, "DPP_DPC", True, True)]
@@ -125,6 +202,9 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
         assert group_members == [10, 11]
         assert attendance_lock == plan_lock == 1
         assert selections == [10, 11]
+        assert reset_lifecycle == ("FAILED", True)
+        assert web_instances == ["linked-web-instance"]
+        assert inactive_admin_tables == set()
 
         engine = sa.create_engine(temp_url)
         with engine.begin() as connection:

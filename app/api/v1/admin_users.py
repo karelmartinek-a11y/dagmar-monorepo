@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 import smtplib
 from datetime import UTC, date, datetime, timedelta
@@ -11,7 +12,7 @@ from typing import Any
 from typing import cast as typing_cast
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
@@ -29,16 +30,25 @@ from app.db.models import (
     PortalUser,
     PortalUserResetToken,
     PortalUserRole,
+    ResetDeliveryState,
 )
 from app.db.session import get_db
 from app.security.crypto import decrypt_secret
 from app.security.csrf import require_csrf
 from app.security.lockout import as_utc, clear_user_lockout, is_locked, revoke_unlock_tokens
-from app.security.passwords import hash_password
 from app.services.employment_access import employment_label, select_login_employments
+from app.services.portal_credentials import (
+    change_portal_password,
+    lock_portal_user,
+    mark_reset_delivery,
+    reset_issuance_lock,
+    revoke_instance_credential,
+    revoke_password_reset_tokens,
+)
 from app.services.prague_time import prague_today
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin-users"])
+logger = logging.getLogger("dagmar.security")
 
 RESET_TTL_HOURS = 24
 
@@ -316,15 +326,6 @@ def _to_user_out(user: PortalUser, lock_state: AuthLockoutState | None = None) -
     )
 
 
-def _invalidate_instance_token(user: PortalUser, db: Session) -> None:
-    inst = user.instance or (db.get(Instance, user.instance_id) if user.instance_id else None)
-    if inst is None:
-        return
-    inst.token_hash = None
-    inst.token_issued_at = None
-    db.add(inst)
-
-
 def _apply_password(db: Session, user: PortalUser, raw_password: str | None) -> None:
     if raw_password is None:
         return
@@ -332,14 +333,9 @@ def _apply_password(db: Session, user: PortalUser, raw_password: str | None) -> 
     if not password:
         raise HTTPException(status_code=400, detail="Heslo nesmi byt prazdne.")
     try:
-        new_hash = hash_password(password)
+        change_portal_password(db, user, password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    user.password_hash = new_hash.value
-    db.execute(delete(PortalUserResetToken).where(PortalUserResetToken.user_id == user.id))
-    _invalidate_instance_token(user, db)
-    clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
-    revoke_unlock_tokens(db, actor_type="portal", principal=user.email.lower())
 
 
 @router.get("", response_model=PortalUserListOut)
@@ -550,8 +546,8 @@ def block_user(
 
     user.is_blocked = payload.blocked
     if payload.blocked:
-        db.execute(delete(PortalUserResetToken).where(PortalUserResetToken.user_id == user.id))
-        _invalidate_instance_token(user, db)
+        revoke_password_reset_tokens(db, user.id)
+        revoke_instance_credential(db, user)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -606,8 +602,8 @@ def update_user(
     if payload.is_active is not None:
         user.is_active = payload.is_active
         if not payload.is_active:
-            db.execute(delete(PortalUserResetToken).where(PortalUserResetToken.user_id == user.id))
-            _invalidate_instance_token(user, db)
+            revoke_password_reset_tokens(db, user.id)
+            revoke_instance_credential(db, user)
 
     if payload.password is not None:
         _apply_password(db, user, payload.password)
@@ -653,19 +649,33 @@ def delete_user(
     db: Session = Depends(get_db),
 ):
     row = db.execute(
-        select(PortalUser.id, PortalUser.email).where(PortalUser.id == int(user_id))
+        select(PortalUser.id, PortalUser.email, PortalUser.instance_id).where(
+            PortalUser.id == int(user_id)
+        )
     ).mappings().first()
     if row is None:
         raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
 
     email = str(row["email"] or "").strip().lower()
+    instance_id = str(row["instance_id"] or "").strip() or None
     if email:
         clear_user_lockout(db, actor_type="portal", principal=email)
         revoke_unlock_tokens(db, actor_type="portal", principal=email)
 
     db.execute(delete(PortalUserResetToken).where(PortalUserResetToken.user_id == int(user_id)))
     db.execute(delete(Employment).where(Employment.user_id == int(user_id)))
+    instance = db.get(Instance, instance_id) if instance_id else None
+    if instance is not None:
+        instance.token_hash = None
+        instance.token_issued_at = None
+        db.add(instance)
     db.execute(delete(PortalUser).where(PortalUser.id == int(user_id)))
+    if instance is not None and instance.client_type == ClientType.WEB:
+        other_owner = db.execute(
+            select(PortalUser.id).where(PortalUser.instance_id == instance.id).limit(1)
+        ).scalar_one_or_none()
+        if other_owner is None:
+            db.delete(instance)
 
     db.commit()
     return OkOut(ok=True)
@@ -674,33 +684,60 @@ def delete_user(
 @router.post("/{user_id}/send-reset", response_model=OkOut)
 def send_reset_link(
     user_id: int,
+    request: Request,
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    user = db.get(PortalUser, int(user_id))
-    if not user or not user.is_active:
-        raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
-    if user.is_blocked:
-        raise_api_error(403, "portal_account_blocked", "Váš přístup byl zablokován, obraťte se na svého nadřízeného.")
+    with reset_issuance_lock(db, int(user_id)):
+        user = lock_portal_user(db, int(user_id))
+        if not user or not user.is_active:
+            raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
+        if user.is_blocked:
+            raise_api_error(403, "portal_account_blocked", "Váš přístup byl zablokován, obraťte se na svého nadřízeného.")
 
-    raw_token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-    expires_at = datetime.now(UTC) + timedelta(hours=RESET_TTL_HOURS)
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        expires_at = datetime.now(UTC) + timedelta(hours=RESET_TTL_HOURS)
 
-    row = PortalUserResetToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
-    db.add(row)
-    db.commit()
+        revoke_password_reset_tokens(db, user.id)
+        row = PortalUserResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            delivery_state=ResetDeliveryState.PENDING,
+        )
+        db.add(row)
+        db.commit()
 
-    cfg = _get_settings(db)
-    reset_url = f"{settings.public_base_url}/reset?token={raw_token}"
-    try:
-        _send_reset_email(settings=settings, cfg=cfg, to_email=user.email, reset_url=reset_url)
-    except Exception as exc:
-        raise_api_error(400, "reset_email_failed", f"Odeslani selhalo: {exc}")
+        cfg = _get_settings(db)
+        reset_url = f"{settings.public_base_url}/reset?token={raw_token}"
+        try:
+            _send_reset_email(settings=settings, cfg=cfg, to_email=user.email, reset_url=reset_url)
+        except (OSError, ValueError, smtplib.SMTPException) as exc:
+            mark_reset_delivery(row, ResetDeliveryState.FAILED, revoked=True)
+            db.add(row)
+            db.commit()
+            logger.warning(
+                "security_event=reset_delivery_failed request_id=%s user_id=%s error_type=%s",
+                getattr(getattr(request, "state", None), "request_id", "unknown"),
+                user.id,
+                type(exc).__name__,
+            )
+            raise_api_error(400, "reset_email_failed", "Resetovací e-mail se nepodařilo odeslat.")
 
-    return OkOut(ok=True)
+        locked_user = lock_portal_user(db, user.id)
+        if locked_user is None or not locked_user.is_active or locked_user.is_blocked:
+            mark_reset_delivery(row, ResetDeliveryState.FAILED, revoked=True)
+            db.add(row)
+            db.commit()
+            raise_api_error(409, "reset_delivery_stale", "Stav účtu se během odesílání změnil.")
+        mark_reset_delivery(row, ResetDeliveryState.SENT)
+        db.add(row)
+        db.commit()
+
+        return OkOut(ok=True)
 
 
 @router.post("/{user_id}/unlock", response_model=OkOut)

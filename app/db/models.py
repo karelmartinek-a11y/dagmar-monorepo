@@ -19,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -58,6 +59,12 @@ class ClientType(StrEnum):
 
 class PortalUserRole(StrEnum):
     EMPLOYEE = "employee"
+
+
+class ResetDeliveryState(StrEnum):
+    PENDING = "PENDING"
+    SENT = "SENT"
+    FAILED = "FAILED"
 
 
 class IntegrationClientStatus(StrEnum):
@@ -405,24 +412,6 @@ class ShiftPlanAutoLockRun(Base):
     )
 
 
-class AdminUser(Base):
-    """Single-admin setup.
-
-    We keep a table to allow deterministic seed/update via scripts/seed_admin.sh.
-    """
-
-    __tablename__ = "admin_users"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
-    )
-
-
 class PortalUser(Base):
     __tablename__ = "portal_users"
 
@@ -466,9 +455,29 @@ class PortalUserResetToken(Base):
     token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivery_state: Mapped[ResetDeliveryState] = mapped_column(
+        Enum(ResetDeliveryState, name="reset_delivery_state", create_type=False),
+        nullable=False,
+        default=ResetDeliveryState.PENDING,
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     user: Mapped[PortalUser] = relationship(back_populates="reset_tokens")
+
+    __table_args__ = (
+        Index(
+            "uq_portal_reset_one_active_sent",
+            "user_id",
+            unique=True,
+            postgresql_where=text(
+                "delivery_state = 'SENT' AND used_at IS NULL AND revoked_at IS NULL"
+            ),
+            sqlite_where=text(
+                "delivery_state = 'SENT' AND used_at IS NULL AND revoked_at IS NULL"
+            ),
+        ),
+    )
 
 
 class ExternalIdentity(Base):

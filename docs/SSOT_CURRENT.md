@@ -80,7 +80,7 @@ Aktivní routy definuje [web/src/App.tsx](../web/src/App.tsx):
 Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
 - veřejné endpointy zahrnují `/api/v1/health`, `/api/health`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`;
-- zaměstnanecká část používá bearer `instance_token` a endpointy `/api/v1/attendance`, `/api/v1/attendance/employments`, `/api/v1/attendance/events*`, `/api/v1/attendance/day-status`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status`, `/api/v1/shift-plan/groups*` a `/api/v1/portal/auth-methods*`;
+- zaměstnanecký browser používá HttpOnly Secure SameSite=Lax cookie `dagmar_portal_session`; ne-browser instance klient může nadále použít explicitní bearer `dg_…`. Cookie-auth mutace vyžadují portálový synchronizer token z `/api/v1/portal/csrf`. Doménové endpointy jsou `/api/v1/attendance`, `/api/v1/attendance/employments`, `/api/v1/attendance/events*`, `/api/v1/attendance/day-status`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status`, `/api/v1/shift-plan/groups*` a `/api/v1/portal/auth-methods*`;
 - administrace používá session cookie `dagmar_admin_session`, CSRF hlavičku `X-CSRF-Token` a `/api/v1/admin/*` endpointy pro login, uživatele, úvazky, docházkové eventy, plán služeb, zámky, exporty, SMTP a integrační klienty;
 - integrační API používá bearer tokeny s prefixem `dgi_` a běží na `/api/v1/integration/*`;
 - veřejná integrační dokumentace je dostupná na `/integration-api`.
@@ -103,7 +103,7 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 - pokračování z předchozího dne backend označí jako carryover; frontend je nezapisuje jako nový plán následujícího dne a při další nepřekrývající se směně zobrazí oba intervaly i správnou plánovou nápovědu každého relevantního průchodu;
 - eventová mutace kontroluje zámky všech měsíců dotčených změnou intervalu a nelze jí vytvořit docházku v dni s celodenní nepřítomností;
 - pracovní fond a bilanční porovnávání nejsou aktivní součástí systému;
-- zaměstnanec po loginu dostává bearer `instance_token`, `employment_id` a `available_employments`;
+- browserový login vrací pouze display name, `employment_id` a `available_employments`; credential je vydán výhradně jako HttpOnly cookie a `/api/v1/portal/session` obnovuje bezpečná metadata po reloadu;
 - zaměstnanec může pracovat jen s úvazkem, ke kterému má přístup;
 - integrační klienti mají endpointové scopes. Na auditovaném SHA runtime bezpečně vynucuje explicitní `allowed_employment_ids`; administrační režimy selected employees a active-only jsou uložená metadata, ale aktivní integration router je ještě plně neaplikuje. Tento rozdíl je níže uzamčen jako známá bezpečnostně významná asymetrie;
 - externí Google a Apple login slouží jen k ověření již propojeného interního účtu.
@@ -120,7 +120,7 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 | Aktér | Autentizace | Rozsah |
 |---|---|---|
 | Nepřihlášený návštěvník | žádná | health, verze, serverový čas, registrace/status zařízení, login/reset, seznam externích providerů, veřejná integrační dokumentace |
-| Zaměstnanec | bearer `instance_token` | vlastní dostupné úvazky, docházka, plán, skupinový plán, denní stavy, vlastní externí přihlašovací metody |
+| Zaměstnanec | browserová HttpOnly cookie + CSRF pro mutace; explicitní bearer pouze pro non-browser instanci | vlastní dostupné úvazky, docházka, plán, skupinový plán, denní stavy, vlastní externí přihlašovací metody |
 | Administrátor | podepsaná admin cookie; u mutací navíc CSRF | uživatelé, úvazky, docházka, plán, skupiny, zámky, exporty, tisky, SMTP, integrace, adminský účet |
 | Integrační klient | bearer token `dgi_…` | endpointové scopes a skutečně runtime vynucený rozsah; na auditovaném SHA je úplně vynucen pouze explicitní seznam `allowed_employment_ids` |
 | Background reminder worker | interní proces backendu | vyhodnocení plánů a chybějících průchodů, odeslání e-mailů, idempotentní evidence |
@@ -144,7 +144,7 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 - FastAPI, Pydantic 2, Uvicorn worker pod Gunicorn;
 - SQLAlchemy 2 a Alembic;
 - PostgreSQL přes `psycopg`;
-- Argon2 / passlib pro hesla, `itsdangerous` a HMAC pro podepsané hodnoty, PyJWT a `cryptography` pro OIDC a tajemství;
+- přímé `argon2-cffi` pro nové password/token hashe a přímé `bcrypt` pouze pro ověření a následný rehash historických hesel; `itsdangerous` a HMAC pro podepsané hodnoty, PyJWT a `cryptography` pro OIDC a tajemství;
 - `slowapi` a vlastní integrační rate limiting;
 - `httpx` pro externí HTTP;
 - Pillow pro serverové PDF plánu služeb;
@@ -208,10 +208,8 @@ Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní 
 | `DAGMAR_DB_POOL_SIZE` | `5` | SQLAlchemy pool |
 | `DAGMAR_DB_MAX_OVERFLOW` | `10` | pool overflow |
 | `DAGMAR_DB_POOL_TIMEOUT_SECONDS` | `30` | čekání na connection |
-| `DAGMAR_ADMIN_PASSWORD` | volitelná, pouze seed | plaintext se nesmí používat jako runtime úložiště |
 | `DAGMAR_ADMIN_PASSWORD_HASH` | produkčně preferovaná | jediný runtime admin hash |
 | `DAGMAR_SESSION_SECRET` | povinná, min. 32 znaků | podpis admin session a související hashování |
-| `DAGMAR_CSRF_SECRET` | povinně načtená, min. 32 znaků; na auditovaném SHA aktivním CSRF algoritmem nepoužitá | rezervovaná/legacy konfigurace, nikoli aktuální podpis tokenu |
 | `DAGMAR_SMTP_PASSWORD_SECRET` | volitelná, min. 32; fallback session secret | šifrování SMTP hesla |
 | `DAGMAR_ADMIN_SESSION_COOKIE` | `dagmar_admin_session`; kompatibilní fallback `DAGMAR_COOKIE_NAME` | admin cookie |
 | `DAGMAR_SESSION_MAX_AGE_SECONDS` | `43200` | 12 hodin |
@@ -227,7 +225,6 @@ Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní 
 | `DAGMAR_RATE_LIMIT_INTEGRATION_HEALTH_PER_MINUTE` | načtený default `60`, bez samostatného enforcementu na auditovaném SHA | metadata konfigurace |
 | `DAGMAR_RATE_LIMIT_INTEGRATION_DATA_PER_MINUTE` | načtený default `120`; create-event má pevný guard `120`, ostatní data cesty nejsou konzistentně navázány | metadata konfigurace / částečně hardcoded enforcement |
 | `DAGMAR_RATE_LIMIT_INTEGRATION_OPENAPI_PER_MINUTE` | načtený default `10`, bez samostatného enforcementu na auditovaném SHA | metadata konfigurace |
-| `DAGMAR_INSTANCE_TOKEN_LENGTH` | načtený default `48`, ale na auditovaném SHA není aktivním generátorem použit | instance token má ve skutečnosti pevně 32 náhodných bytů a prefix `dg_`; změna této proměnné baseline token neovlivní |
 | `DAGMAR_INTEGRATION_TOKEN_LENGTH` | `48`; generátor použije nejméně 16 bytů | délka náhodné části integračního tokenu `dgi_` |
 | `DAGMAR_GUNICORN_WORKERS` | výchozí `max(2, CPU count)` | počet workerů; aktivní kód nehlídá minimum |
 | `DAGMAR_GUNICORN_THREADS` | `1` | Gunicorn threads |
@@ -253,7 +250,7 @@ Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní 
 
 Admin identita je vždy normalizována na `provoz@hotelchodovasc.cz`; runtime ji nesmí změnit libovolnou environment proměnnou. Guard výslovně odmítá zakázanou doménu `dochazka.hcasc.cz` v public URL i CORS. Zapnutý provider bez všech povinných hodnot, ne-HTTPS endpoint, nečitelný Apple key file nebo nekanonický callback zastaví start aplikace.
 
-Na auditovaném SHA jsou dvě načítané bezpečnostní proměnné bez odpovídajícího aktivního účinku: `DAGMAR_INSTANCE_TOKEN_LENGTH` neřídí generátor instance tokenu a `DAGMAR_CSRF_SECRET` se neúčastní aktivního synchronizer-token CSRF algoritmu, který používá náhodný token v oddělené Starlette session. Jde o baseline fakt; implementátor je nesmí vydávat za funkční nastavení. Jejich zapojení nebo odstranění je samostatná bezpečnostní změna s migrací konfigurace.
+Instance token má pevně 32 náhodných bytů a prefix `dg_`. Synchronizer-token CSRF používá náhodný token uložený v oddělené podepsané Starlette session. Délka tokenu ani samostatné CSRF tajemství nejsou falešně konfigurovatelné; podepsaný session store používá výhradně `session_secret`.
 
 ## Backendová kompozice a průřezové chování
 
@@ -303,7 +300,9 @@ Pole `params` existuje jen tehdy, jsou-li předána další data.
 
 3. Některé přímo vyhozené `HTTPException` a auth dependency chyby používají standardní FastAPI `{"detail":"text"}` nebo strukturovaný objekt v `detail`.
 
-4. Integration namespace má vlastní stabilní `error` obálku, request ID a auditní záznam. Jeho interní chyba nesmí propustit traceback nebo tajemství.
+4. Nové portal cookie/CSRF a admin lockout chyby používají cílovou neintegrační obálku `{"error":{"code":"…","message":"…","request_id":"…"}}`; zbytek neintegračního API bude na tentýž kontrakt převeden centrálně v samostatné změně.
+
+5. Integration namespace má vlastní stabilní `error` obálku, request ID a auditní záznam. Jeho interní chyba nesmí propustit traceback nebo tajemství.
 
 Frontendový `responseError` proto záměrně čte `body.error`, objektový `body.detail` i textový `body.detail`. Sjednocení všech obálek by bylo veřejnou kontraktní změnou a nesmí se provést skrytě v rámci tabulkového UI.
 
@@ -343,7 +342,6 @@ Následující seznam je uzavřený inventář aktivních SQLAlchemy entit audit
 |---|---|---|---|
 | `instances` / `Instance` | UUID string | client type WEB/ANDROID, fingerprint, device JSON, status, display name, volitelná self-FK profilová instance, token pouze jako hash, activation/revoke/deactivate/last-seen timestamps | veřejná registrace → pending; auditovaný repozitář nemá veřejný/admin API endpoint pro přechod pending→active; admin create-user vytváří active WEB instanci přímo; claim rotuje token; FK používají SET NULL |
 | `portal_users` / `PortalUser` | integer | unikátní e-mail, jméno, telefon, jediná role `employee`, password hash nullable, active, samostatný `is_blocked`, volitelná instance | vlastník úvazků; blokace neodebírá profil ani data, ale ruší bearer a reset tokeny; CASCADE na úvazky, reset tokeny a externí identity |
-| `admin_users` / `AdminUser` | integer | unikátní username a password hash | kompatibilitní/seed evidence single-admin instalace; aktivní runtime identita a hash jsou současně přísně svázané s konfigurací |
 | `employments` / `Employment` | integer | user FK CASCADE, title, enum type, workload, metric flags, afternoon start, period, active, timestamps; DB check constraints profilu | hlavní scope všech doménových dat; CASCADE na docházku, eventy, metriky, plán, zámky, výběry a členství |
 | `employment_groups` | integer | case-insensitive unikátní name, timestamps | admin CRUD; samotné odstranění nemaže plány |
 | `employment_group_members` | složený `(group_id, employment_id)` | obě FK CASCADE; index na employment | M:N, aplikačně nejméně dva členové |
@@ -355,7 +353,7 @@ Následující seznam je uzavřený inventář aktivních SQLAlchemy entit audit
 | `attendance_locks` | integer | unikátní employment/year/month, instance, locked_at/by | existence = zamčeno |
 | `shift_plan_locks` | integer | stejné schéma, samostatná doména | existence = zamčeno |
 | `shift_plan_auto_lock_runs` | integer | unikátní year/month, executed_at, locked_count | idempotence automatického měsíčního zamčení |
-| `portal_user_reset_tokens` | integer | user FK CASCADE, token hash, expiry, used, created | jednorázové 24h reset tokeny |
+| `portal_user_reset_tokens` | integer | user FK CASCADE, token hash, expiry, used, `PENDING/SENT/FAILED`, revoked, created; nejvýše jeden aktivní `SENT` token uživatele | serializované vydání, explicitní stav doručení, spotřeba nebo revokace |
 | `external_identities` | integer | account type employee/admin s přesně jedním targetem, provider google/apple, issuer+subject, unikátní subject a unikátní provider na účet, maskovatelný e-mail, audit metadata | link/login/unlink; CASCADE pro employee target |
 | `oauth_transactions` | string ID | hash state/browser, provider, purpose login/link, portal, safe return path, target, nonce, PKCE, expirace/consume, šifrovaný result payload a result lifecycle | krátce žijící jednorázový browser flow |
 | `external_auth_audit_logs` | integer | account ref, provider, event/outcome/reason, subject/IP hash, request ID, timestamp | append-only bezpečnostní audit bez plaintext subject/IP |
@@ -387,7 +385,7 @@ Databázová schémata enumů mají stabilní názvy `instance_status`, `employm
 - interní zaměstnanecký účet s unikátním normalizovaným e-mailem;
 - jméno, telefon, role `employee`, volitelný hash hesla, aktivita a vazba na instanci;
 - může mít libovolný počet úvazků;
-- administrační přímé nastavení hesla zneplatní všechny reset tokeny, aktuální instance bearer a lockout/unlock tokeny. Self-service reset na auditovaném SHA označí použitý pouze konkrétní reset token a existující bearer ani ostatní reset tokeny nezneplatní; přesné rozlišení je níže uvedeno jako známá bezpečnostní asymetrie;
+- přímé administrační nastavení i self-service reset volají jedinou transakční změnu hesla, která zneplatní všechny reset/unlock tokeny i credential instance a vyčistí lockout;
 - deaktivovaný účet se nesmí přihlásit ani mutovat data; odstranění osoby smaže její úvazky a účet, ale explicitně nemaže připojený `Instance` řádek. Případný orphan bearer už nelze namapovat na uživatele a portal auth vrací 401;
 - login status v administraci rozlišuje aktivní stav, ruční deaktivaci a chybějící úvazek v přihlašovacím okně.
 
@@ -580,26 +578,27 @@ Reminder worker:
 
 ### CSRF
 
-Adminský CSRF je oddělený od stateless admin cookie:
+Adminský i portálový CSRF jsou oddělené od autentizačních cookies:
 
 - Starlette `SessionMiddleware` používá druhou session cookie se suffixem `_store`;
-- náhodný token je uložen v session a současně vrácen v JSON/hlavičce a non-HttpOnly cookie `dagmar_csrf_token`;
+- náhodný token je uložen v session a vrácen pouze v JSON/hlavičce bootstrap endpointu;
 - token se rotuje po 120 minutách;
 - safe metody CSRF nevyžadují;
-- mutace přijímají token z `X-CSRF-Token`, odpovídající cookie nebo explicitního form pole;
+- SPA mutace přijímají token z `X-CSRF-Token`; adminské klasické form submit cesty mohou použít explicitní form field;
 - porovnání je constant-time;
-- frontend před adminskou mutací získá token z `/api/v1/admin/csrf`, používá `credentials: include` a nesmí CSRF obejít.
+- frontend před adminskou mutací získá token z `/api/v1/admin/csrf` a před cookie-auth zaměstnaneckou mutací z `/api/v1/portal/csrf`; používá `credentials: include` a nesmí CSRF obejít.
 
-### Zaměstnanecký bearer
+### Zaměstnanecká browserová relace a non-browser bearer
 
 - login používá normalizovaný e-mail a interní heslo;
 - lockout se kontroluje před ověřením; tři neúspěšné pokusy v nejvýše hodinovém okně zamknou portal účet na jednu hodinu, úspěšný login nebo adminská akce unlock stav vyčistí a unlock tokeny mají TTL 24 hodin;
-- stejné databázové lockout konstanty nesmějí být automaticky přeneseny na administrátora: aktivní admin login na auditovaném SHA používá pouze rate limit 10/min a `AuthLockoutState` nekonzultuje;
+- administrátorský lockout má samostatnou politiku: pět chyb během 15 minut uzamkne účet na 15 minut; pokusy během zámku jeho konec neposouvají a úspěch stav vyčistí;
 - hash se při úspěchu může rehashovat na aktuální parametrizaci;
 - účet musí být aktivní, role employee a mít instanci;
-- odpověď obsahuje plaintext `instance_token` pouze pro klienta, display name, defaultní `employment_id` a `available_employments`; při každém úspěšném interním nebo externím loginu se již existující instance token rotuje, takže předchozí bearer přestane platit;
-- token je klientem uložen v `localStorage` jako část `kajovodagmar.portal.session.v1`; API klient jej drží i v paměti a posílá jako bearer;
-- logout zaměstnance je lokální vymazání session; změna hesla či adminská akce může serverový token zneplatnit;
+- interní i externí browser login vydává samostatnou podepsanou HttpOnly Secure SameSite=Lax cookie `dagmar_portal_session`, která obsahuje pouze user ID, náhodné session ID a HMAC značku aktuálního password credentialu; více browserových relací může být platných současně, změna hesla je všechny zneplatní a non-browser credential instance se při browser loginu nerotuje;
+- frontend při startu odstraní historický `localStorage` klíč `kajovodagmar.portal.session.v1`, credential nečte a neukládá; bezpečná metadata obnovuje z `/api/v1/portal/session`;
+- cookie-auth mutace vyžadují CSRF, explicitní Authorization bearer zůstává jen pro non-browser instance kontrakt;
+- logout je CSRF chráněná serverová mutace a maže cookie; změna hesla, blokace, deaktivace i odstranění osoby zneplatní serverový credential;
 - zaměstnanec může volit jen `available_employments`.
 
 ### Přihlašovací okno úvazků
@@ -612,17 +611,14 @@ Adminský CSRF je oddělený od stateless admin cookie:
 
 ### Reset hesla zaměstnance
 
-Aktivní baseline rozlišuje dvě cesty:
+Adminské přímé nastavení i e-mailový self-service reset končí ve stejné transakční credential operaci: nový Argon2 hash, revokace všech reset/unlock tokenů, vyčištění portálového lockoutu a revokace credentialu instance. Vydání odkazu je serializováno zámkem uživatele napříč stavovým commitem a odesláním; token začíná jako `PENDING`, po doručení je `SENT`, při chybě `FAILED` a revokovaný. Starší aktivní tokeny se revokují a databáze dovolí nejvýše jeden aktivní `SENT` token na uživatele. Reset UI lokalizovaně oznamuje, že všechna zařízení byla odhlášena.
 
-- **Adminské přímé nastavení hesla:** přijímá 8–256 znaků, uloží nový hash, odstraní všechny reset tokeny uživatele, zneplatní instance bearer a vyčistí lockout i unlock tokeny.
-- **E-mailový self-service reset:** admin vytvoří nový náhodný token, uloží pouze SHA-256 hash, nastaví TTL 24 hodin a odešle odkaz `/reset?token=…`; endpoint `/api/v1/portal/reset` přijímá heslo 8–512 znaků, ověří aktivního uživatele a konkrétní nepoužitý token a po úspěchu označí použitý právě tento token.
-
-Na auditovaném SHA vytvoření nového reset odkazu neruší starší dosud platné reset tokeny a self-service reset nerotuje existující instance bearer ani neruší ostatní reset tokeny. To je bezpečnostně významný baseline fakt, nikoli doporučený vzor. V rámci UI změny se nesmí potichu změnit; případná náprava vyžaduje samostatný bezpečnostní change set, testy souběhu tokenů a explicitní rozhodnutí o odhlášení všech zařízení.
+Migrace `2026_08_11_0025` zneplatní nedoložitelně doručené starší reset tokeny, odstraní pouze jednoznačné nereferencované orphan WEB instance a po kontrole referencí zahodí neautoritativní tabulky staré admin auth implementace. Downgrade obnoví pouze reverzibilní reset-token schéma; odstraněné neautoritativní tabulky ani orphan metadata znovu nevytváří. Pokud by je bylo nutné forenzně obnovit, zdrojem je předmigrační databázová záloha, nikoli spuštění starého release proti novému schématu.
 
 - reset je dostupný jen aktivnímu uživateli;
-- zablokovaný uživatel se správným heslem dostane `403 portal_account_blocked`, resetovací e-mail se nevytvoří a existující reset tokeny se při blokaci ruší;
-- odblokování pouze přepne `is_blocked` zpět; nový bearer vznikne až při novém úspěšném přihlášení;
-- e-mail obsahuje odkaz na `/reset` a následně login `/app`; tokenový řádek se commitne před SMTP odesláním, takže při chybě SMTP API vrátí `reset_email_failed`, ale nový hashovaný token v databázi zůstane platný a jeho plaintext už nelze znovu získat;
+- zablokovaný uživatel se správným heslem dostane `403 portal_account_blocked`, resetovací e-mail se nevytvoří a existující reset tokeny se při blokaci revokují;
+- odblokování pouze přepne `is_blocked` zpět; nová browserová relace vznikne při úspěšném přihlášení a nový non-browser bearer pouze explicitním instance flow;
+- e-mail obsahuje odkaz na `/reset` a následně login `/app`; řádek se před SMTP uloží jako `PENDING`, při úspěchu přejde na `SENT` a při chybě na revokovaný `FAILED`, takže nedoručený token nikdy není použitelný;
 - databáze nikdy neukládá plaintext reset token.
 
 ### Externí Google/Apple identita
@@ -707,7 +703,7 @@ AttendanceMonth = {
   attendance_locked:bool, shift_plan_locked:bool
 }
 PortalLogin = {
-  instance_token:string, display_name:string,
+  display_name:string,
   employment_id:int|null, available_employments:Employment[]
 }
 ```
@@ -769,7 +765,7 @@ Adminské měsíční rows přidávají identitu osoby/úvazku, období, active 
 
 | Objekt/operace | Přesná vstupní hranice | Konflikt / potvrzení |
 |---|---|---|
-| zaměstnanec | jméno 1–160 po trimu; e-mail 3–160, lowercase, musí obsahovat `@` a tečku v doméně; telefon max. 32, po odstranění mezer volitelné `+`, pouze číslice a min. 9 číslic; role pouze `employee`; admin create/direct-set heslo 8–256 | duplicitní e-mail je konflikt; pouze admin direct-set zneplatní všechny reset tokeny, bearer a lockout vazby; self-service reset má odlišný lifecycle |
+| zaměstnanec | jméno 1–160 po trimu; e-mail 3–160, lowercase, musí obsahovat `@` a tečku v doméně; telefon max. 32, po odstranění mezer volitelné `+`, pouze číslice a min. 9 číslic; role pouze `employee`; admin create/direct-set heslo 8–256 | duplicitní e-mail je konflikt; každá změna hesla zneplatní všechny reset/unlock tokeny, credential instance a lockout vazby |
 | úvazek | title 1–160; datum ISO; end nesmí být před start; workload 0.001–1.000; afternoon start 00:00–21:59; typ/profil podle DB tabulky | zúžení období nebo delete s navázanými daty vrátí 409 s `requires_confirmation`, počty podle domén a problémový date range |
 | skupina | name je povinné, max. 160, whitespace se zkolabuje; create a replace vyžadují nejméně 2 různé existující employment IDs; remove payload nejméně 1 ID a všechna musí být členy | duplicate case-insensitive name 409; remove, po kterém zbývá méně než 2 členů, atomicky smaže celou skupinu a vrátí `group_deleted:true` |
 | měsíc | rok 2000–2100, měsíc 1–12 | mimo rozsah `invalid_month` / 400 |
@@ -779,7 +775,7 @@ Adminské měsíční rows přidávají identitu osoby/úvazku, období, active 
 | attendance status | portal `/attendance/day-status` serverově přijímá HOLIDAY/OFF/SICKNESS/PARAGRAPH/null; běžné UI rozděluje SICKNESS/PARAGRAPH do docházky a HOLIDAY/OFF do plánu; `/shift-plan/day-status` přijímá jen HOLIDAY/OFF/null | existující event/plan vyžaduje explicitní `confirm_delete_conflicts` |
 | integration client | name 3–80, Unicode Latin letters U+00C0–U+024F, ASCII letters/digits/space/underscore/hyphen; bez control chars, URL/`www`, HTML a token-like prefixu `dgi_`, `dg_`, `sk-`, `token`, `secret` | nejméně jeden scope a vždy `integration:health`; neznámý nebo unavailable scope 400 |
 | integration list | limit 1–500, default 100; date filters ISO | mimo allowed employment nesmí prosáknout objekt |
-| reset zaměstnance | token hash, 24h; admin direct password 8–256, self-service reset 8–512 | invalid/expired/used bezpečná chyba; baseline self-service reset neruší jiné tokeny ani bearer |
+| reset zaměstnance | token hash, 24h, stav `PENDING/SENT/FAILED`, revoked timestamp; admin direct password 8–256, self-service reset 8–512 | invalid/expired/used/revoked/failed bezpečná chyba; úspěch odhlásí všechna zařízení |
 
 U operací, které skutečně vracejí strukturovaný 409 payload s dopadem, je tento payload autoritou: klient musí zobrazit počty/rozsah a po potvrzení opakovat tutéž mutaci pouze s příslušným confirm flagem. Toto pravidlo se nesmí mechanicky přenést na operace, jejichž aktivní API žádný dvoufázový protokol nemá, například odstranění osoby; tam se zachová samostatné lokalizované frontendové potvrzení a okamžitá serverová mutace.
 
@@ -804,7 +800,7 @@ U operací, které skutečně vracejí strukturovaný 409 payload s dopadem, je 
 
 ### Zaměstnanecké endpointy
 
-Všechny vyžadují portal bearer:
+Všechny přijímají browserovou portal cookie, u mutací s portálovým CSRF, nebo explicitní bearer non-browser instance:
 
 | Metoda | Cesta | Chování |
 |---|---|---|
@@ -824,17 +820,17 @@ Všechny vyžadují portal bearer:
 
 ### Admin endpointy
 
-Běžné read endpointy vyžadují admin session a běžné mutace současně CSRF. Autentizační bootstrap má z auditovaného kódu tyto výslovné výjimky: login a forgot-password jsou veřejné; CSRF token lze vydat před loginem; logout je veřejná idempotentní operace mazaní cookie; `/me` nevrací 401, ale `{authenticated:false}`. Tyto výjimky se nesmějí tiše změnit jen podle nepřesné klasifikace v generovaném manifestu.
+Běžné read endpointy vyžadují admin session a mutace současně CSRF. Login a forgot-password jsou veřejné, CSRF token lze vydat před loginem, logout vyžaduje platný synchronizer token a `/me` nevrací 401, ale `{authenticated:false}`.
 
 | Oblast | Metoda a cesta | Auth | Chování |
 |---|---|---|---|
 | auth | POST `/api/v1/admin/login` | public + rate limit 10/min | ověří jediný config účet, nastaví auth cookie a vydá CSRF |
 | auth | GET `/api/v1/admin/csrf` | public | vytvoří/rotuje CSRF store token; samo o sobě neautentizuje |
 | auth | GET `/api/v1/admin/me` | public introspection | vrací authenticated false nebo username |
-| auth | POST/GET `/api/v1/admin/logout` | public idempotent | smaže auth cookie; GET je mimo OpenAPI a redirectuje na login |
+| auth | POST `/api/v1/admin/logout` | admin session + CSRF | smaže auth cookie; stavová GET varianta neexistuje |
 | auth | POST `/api/v1/admin/forgot-password` | public, neenumerující | při přesné shodě config e-mailu a dostupném SMTP pošle pouze help e-mail bez tokenu; vždy `{ok:true}` |
 | users | GET/POST `/api/v1/admin/users` | GET session; POST session + CSRF | seznam / vytvoření |
-| users | PUT/DELETE `/api/v1/admin/users/{user_id}` | admin session + CSRF | editace / okamžité serverové odstranění osoby a jejích úvazků; případné potvrzení zajišťuje klientské UI, endpoint nemá confirm flag ani dopadový preflight |
+| users | PUT/DELETE `/api/v1/admin/users/{user_id}` | admin session + CSRF | editace / odstranění osoby, úvazků a připojené WEB instance v jedné transakci; případné potvrzení zajišťuje klientské UI |
 | users | PUT `/api/v1/admin/users/{user_id}/block` | admin session + CSRF | zapnutí/vypnutí samostatné blokace přihlášení; při zapnutí ruší instance bearer a reset tokeny, administrátorský přístup zůstává |
 | users | GET `/api/v1/admin/users/{user_id}/employments` | admin session | úvazky uživatele |
 | users | POST `/api/v1/admin/users/{user_id}/set-password` | admin session + CSRF | přímé heslo |
@@ -935,13 +931,13 @@ Jde o rekonstruovaný baseline, nikoli o doporučení. Reprodukce stávajícího
 
 ### Session a lokální stav zaměstnance
 
-- storage key je `kajovodagmar.portal.session.v1`;
-- uložená struktura obsahuje login response a `selected_employment_id`;
-- při načtení se kontroluje token a array dostupných úvazků;
-- změna úvazku se ukládá lokálně;
+- historický storage key `kajovodagmar.portal.session.v1` se při startu pouze odstraní a nesmí obsahovat aktivní credential ani metadata relace;
+- login response a `selected_employment_id` existují pouze v paměťovém stavu aktuální SPA; po reloadu se metadata znovu získají z `/api/v1/portal/session`;
+- při načtení se kontroluje array dostupných úvazků;
+- změna úvazku se drží pouze v paměti aktuálního tabu;
 - po načtení měsíčních možností se nedostupný selected ID nahradí prvním dostupným nebo `null`;
-- clear odstraní storage a bearer z API klienta;
-- token se nesmí logovat, vkládat do URL ani zobrazovat.
+- clear odstraní historický storage klíč; serverový logout maže HttpOnly cookie i při následné lokální síťové chybě;
+- cookie ani bearer se nesmí logovat, vkládat do URL ani zobrazovat.
 
 ### Lokalizace
 
@@ -1084,7 +1080,7 @@ Datový model obrazovky:
 - přijme token z URL;
 - formulář vyžaduje nové heslo a jeho shodné zopakování; auditovaný frontend kontroluje minimálně 8 znaků a shodu, backend přijímá 8–512 znaků a aktivní hashovací služba kromě neprázdnosti a horního limitu nevynucuje další komplexitu;
 - neplatný, expirovaný nebo použitý token vrací bezpečnou lokalizovanou chybu;
-- úspěch označí jako použitý právě spotřebovaný reset token a nabídne login `/app`; na auditovaném SHA neruší ostatní platné reset tokeny ani existující instance bearer;
+- úspěch atomicky revokuje všechny reset/unlock tokeny i credential instance, označí spotřebovaný token jako použitý a nabídne nové přihlášení `/app` s informací o odhlášení všech zařízení;
 - heslo se nikdy neloguje ani neponechává v URL.
 
 ### Veřejná integrační dokumentace `/integration-api`
@@ -1346,24 +1342,16 @@ Tyto nesoulady byly nalezeny mezi aktivními vrstvami. Pro reprodukci platí vý
 
 | Nesoulad | Nález | Autoritativní chování |
 |---|---|---|
-| admin session comment vs implementace | docstring loginu tvrdí server-side/in-memory session | skutečný auth je stateless HMAC cookie; oddělený Starlette store slouží pomocnému session/CSRF stavu |
-| `AdminUser` tabulka vs config účet | model/table existuje, runtime login čte config hash | runtime identita/hash z configu je autorita; tabulka je seed/compatibility artefakt a nesmí vzniknout druhý admin login model |
 | manifest auth mode vs router dependencies | generovaný manifest klasifikuje některé bootstrap admin cesty jako session/CSRF | skutečné chování routerů je public login/forgot/csrf/me/logout dle API sekce; manifest se má opravit, ne runtime zpřísnit bez samostatné změny |
 | frontend `Instance` typ vs backend | historický TS interface používá numerické/odlišné fields | backend UUID `Instance` je autorita; dormant interface se nesmí použít jako nový kontrakt |
 | integrační scopes vs endpointy | administrační options obsahují scopes bez aktivního routeru a OpenAPI scope není runtime enforcement | zachovat přesně známou asymetrii nebo ji změnit pouze verzovanou integrační změnou |
 | integrační data-scope metadata vs runtime | admin ukládá selected employees, active-only a include-inactive, ale aktivní router filtruje jen `allowed_employment_ids`; prázdný seznam je neomezený | baseline musí být popsán pravdivě; bezpečné zapojení všech režimů je samostatná security oprava s negativními testy |
 | integration pagination | response model nabízí `next_cursor`, helper ale vrací jen `has_more` a žádný pokračovací cursor | nesmí být dokumentováno jako funkční cursor pagination |
 | konfigurované integrační rate limits vs router | config má 60/120/10, router je neváže konzistentně na health/data/OpenAPI | netvrdit specializované limity; změna enforcementu je samostatná provozní kontraktní oprava |
-| instance token length config vs generátor | `DAGMAR_INSTANCE_TOKEN_LENGTH` se načte, generátor používá pevně 32 bytů | baseline token je `dg_` + 32 náhodných bytů; proměnná je neúčinná |
-| `DAGMAR_CSRF_SECRET` vs aktivní CSRF | secret je povinně načtený, synchronizer token je však náhodný stav ve Starlette session a secret nepoužívá | netvrdit kryptografický účinek proměnné; zapojení je samostatná změna |
-| reset token lifecycle | admin direct set ruší všechny reset tokeny i bearer; self-service reset označí jen jeden token a bearer nerotuje | obě cesty reprodukovat přesně a bezpečnostní změnu provést jen samostatně |
-| auth lockout model vs admin login | portal login používá databázový lockout 3 pokusy / 1 hodina / lock 1 hodina; admin login má pouze rate limit a lockout state nečte | nepřenášet portal lockout na admina bez samostatného bezpečnostního rozhodnutí a testů |
 | běžné API error envelope | doménové chyby používají objekt v `detail`, request validation používá `error`, část dependencies textový `detail` | frontend musí zpracovat všechny varianty; sjednocení je samostatná veřejná změna |
 | public instance activation | register vytváří `PENDING`, claim vyžaduje `ACTIVE`, ale auditovaný HTTP API nemá activation endpoint | neimprovizovat nový endpoint; aktivace je externí provisioning/ruční mezera |
-| portal user deletion vs instance | delete osoby odstraní úvazky a účet, nikoli připojený `Instance` řádek | orphan token se už nenamapuje na uživatele; cleanup je samostatná data-lifecycle změna |
 | `last_login_at` v admin users | hodnota pochází z `Instance.last_seen_at` a je nastavena už při vytvoření | prezentovat jako poslední aktivitu instance, ne auditně přesný login |
 | reminder „otevřená směna“ | worker testuje `any(IN) and not any(OUT)` v jednotlivém kalendářním dni, nikoli poslední event/párování přes půlnoc | zachovat baseline nebo opravit samostatnou změnou algoritmu a testy cross-midnight |
-| reset e-mail failure | token se commitne před SMTP; při selhání zůstane platný, ale plaintext je ztracen | baseline musí být reprodukován; transakční náprava je samostatná bezpečnostní změna |
 | portal/admin event update DTO | update přijímá plný create-like payload a kontroluje immutable employment/type; integration PATCH jen timestamp | klient nesmí zjednodušit portal/admin payload na `{occurred_at}` bez kompatibilní změny API |
 | specializované rate-limit envs | část hodnot je pouze načtená, zatímco routy používají global default nebo hardcoded limity | dokumentace nesmí tvrdit dynamický enforcement nepropojených hodnot |
 | bind settings vs production Gunicorn | app Settings načte host/port, `gunicorn.conf.py` binduje pevně loopback 8101 | produkční reprodukce používá Gunicorn fakt; změna bindu vyžaduje úpravu jeho konfigurace |
@@ -1415,7 +1403,7 @@ Následující scénáře jsou minimální behaviorální fingerprint systému:
 18. **Inline edit:** blur/Tab/Shift+Tab/Enter commit; Escape cancel; Delete+Enter po vstupu smaže; po pohybu caret maže znak.
 19. **Server acknowledgment:** zelený flash až po úspěšné odpovědi; konflikt zachová draft a nezobrazí success.
 20. **Locale parity:** stejné chování cs/en/sk/de/hi podle plochy, bez rozbití tabulky a bez viditelného směru eventu.
-21. **Reset lifecycle baseline:** dva platné e-mailové reset tokeny mohou koexistovat; použití jednoho na auditovaném SHA neruší druhý ani aktivní bearer, zatímco admin direct set ruší obojí.
+21. **Reset lifecycle:** nový reset revokuje starší odkazy; použití platného `SENT` odkazu v jedné transakci změní heslo, revokuje všechny reset/unlock tokeny i non-browser instance bearer a okamžitě zneplatní všechny browserové relace navázané na předchozí password credential.
 22. **Integration data-scope baseline:** explicitní `allowed_employment_ids` omezuje data; samotný `SELECTED_EMPLOYEES` nebo `ALL_ACTIVE_EMPLOYMENTS` bez naplněného seznamu employment IDs aktivní router neomezí.
 23. **Error variants:** frontend správně zobrazí doménový objekt v `detail`, request-validation objekt v `error` i textový `detail`.
 24. **Pagination truth:** `has_more=true` bez `next_cursor` se nesmí vydávat za možnost načíst další stránku.
@@ -1423,7 +1411,7 @@ Následující scénáře jsou minimální behaviorální fingerprint systému:
 26. **Instance lifecycle:** public register vytvoří pending instanci, claim selže 409 bez externí aktivace; admin create-user vytvoří active WEB instanci přímo.
 27. **Reminder edge:** den s IN–OUT–IN nesplní same-day `not any(OUT)` a cross-midnight IN z předchozího dne může splnit previous-day reminder podmínku.
 28. **Human plan CSV:** carryover a běžné plánové hranice jsou očíslované `PLÁN – PRŮCHOD N`; žádná hlavička neobsahuje `PŘESAH`.
-29. **Portal lockout:** třetí chybný login v hodinovém okně vrátí/způsobí dočasný lock na jednu hodinu; úspěšný login nebo admin unlock stav vyčistí, zatímco admin login se tímto stavem neřídí.
+29. **Lockout:** třetí chybný portal login v hodinovém okně uzamkne účet na hodinu; pátý chybný admin login v 15minutovém okně uzamkne admin identitu na 15 minut bez prodlužování dalšími pokusy. Úspěšné přihlášení příslušný stav vyčistí.
 
 ## Forenzní mapa zdrojů
 

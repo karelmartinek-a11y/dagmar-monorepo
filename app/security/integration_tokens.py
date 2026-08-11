@@ -7,16 +7,16 @@ import ipaddress
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import cast
 
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db import models
 
-_pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+_token_hasher = PasswordHasher()
 
 TOKEN_PREFIX_LEN = 16
 TOKEN_FINGERPRINT_LEN = 12
@@ -72,13 +72,13 @@ def token_fingerprint(token: str) -> str:
 
 
 def hash_token(token: str) -> str:
-    return cast(str, _pwd_context.hash(token))
+    return _token_hasher.hash(token)
 
 
 def verify_token(token: str, stored_hash: str) -> bool:
     try:
-        return bool(_pwd_context.verify(token, stored_hash))
-    except Exception:
+        return _token_hasher.verify(stored_hash, token)
+    except (InvalidHashError, VerificationError, VerifyMismatchError):
         return False
 
 

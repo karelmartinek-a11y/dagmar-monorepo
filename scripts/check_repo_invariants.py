@@ -47,6 +47,15 @@ FORBIDDEN_REFERENCES = {
         "scripts/check_repo_invariants.py",
         "docs/SSOT_CURRENT.md",
     },
+    "DAGMAR_CSRF_SECRET": {
+        "scripts/check_repo_invariants.py",
+    },
+    "DAGMAR_INSTANCE_TOKEN_LENGTH": {
+        "scripts/check_repo_invariants.py",
+    },
+    "from passlib": {"scripts/check_repo_invariants.py"},
+    '"passlib[': {"scripts/check_repo_invariants.py"},
+    'os.getenv("DAGMAR_ADMIN_PASSWORD")': {"scripts/check_repo_invariants.py"},
 }
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 KEY_DOCS = {

@@ -22,7 +22,7 @@ describe("external authentication UI", () => {
   it("keeps employee password login and shows both configured provider buttons", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ google: true, apple: true }), { status: 200, headers: { "Content-Type": "application/json" } })));
     renderApp(<EmployeePage />);
-    expect(screen.getByLabelText("Pracovní e-mail")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Pracovní e-mail")).toBeInTheDocument();
     expect(screen.getByLabelText("Heslo")).toBeInTheDocument();
     const google = await screen.findByRole("link", { name: "Přihlásit se přes Google" });
     const apple = screen.getByRole("link", { name: "Přihlásit se přes Apple" });

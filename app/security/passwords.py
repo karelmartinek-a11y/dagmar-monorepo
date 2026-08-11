@@ -5,13 +5,11 @@ import hmac
 import re
 from dataclasses import dataclass
 
-from passlib.context import CryptContext
+import bcrypt
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
-# Prefer Argon2 (modern, memory-hard). Fallback to bcrypt if needed.
-_pwd_context = CryptContext(
-    schemes=["argon2", "bcrypt"],
-    deprecated="auto",
-)
+_password_hasher = PasswordHasher()
 
 
 @dataclass(frozen=True)
@@ -33,7 +31,7 @@ def hash_password(password: str) -> PasswordHash:
         raise ValueError("password must be a non-empty string")
     if len(password) > 512:
         raise ValueError("password too long")
-    return PasswordHash(_pwd_context.hash(password))
+    return PasswordHash(_password_hasher.hash(password))
 
 
 def _is_plain_sha256_hash(password_hash: str) -> bool:
@@ -49,13 +47,22 @@ def verify_password_details(password: str, password_hash: str) -> PasswordVerifi
             valid=constant_time_equals(computed_hash, password_hash),
             needs_rehash=True,
         )
-    try:
+    if password_hash.startswith("$argon2"):
+        try:
+            valid = bool(_password_hasher.verify(password_hash, password))
+        except (InvalidHashError, VerificationError, VerifyMismatchError):
+            return PasswordVerification(valid=False)
         return PasswordVerification(
-            valid=bool(_pwd_context.verify(password, password_hash)),
-            needs_rehash=bool(_pwd_context.needs_update(password_hash)),
+            valid=valid,
+            needs_rehash=valid and _password_hasher.check_needs_rehash(password_hash),
         )
-    except Exception:
-        return PasswordVerification(valid=False)
+    if password_hash.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            valid = bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("ascii"))
+        except (ValueError, UnicodeError):
+            return PasswordVerification(valid=False)
+        return PasswordVerification(valid=valid, needs_rehash=valid)
+    return PasswordVerification(valid=False)
 
 
 def verify_password(password: str, password_hash: str) -> bool:
@@ -67,14 +74,18 @@ def is_password_hash_outdated(password_hash: str) -> bool:
         return False
     if _is_plain_sha256_hash(password_hash):
         return True
-    try:
-        return bool(_pwd_context.needs_update(password_hash))
-    except Exception:
-        return False
+    if password_hash.startswith(("$2a$", "$2b$", "$2y$")):
+        return True
+    if password_hash.startswith("$argon2"):
+        try:
+            return _password_hasher.check_needs_rehash(password_hash)
+        except InvalidHashError:
+            return False
+    return False
 
 
 def constant_time_equals(a: str, b: str) -> bool:
-    # Defensive helper; for password hashes passlib already does timing-safe checks.
+    # Defensive helper for the retained SHA-256 migration path.
     a_b = a.encode("utf-8")
     b_b = b.encode("utf-8")
     return hmac.compare_digest(a_b, b_b)

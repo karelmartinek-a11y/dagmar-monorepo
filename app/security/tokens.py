@@ -24,12 +24,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import cast
 
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 from app.db import models
 
-# Use Argon2 to avoid bcrypt length limits and wrap-bug detection.
-_pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+_token_hasher = PasswordHasher()
 
 
 TOKEN_PREFIX_LEN = 12  # chars of sha256 hex
@@ -69,16 +69,15 @@ def token_prefix(token: str) -> str:
 def hash_token(token: str) -> str:
     """Hash plaintext token for storage."""
 
-    # passlib will generate salt internally
-    return cast(str, _pwd_context.hash(token))
+    return _token_hasher.hash(token)
 
 
 def verify_token(token: str, stored_hash: str) -> bool:
     """Verify token against stored hash."""
 
     try:
-        return bool(_pwd_context.verify(token, stored_hash))
-    except Exception:
+        return _token_hasher.verify(stored_hash, token)
+    except (InvalidHashError, VerificationError, VerifyMismatchError):
         return False
 
 

@@ -51,10 +51,13 @@ def main() -> None:
     sa.Index("ix_attendance_instance_date", attendance.c.instance_id, attendance.c.date)
 
     engine = sa.create_engine(database_url)
-    with engine.begin() as connection:
-        if sa.inspect(connection).get_table_names():
-            raise SystemExit("E2E baseline database is not empty.")
-        metadata.create_all(connection)
+    try:
+        with engine.begin() as connection:
+            if sa.inspect(connection).get_table_names():
+                raise SystemExit("E2E baseline database is not empty.")
+            metadata.create_all(connection)
+    finally:
+        engine.dispose()
 
 
 if __name__ == "__main__":

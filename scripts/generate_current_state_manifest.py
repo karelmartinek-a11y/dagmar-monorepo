@@ -66,7 +66,6 @@ REPOSITORY_LAYOUT = [
 def _build_app():
     os.environ["DAGMAR_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
     os.environ["DAGMAR_SESSION_SECRET"] = "x" * 32
-    os.environ["DAGMAR_CSRF_SECRET"] = "y" * 32
     os.environ["DAGMAR_RATE_LIMIT_ENABLED"] = "false"
     os.environ["DAGMAR_DISABLE_DOCS"] = "false"
     from app.config import get_settings
@@ -80,10 +79,16 @@ def _build_app():
 def _auth_mode(path: str, methods: list[str]) -> str:
     if path.startswith("/api/v1/integration"):
         return "integration_bearer"
-    if path in {"/api/v1/portal/login", "/api/v1/portal/reset", "/api/v1/auth/providers", "/api/v1/auth/result"}:
+    if path in {
+        "/api/v1/portal/login",
+        "/api/v1/portal/reset",
+        "/api/v1/portal/csrf",
+        "/api/v1/auth/providers",
+        "/api/v1/auth/result",
+    }:
         return "public"
     if path.startswith("/api/v1/portal/auth-methods"):
-        return "portal_bearer"
+        return "portal_cookie_or_bearer_csrf_if_cookie"
     if path.startswith("/api/v1/admin/auth-methods"):
         return "admin_session"
     if path.startswith("/api/v1/auth/"):
@@ -91,7 +96,9 @@ def _auth_mode(path: str, methods: list[str]) -> str:
     if path.startswith("/api/v1/admin"):
         return "admin_session_csrf" if any(method in {"POST", "PUT", "PATCH", "DELETE"} for method in methods) else "admin_session"
     if path.startswith("/api/v1/attendance") or path.startswith("/api/v1/shift-plan"):
-        return "portal_bearer"
+        return "portal_cookie_or_bearer_csrf_if_cookie"
+    if path in {"/api/v1/portal/session", "/api/v1/portal/logout"}:
+        return "portal_cookie_or_bearer_csrf_if_cookie"
     if path.startswith("/api/v1/instances"):
         return "public"
     return "public"
@@ -166,7 +173,7 @@ def build_manifest() -> dict[str, object]:
             "backend_bind": "127.0.0.1:8101",
             "postgres_bind": "127.0.0.1:5433",
             "admin_auth": "session_cookie_plus_csrf",
-            "employee_auth": "bearer_instance_token",
+            "employee_auth": "portal_http_only_cookie_or_non_browser_bearer_plus_cookie_csrf",
             "integration_auth": "dgi_bearer_token",
             "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
             "hours_authority": "backend_daily_tenths_monthly_sum_of_daily_tenths",

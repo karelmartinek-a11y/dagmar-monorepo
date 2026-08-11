@@ -12,7 +12,9 @@ from app.db.models import AuthLockoutState, AuthUnlockToken
 LOCKOUT_THRESHOLD = 3
 LOCKOUT_WINDOW = timedelta(hours=1)
 PORTAL_LOCKOUT_DURATION = timedelta(hours=1)
-ADMIN_LOCKOUT_DURATION = timedelta(days=36500)
+ADMIN_LOCKOUT_THRESHOLD = 5
+ADMIN_LOCKOUT_WINDOW = timedelta(minutes=15)
+ADMIN_LOCKOUT_DURATION = timedelta(minutes=15)
 UNLOCK_TOKEN_TTL = timedelta(hours=24)
 
 
@@ -96,19 +98,22 @@ def record_failed_login(
     *,
     now: datetime | None = None,
     lock_duration: timedelta = PORTAL_LOCKOUT_DURATION,
+    threshold: int = LOCKOUT_THRESHOLD,
+    window: timedelta = LOCKOUT_WINDOW,
 ) -> bool:
     now = now or utc_now()
+    if is_locked(state, now):
+        return False
     first_failed_at = as_utc(state.first_failed_at)
-    window_reset = first_failed_at is None or now - first_failed_at > LOCKOUT_WINDOW
-    was_locked = is_locked(state, now)
+    window_reset = first_failed_at is None or now - first_failed_at > window
     if window_reset:
         state.failed_attempts = 0
         state.first_failed_at = now
     state.failed_attempts = int(state.failed_attempts or 0) + 1
     state.last_failed_at = now
-    if state.failed_attempts >= LOCKOUT_THRESHOLD:
+    if state.failed_attempts >= threshold:
         state.locked_until = now + lock_duration
-    return (not was_locked) and is_locked(state, now)
+    return is_locked(state, now)
 
 
 def issue_unlock_token(db: Session, *, actor_type: str, principal: str, purpose: str) -> str:

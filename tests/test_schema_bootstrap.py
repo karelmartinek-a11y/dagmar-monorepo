@@ -8,7 +8,6 @@ def _settings() -> Settings:
     return Settings(
         database_url="sqlite:///./test.db",
         session_secret="x" * 32,
-        csrf_secret="y" * 32,
     )
 
 
