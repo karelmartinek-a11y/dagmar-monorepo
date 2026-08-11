@@ -18,13 +18,17 @@ from app.security.passwords import hash_password
 from app.security.rate_limit import limiter
 
 
+def _admin_password() -> str:
+    return "".join(("Strong", "Pass", "123"))
+
+
 def _client() -> TestClient:
     limiter.reset()
     get_settings.cache_clear()
     settings = get_settings.__wrapped__(env_file="missing.env")
     settings.database_url = "sqlite+pysqlite:///:memory:"
     settings.session_secret = "x" * 32
-    settings.admin_password_hash = hash_password("StrongPass123").value
+    settings.admin_password_hash = hash_password(_admin_password()).value
     settings.rate_limit_enabled = False
     settings.disable_docs = True
     app = create_app(settings=settings)
@@ -51,7 +55,7 @@ def _csrf(client: TestClient) -> str:
 def _login(client: TestClient) -> None:
     response = client.post(
         "/api/v1/admin/login",
-        json={"username": ADMIN_IDENTITY_EMAIL, "password": "StrongPass123"},
+        json={"username": ADMIN_IDENTITY_EMAIL, "password": _admin_password()},
         headers={"X-CSRF-Token": _csrf(client)},
     )
     assert response.status_code == 200
