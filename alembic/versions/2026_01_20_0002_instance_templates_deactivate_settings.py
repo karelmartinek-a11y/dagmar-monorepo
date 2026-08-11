@@ -22,11 +22,12 @@ def upgrade() -> None:
     if bind.dialect.name == "postgresql":
         op.execute("ALTER TYPE instance_status ADD VALUE IF NOT EXISTS 'DEACTIVATED'")
 
+    constraint_names = {
+        constraint.get("name") for constraint in sa.inspect(bind).get_unique_constraints("instances")
+    }
     with op.batch_alter_table("instances") as batch:
-        try:
+        if "uq_instances_client_fingerprint" in constraint_names:
             batch.drop_constraint("uq_instances_client_fingerprint", type_="unique")
-        except Exception:
-            pass
         batch.add_column(sa.Column("activated_at", sa.DateTime(timezone=True), nullable=True))
         batch.add_column(sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True))
         batch.add_column(sa.Column("deactivated_at", sa.DateTime(timezone=True), nullable=True))
@@ -38,6 +39,13 @@ def upgrade() -> None:
                 server_default="DPP_DPC",
             )
         )
+
+    remaining_constraints = {
+        constraint.get("name")
+        for constraint in sa.inspect(bind).get_unique_constraints("instances")
+    }
+    if "uq_instances_client_fingerprint" in remaining_constraints:
+        raise RuntimeError("0002 postcondition failed: obsolete unique constraint remains")
 
     op.create_table(
         "app_settings",

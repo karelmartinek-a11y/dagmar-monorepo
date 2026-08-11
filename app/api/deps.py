@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.errors import raise_enveloped_api_error
@@ -189,7 +190,7 @@ def require_integration_auth(
 
     try:
         touch_client_last_used(db, auth.client)
-    except Exception:
+    except SQLAlchemyError:
         db.rollback()
 
     return IntegrationAuth(client=auth.client, secret=auth.secret)

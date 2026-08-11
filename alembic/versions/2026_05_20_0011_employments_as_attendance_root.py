@@ -11,6 +11,7 @@ from datetime import date
 
 import sqlalchemy as sa
 from alembic import op
+from alembic.util import CommandError
 from sqlalchemy.sql import text
 
 # revision identifiers, used by Alembic.
@@ -255,4 +256,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    raise NotImplementedError("Tato migrace neni bezpecne vratna.")
+    raise CommandError(
+        "Migrace 2026_05_20_0011 není bezpečně vratná. Obnovte databázi ze zálohy podle "
+        "docs/runbooks/restore-before-2026_05_20_0011.md."
+    )

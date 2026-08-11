@@ -107,9 +107,13 @@ def admin_set_locks(
         .all()
     )
     employment_by_id = {employment.id: employment for employment in employments}
-    missing_ids = [employment_id for employment_id in uniq_ids if employment_id not in employment_by_id]
+    missing_ids = [
+        employment_id for employment_id in uniq_ids if employment_id not in employment_by_id
+    ]
     if missing_ids:
-        raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.", employment_ids=missing_ids)
+        raise_api_error(
+            404, "employment_not_found", "Úvazek nebyl nalezen.", employment_ids=missing_ids
+        )
     for employment_id in sorted(uniq_ids):
         lock_employment_for_time_mutation(db, employment_id)
 

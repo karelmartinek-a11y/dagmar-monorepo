@@ -65,7 +65,7 @@
       "path": "/api/v1/admin/auth-methods"
     },
     {
-      "auth_mode": "admin_session",
+      "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.external_auth.admin_unlink",
       "methods": [
         "DELETE"
@@ -73,7 +73,7 @@
       "path": "/api/v1/admin/auth-methods/{provider}"
     },
     {
-      "auth_mode": "admin_session",
+      "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.external_auth.admin_link",
       "methods": [
         "POST"
@@ -81,7 +81,7 @@
       "path": "/api/v1/admin/auth-methods/{provider}/link"
     },
     {
-      "auth_mode": "admin_session",
+      "auth_mode": "public_bootstrap",
       "handler": "app.api.v1.admin_auth.admin_csrf",
       "methods": [
         "GET"
@@ -185,12 +185,28 @@
       "path": "/api/v1/admin/export/shift-plan/report"
     },
     {
-      "auth_mode": "admin_session_csrf",
+      "auth_mode": "public",
       "handler": "app.api.v1.admin_auth.admin_forgot_password",
       "methods": [
         "POST"
       ],
       "path": "/api/v1/admin/forgot-password"
+    },
+    {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_instances.list_instances",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/instances"
+    },
+    {
+      "auth_mode": "admin_session_csrf",
+      "handler": "app.api.v1.admin_instances.activate_instance",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/admin/instances/{instance_id}/activate"
     },
     {
       "auth_mode": "admin_session",
@@ -273,7 +289,7 @@
       "path": "/api/v1/admin/locks"
     },
     {
-      "auth_mode": "admin_session_csrf",
+      "auth_mode": "public",
       "handler": "app.api.v1.admin_auth.admin_login",
       "methods": [
         "POST"
@@ -289,7 +305,7 @@
       "path": "/api/v1/admin/logout"
     },
     {
-      "auth_mode": "admin_session",
+      "auth_mode": "admin_session_optional",
       "handler": "app.api.v1.admin_auth.admin_me",
       "methods": [
         "GET"
@@ -633,7 +649,7 @@
       "path": "/api/v1/portal/auth-methods/{provider}/link"
     },
     {
-      "auth_mode": "public",
+      "auth_mode": "public_bootstrap",
       "handler": "app.api.v1.portal_auth.portal_csrf",
       "methods": [
         "GET"
@@ -665,7 +681,7 @@
       "path": "/api/v1/portal/reset"
     },
     {
-      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
+      "auth_mode": "portal_cookie_or_bearer",
       "handler": "app.api.v1.portal_auth.portal_session",
       "methods": [
         "GET"
@@ -976,10 +992,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 1991,
+    "line_count": 1994,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "16b12298af358b89f0d8c3140b29ada74a08a934a4aea4ebbdd984edb49c9980"
+    "sha256": "0ce98e24661c19e3f5187669d643853a920cce0821b23bd3ef6b252126b370c6"
   },
   "production": {
     "api_base_path": "/api/v1/",

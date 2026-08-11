@@ -76,9 +76,48 @@ def _build_app():
     return create_app(settings=settings)
 
 
-def _auth_mode(path: str, methods: list[str]) -> str:
-    if path.startswith("/api/v1/integration"):
+_BOOTSTRAP_AUTH_MODES = {
+    "/api/v1/admin/csrf": "public_bootstrap",
+    "/api/v1/admin/login": "public",
+    "/api/v1/admin/forgot-password": "public",
+    "/api/v1/admin/me": "admin_session_optional",
+    "/api/v1/admin/logout": "admin_session_csrf",
+    "/api/v1/portal/csrf": "public_bootstrap",
+    "/api/v1/portal/login": "public",
+    "/api/v1/portal/reset": "public",
+    "/api/v1/portal/session": "portal_cookie_or_bearer",
+    "/api/v1/portal/logout": "portal_cookie_or_bearer_csrf_if_cookie",
+}
+
+
+def _dependency_names(route: APIRoute) -> set[str]:
+    names: set[str] = set()
+
+    def collect(dependencies: list[object]) -> None:
+        for dependency in dependencies:
+            call = getattr(dependency, "call", None)
+            name = getattr(call, "__name__", None)
+            if isinstance(name, str):
+                names.add(name)
+            collect(list(getattr(dependency, "dependencies", [])))
+
+    collect(list(route.dependant.dependencies))
+    return names
+
+
+def _auth_mode(route: APIRoute) -> str:
+    path = route.path
+    if path in _BOOTSTRAP_AUTH_MODES:
+        return _BOOTSTRAP_AUTH_MODES[path]
+    dependencies = _dependency_names(route)
+    if "require_integration_auth" in dependencies:
         return "integration_bearer"
+    if "require_portal_user_auth" in dependencies or "require_instance_auth" in dependencies:
+        return "portal_cookie_or_bearer_csrf_if_cookie"
+    if "require_instance" in dependencies:
+        return "instance_bearer"
+    if "require_admin" in dependencies:
+        return "admin_session_csrf" if "require_csrf" in dependencies else "admin_session"
     if path in {
         "/api/v1/portal/login",
         "/api/v1/portal/reset",
@@ -87,22 +126,8 @@ def _auth_mode(path: str, methods: list[str]) -> str:
         "/api/v1/auth/result",
     }:
         return "public"
-    if path.startswith("/api/v1/portal/auth-methods"):
-        return "portal_cookie_or_bearer_csrf_if_cookie"
-    if path.startswith("/api/v1/admin/auth-methods"):
-        return "admin_session"
     if path.startswith("/api/v1/auth/"):
         return "browser_redirect"
-    if path.startswith("/api/v1/admin"):
-        return (
-            "admin_session_csrf"
-            if any(method in {"POST", "PUT", "PATCH", "DELETE"} for method in methods)
-            else "admin_session"
-        )
-    if path.startswith("/api/v1/attendance") or path.startswith("/api/v1/shift-plan"):
-        return "portal_cookie_or_bearer_csrf_if_cookie"
-    if path in {"/api/v1/portal/session", "/api/v1/portal/logout"}:
-        return "portal_cookie_or_bearer_csrf_if_cookie"
     if path.startswith("/api/v1/instances"):
         return "public"
     return "public"
@@ -129,7 +154,7 @@ def build_manifest() -> dict[str, object]:
                     {
                         "path": route.path,
                         "methods": methods,
-                        "auth_mode": _auth_mode(route.path, methods),
+                        "auth_mode": _auth_mode(route),
                         "handler": f"{route.endpoint.__module__}.{route.endpoint.__name__}",
                     }
                 )

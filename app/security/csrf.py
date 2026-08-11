@@ -52,7 +52,7 @@ def _constant_time_eq(a: str, b: str) -> bool:
     # hmac.compare_digest is constant-time for equal-length strings.
     try:
         return hmac.compare_digest(a, b)
-    except Exception:
+    except TypeError:
         return False
 
 
@@ -113,7 +113,9 @@ def csrf_issue_token(
     return token
 
 
-def get_or_rotate_csrf_token(session: MutableMapping[str, object], cfg: CsrfConfig | None = None) -> str:
+def get_or_rotate_csrf_token(
+    session: MutableMapping[str, object], cfg: CsrfConfig | None = None
+) -> str:
     cfg = cfg or CsrfConfig()
     token = session.get("csrf_token")
     issued_at_raw = session.get("csrf_issued_at")
@@ -125,7 +127,7 @@ def get_or_rotate_csrf_token(session: MutableMapping[str, object], cfg: CsrfConf
         issued_at = datetime.fromisoformat(issued_at_raw)
         if issued_at.tzinfo is None:
             issued_at = issued_at.replace(tzinfo=UTC)
-    except Exception:
+    except ValueError:
         return issue_csrf_token(session, cfg)
 
     if _utcnow() - issued_at > timedelta(minutes=cfg.rotate_minutes):
@@ -204,7 +206,7 @@ async def require_csrf(
                 provided = raw_token.strip() or None
             else:
                 provided = None
-        except Exception:
+        except (RuntimeError, ValueError):
             provided = None
 
     if not provided:

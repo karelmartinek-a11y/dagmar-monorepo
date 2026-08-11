@@ -62,7 +62,7 @@ class YearMonth:
         try:
             y = int(year)
             m = int(month)
-        except Exception as e:  # pragma: no cover
+        except (TypeError, ValueError) as e:  # pragma: no cover
             raise ValueError("Invalid year/month") from e
         if y < 1970 or y > 2100:
             raise ValueError("Year out of range")

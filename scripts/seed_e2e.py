@@ -36,7 +36,15 @@ from app.services.prague_time import PRAGUE_TIMEZONE
 E2E_START = date(2026, 1, 1)
 
 
-def _event(employment_id: int, year: int, month: int, day: int, hour: int, minute: int, kind: AttendanceEventType) -> AttendanceEvent:
+def _event(
+    employment_id: int,
+    year: int,
+    month: int,
+    day: int,
+    hour: int,
+    minute: int,
+    kind: AttendanceEventType,
+) -> AttendanceEvent:
     return AttendanceEvent(
         employment_id=employment_id,
         occurred_at=datetime(year, month, day, hour, minute, tzinfo=PRAGUE_TIMEZONE),
@@ -44,7 +52,9 @@ def _event(employment_id: int, year: int, month: int, day: int, hour: int, minut
     )
 
 
-def _ensure_user(db, *, email: str, name: str, password: str | None = None, instance: Instance | None = None) -> PortalUser:
+def _ensure_user(
+    db, *, email: str, name: str, password: str | None = None, instance: Instance | None = None
+) -> PortalUser:
     user = db.execute(select(PortalUser).where(PortalUser.email == email)).scalar_one_or_none()
     if user is None:
         user = PortalUser(
@@ -60,7 +70,9 @@ def _ensure_user(db, *, email: str, name: str, password: str | None = None, inst
     return user
 
 
-def _ensure_employment(db, *, user: PortalUser, title: str, employment_type: EmploymentType, **profile) -> Employment:
+def _ensure_employment(
+    db, *, user: PortalUser, title: str, employment_type: EmploymentType, **profile
+) -> Employment:
     employment = db.execute(
         select(Employment).where(Employment.user_id == user.id, Employment.title == title)
     ).scalar_one_or_none()
@@ -92,7 +104,11 @@ def _ensure_employment(db, *, user: PortalUser, title: str, employment_type: Emp
 def main() -> None:
     database_url = os.environ["DAGMAR_DATABASE_URL"]
     url = make_url(database_url)
-    if os.getenv("DAGMAR_E2E_SEED") != "1" or url.host not in {"127.0.0.1", "localhost"} or "e2e" not in (url.database or ""):
+    if (
+        os.getenv("DAGMAR_E2E_SEED") != "1"
+        or url.host not in {"127.0.0.1", "localhost"}
+        or "e2e" not in (url.database or "")
+    ):
         raise SystemExit("Refusing to seed a database that is not an explicit local E2E target.")
 
     email = os.getenv("DAGMAR_E2E_USER_EMAIL", "employee.e2e@example.test")
@@ -106,7 +122,9 @@ def main() -> None:
             display_name="E2E prohlížeč",
             activated_at=datetime.now(UTC),
         )
-        user = _ensure_user(db, email=email, name="Testovací zaměstnanec", password=password, instance=instance)
+        user = _ensure_user(
+            db, email=email, name="Testovací zaměstnanec", password=password, instance=instance
+        )
         own = _ensure_employment(
             db,
             user=user,
@@ -179,31 +197,95 @@ def main() -> None:
                 _event(own.id, 2026, 8, 3, 16, 0, AttendanceEventType.OUT),
                 _event(own.id, 2026, 8, 4, 8, 0, AttendanceEventType.IN),
                 _event(own.id, 2026, 8, 4, 15, 0, AttendanceEventType.OUT),
-                Attendance(employment_id=own.id, instance_id=user.instance_id, date=date(2026, 6, 15), status="SICKNESS"),
-                Attendance(employment_id=own.id, instance_id=user.instance_id, date=date(2026, 8, 11), status="PARAGRAPH"),
-                ShiftPlan(employment_id=own.id, instance_id=user.instance_id, date=date(2026, 6, 8), arrival_time="08:00", departure_time="16:00"),
-                ShiftPlan(employment_id=own.id, instance_id=user.instance_id, date=date(2026, 7, 6), status="HOLIDAY"),
-                ShiftPlan(employment_id=own.id, instance_id=user.instance_id, date=date(2026, 7, 31), arrival_time="22:00", departure_time="02:00"),
-                ShiftPlan(employment_id=own.id, instance_id=user.instance_id, date=date(2026, 8, 3), arrival_time="08:30", departure_time="16:30"),
-                ShiftPlan(employment_id=own.id, instance_id=user.instance_id, date=date(2026, 8, 10), status="OFF"),
-                ShiftPlan(employment_id=colleague.id, date=date(2026, 8, 3), arrival_time="07:00", departure_time="15:00"),
-                ShiftPlan(employment_id=external.id, date=date(2026, 8, 3), arrival_time="18:00", departure_time="23:00"),
-                AttendanceLock(employment_id=own.id, instance_id=user.instance_id, year=2026, month=6, locked_by="e2e"),
-                ShiftPlanLock(employment_id=own.id, instance_id=user.instance_id, year=2026, month=7, locked_by="e2e"),
+                Attendance(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    date=date(2026, 6, 15),
+                    status="SICKNESS",
+                ),
+                Attendance(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    date=date(2026, 8, 11),
+                    status="PARAGRAPH",
+                ),
+                ShiftPlan(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    date=date(2026, 6, 8),
+                    arrival_time="08:00",
+                    departure_time="16:00",
+                ),
+                ShiftPlan(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    date=date(2026, 7, 6),
+                    status="HOLIDAY",
+                ),
+                ShiftPlan(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    date=date(2026, 7, 31),
+                    arrival_time="22:00",
+                    departure_time="02:00",
+                ),
+                ShiftPlan(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    date=date(2026, 8, 3),
+                    arrival_time="08:30",
+                    departure_time="16:30",
+                ),
+                ShiftPlan(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    date=date(2026, 8, 10),
+                    status="OFF",
+                ),
+                ShiftPlan(
+                    employment_id=colleague.id,
+                    date=date(2026, 8, 3),
+                    arrival_time="07:00",
+                    departure_time="15:00",
+                ),
+                ShiftPlan(
+                    employment_id=external.id,
+                    date=date(2026, 8, 3),
+                    arrival_time="18:00",
+                    departure_time="23:00",
+                ),
+                AttendanceLock(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    year=2026,
+                    month=6,
+                    locked_by="e2e",
+                ),
+                ShiftPlanLock(
+                    employment_id=own.id,
+                    instance_id=user.instance_id,
+                    year=2026,
+                    month=7,
+                    locked_by="e2e",
+                ),
             ]
         )
         for year, month in ((2026, 6), (2026, 7), (2026, 8)):
             for employment in (own, colleague, external, task):
                 db.add(ShiftPlanMonthInstance(year=year, month=month, employment_id=employment.id))
 
-        group = db.execute(select(EmploymentGroup).where(EmploymentGroup.name == "E2E skupina")).scalar_one_or_none()
+        group = db.execute(
+            select(EmploymentGroup).where(EmploymentGroup.name == "E2E skupina")
+        ).scalar_one_or_none()
         if group is None:
             group = EmploymentGroup(name="E2E skupina")
             db.add(group)
             db.flush()
         existing_members = set(
             db.execute(
-                select(EmploymentGroupMember.employment_id).where(EmploymentGroupMember.group_id == group.id)
+                select(EmploymentGroupMember.employment_id).where(
+                    EmploymentGroupMember.group_id == group.id
+                )
             ).scalars()
         )
         for employment in (own, colleague, external):

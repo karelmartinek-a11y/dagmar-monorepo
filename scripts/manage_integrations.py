@@ -47,11 +47,24 @@ def _get_client(db, client_id: int) -> models.IntegrationClient:
 
 def cmd_list(args) -> None:
     with session_scope() as db:
-        rows = db.execute(
-            select(models.IntegrationClient).options(selectinload(models.IntegrationClient.secrets)).order_by(models.IntegrationClient.id.asc())
-        ).scalars().all()
+        rows = (
+            db.execute(
+                select(models.IntegrationClient)
+                .options(selectinload(models.IntegrationClient.secrets))
+                .order_by(models.IntegrationClient.id.asc())
+            )
+            .scalars()
+            .all()
+        )
         for client in rows:
-            active_secret = next((item for item in sorted(client.secrets, key=lambda row: row.id, reverse=True) if item.revoked_at is None), None)
+            active_secret = next(
+                (
+                    item
+                    for item in sorted(client.secrets, key=lambda row: row.id, reverse=True)
+                    if item.revoked_at is None
+                ),
+                None,
+            )
             print(
                 f"id={client.id} name={client.name} status={client.status} "
                 f"fingerprint={active_secret.token_fingerprint if active_secret else '-'} "
@@ -158,7 +171,9 @@ def build_parser() -> argparse.ArgumentParser:
     create_parser = subparsers.add_parser("create")
     create_parser.add_argument("--name", required=True)
     create_parser.add_argument("--scopes", default="")
-    create_parser.add_argument("--allowed-employment-ids", dest="allowed_employment_ids", default="")
+    create_parser.add_argument(
+        "--allowed-employment-ids", dest="allowed_employment_ids", default=""
+    )
     create_parser.add_argument("--allowed-employee-ids", dest="allowed_employee_ids", default="")
     create_parser.add_argument("--ip-allowlist", dest="ip_allowlist", default="")
     create_parser.add_argument("--expires-at", dest="expires_at", default=None)

@@ -65,7 +65,11 @@ def _b64url(data: bytes) -> str:
 
 
 def safe_return_path(portal: Portal, purpose: Purpose, candidate: str | None) -> str:
-    default = "/app" if portal == "employee" else ("/admin/ucet" if purpose == "link" else "/admin/prehled")
+    default = (
+        "/app"
+        if portal == "employee"
+        else ("/admin/ucet" if purpose == "link" else "/admin/prehled")
+    )
     if candidate in ALLOWED_RETURN_PATHS[(portal, purpose)]:
         return str(candidate)
     return default
@@ -216,7 +220,9 @@ def google_metadata(settings: Settings) -> dict[str, Any]:
     return payload
 
 
-def authorization_url(provider: Provider, state: str, nonce: str, verifier: str | None, settings: Settings) -> str:
+def authorization_url(
+    provider: Provider, state: str, nonce: str, verifier: str | None, settings: Settings
+) -> str:
     if provider == "google":
         metadata = google_metadata(settings)
         endpoint = str(metadata.get("authorization_endpoint") or "")
@@ -272,9 +278,15 @@ def start_transaction(
     if not provider_enabled(settings, provider):
         raise ExternalAuthError("provider_disabled")
     now = datetime.now(UTC)
-    db.execute(delete(OAuthTransaction).where(OAuthTransaction.expires_at < now - timedelta(hours=1)))
+    db.execute(
+        delete(OAuthTransaction).where(OAuthTransaction.expires_at < now - timedelta(hours=1))
+    )
     state = secrets.token_urlsafe(32)
-    browser_secret = browser_secret if browser_secret and len(browser_secret) >= 32 else secrets.token_urlsafe(32)
+    browser_secret = (
+        browser_secret
+        if browser_secret and len(browser_secret) >= 32
+        else secrets.token_urlsafe(32)
+    )
     nonce = secrets.token_urlsafe(32)
     verifier = secrets.token_urlsafe(64) if provider == "google" else None
     transaction = OAuthTransaction(
@@ -301,7 +313,9 @@ def start_transaction(
     )
 
 
-def consume_transaction(db: Session, *, provider: Provider, state: str, browser_secret: str | None) -> OAuthTransaction:
+def consume_transaction(
+    db: Session, *, provider: Provider, state: str, browser_secret: str | None
+) -> OAuthTransaction:
     now = datetime.now(UTC)
     transaction = db.execute(
         select(OAuthTransaction)
@@ -316,7 +330,9 @@ def consume_transaction(db: Session, *, provider: Provider, state: str, browser_
         transaction.consumed_at = now
         db.commit()
         raise ExternalAuthError("transaction_expired")
-    if not browser_secret or not secrets.compare_digest(transaction.browser_hash, _sha256(browser_secret)):
+    if not browser_secret or not secrets.compare_digest(
+        transaction.browser_hash, _sha256(browser_secret)
+    ):
         raise ExternalAuthError("browser_binding_failed")
     transaction.consumed_at = now
     db.add(transaction)
@@ -330,17 +346,27 @@ def _apple_client_secret(settings: Settings) -> str:
     try:
         with open(str(settings.apple_private_key_path), encoding="utf-8") as key_file:
             private_key = key_file.read()
-        return str(jwt.encode(
-            {"iss": settings.apple_team_id, "iat": now, "exp": now + 300, "aud": "https://appleid.apple.com", "sub": settings.apple_services_id},
-            private_key,
-            algorithm="ES256",
-            headers={"kid": settings.apple_key_id},
-        ))
+        return str(
+            jwt.encode(
+                {
+                    "iss": settings.apple_team_id,
+                    "iat": now,
+                    "exp": now + 300,
+                    "aud": "https://appleid.apple.com",
+                    "sub": settings.apple_services_id,
+                },
+                private_key,
+                algorithm="ES256",
+                headers={"kid": settings.apple_key_id},
+            )
+        )
     except (OSError, ValueError, jwt.PyJWTError) as exc:
         raise ExternalAuthError("provider_invalid_configuration") from exc
 
 
-def _token_request(provider: Provider, code: str, transaction: OAuthTransaction, settings: Settings) -> tuple[str, str, str]:
+def _token_request(
+    provider: Provider, code: str, transaction: OAuthTransaction, settings: Settings
+) -> tuple[str, str, str]:
     if provider == "google":
         metadata = google_metadata(settings)
         endpoint = str(metadata.get("token_endpoint") or "")
@@ -402,7 +428,9 @@ def _token_request(provider: Provider, code: str, transaction: OAuthTransaction,
         if issuer != "https://appleid.apple.com":
             raise ExternalAuthError("provider_invalid_configuration")
     try:
-        with httpx.Client(timeout=settings.external_auth_http_timeout_seconds, follow_redirects=False) as client:
+        with httpx.Client(
+            timeout=settings.external_auth_http_timeout_seconds, follow_redirects=False
+        ) as client:
             response = client.post(endpoint, data=data, headers={"Accept": "application/json"})
             response.raise_for_status()
             payload = response.json()
@@ -440,9 +468,13 @@ def _signing_key(id_token: str, jwks_uri: str, settings: Settings) -> Any:
     raise ExternalAuthError("token_signature_invalid")
 
 
-def exchange_and_validate(provider: Provider, code: str, transaction: OAuthTransaction, settings: Settings) -> ProviderClaims:
+def exchange_and_validate(
+    provider: Provider, code: str, transaction: OAuthTransaction, settings: Settings
+) -> ProviderClaims:
     id_token, jwks_uri, issuer = _token_request(provider, code, transaction, settings)
-    client_id = str(settings.google_oidc_client_id if provider == "google" else settings.apple_services_id)
+    client_id = str(
+        settings.google_oidc_client_id if provider == "google" else settings.apple_services_id
+    )
     key = _signing_key(id_token, jwks_uri, settings)
     accepted_issuers: str | list[str] = issuer
     if provider == "google" and issuer == "https://accounts.google.com":
@@ -471,5 +503,11 @@ def exchange_and_validate(provider: Provider, code: str, transaction: OAuthTrans
         raise ExternalAuthError("token_validation_failed")
     email = claims.get("email") if isinstance(claims.get("email"), str) else None
     verified_raw = claims.get("email_verified")
-    verified = verified_raw if isinstance(verified_raw, bool) else (verified_raw.lower() == "true" if isinstance(verified_raw, str) else None)
-    return ProviderClaims(issuer=str(claims["iss"]), subject=subject, email=email, email_verified=verified)
+    verified = (
+        verified_raw
+        if isinstance(verified_raw, bool)
+        else (verified_raw.lower() == "true" if isinstance(verified_raw, str) else None)
+    )
+    return ProviderClaims(
+        issuer=str(claims["iss"]), subject=subject, email=email, email_verified=verified
+    )

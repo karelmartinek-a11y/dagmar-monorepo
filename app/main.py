@@ -10,9 +10,9 @@ from threading import Event, Thread
 from typing import Any, Protocol, cast
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
@@ -31,6 +31,7 @@ from app.api.v1.admin_auth import router as admin_auth_router
 from app.api.v1.admin_employment_groups import router as admin_employment_groups_router
 from app.api.v1.admin_employments import router as admin_employments_router
 from app.api.v1.admin_export import router as admin_export_router
+from app.api.v1.admin_instances import router as admin_instances_router
 from app.api.v1.admin_integrations import router as admin_integrations_router
 from app.api.v1.admin_locks import router as admin_locks_router
 from app.api.v1.admin_shift_plan import router as admin_shift_plan_router
@@ -53,6 +54,37 @@ from app.services.readiness import check_readiness
 
 logger = logging.getLogger(__name__)
 
+_HTTP_ERROR_CODES = {
+    400: "invalid_request",
+    401: "not_authenticated",
+    403: "forbidden",
+    404: "not_found",
+    405: "method_not_allowed",
+    409: "conflict",
+    422: "invalid_request",
+    429: "rate_limit_exceeded",
+}
+
+
+def _api_error_response(
+    request: Request,
+    status_code: int,
+    *,
+    code: str,
+    message: str,
+    details: Any | None = None,
+) -> JSONResponse:
+    error: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "request_id": ensure_request_id(request),
+    }
+    if details is not None:
+        error["details"] = details
+    response = JSONResponse(status_code=status_code, content={"error": error})
+    response.headers["X-Request-ID"] = error["request_id"]
+    return response
+
 
 class _LimiterWithDefaults(Protocol):
     default_limits: list[str]
@@ -69,8 +101,12 @@ def _deployed_backend_tag(settings: Settings) -> str:
         tag = data.get("backend_commit")
         if isinstance(tag, str) and tag.strip():
             return tag.strip()
-    except Exception:
-        pass
+    except (OSError, json.JSONDecodeError, TypeError, AttributeError) as exc:
+        logger.warning(
+            "Backend version metadata unavailable path=%s error_type=%s",
+            candidate,
+            type(exc).__name__,
+        )
     return settings.deploy_tag
 
 
@@ -121,7 +157,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings.rate_limit_enabled:
         if settings.rate_limit_default_per_minute:
             limiter_with_defaults = cast(_LimiterWithDefaults, limiter)
-            limiter_with_defaults.default_limits = [f"{settings.rate_limit_default_per_minute}/minute"]
+            limiter_with_defaults.default_limits = [
+                f"{settings.rate_limit_default_per_minute}/minute"
+            ]
         init_rate_limiting(app)
 
     # Admin session cookie.
@@ -143,7 +181,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_origins=settings.cors_allow_origins,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            allow_headers=["*"] ,
+            allow_headers=["*"],
         )
 
     @app.middleware("http")
@@ -158,16 +196,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response = integration_error_response(request, exc.status_code, exc.code, exc.message)
         except HTTPException as exc:
             if is_integration:
-                get_audit_context(request).error_code = "invalid_request" if exc.status_code == 400 else "internal_error"
+                get_audit_context(request).error_code = (
+                    "invalid_request" if exc.status_code == 400 else "internal_error"
+                )
                 response = integration_error_response(
                     request,
                     exc.status_code,
                     "invalid_request" if exc.status_code == 400 else "internal_error",
-                    str(exc.detail) if isinstance(exc.detail, str) else "Požadavek se nepodařilo zpracovat.",
+                    str(exc.detail)
+                    if isinstance(exc.detail, str)
+                    else "Požadavek se nepodařilo zpracovat.",
                 )
             else:
                 raise exc
+        # process-boundary: convert otherwise unhandled integration failures into its versioned contract.
         except Exception:
+            logger.exception(
+                "Unhandled request middleware exception path=%s request_id=%s",
+                request.url.path,
+                ensure_request_id(request),
+            )
             if is_integration:
                 get_audit_context(request).error_code = "internal_error"
                 response = integration_error_response(
@@ -196,16 +244,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if request.url.path.startswith("/api/"):
             if request.url.path.startswith(INTEGRATION_NAMESPACE):
                 get_audit_context(request).error_code = "invalid_request"
-                return integration_error_response(request, 400, "invalid_request", "Neplatný požadavek.")
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "error": {
-                        "code": "invalid_request",
-                        "message": "Neplatný požadavek.",
-                        "details": exc.errors(),
-                    }
-                },
+                return integration_error_response(
+                    request, 400, "invalid_request", "Neplatný požadavek."
+                )
+            details = [
+                {"location": list(error["loc"]), "message": error["msg"], "type": error["type"]}
+                for error in exc.errors()
+            ]
+            return _api_error_response(
+                request,
+                400,
+                code="invalid_request",
+                message="Neplatný požadavek.",
+                details=details,
             )
         raise exc
 
@@ -214,33 +265,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if request.url.path.startswith(INTEGRATION_NAMESPACE):
             if exc.status_code == 404:
                 get_audit_context(request).error_code = "not_found"
-                return integration_error_response(request, 404, "not_found", "Požadovaný zdroj nebyl nalezen.")
-            get_audit_context(request).error_code = "invalid_request" if exc.status_code == 400 else "internal_error"
+                return integration_error_response(
+                    request, 404, "not_found", "Požadovaný zdroj nebyl nalezen."
+                )
+            get_audit_context(request).error_code = (
+                "invalid_request" if exc.status_code == 400 else "internal_error"
+            )
             return integration_error_response(
                 request,
                 exc.status_code,
                 "invalid_request" if exc.status_code == 400 else "internal_error",
-                str(exc.detail) if isinstance(exc.detail, str) else "Požadavek se nepodařilo zpracovat.",
+                str(exc.detail)
+                if isinstance(exc.detail, str)
+                else "Požadavek se nepodařilo zpracovat.",
             )
-        if isinstance(exc, EnvelopedAPIError):
-            raw_detail: Any = exc.detail
-            detail: dict[str, Any] = raw_detail if isinstance(raw_detail, dict) else {}
-            return JSONResponse(
-                status_code=exc.status_code,
-                content={
-                    "error": {
-                        "code": str(detail.get("code") or "invalid_request"),
-                        "message": str(
-                            detail.get("message") or "Požadavek se nepodařilo zpracovat."
-                        ),
-                        **({"details": detail["details"]} if "details" in detail else {}),
-                        "request_id": ensure_request_id(request),
-                    }
-                },
-            )
-        return await http_exception_handler(
-            request, HTTPException(status_code=exc.status_code, detail=exc.detail)
+        raw_detail: Any = exc.detail
+        detail = raw_detail if isinstance(raw_detail, dict) else {}
+        default_code = (
+            "internal_error"
+            if exc.status_code >= 500
+            else _HTTP_ERROR_CODES.get(exc.status_code, "invalid_request")
         )
+        code = str(detail.get("code") or default_code)
+        default_message = (
+            "Požadovaný zdroj nebyl nalezen."
+            if exc.status_code == 404
+            else "Požadavek se nepodařilo zpracovat."
+        )
+        if exc.status_code >= 500 and not isinstance(exc, EnvelopedAPIError):
+            message = "Došlo k interní chybě."
+        else:
+            message = str(
+                detail.get("message")
+                or (raw_detail if isinstance(raw_detail, str) else default_message)
+            )
+        details = detail.get("details", detail.get("params"))
+        if isinstance(exc, EnvelopedAPIError) or request.url.path.startswith("/api/"):
+            return _api_error_response(
+                request,
+                exc.status_code,
+                code=code,
+                message=message,
+                details=details,
+            )
+        raise exc
 
     async def _health_payload() -> dict[str, Any]:
         return {"ok": True}
@@ -257,7 +325,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def readiness_v1() -> JSONResponse:
         try:
             status = check_readiness()
-        except Exception as exc:
+        except (SQLAlchemyError, RuntimeError, OSError) as exc:
             logger.warning("Readiness dependency check failed error_type=%s", type(exc).__name__)
             return JSONResponse(
                 status_code=503,
@@ -305,6 +373,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_employments_router, tags=["admin"])
     app.include_router(admin_employment_groups_router, tags=["admin"])
     app.include_router(admin_integrations_router, tags=["admin"])
+    app.include_router(admin_instances_router, tags=["admin"])
     app.include_router(admin_smtp_router, tags=["admin"])
     app.include_router(portal_auth_router, tags=["portal"])
     app.include_router(integration_router, tags=["integration"])
@@ -322,10 +391,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             if request.url.path.startswith(INTEGRATION_NAMESPACE):
                 get_audit_context(request).error_code = "internal_error"
-                return integration_error_response(request, 500, "internal_error", "Došlo k interní chybě.")
-            return JSONResponse(
-                status_code=500,
-                content={"error": {"code": "internal_error", "message": "Internal server error"}},
+                return integration_error_response(
+                    request, 500, "internal_error", "Došlo k interní chybě."
+                )
+            return _api_error_response(
+                request,
+                500,
+                code="internal_error",
+                message="Došlo k interní chybě.",
             )
         raise exc
 

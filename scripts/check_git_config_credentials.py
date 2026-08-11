@@ -21,7 +21,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Reject credentials embedded in Git config files.")
     parser.add_argument("configs", nargs="*", type=Path)
     args = parser.parse_args()
-    failures = [path for path in args.configs if path.is_file() and contains_embedded_credentials(path)]
+    failures = [
+        path for path in args.configs if path.is_file() and contains_embedded_credentials(path)
+    ]
     if failures:
         names = ", ".join(str(path) for path in failures)
         raise SystemExit(f"Embedded Git credentials detected in: {names}")

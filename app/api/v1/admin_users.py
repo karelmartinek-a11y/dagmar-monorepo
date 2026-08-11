@@ -7,9 +7,6 @@ import secrets
 import smtplib
 from datetime import UTC, date, datetime, timedelta
 from email.message import EmailMessage
-from types import SimpleNamespace
-from typing import Any
-from typing import cast as typing_cast
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -125,7 +122,9 @@ class PortalUserCreateIn(BaseModel):
             return None
         compact = normalized.replace(" ", "")
         if not compact.lstrip("+").isdigit() or len(compact.lstrip("+")) < 9:
-            raise ValueError("Telefon zadejte jako české nebo mezinárodní číslo, například +420 777 888 999.")
+            raise ValueError(
+                "Telefon zadejte jako české nebo mezinárodní číslo, například +420 777 888 999."
+            )
         return normalized
 
 
@@ -167,7 +166,9 @@ class PortalUserUpdateIn(BaseModel):
             return None
         compact = normalized.replace(" ", "")
         if not compact.lstrip("+").isdigit() or len(compact.lstrip("+")) < 9:
-            raise ValueError("Telefon zadejte jako české nebo mezinárodní číslo, například +420 777 888 999.")
+            raise ValueError(
+                "Telefon zadejte jako české nebo mezinárodní číslo, například +420 777 888 999."
+            )
         return normalized
 
 
@@ -189,14 +190,18 @@ def _get_settings(db: Session) -> AppSettings:
     return st
 
 
-def _send_reset_email(*, settings: Settings, cfg: AppSettings, to_email: str, reset_url: str) -> None:
+def _send_reset_email(
+    *, settings: Settings, cfg: AppSettings, to_email: str, reset_url: str
+) -> None:
     host = (cfg.smtp_host or "").strip()
     if not host or not cfg.smtp_port:
         raise ValueError("SMTP neni nastaveno.")
 
     username = (cfg.smtp_username or "").strip()
     smtp_secret = settings.smtp_password_secret or settings.session_secret
-    decrypted_password = decrypt_secret(cfg.smtp_password, secret=smtp_secret) if cfg.smtp_password else None
+    decrypted_password = (
+        decrypt_secret(cfg.smtp_password, secret=smtp_secret) if cfg.smtp_password else None
+    )
     password = decrypted_password.strip() if decrypted_password else None
     security = (cfg.smtp_security or "SSL").strip().upper()
     from_email = (cfg.smtp_from_email or username or "").strip()
@@ -274,14 +279,36 @@ def _to_employment_out(employment: Employment) -> EmploymentOut:
         end_date=_safe_iso_date(employment.end_date),
         is_active=employment.is_active,
         label=employment_label(employment, user_name=getattr(employment.user, "name", None)),
-        workload_fraction=f"{employment.workload_fraction:.3f}" if getattr(employment, "workload_fraction", None) is not None else None,
+        workload_fraction=f"{employment.workload_fraction:.3f}"
+        if getattr(employment, "workload_fraction", None) is not None
+        else None,
         time_profile={
-            "automatic_breaks_enabled": bool(getattr(employment, "automatic_breaks_enabled", False)),
-            "total": {"enabled": bool(getattr(employment, "total_hours_enabled", True)), "mandatory": employment_type == "WORK_CONTRACT"},
-            "afternoon": {"enabled": bool(getattr(employment, "afternoon_hours_enabled", False)), "mandatory": False, "start": f"{afternoon_start_minutes // 60:02d}:{afternoon_start_minutes % 60:02d}" if isinstance(afternoon_start_minutes, int) else None},
-            "night": {"enabled": bool(getattr(employment, "night_hours_enabled", False)), "mandatory": employment_type == "WORK_CONTRACT"},
-            "weekend": {"enabled": bool(getattr(employment, "weekend_hours_enabled", False)), "mandatory": False},
-            "public_holiday": {"enabled": bool(getattr(employment, "public_holiday_hours_enabled", False)), "mandatory": False},
+            "automatic_breaks_enabled": bool(
+                getattr(employment, "automatic_breaks_enabled", False)
+            ),
+            "total": {
+                "enabled": bool(getattr(employment, "total_hours_enabled", True)),
+                "mandatory": employment_type == "WORK_CONTRACT",
+            },
+            "afternoon": {
+                "enabled": bool(getattr(employment, "afternoon_hours_enabled", False)),
+                "mandatory": False,
+                "start": f"{afternoon_start_minutes // 60:02d}:{afternoon_start_minutes % 60:02d}"
+                if isinstance(afternoon_start_minutes, int)
+                else None,
+            },
+            "night": {
+                "enabled": bool(getattr(employment, "night_hours_enabled", False)),
+                "mandatory": employment_type == "WORK_CONTRACT",
+            },
+            "weekend": {
+                "enabled": bool(getattr(employment, "weekend_hours_enabled", False)),
+                "mandatory": False,
+            },
+            "public_holiday": {
+                "enabled": bool(getattr(employment, "public_holiday_hours_enabled", False)),
+                "mandatory": False,
+            },
         },
     )
 
@@ -292,10 +319,7 @@ def _user_login_status(user: PortalUser) -> tuple[str, str | None]:
     if not user.is_active:
         return "DEACTIVATED", "Ucet je rucne deaktivovany administratorem."
     today = prague_today()
-    try:
-        selection = select_login_employments(user, today)
-    except Exception:
-        return "EMPLOYMENT_WINDOW_BLOCKED", "Uzivatel ma nekonzistentni historicka data uvazku."
+    selection = select_login_employments(user, today)
     if selection.available:
         return "ACTIVE", None
     if user.employments:
@@ -307,7 +331,11 @@ def _to_user_out(user: PortalUser, lock_state: AuthLockoutState | None = None) -
     locked_until = as_utc(lock_state.locked_until) if lock_state is not None else None
     login_status, login_status_reason = _user_login_status(user)
     employments = sorted(user.employments, key=_employment_sort_key)
-    last_login_at = as_utc(getattr(user.instance, "last_seen_at", None)) if getattr(user, "instance", None) is not None else None
+    last_login_at = (
+        as_utc(getattr(user.instance, "last_seen_at", None))
+        if getattr(user, "instance", None) is not None
+        else None
+    )
     return PortalUserOut(
         id=user.id,
         name=(user.name or "").strip(),
@@ -339,131 +367,54 @@ def _apply_password(db: Session, user: PortalUser, raw_password: str | None) -> 
 
 
 @router.get("", response_model=PortalUserListOut)
-def list_users(_admin=Depends(require_admin), db: Session = Depends(get_db)):
-    users_table = PortalUser.__table__
-    employments_table = Employment.__table__
-    instances_table = Instance.__table__
-
-    user_rows = db.execute(
-        select(
-            users_table.c.id,
-            users_table.c.name,
-            users_table.c.email,
-            users_table.c.phone,
-            users_table.c.password_hash,
-            users_table.c.is_active,
-            users_table.c.is_blocked,
-            instances_table.c.last_seen_at.label("last_login_at"),
+def list_users(
+    request: Request, _admin=Depends(require_admin), db: Session = Depends(get_db)
+) -> PortalUserListOut:
+    users = (
+        db.execute(
+            select(PortalUser)
+            .options(selectinload(PortalUser.employments), selectinload(PortalUser.instance))
+            .order_by(PortalUser.name.asc(), PortalUser.id.asc())
         )
-        .select_from(users_table.outerjoin(instances_table, instances_table.c.id == users_table.c.instance_id))
-        .order_by(users_table.c.name.asc())
-    ).mappings().all()
-
-    if not user_rows:
-        return PortalUserListOut(users=[])
-
-    safe_user_rows: list[tuple[int, Any]] = []
-    user_ids: list[int] = []
-    for row in user_rows:
-        try:
-            user_id = int(row["id"])
-        except Exception:
-            continue
-        safe_user_rows.append((user_id, row))
-        user_ids.append(user_id)
-
-    if not user_ids:
-        return PortalUserListOut(users=[])
-
-    employment_rows = db.execute(
-        select(
-            employments_table.c.id,
-            employments_table.c.user_id,
-            employments_table.c.title,
-            employments_table.c.employment_type,
-            employments_table.c.start_date,
-            employments_table.c.end_date,
-            employments_table.c.is_active,
-            employments_table.c.workload_fraction,
-            employments_table.c.total_hours_enabled,
-            employments_table.c.automatic_breaks_enabled,
-            employments_table.c.afternoon_hours_enabled,
-            employments_table.c.afternoon_start_minutes,
-            employments_table.c.night_hours_enabled,
-            employments_table.c.weekend_hours_enabled,
-            employments_table.c.public_holiday_hours_enabled,
-        )
-        .where(employments_table.c.user_id.in_(user_ids))
-        .order_by(employments_table.c.start_date.asc(), employments_table.c.id.asc())
-    ).mappings().all()
-
-    employments_by_user: dict[int, list[SimpleNamespace]] = {}
-    for row in employment_rows:
-        try:
-            employment = SimpleNamespace(
-                id=int(row["id"]),
-                user_id=int(row["user_id"]),
-                title=row["title"],
-                employment_type=row["employment_type"],
-                start_date=row["start_date"],
-                end_date=row["end_date"],
-                is_active=bool(row["is_active"]),
-                workload_fraction=row["workload_fraction"],
-                total_hours_enabled=bool(row["total_hours_enabled"]),
-                automatic_breaks_enabled=bool(row["automatic_breaks_enabled"]),
-                afternoon_hours_enabled=bool(row["afternoon_hours_enabled"]),
-                afternoon_start_minutes=row["afternoon_start_minutes"],
-                night_hours_enabled=bool(row["night_hours_enabled"]),
-                weekend_hours_enabled=bool(row["weekend_hours_enabled"]),
-                public_holiday_hours_enabled=bool(row["public_holiday_hours_enabled"]),
-                user=SimpleNamespace(name=""),
-            )
-        except Exception:
-            continue
-        employments_by_user.setdefault(employment.user_id, []).append(employment)
-
-    principals = [str(row["email"]).lower() for _, row in safe_user_rows if row["email"]]
+        .scalars()
+        .all()
+    )
+    principals = [user.email.lower() for user in users]
     lock_rows = (
         db.execute(
             select(AuthLockoutState).where(
                 AuthLockoutState.actor_type == "portal",
                 AuthLockoutState.principal.in_(principals),
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
         if principals
         else []
     )
     locks_by_principal = {row.principal: row for row in lock_rows}
 
     out: list[PortalUserOut] = []
-    for user_id, row in safe_user_rows:
+    for user in users:
         try:
-            name = str(row["name"] or "").strip()
-            email = str(row["email"] or "").strip()
-            employments = employments_by_user.get(user_id, [])
-            for employment in employments:
-                employment.user = SimpleNamespace(name=name)
-
-            user_like = SimpleNamespace(
-                id=user_id,
-                name=name,
-                email=email,
-                phone=row["phone"],
-                role=SimpleNamespace(value="employee"),
-                password_hash=row["password_hash"],
-                is_active=bool(row["is_active"]),
-                is_blocked=bool(row["is_blocked"]),
-                instance=SimpleNamespace(last_seen_at=row["last_login_at"]) if row["last_login_at"] is not None else None,
-                employments=employments,
-            )
             out.append(
                 _to_user_out(
-                    typing_cast(PortalUser, user_like),
-                    locks_by_principal.get(email.lower()) if email else None,
+                    user,
+                    locks_by_principal.get(user.email.lower()),
                 )
             )
-        except Exception:
-            continue
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            logger.error(
+                "data_integrity_error entity=portal_user user_id=%s request_id=%s error_type=%s",
+                user.id,
+                getattr(request.state, "request_id", "unknown"),
+                type(exc).__name__,
+            )
+            raise_api_error(
+                500,
+                "data_integrity_error",
+                "Data uživatele nejsou konzistentní.",
+            )
 
     return PortalUserListOut(users=out)
 
@@ -481,7 +432,7 @@ def create_user(
 
     try:
         role_enum = PortalUserRole(payload.role)
-    except Exception:
+    except ValueError:
         raise_api_error(400, "invalid_user_role", "Neplatna role uzivatele.")
 
     exists = db.execute(select(PortalUser).where(PortalUser.email == email)).scalars().first()
@@ -521,7 +472,11 @@ def create_user(
     db.refresh(user)
     db.refresh(inst)
     user = (
-        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).where(PortalUser.id == user.id))
+        db.execute(
+            select(PortalUser)
+            .options(selectinload(PortalUser.employments))
+            .where(PortalUser.id == user.id)
+        )
         .scalars()
         .one()
     )
@@ -537,7 +492,11 @@ def block_user(
     db: Session = Depends(get_db),
 ):
     user = (
-        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).where(PortalUser.id == int(user_id)))
+        db.execute(
+            select(PortalUser)
+            .options(selectinload(PortalUser.employments))
+            .where(PortalUser.id == int(user_id))
+        )
         .scalars()
         .first()
     )
@@ -563,7 +522,11 @@ def update_user(
     db: Session = Depends(get_db),
 ):
     user = (
-        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).where(PortalUser.id == int(user_id)))
+        db.execute(
+            select(PortalUser)
+            .options(selectinload(PortalUser.employments))
+            .where(PortalUser.id == int(user_id))
+        )
         .scalars()
         .first()
     )
@@ -584,9 +547,15 @@ def update_user(
         if email == "provoz@hotelchodovasc.cz":
             raise_api_error(400, "reserved_admin_email", "Tento e-mail je vyhrazen pro admin ucet.")
         if email != user.email:
-            exists = db.execute(
-                select(PortalUser).where(PortalUser.email == email).where(PortalUser.id != user.id)
-            ).scalars().first()
+            exists = (
+                db.execute(
+                    select(PortalUser)
+                    .where(PortalUser.email == email)
+                    .where(PortalUser.id != user.id)
+                )
+                .scalars()
+                .first()
+            )
             if exists:
                 raise_api_error(409, "user_email_exists", "Uzivatel s timto e-mailem uz existuje.")
             clear_user_lockout(db, actor_type="portal", principal=user.email.lower())
@@ -596,7 +565,7 @@ def update_user(
     if payload.role is not None:
         try:
             user.role = PortalUserRole(payload.role)
-        except Exception:
+        except ValueError:
             raise_api_error(400, "invalid_user_role", "Neplatna role uzivatele.")
 
     if payload.is_active is not None:
@@ -612,7 +581,11 @@ def update_user(
     db.commit()
     db.refresh(user)
     user = (
-        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).where(PortalUser.id == user.id))
+        db.execute(
+            select(PortalUser)
+            .options(selectinload(PortalUser.employments))
+            .where(PortalUser.id == user.id)
+        )
         .scalars()
         .one()
     )
@@ -628,7 +601,11 @@ def set_user_password(
     db: Session = Depends(get_db),
 ):
     user = (
-        db.execute(select(PortalUser).options(selectinload(PortalUser.employments)).where(PortalUser.id == int(user_id)))
+        db.execute(
+            select(PortalUser)
+            .options(selectinload(PortalUser.employments))
+            .where(PortalUser.id == int(user_id))
+        )
         .scalars()
         .first()
     )
@@ -648,11 +625,15 @@ def delete_user(
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
 ):
-    row = db.execute(
-        select(PortalUser.id, PortalUser.email, PortalUser.instance_id).where(
-            PortalUser.id == int(user_id)
+    row = (
+        db.execute(
+            select(PortalUser.id, PortalUser.email, PortalUser.instance_id).where(
+                PortalUser.id == int(user_id)
+            )
         )
-    ).mappings().first()
+        .mappings()
+        .first()
+    )
     if row is None:
         raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
 
@@ -695,7 +676,11 @@ def send_reset_link(
         if not user or not user.is_active:
             raise_api_error(404, "user_not_found", "Uzivatel nenalezen.")
         if user.is_blocked:
-            raise_api_error(403, "portal_account_blocked", "Váš přístup byl zablokován, obraťte se na svého nadřízeného.")
+            raise_api_error(
+                403,
+                "portal_account_blocked",
+                "Váš přístup byl zablokován, obraťte se na svého nadřízeného.",
+            )
 
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
@@ -758,9 +743,15 @@ def unlock_user(
 
 
 @router.get("/{user_id}/employments", response_model=list[EmploymentOut])
-def list_user_employments(user_id: int, _admin=Depends(require_admin), db: Session = Depends(get_db)):
+def list_user_employments(
+    user_id: int, _admin=Depends(require_admin), db: Session = Depends(get_db)
+):
     rows = (
-        db.execute(select(Employment).where(Employment.user_id == user_id).order_by(Employment.start_date.asc(), Employment.id.asc()))
+        db.execute(
+            select(Employment)
+            .where(Employment.user_id == user_id)
+            .order_by(Employment.start_date.asc(), Employment.id.asc())
+        )
         .scalars()
         .all()
     )

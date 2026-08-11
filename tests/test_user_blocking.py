@@ -201,10 +201,34 @@ def test_admin_list_exposes_block_state_without_losing_employments() -> None:
     user.is_blocked = True
     db.commit()
 
-    result = list_users(object(), db)
+    result = list_users(
+        SimpleNamespace(state=SimpleNamespace(request_id="test-user-list")), object(), db
+    )
 
     assert result.users[0].is_blocked is True
     assert len(result.users[0].employments) == 1
+
+
+def test_admin_list_fails_whole_response_on_data_integrity_error(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _, db, _, _ = _database()
+    monkeypatch.setattr(
+        admin_users,
+        "_to_user_out",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("private row content")),
+    )
+    with pytest.raises(HTTPException) as error:
+        list_users(
+            SimpleNamespace(state=SimpleNamespace(request_id="integrity-request")),
+            object(),
+            db,
+        )
+    assert error.value.status_code == 500
+    assert error.value.detail["code"] == "data_integrity_error"
+    assert "user_id=" in caplog.text
+    assert "request_id=integrity-request" in caplog.text
+    assert "private row content" not in caplog.text
 
 
 def test_delete_user_removes_the_attached_web_instance() -> None:
@@ -284,9 +308,9 @@ def test_new_reset_delivery_revokes_the_previous_sent_token(
     send_reset_link(user.id, object(), object(), None, db, settings)
     send_reset_link(user.id, object(), object(), None, db, settings)
 
-    tokens = db.execute(
-        select(PortalUserResetToken).order_by(PortalUserResetToken.id)
-    ).scalars().all()
+    tokens = (
+        db.execute(select(PortalUserResetToken).order_by(PortalUserResetToken.id)).scalars().all()
+    )
     active = [
         token
         for token in tokens

@@ -121,9 +121,7 @@ def test_google_discovery_refuses_even_an_allowlisted_redirect_after_validation(
         return httpx.Response(
             302,
             request=request,
-            headers={
-                "location": "https://accounts.google.com/.well-known/openid-configuration"
-            },
+            headers={"location": "https://accounts.google.com/.well-known/openid-configuration"},
         )
 
     _mock_client(monkeypatch, handler)

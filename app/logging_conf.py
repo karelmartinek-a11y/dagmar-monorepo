@@ -2,11 +2,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-DEFAULT_LOG_FORMAT = (
-    "%(asctime)s %(levelname)s %(name)s "
-    "pid=%(process)d "
-    "%(message)s"
-)
+DEFAULT_LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s pid=%(process)d %(message)s"
 
 
 def _ensure_parent_dir(path: str) -> None:
@@ -54,9 +50,7 @@ def configure_logging(
     # Optional file logs
     if log_file:
         _ensure_parent_dir(log_file)
-        file_handler = RotatingFileHandler(
-            log_file, maxBytes=max_bytes, backupCount=backup_count
-        )
+        file_handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
         file_handler.setLevel(level_value)
         file_handler.setFormatter(formatter)
         root.addHandler(file_handler)

@@ -7,10 +7,10 @@ from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-from starlette.testclient import TestClient
 
 os.environ.setdefault("DAGMAR_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("DAGMAR_SESSION_SECRET", "x" * 32)

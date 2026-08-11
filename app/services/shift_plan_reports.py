@@ -242,7 +242,7 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     path = _font_path()
     try:
         return ImageFont.truetype(str(path), size=size, layout_engine=ImageFont.Layout.BASIC)
-    except Exception:
+    except OSError:
         return ImageFont.load_default()
 
 
@@ -368,9 +368,7 @@ def build_shift_plan_report(
                         carryover_plan.departure_time if carryover_plan else None
                     ),
                     status=effective_status,
-                    status_label=STATUS_LABELS.get(effective_status)
-                    if effective_status
-                    else None,
+                    status_label=STATUS_LABELS.get(effective_status) if effective_status else None,
                     interval_label="; ".join(interval_parts),
                     duration_label=_format_hours(day_summary.planned_hours)
                     if show_total and duration_minutes > 0
@@ -679,7 +677,12 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                 pass_width = day_column_width / max_plan_passes
                 for pass_index in range(1, max_plan_passes):
                     draw.line(
-                        (cell_left + (pass_index * pass_width), cell_top, cell_left + (pass_index * pass_width), cell_bottom),
+                        (
+                            cell_left + (pass_index * pass_width),
+                            cell_top,
+                            cell_left + (pass_index * pass_width),
+                            cell_bottom,
+                        ),
                         fill="#dddddd",
                         width=1,
                     )

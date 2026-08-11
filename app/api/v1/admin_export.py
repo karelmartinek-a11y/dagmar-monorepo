@@ -43,7 +43,7 @@ def _month_range(month_yyyy_mm: str) -> tuple[date, date]:
         m = int(m_str)
         if not (1 <= m <= 12):
             raise ValueError
-    except Exception as exc:
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid month. Expected YYYY-MM") from exc
 
     start = date(y, m, 1)

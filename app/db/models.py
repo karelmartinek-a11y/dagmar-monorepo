@@ -78,12 +78,16 @@ class Instance(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)  # UUID string
 
-    client_type: Mapped[ClientType] = mapped_column(Enum(ClientType, name="client_type", create_type=False), nullable=False)
+    client_type: Mapped[ClientType] = mapped_column(
+        Enum(ClientType, name="client_type", create_type=False), nullable=False
+    )
     device_fingerprint: Mapped[str] = mapped_column(String(128), nullable=False)
     device_info_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     status: Mapped[InstanceStatus] = mapped_column(
-        Enum(InstanceStatus, name="instance_status", create_type=False), nullable=False, default=InstanceStatus.PENDING
+        Enum(InstanceStatus, name="instance_status", create_type=False),
+        nullable=False,
+        default=InstanceStatus.PENDING,
     )
     display_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     profile_instance_id: Mapped[str | None] = mapped_column(
@@ -102,7 +106,9 @@ class Instance(Base):
     token_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     token_issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     __table_args__ = (
         Index("ix_instances_status", "status"),
@@ -115,51 +121,90 @@ class Employment(Base):
     __tablename__ = "employments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("portal_users.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("portal_users.id", ondelete="CASCADE"), nullable=False
+    )
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     employment_type: Mapped[EmploymentType] = mapped_column(
         Enum(EmploymentType, name="employment_type", create_type=False), nullable=False
     )
     workload_fraction: Mapped[Decimal | None] = mapped_column(Numeric(4, 3), nullable=True)
-    total_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
-    automatic_breaks_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
-    afternoon_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    total_hours_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    automatic_breaks_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    afternoon_hours_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     afternoon_start_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    night_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
-    weekend_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
-    public_holiday_hours_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    night_hours_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    weekend_hours_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    public_holiday_hours_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     user: Mapped[PortalUser] = relationship("PortalUser", back_populates="employments")
     attendances: Mapped[list[Attendance]] = relationship(
-        "Attendance", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+        "Attendance",
+        back_populates="employment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     attendance_events: Mapped[list[AttendanceEvent]] = relationship(
-        "AttendanceEvent", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+        "AttendanceEvent",
+        back_populates="employment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     daily_time_metrics: Mapped[list[EmploymentDailyTimeMetric]] = relationship(
-        "EmploymentDailyTimeMetric", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+        "EmploymentDailyTimeMetric",
+        back_populates="employment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     shift_plans: Mapped[list[ShiftPlan]] = relationship(
         "ShiftPlan", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
     )
     attendance_locks: Mapped[list[AttendanceLock]] = relationship(
-        "AttendanceLock", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+        "AttendanceLock",
+        back_populates="employment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     shift_plan_locks: Mapped[list[ShiftPlanLock]] = relationship(
-        "ShiftPlanLock", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+        "ShiftPlanLock",
+        back_populates="employment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     shift_plan_month_employments: Mapped[list[ShiftPlanMonthInstance]] = relationship(
-        "ShiftPlanMonthInstance", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+        "ShiftPlanMonthInstance",
+        back_populates="employment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     employment_group_memberships: Mapped[list[EmploymentGroupMember]] = relationship(
-        "EmploymentGroupMember", back_populates="employment", cascade="all, delete-orphan", passive_deletes=True
+        "EmploymentGroupMember",
+        back_populates="employment",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     __table_args__ = (
@@ -168,10 +213,22 @@ class Employment(Base):
             "OR (employment_type <> 'WORK_CONTRACT' AND workload_fraction IS NULL)",
             name="ck_employment_workload_fraction",
         ),
-        CheckConstraint("afternoon_start_minutes IS NULL OR (afternoon_start_minutes >= 0 AND afternoon_start_minutes <= 1319)", name="ck_employment_afternoon_start"),
-        CheckConstraint("NOT afternoon_hours_enabled OR afternoon_start_minutes IS NOT NULL", name="ck_employment_afternoon_required"),
-        CheckConstraint("employment_type <> 'TASK_SHIFT_BASED' OR (NOT total_hours_enabled AND NOT automatic_breaks_enabled AND NOT afternoon_hours_enabled AND afternoon_start_minutes IS NULL AND NOT night_hours_enabled AND NOT weekend_hours_enabled AND NOT public_holiday_hours_enabled)", name="ck_employment_task_profile"),
-        CheckConstraint("employment_type <> 'WORK_CONTRACT' OR (total_hours_enabled AND night_hours_enabled)", name="ck_employment_work_contract_profile"),
+        CheckConstraint(
+            "afternoon_start_minutes IS NULL OR (afternoon_start_minutes >= 0 AND afternoon_start_minutes <= 1319)",
+            name="ck_employment_afternoon_start",
+        ),
+        CheckConstraint(
+            "NOT afternoon_hours_enabled OR afternoon_start_minutes IS NOT NULL",
+            name="ck_employment_afternoon_required",
+        ),
+        CheckConstraint(
+            "employment_type <> 'TASK_SHIFT_BASED' OR (NOT total_hours_enabled AND NOT automatic_breaks_enabled AND NOT afternoon_hours_enabled AND afternoon_start_minutes IS NULL AND NOT night_hours_enabled AND NOT weekend_hours_enabled AND NOT public_holiday_hours_enabled)",
+            name="ck_employment_task_profile",
+        ),
+        CheckConstraint(
+            "employment_type <> 'WORK_CONTRACT' OR (total_hours_enabled AND night_hours_enabled)",
+            name="ck_employment_work_contract_profile",
+        ),
         Index("ix_employments_user_id", "user_id"),
         Index("ix_employments_start_date", "start_date"),
         Index("ix_employments_end_date", "end_date"),
@@ -186,13 +243,18 @@ class EmploymentGroup(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     members: Mapped[list[EmploymentGroupMember]] = relationship(
-        "EmploymentGroupMember", back_populates="group", cascade="all, delete-orphan", passive_deletes=True
+        "EmploymentGroupMember",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     __table_args__ = (Index("ix_employment_groups_name_ci", func.lower(name), unique=True),)
@@ -209,7 +271,9 @@ class EmploymentGroupMember(Base):
     )
 
     group: Mapped[EmploymentGroup] = relationship("EmploymentGroup", back_populates="members")
-    employment: Mapped[Employment] = relationship("Employment", back_populates="employment_group_memberships")
+    employment: Mapped[Employment] = relationship(
+        "Employment", back_populates="employment_group_memberships"
+    )
 
     __table_args__ = (Index("ix_employment_group_members_employment", "employment_id"),)
 
@@ -229,7 +293,9 @@ class Attendance(Base):
 
     status: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
@@ -248,17 +314,25 @@ class AttendanceEvent(Base):
     __tablename__ = "attendance_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    employment_id: Mapped[int] = mapped_column(Integer, ForeignKey("employments.id", ondelete="CASCADE"), nullable=False)
+    employment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("employments.id", ondelete="CASCADE"), nullable=False
+    )
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     event_type: Mapped[AttendanceEventType] = mapped_column(
         Enum(AttendanceEventType, name="attendance_event_type", create_type=False), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
 
     employment: Mapped[Employment] = relationship("Employment", back_populates="attendance_events")
     __table_args__ = (
-        UniqueConstraint("employment_id", "occurred_at", name="uq_attendance_event_employment_timestamp"),
+        UniqueConstraint(
+            "employment_id", "occurred_at", name="uq_attendance_event_employment_timestamp"
+        ),
         Index("ix_attendance_events_employment_occurred_id", "employment_id", "occurred_at", "id"),
         CheckConstraint("event_type IN ('IN', 'OUT')", name="ck_attendance_event_type"),
     )
@@ -267,9 +341,13 @@ class AttendanceEvent(Base):
 class EmploymentDailyTimeMetric(Base):
     __tablename__ = "employment_daily_time_metrics"
 
-    employment_id: Mapped[int] = mapped_column(Integer, ForeignKey("employments.id", ondelete="CASCADE"), primary_key=True)
+    employment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("employments.id", ondelete="CASCADE"), primary_key=True
+    )
     metric_date: Mapped[date] = mapped_column(Date, primary_key=True)
-    source: Mapped[DailyMetricSource] = mapped_column(Enum(DailyMetricSource, name="daily_metric_source", create_type=False), primary_key=True)
+    source: Mapped[DailyMetricSource] = mapped_column(
+        Enum(DailyMetricSource, name="daily_metric_source", create_type=False), primary_key=True
+    )
     total_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     total_tenths: Mapped[int] = mapped_column(Integer, nullable=False)
     afternoon_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -280,11 +358,17 @@ class EmploymentDailyTimeMetric(Base):
     weekend_tenths: Mapped[int | None] = mapped_column(Integer, nullable=True)
     public_holiday_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     public_holiday_tenths: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    calculation_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    calculation_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
 
     employment: Mapped[Employment] = relationship("Employment", back_populates="daily_time_metrics")
-    __table_args__ = (Index("ix_daily_time_metrics_employment_date", "employment_id", "metric_date"),)
+    __table_args__ = (
+        Index("ix_daily_time_metrics_employment_date", "employment_id", "metric_date"),
+    )
 
 
 class ShiftPlan(Base):
@@ -301,8 +385,12 @@ class ShiftPlan(Base):
     arrival_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
     departure_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
     status: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, onupdate=func.now()
+    )
 
     employment: Mapped[Employment] = relationship("Employment", back_populates="shift_plans")
     instance: Mapped[Instance | None] = relationship("Instance")
@@ -327,9 +415,13 @@ class ShiftPlanMonthInstance(Base):
     instance_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("instances.id", ondelete="SET NULL"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
-    employment: Mapped[Employment] = relationship("Employment", back_populates="shift_plan_month_employments")
+    employment: Mapped[Employment] = relationship(
+        "Employment", back_populates="shift_plan_month_employments"
+    )
     instance: Mapped[Instance | None] = relationship("Instance")
 
     __table_args__ = (
@@ -362,7 +454,9 @@ class AttendanceLock(Base):
     instance: Mapped[Instance | None] = relationship()
 
     __table_args__ = (
-        UniqueConstraint("employment_id", "year", "month", name="uq_attendance_lock_employment_month"),
+        UniqueConstraint(
+            "employment_id", "year", "month", name="uq_attendance_lock_employment_month"
+        ),
         Index("ix_attendance_locks_employment_month", "employment_id", "year", "month"),
         Index("ix_attendance_locks_instance_month", "instance_id", "year", "month"),
     )
@@ -389,7 +483,9 @@ class ShiftPlanLock(Base):
     instance: Mapped[Instance | None] = relationship()
 
     __table_args__ = (
-        UniqueConstraint("employment_id", "year", "month", name="uq_shift_plan_lock_employment_month"),
+        UniqueConstraint(
+            "employment_id", "year", "month", name="uq_shift_plan_lock_employment_month"
+        ),
         Index("ix_shift_plan_locks_employment_month", "employment_id", "year", "month"),
         Index("ix_shift_plan_locks_instance_month", "instance_id", "year", "month"),
     )
@@ -404,7 +500,9 @@ class ShiftPlanAutoLockRun(Base):
     executed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    locked_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    locked_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     __table_args__ = (
         UniqueConstraint("year", "month", name="uq_shift_plan_auto_lock_run_month"),
@@ -423,15 +521,21 @@ class PortalUser(Base):
         Enum(PortalUserRole, name="portal_user_role", create_type=False), nullable=False
     )
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
-    is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    is_blocked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     instance_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("instances.id", ondelete="SET NULL"), nullable=True
     )
     instance: Mapped[Instance | None] = relationship("Instance")
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
@@ -443,7 +547,10 @@ class PortalUser(Base):
         "Employment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )
     external_identities: Mapped[list[ExternalIdentity]] = relationship(
-        "ExternalIdentity", back_populates="portal_user", cascade="all, delete-orphan", passive_deletes=True
+        "ExternalIdentity",
+        back_populates="portal_user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -451,7 +558,9 @@ class PortalUserResetToken(Base):
     __tablename__ = "portal_user_reset_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("portal_users.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("portal_users.id", ondelete="CASCADE"), nullable=False
+    )
     token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -461,7 +570,9 @@ class PortalUserResetToken(Base):
         default=ResetDeliveryState.PENDING,
     )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     user: Mapped[PortalUser] = relationship(back_populates="reset_tokens")
 
@@ -473,9 +584,7 @@ class PortalUserResetToken(Base):
             postgresql_where=text(
                 "delivery_state = 'SENT' AND used_at IS NULL AND revoked_at IS NULL"
             ),
-            sqlite_where=text(
-                "delivery_state = 'SENT' AND used_at IS NULL AND revoked_at IS NULL"
-            ),
+            sqlite_where=text("delivery_state = 'SENT' AND used_at IS NULL AND revoked_at IS NULL"),
         ),
     )
 
@@ -494,12 +603,16 @@ class ExternalIdentity(Base):
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     email_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    linked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    portal_user: Mapped[PortalUser | None] = relationship("PortalUser", back_populates="external_identities")
+    portal_user: Mapped[PortalUser | None] = relationship(
+        "PortalUser", back_populates="external_identities"
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -509,7 +622,9 @@ class ExternalIdentity(Base):
         ),
         CheckConstraint("provider IN ('google', 'apple')", name="ck_external_identity_provider"),
         UniqueConstraint("provider", "issuer", "subject", name="uq_external_identity_subject"),
-        UniqueConstraint("portal_user_id", "provider", name="uq_external_identity_employee_provider"),
+        UniqueConstraint(
+            "portal_user_id", "provider", name="uq_external_identity_employee_provider"
+        ),
         UniqueConstraint("admin_username", "provider", name="uq_external_identity_admin_provider"),
         Index("ix_external_identity_portal_user", "portal_user_id"),
         Index("ix_external_identity_admin", "admin_username"),
@@ -532,12 +647,18 @@ class OAuthTransaction(Base):
     admin_username: Mapped[str | None] = mapped_column(String(160), nullable=True)
     nonce: Mapped[str] = mapped_column(String(128), nullable=False)
     code_verifier: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     result_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
-    result_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    result_consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    result_consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     __table_args__ = (
         CheckConstraint("provider IN ('google', 'apple')", name="ck_oauth_transaction_provider"),
@@ -561,7 +682,9 @@ class ExternalAuthAuditLog(Base):
     subject_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     source_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (
         Index("ix_external_auth_audit_account", "account_type", "account_ref"),
@@ -575,12 +698,18 @@ class AuthLockoutState(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     actor_type: Mapped[str] = mapped_column(String(16), nullable=False)
     principal: Mapped[str] = mapped_column(String(160), nullable=False)
-    failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    failed_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     first_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_forgot_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_forgot_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
@@ -596,7 +725,9 @@ class AuthUnlockToken(Base):
     token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class AttendanceReminderEvent(Base):
@@ -613,8 +744,12 @@ class AttendanceReminderEvent(Base):
     reminder_type: Mapped[str] = mapped_column(String(32), nullable=False)
     sequence_no: Mapped[int] = mapped_column(Integer, nullable=False)
     sent_to: Mapped[str] = mapped_column(String(160), nullable=False)
-    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -657,19 +792,28 @@ class IntegrationClient(Base):
     scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     allowed_employment_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)
     allowed_employee_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)
-    data_scope_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="ALL_EMPLOYMENTS", server_default="ALL_EMPLOYMENTS")
-    include_inactive_employments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    data_scope_mode: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="ALL_EMPLOYMENTS", server_default="ALL_EMPLOYMENTS"
+    )
+    include_inactive_employments: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     ip_allowlist: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(160), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     secrets: Mapped[list[IntegrationClientSecret]] = relationship(
-        "IntegrationClientSecret", back_populates="client", cascade="all, delete-orphan", passive_deletes=True
+        "IntegrationClientSecret",
+        back_populates="client",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     audit_logs: Mapped[list[IntegrationAuditLog]] = relationship(
         "IntegrationAuditLog", back_populates="client", passive_deletes=True
@@ -692,7 +836,9 @@ class IntegrationClientSecret(Base):
     token_prefix: Mapped[str] = mapped_column(String(32), nullable=False)
     token_last4: Mapped[str] = mapped_column(String(4), nullable=False)
     token_fingerprint: Mapped[str] = mapped_column(String(32), nullable=False)
-    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -713,7 +859,9 @@ class IntegrationAuditLog(Base):
         Integer, ForeignKey("integration_clients.id", ondelete="SET NULL"), nullable=True
     )
     request_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     method: Mapped[str] = mapped_column(String(8), nullable=False)
     path: Mapped[str] = mapped_column(String(255), nullable=False)
     query_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -727,11 +875,15 @@ class IntegrationAuditLog(Base):
     attendance_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     employment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     attendance_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    expected_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expected_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     before_state: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     after_state: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
-    client: Mapped[IntegrationClient | None] = relationship("IntegrationClient", back_populates="audit_logs")
+    client: Mapped[IntegrationClient | None] = relationship(
+        "IntegrationClient", back_populates="audit_logs"
+    )
 
     __table_args__ = (
         Index("ix_integration_audit_log_client_id", "client_id"),

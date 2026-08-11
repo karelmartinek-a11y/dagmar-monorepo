@@ -30,7 +30,9 @@ def as_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC)
 
 
-def get_lockout_state(db: Session, *, actor_type: str, principal: str, create: bool = True) -> AuthLockoutState | None:
+def get_lockout_state(
+    db: Session, *, actor_type: str, principal: str, create: bool = True
+) -> AuthLockoutState | None:
     states = (
         db.execute(
             select(AuthLockoutState)
@@ -132,7 +134,9 @@ def issue_unlock_token(db: Session, *, actor_type: str, principal: str, purpose:
     return token
 
 
-def consume_unlock_token(db: Session, *, token: str, actor_type: str, purpose: str) -> AuthUnlockToken | None:
+def consume_unlock_token(
+    db: Session, *, token: str, actor_type: str, purpose: str
+) -> AuthUnlockToken | None:
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     now = utc_now()
     row = (
@@ -154,18 +158,24 @@ def consume_unlock_token(db: Session, *, token: str, actor_type: str, purpose: s
 
 
 def clear_user_lockout(db: Session, *, actor_type: str, principal: str) -> None:
-    rows = db.execute(
-        select(AuthLockoutState).where(
-            AuthLockoutState.actor_type == actor_type,
-            AuthLockoutState.principal == principal,
+    rows = (
+        db.execute(
+            select(AuthLockoutState).where(
+                AuthLockoutState.actor_type == actor_type,
+                AuthLockoutState.principal == principal,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for row in rows:
         reset_lock_state(row)
         db.add(row)
 
 
-def revoke_unlock_tokens(db: Session, *, actor_type: str, principal: str, purpose: str | None = None) -> None:
+def revoke_unlock_tokens(
+    db: Session, *, actor_type: str, principal: str, purpose: str | None = None
+) -> None:
     statement = delete(AuthUnlockToken).where(
         AuthUnlockToken.actor_type == actor_type,
         AuthUnlockToken.principal == principal,

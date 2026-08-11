@@ -67,9 +67,20 @@ def validate_time_profile(
             raise ValueError("Pracovní smlouva musí zobrazovat celkové a noční hodiny.")
     elif workload_fraction is not None:
         raise ValueError("Velikost úvazku patří pouze pracovní smlouvě.")
-    if employment_type == EmploymentType.TASK_SHIFT_BASED.value and any((total_hours_enabled, automatic_breaks_enabled, afternoon_hours_enabled, night_hours_enabled, weekend_hours_enabled, public_holiday_hours_enabled)):
+    if employment_type == EmploymentType.TASK_SHIFT_BASED.value and any(
+        (
+            total_hours_enabled,
+            automatic_breaks_enabled,
+            afternoon_hours_enabled,
+            night_hours_enabled,
+            weekend_hours_enabled,
+            public_holiday_hours_enabled,
+        )
+    ):
         raise ValueError("Úkolová / směnová odměna nemá časové metriky.")
-    if afternoon_hours_enabled and (afternoon_start_minutes is None or not 0 <= afternoon_start_minutes <= 1319):
+    if afternoon_hours_enabled and (
+        afternoon_start_minutes is None or not 0 <= afternoon_start_minutes <= 1319
+    ):
         raise ValueError("Začátek odpoledního pásma musí být mezi 00:00 a 21:59.")
     if not afternoon_hours_enabled and afternoon_start_minutes is not None:
         raise ValueError("Začátek odpoledního pásma lze nastavit pouze při jeho sledování.")
@@ -156,9 +167,7 @@ def employment_label(employment: Employment, user_name: str | None = None) -> st
 
 def display_metrics_for_employment(employment: Employment) -> list[str]:
     """Return the only metric columns consumers may render for this employment."""
-    employment_type = str(
-        getattr(employment.employment_type, "value", employment.employment_type)
-    )
+    employment_type = str(getattr(employment.employment_type, "value", employment.employment_type))
     if employment_type == EmploymentType.TASK_SHIFT_BASED.value:
         return []
     result = ["total"] if employment.total_hours_enabled else []
@@ -180,19 +189,29 @@ class LoginEmploymentSelection:
 
 
 def select_login_employments(user: PortalUser, today: date) -> LoginEmploymentSelection:
-    eligible = [employment for employment in user.employments if employment_is_within_login_window(employment, today)]
+    eligible = [
+        employment
+        for employment in user.employments
+        if employment_is_within_login_window(employment, today)
+    ]
     eligible.sort(key=lambda item: (_safe_start_date(item) or date.max, item.id))
 
-    current = [employment for employment in eligible if employment_is_valid_on_day(employment, today)]
+    current = [
+        employment for employment in eligible if employment_is_valid_on_day(employment, today)
+    ]
     if current:
         current.sort(key=lambda item: (_safe_start_date(item) or date.max, item.id))
         return LoginEmploymentSelection(available=eligible, default=current[0])
 
-    upcoming = [employment for employment in eligible if (_safe_start_date(employment) or date.min) > today]
+    upcoming = [
+        employment for employment in eligible if (_safe_start_date(employment) or date.min) > today
+    ]
     if upcoming:
         upcoming.sort(key=lambda item: (_safe_start_date(item) or date.max, item.id))
         return LoginEmploymentSelection(available=eligible, default=upcoming[0])
 
-    recent = [employment for employment in eligible if (_safe_end_date(employment) or date.max) < today]
+    recent = [
+        employment for employment in eligible if (_safe_end_date(employment) or date.max) < today
+    ]
     recent.sort(key=lambda item: (_safe_end_date(item) or today, item.id), reverse=True)
     return LoginEmploymentSelection(available=eligible, default=recent[0] if recent else None)
