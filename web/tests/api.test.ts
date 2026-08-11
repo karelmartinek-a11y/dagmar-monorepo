@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { api, request, setPortalToken } from "../src/api/client";
+import { api, request } from "../src/api/client";
 
 describe("API auth boundaries", () => {
-  it("sends the employee token only in portal mode", async () => {
-    setPortalToken("employee-test-token");
+  it("uses the credentialed browser cookie contract without exposing a bearer", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } }));
     await request("/api/v1/attendance", {}, "portal");
     const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
-    expect(headers.get("Authorization")).toBe("Bearer employee-test-token");
+    expect(headers.get("Authorization")).toBeNull();
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe("include");
   });
 
   it("normalizes backend errors and request IDs", async () => {

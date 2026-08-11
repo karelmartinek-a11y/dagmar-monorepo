@@ -114,7 +114,7 @@ def test_manifest_includes_repository_layout_and_runtime_invariants() -> None:
         "backend_bind": "127.0.0.1:8101",
         "postgres_bind": "127.0.0.1:5433",
         "admin_auth": "session_cookie_plus_csrf",
-        "employee_auth": "bearer_instance_token",
+        "employee_auth": "portal_http_only_cookie_or_non_browser_bearer_plus_cookie_csrf",
         "integration_auth": "dgi_bearer_token",
         "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
         "hours_authority": "backend_daily_tenths_monthly_sum_of_daily_tenths",

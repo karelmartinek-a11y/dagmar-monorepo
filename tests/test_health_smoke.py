@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import os
 
-from fastapi.testclient import TestClient
+from starlette.testclient import TestClient
 
 os.environ.setdefault("DAGMAR_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("DAGMAR_SESSION_SECRET", "x" * 32)
-os.environ.setdefault("DAGMAR_CSRF_SECRET", "y" * 32)
 
 from app.main import app
 

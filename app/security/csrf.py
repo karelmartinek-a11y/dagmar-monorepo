@@ -6,9 +6,10 @@ from collections.abc import MutableMapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from fastapi import Header, HTTPException, Request, Response
+from fastapi import Header, Request, Response
 
-from app.config import Settings, get_settings
+from app.api.errors import EnvelopedAPIError, raise_enveloped_api_error
+from app.config import Settings
 
 
 @dataclass(frozen=True)
@@ -18,16 +19,16 @@ class CsrfConfig:
     We do not rely on third-party services.
 
     Design:
-      - Issue a random CSRF token and store it in the admin session.
-      - Require the token on state-changing admin requests.
+      - Issue a random CSRF token and store it in the signed middleware session.
+      - Require the token on state-changing admin or portal-cookie requests.
       - Accept token via:
           * header: X-CSRF-Token
           * form field: csrf_token
 
     Cookie policy:
-      - Admin session cookie itself is HttpOnly+Secure+SameSite and not readable by JS.
-      - CSRF token is not a cookie; it's provided to the frontend via API /admin/me
-        (or embedded into admin HTML) and then echoed back.
+      - Authentication cookies are HttpOnly+Secure+SameSite and not readable by JS.
+      - CSRF token is not a cookie; the admin or portal CSRF bootstrap endpoint
+        returns it and the frontend echoes it in X-CSRF-Token.
     """
 
     header_name: str = "X-CSRF-Token"
@@ -35,9 +36,12 @@ class CsrfConfig:
     rotate_minutes: int = 120
 
 
-class CsrfError(HTTPException):
+class CsrfError(EnvelopedAPIError):
     def __init__(self, detail: str = "CSRF validation failed"):
-        super().__init__(status_code=403, detail=detail)
+        super().__init__(
+            status_code=403,
+            detail={"code": "csrf_invalid", "message": detail},
+        )
 
 
 def _utcnow() -> datetime:
@@ -83,13 +87,12 @@ def csrf_issue_token(
     settings: Settings | None = None,
     cfg: CsrfConfig | None = None,
 ) -> str:
-    """Compatibility helper used by admin login endpoint.
+    """Issue or reuse the synchronizer token for admin and portal bootstrap routes.
 
     - Stores/rotates token in the Starlette session if available.
     - Returns the token and optionally mirrors it in response headers for SPA use.
     """
 
-    settings = settings or get_settings()
     cfg = cfg or CsrfConfig()
 
     session_store: MutableMapping[str, object] | None = None
@@ -106,16 +109,6 @@ def csrf_issue_token(
 
     if response is not None:
         response.headers[cfg.header_name] = token
-        # CSRF token is not HttpOnly; expose for SPA consumption.
-        response.set_cookie(
-            "dagmar_csrf_token",
-            token,
-            max_age=settings.session_max_age_seconds,
-            secure=settings.cookie_secure,
-            httponly=False,
-            samesite=settings.cookie_samesite,
-            path="/",
-        )
 
     return token
 
@@ -150,21 +143,30 @@ def extract_csrf_token(
     if csrf_header:
         return csrf_header.strip()
 
-    # Fallback: cookie set by csrf_issue_token (SPA může nepředat header).
-    cookie_val = request.cookies.get("dagmar_csrf_token")
-    if cookie_val:
-        return cookie_val.strip()
-
     # For classic HTML forms (admin UI), accept csrf_token form field.
     # Note: reading form requires async; thus this is used only in dependency below.
     return None
+
+
+def require_csrf_header(request: Request) -> None:
+    """Validate the SPA CSRF header without consuming a request body."""
+
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return
+    session = _get_request_session(request)
+    expected = session.get("csrf_token") if session else None
+    provided = request.headers.get("X-CSRF-Token", "").strip()
+    if not isinstance(expected, str) or not expected or not provided:
+        raise_enveloped_api_error(403, "csrf_invalid", "CSRF token chybí nebo není platný.")
+    if not _constant_time_eq(provided, expected):
+        raise_enveloped_api_error(403, "csrf_invalid", "CSRF token chybí nebo není platný.")
 
 
 async def require_csrf(
     request: Request,
     csrf_header: str | None = Header(default=None, alias="X-CSRF-Token"),
 ) -> None:
-    """Dependency to protect state-changing admin endpoints.
+    """Dependency to protect state-changing cookie-auth endpoints.
 
     Usage:
         @router.post("/something")
@@ -215,8 +217,7 @@ async def require_csrf(
 def attach_csrf_token_to_response(response: Response, token: str) -> None:
     """Optional helper.
 
-    For SPA admin, it is usually better to return the token from /admin/me.
-    We keep this helper for completeness.
+    The SPA normally reads the token from its dedicated CSRF bootstrap endpoint.
     """
 
     response.headers["X-CSRF-Token"] = token

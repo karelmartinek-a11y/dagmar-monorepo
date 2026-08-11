@@ -17,18 +17,18 @@ export class ApiError extends Error {
 }
 
 type Mode = "public" | "portal" | "admin";
-let csrfToken: string | null = null;
-let portalToken: string | null = null;
+let adminCsrfToken: string | null = null;
+let portalCsrfToken: string | null = null;
 
-export function setPortalToken(token: string | null) { portalToken = token; }
-
-async function csrf(): Promise<string> {
-  if (csrfToken) return csrfToken;
-  const response = await fetch("/api/v1/admin/csrf", { credentials: "include" });
+async function csrf(mode: "admin" | "portal"): Promise<string> {
+  const cached = mode === "admin" ? adminCsrfToken : portalCsrfToken;
+  if (cached) return cached;
+  const response = await fetch(`/api/v1/${mode}/csrf`, { credentials: "include" });
   if (!response.ok) throw await responseError(response);
   const payload = await response.json() as { csrf_token: string };
-  csrfToken = payload.csrf_token;
-  return csrfToken;
+  if (mode === "admin") adminCsrfToken = payload.csrf_token;
+  else portalCsrfToken = payload.csrf_token;
+  return payload.csrf_token;
 }
 
 async function responseError(response: Response): Promise<ApiError> {
@@ -65,17 +65,19 @@ export async function request<T>(
 ): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
-  if (mode === "portal" && portalToken) headers.set("Authorization", `Bearer ${portalToken}`);
   const method = (options.method ?? "GET").toUpperCase();
-  if (mode === "admin" && !["GET", "HEAD", "OPTIONS"].includes(method)) headers.set("X-CSRF-Token", await csrf());
+  if ((mode === "admin" || mode === "portal") && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    headers.set("X-CSRF-Token", await csrf(mode));
+  }
   let response: Response;
   try {
-    response = await fetch(path, { ...options, headers, credentials: mode === "admin" ? "include" : "same-origin" });
+    response = await fetch(path, { ...options, headers, credentials: mode === "public" ? "same-origin" : "include" });
   } catch {
     throw new ApiError(i18n.t("common.status.networkOffline"), 0, "offline", null);
   }
   if (!response.ok) {
-    if (response.status === 403 && mode === "admin") csrfToken = null;
+    if (response.status === 403 && mode === "admin") adminCsrfToken = null;
+    if (response.status === 403 && mode === "portal") portalCsrfToken = null;
     throw await responseError(response);
   }
   if (response.status === 204) return undefined as T;
@@ -91,17 +93,19 @@ export async function requestBlob(
 ): Promise<{ blob: Blob; filename: string | null; contentType: string | null }> {
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
-  if (mode === "portal" && portalToken) headers.set("Authorization", `Bearer ${portalToken}`);
   const method = (options.method ?? "GET").toUpperCase();
-  if (mode === "admin" && !["GET", "HEAD", "OPTIONS"].includes(method)) headers.set("X-CSRF-Token", await csrf());
+  if ((mode === "admin" || mode === "portal") && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    headers.set("X-CSRF-Token", await csrf(mode));
+  }
   let response: Response;
   try {
-    response = await fetch(path, { ...options, headers, credentials: mode === "admin" ? "include" : "same-origin" });
+    response = await fetch(path, { ...options, headers, credentials: mode === "public" ? "same-origin" : "include" });
   } catch {
     throw new ApiError(i18n.t("common.status.networkOffline"), 0, "offline", null);
   }
   if (!response.ok) {
-    if (response.status === 403 && mode === "admin") csrfToken = null;
+    if (response.status === 403 && mode === "admin") adminCsrfToken = null;
+    if (response.status === 403 && mode === "portal") portalCsrfToken = null;
     throw await responseError(response);
   }
   const disposition = response.headers.get("content-disposition");
@@ -117,6 +121,14 @@ export const api = {
   portalLogin: (email: string, password: string): Promise<PortalLogin> => request(
     "/api/v1/portal/login", { method: "POST", body: JSON.stringify({ email, password }) }, "public", portalLoginSchema,
   ),
+  portalSession: (): Promise<PortalLogin> => request(
+    "/api/v1/portal/session", {}, "portal", portalLoginSchema,
+  ),
+  portalLogout: async () => {
+    const result = await request<{ ok: boolean }>("/api/v1/portal/logout", { method: "POST" }, "portal");
+    portalCsrfToken = null;
+    return result;
+  },
   portalReset: (token: string, password: string) => request<{ ok: boolean }>(
     "/api/v1/portal/reset", { method: "POST", body: JSON.stringify({ token, password }) },
   ),
@@ -171,12 +183,12 @@ export const api = {
   ),
   adminMe: () => request<{ authenticated: boolean; username: string | null }>("/api/v1/admin/me", {}, "admin"),
   adminLogin: async (username: string, password: string) => {
-    csrfToken = null;
+    adminCsrfToken = null;
     return request<{ ok: boolean }>("/api/v1/admin/login", { method: "POST", body: JSON.stringify({ username, password }) }, "admin");
   },
   adminLogout: async () => {
     const result = await request<{ ok: boolean }>("/api/v1/admin/logout", { method: "POST" }, "admin");
-    csrfToken = null;
+    adminCsrfToken = null;
     return result;
   },
   admin: <T>(path: string, options: RequestInit = {}) => request<T>(path, options, "admin"),

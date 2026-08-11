@@ -51,7 +51,7 @@ for (const language of languages) test(`capture ${language} responsive design vi
       { name: "employee-group-plan", tab: 2 },
     ]) {
       await page.getByRole("tab").nth(item.tab).click();
-      if (item.name === "employee-group-plan") await page.locator(".group-plan-table").waitFor({ state: "attached" });
+      if (item.name === "employee-group-plan") await page.locator(".group-plan-table-wrap").waitFor({ state: "attached" });
       await page.screenshot({ path: path.join(output!, `${language}-${viewport.name}-${item.name}.png`) });
     }
   }
@@ -67,6 +67,13 @@ for (const language of languages) test(`capture ${language} responsive design vi
     await page.setViewportSize(viewport);
     await page.screenshot({ path: path.join(output!, `${language}-${viewport.name}-admin-print-preview.png`), fullPage: true });
   }
+  await page.setViewportSize(viewports[0]);
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".print-sheet").first()).toBeVisible();
+  await page.locator(".print-sheet").first().screenshot({
+    path: path.join(output!, `${language}-desktop-admin-print-media.png`),
+  });
+  await page.emulateMedia({ media: "screen" });
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     for (const item of [

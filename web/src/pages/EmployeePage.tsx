@@ -23,7 +23,6 @@ import { Button, Field, StatusMessage } from "../components/Primitives";
 import { ClockInput } from "../components/ClockInput";
 import {
   clearPortalSession,
-  loadPortalSession,
   replaceAvailableEmployments,
   savePortalLogin,
   selectEmployment,
@@ -312,9 +311,7 @@ function EmployeePlanTable({
 
 export function EmployeePage() {
   const { t } = useTranslation();
-  const [session, setSession] = useState<PortalSession | null>(() =>
-    loadPortalSession(),
-  );
+  const [session, setSession] = useState<PortalSession | null | undefined>(undefined);
   const [month, setMonth] = useState(() => new Date());
   const [view, setView] = useState<View>("attendance");
   const [notice, setNotice] = useState<string | null>(null);
@@ -324,6 +321,18 @@ export function EmployeePage() {
   const queryClient = useQueryClient();
   const year = month.getFullYear();
   const monthNumber = month.getMonth() + 1;
+  useEffect(() => {
+    let active = true;
+    const externalComplete = new URLSearchParams(window.location.search).get("external_auth") === "complete";
+    const restore = externalComplete ? api.consumeExternalLogin() : api.portalSession();
+    void restore
+      .then((login) => {
+        if (active) setSession(savePortalLogin(login));
+        if (externalComplete) window.history.replaceState({}, "", "/app");
+      })
+      .catch(() => { if (active) setSession(null); });
+    return () => { active = false; };
+  }, []);
   const employments = useQuery({
     queryKey: ["attendance-employments", year, monthNumber],
     queryFn: () => api.attendanceEmployments(year, monthNumber),
@@ -388,7 +397,8 @@ export function EmployeePage() {
         reason instanceof Error ? reason.message : "Plán se nepodařilo uložit.",
       ),
   });
-  if (!session) return <Login onLogin={setSession} />;
+  if (session === undefined) return <main className="employee-app" aria-busy="true" />;
+  if (session === null) return <Login onLogin={setSession} />;
   return (
     <main className="employee-app">
       <header className="employee-topbar">
@@ -398,8 +408,10 @@ export function EmployeePage() {
           <Button
             variant="quiet"
             onClick={() => {
-              clearPortalSession();
-              setSession(null);
+              void api.portalLogout().finally(() => {
+                clearPortalSession();
+                setSession(null);
+              });
             }}
           >
             <LogOut />

@@ -1,42 +1,34 @@
 import type { Employment, PortalLogin, PortalSession } from "../api/types";
-import { setPortalToken } from "../api/client";
 
-const KEY = "kajovodagmar.portal.session.v1";
+const LEGACY_KEY = "kajovodagmar.portal.session.v1";
 
-export function loadPortalSession(): PortalSession | null {
+// Remove the historical bearer-bearing record; browser credentials now live only
+// in the backend-issued HttpOnly cookie.
+function removeLegacyCredential() {
   try {
-    const value = localStorage.getItem(KEY);
-    if (!value) return null;
-    const session = JSON.parse(value) as PortalSession;
-    if (!session.instance_token || !Array.isArray(session.available_employments)) return null;
-    setPortalToken(session.instance_token);
-    return session;
-  } catch { return null; }
+    localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    // Storage can be disabled; the server-side cookie remains authoritative.
+  }
 }
 
+removeLegacyCredential();
+
 export function savePortalLogin(login: PortalLogin): PortalSession {
-  const session = { ...login, selected_employment_id: login.employment_id };
-  localStorage.setItem(KEY, JSON.stringify(session));
-  setPortalToken(session.instance_token);
-  return session;
+  return { ...login, selected_employment_id: login.employment_id };
 }
 
 export function selectEmployment(session: PortalSession, employmentId: number): PortalSession {
-  const next = { ...session, selected_employment_id: employmentId };
-  localStorage.setItem(KEY, JSON.stringify(next));
-  return next;
+  return { ...session, selected_employment_id: employmentId };
 }
 
 export function replaceAvailableEmployments(session: PortalSession, employments: Employment[]): PortalSession {
   const selected = employments.some((item) => item.id === session.selected_employment_id)
     ? session.selected_employment_id
     : (employments[0]?.id ?? null);
-  const next = { ...session, available_employments: employments, selected_employment_id: selected };
-  localStorage.setItem(KEY, JSON.stringify(next));
-  return next;
+  return { ...session, available_employments: employments, selected_employment_id: selected };
 }
 
 export function clearPortalSession() {
-  localStorage.removeItem(KEY);
-  setPortalToken(null);
+  removeLegacyCredential();
 }

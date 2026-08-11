@@ -2,24 +2,46 @@
 from __future__ import annotations
 
 import json
+import logging
 import smtplib
 from email.message import EmailMessage
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field, ValidationError
-from starlette.responses import RedirectResponse
 
-from app.api.errors import raise_api_error
+from app.api.errors import raise_api_error, raise_enveloped_api_error
 from app.config import Settings, get_settings
 from app.db.models import AppSettings
 from app.db.session import get_db
 from app.security.crypto import decrypt_secret
-from app.security.csrf import csrf_issue_token
+from app.security.csrf import csrf_issue_token, require_csrf
+from app.security.lockout import (
+    ADMIN_LOCKOUT_DURATION,
+    ADMIN_LOCKOUT_THRESHOLD,
+    ADMIN_LOCKOUT_WINDOW,
+    clear_user_lockout,
+    get_lockout_state,
+    is_locked,
+    record_failed_login,
+)
 from app.security.passwords import verify_password
 from app.security.rate_limit import limiter
 from app.security.sessions import clear_admin_session, get_admin_session, set_admin_session
 
 router = APIRouter(tags=["admin"])
+logger = logging.getLogger("dagmar.security")
+
+
+def _audit_admin_login(request: Request, event: str) -> None:
+    source_ip = request.headers.get("x-real-ip") or (
+        request.client.host if request.client else "unknown"
+    )
+    logger.info(
+        "security_event=%s request_id=%s source_ip=%s",
+        event,
+        getattr(request.state, "request_id", "unknown"),
+        source_ip,
+    )
 
 
 class AdminLoginBody(BaseModel):
@@ -132,6 +154,7 @@ async def admin_login(
     request: Request,
     response: Response,
     settings: Settings = Depends(get_settings),
+    db=Depends(get_db),
 ):
     """Admin login.
 
@@ -142,14 +165,28 @@ async def admin_login(
 
     Notes:
       - Only a single admin credential pair is supported (seeded via env).
-      - Session is server-side (in-memory) and intended for single-node deployment.
+      - Session is a stateless signed HttpOnly cookie.
     """
 
     configured_user = (settings.admin_username or "").strip().lower()
     configured_hash = settings.admin_password_hash
 
     if not configured_hash:
-        raise_api_error(503, "admin_account_not_initialized", "Admin účet není inicializován. Spusťte scripts/seed_admin.sh.")
+        raise_enveloped_api_error(
+            503,
+            "admin_account_not_initialized",
+            "Admin účet není inicializován v bezpečné serverové konfiguraci.",
+        )
+
+    lock_state = get_lockout_state(db, actor_type="admin", principal=configured_user, create=True)
+    if lock_state is not None and is_locked(lock_state):
+        db.commit()
+        _audit_admin_login(request, "admin_login_locked")
+        raise_enveloped_api_error(
+            423,
+            "admin_account_locked",
+            "Administrátorský účet je na 15 minut uzamčen.",
+        )
 
     payload = await _parse_admin_login_body(request)
     if not payload:
@@ -163,8 +200,28 @@ async def admin_login(
     pass_ok = verify_password(payload.password, configured_hash)
 
     if not (user_ok and pass_ok):
+        if lock_state is not None:
+            record_failed_login(
+                lock_state,
+                lock_duration=ADMIN_LOCKOUT_DURATION,
+                threshold=ADMIN_LOCKOUT_THRESHOLD,
+                window=ADMIN_LOCKOUT_WINDOW,
+            )
+            db.add(lock_state)
+            db.commit()
+            if is_locked(lock_state):
+                _audit_admin_login(request, "admin_login_lock_started")
+                raise_enveloped_api_error(
+                    423,
+                    "admin_account_locked",
+                    "Administrátorský účet je na 15 minut uzamčen.",
+                )
+        _audit_admin_login(request, "admin_login_failed")
         raise_api_error(401, "admin_login_invalid_credentials", "Neplatné přihlašovací údaje")
 
+    clear_user_lockout(db, actor_type="admin", principal=configured_user)
+    db.commit()
+    _audit_admin_login(request, "admin_login_succeeded")
     set_admin_session(response=response, username=configured_user, settings=settings)
     csrf = csrf_issue_token(request=request, response=response, settings=settings)
     return {"ok": True, "csrf_token": csrf}
@@ -185,18 +242,10 @@ async def admin_logout(
     request: Request,
     response: Response,
     settings: Settings = Depends(get_settings),
+    _: None = Depends(require_csrf),
 ):
     clear_admin_session(response=response, settings=settings)
     return {"ok": True}
-
-
-@router.get("/api/v1/admin/logout", include_in_schema=False)
-async def admin_logout_redirect(
-    settings: Settings = Depends(get_settings),
-):
-    resp = RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
-    clear_admin_session(response=resp, settings=settings)
-    return resp
 
 
 @router.get("/api/v1/admin/me", response_model=AdminMeResponse)

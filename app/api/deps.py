@@ -7,26 +7,34 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.errors import raise_enveloped_api_error
 from app.api.integration_common import (
     IntegrationError,
     get_audit_context,
     get_source_ip,
     init_integration_request,
 )
+from app.config import Settings, get_settings
 from app.db import models
 from app.db.session import get_db
+from app.security.csrf import require_csrf_header
 from app.security.integration_tokens import (
     IntegrationTokenError,
     touch_client_last_used,
     verify_integration_token,
 )
-from app.security.sessions import get_admin_session
+from app.security.sessions import (
+    get_admin_session,
+    get_portal_session,
+    portal_session_matches_password,
+)
 from app.security.tokens import verify_instance_token
 
 
 @dataclass(frozen=True)
 class InstanceAuth:
     instance: models.Instance
+    browser_cookie: bool = False
 
 
 @dataclass(frozen=True)
@@ -67,11 +75,19 @@ def require_instance_auth(
 ) -> InstanceAuth:
     token = _bearer_from_auth_header(authorization)
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Bearer token")
+        raise_enveloped_api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "portal_session_missing",
+            "Přihlášení chybí.",
+        )
 
     instance = verify_instance_token(db=db, raw_token=token)
     if instance is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise_enveloped_api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "portal_session_invalid",
+            "Přihlášení není platné.",
+        )
 
     if instance.status != models.InstanceStatus.ACTIVE:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Instance not active")
@@ -91,15 +107,31 @@ def require_portal_user_auth(
     request: Request,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
+    settings: Settings = Depends(get_settings),
 ) -> PortalUserAuth:
-    auth = require_instance_auth(request=request, db=db, authorization=authorization)
-    user = (
-        db.execute(select(models.PortalUser).where(models.PortalUser.instance_id == auth.instance.id))
-        .scalars()
-        .first()
-    )
+    bearer = _bearer_from_auth_header(authorization)
+    instance: models.Instance | None
+    if bearer:
+        auth = require_instance_auth(request=request, db=db, authorization=authorization)
+        user = db.execute(
+            select(models.PortalUser).where(models.PortalUser.instance_id == auth.instance.id)
+        ).scalar_one_or_none()
+        instance = auth.instance
+    else:
+        browser_session = get_portal_session(request, settings)
+        if not browser_session.is_authenticated or browser_session.user_id is None:
+            raise_enveloped_api_error(status.HTTP_401_UNAUTHORIZED, "portal_session_invalid", "Přihlášení není platné.")
+        user = db.get(models.PortalUser, browser_session.user_id)
+        if user is None or user.password_hash is None or not portal_session_matches_password(
+            browser_session, user.password_hash, settings
+        ):
+            raise_enveloped_api_error(status.HTTP_401_UNAUTHORIZED, "portal_session_invalid", "Přihlášení není platné.")
+        instance = user.instance
+        require_csrf_header(request)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="K tokenu neni prirazen uzivatel")
+    if instance is None or instance.status != models.InstanceStatus.ACTIVE:
+        raise_enveloped_api_error(status.HTTP_403_FORBIDDEN, "portal_instance_inactive", "Přístupová instance není aktivní.")
     if user.is_blocked:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -108,7 +140,7 @@ def require_portal_user_auth(
                 "message": "Váš přístup byl zablokován, obraťte se na svého nadřízeného.",
             },
         )
-    return PortalUserAuth(instance=auth.instance, user=user)
+    return PortalUserAuth(instance=instance, user=user)
 
 
 def require_integration_auth(

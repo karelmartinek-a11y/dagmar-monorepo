@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
+from app.api.errors import EnvelopedAPIError
 from app.api.integration_common import (
     INTEGRATION_NAMESPACE,
     IntegrationError,
@@ -220,7 +221,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "invalid_request" if exc.status_code == 400 else "internal_error",
                 str(exc.detail) if isinstance(exc.detail, str) else "Požadavek se nepodařilo zpracovat.",
             )
-        return await http_exception_handler(request, HTTPException(status_code=exc.status_code, detail=exc.detail))
+        if isinstance(exc, EnvelopedAPIError):
+            raw_detail: Any = exc.detail
+            detail: dict[str, Any] = raw_detail if isinstance(raw_detail, dict) else {}
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "error": {
+                        "code": str(detail.get("code") or "invalid_request"),
+                        "message": str(
+                            detail.get("message") or "Požadavek se nepodařilo zpracovat."
+                        ),
+                        **({"details": detail["details"]} if "details" in detail else {}),
+                        "request_id": ensure_request_id(request),
+                    }
+                },
+            )
+        return await http_exception_handler(
+            request, HTTPException(status_code=exc.status_code, detail=exc.detail)
+        )
 
     async def _health_payload() -> dict[str, Any]:
         return {"ok": True}

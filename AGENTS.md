@@ -40,7 +40,7 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - backend interně naslouchá na `127.0.0.1:8101`
 - PostgreSQL je publikovaná pouze na `127.0.0.1:5433`
 - administrace používá session cookie a CSRF
-- zaměstnanecká část používá bearer token
+- zaměstnanecký browser používá samostatnou podepsanou HttpOnly Secure SameSite=Lax cookie `dagmar_portal_session`, jejíž platnost je navázaná na aktuální password credential, a synchronizer CSRF pro mutace; souběžné browserové relace se při loginu navzájem neruší a explicitní bearer instance zůstává pouze pro non-browser klienty
 - integrační API používá samostatné bearer tokeny s prefixem `dgi_`
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
 - skupiny úvazků jsou vztah M:N nad `employment_id`, mají nejméně dva členy a sdílejí pouze plán směn
@@ -63,6 +63,7 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - lidské UI, screen-reader texty, tisky, PDF a CSV/ZIP používají pouze neutrální lokalizovaný pojem `PRŮCHOD`; interní `IN`/`OUT` zůstávají pouze strojovým kontraktem
 - docházkové a plánové detaily zachovávají jeden den v jednom řádku; hromadné pohledy zachovávají jeden `employment_id` v jednom řádku a den v jednom sloupci
 - `ClockInput` je jediný editor ručně zadávaných časů a `timeInput.ts` jediný parser; běžné zadávání času nesmí používat boční editor, formulář, kartu ani modal
+- přímé nastavení i self-service reset hesla používají jednu transakční credential operaci, která revokuje všechny reset/unlock tokeny i credential instance a vyčistí lockout; reset delivery má stav `PENDING/SENT/FAILED` a nejvýše jeden aktivní `SENT` token na uživatele
 
 ## Povinná disciplína změn
 

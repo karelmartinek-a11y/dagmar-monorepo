@@ -13,19 +13,19 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 |---|---|---|---|---|---|---|
 | DAG-P0-001 | Audit-clean hashovaný Python lock | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: `pip-audit` 0 advisories | — |
 | DAG-P0-002 | Runtime enforcement integračního data scope | otevřeno | karelmartinek-a11y | C — integration API | negativní scope testy | — |
-| DAG-P0-003 | Reset revokuje všechny credentials | otevřeno | karelmartinek-a11y | B — auth lifecycle | reset/race/atomicity testy | — |
+| DAG-P0-003 | Reset revokuje všechny credentials | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: reset/race/atomicity testy | — |
 | DAG-P0-004 | Povinné security a secret CI gate | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: security/CodeQL/gitleaks | — |
 | DAG-P1-001 | Frontend lock bez moderate/high advisory | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: npm audit 0 advisories | — |
 | DAG-P1-002 | Přesná kanonická production doména | otevřeno | karelmartinek-a11y | D — production | parametrické config testy | — |
-| DAG-P1-003 | Odstraněný neúčinný CSRF secret | otevřeno | karelmartinek-a11y | B — auth lifecycle | repo invariant + CSRF testy | — |
-| DAG-P1-004 | Odstraněná falešná token-length volba | otevřeno | karelmartinek-a11y | B — auth lifecycle | token-format invariant | — |
-| DAG-P1-005 | Reset token má delivery/revocation lifecycle | otevřeno | karelmartinek-a11y | B — auth lifecycle | SMTP failure testy | — |
-| DAG-P1-006 | Nejvýše jeden aktivní reset token | otevřeno | karelmartinek-a11y | B — auth lifecycle | souběžný issuance test | — |
+| DAG-P1-003 | Odstraněný neúčinný CSRF secret | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: invariant + CSRF testy | — |
+| DAG-P1-004 | Odstraněná falešná token-length volba | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: token-format invariant | — |
+| DAG-P1-005 | Reset token má delivery/revocation lifecycle | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: SMTP failure testy | — |
+| DAG-P1-006 | Nejvýše jeden aktivní reset token | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: souběžný issuance test | — |
 | DAG-P1-007 | Auditovaná admin aktivace instance | otevřeno | karelmartinek-a11y | E — backend | register→activate→claim test | — |
-| DAG-P1-008 | Delete uživatele uklidí jeho WEB instanci | otevřeno | karelmartinek-a11y | B — auth lifecycle | lifecycle + migration test | — |
+| DAG-P1-008 | Delete uživatele uklidí jeho WEB instanci | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: lifecycle + migrace 0025 | — |
 | DAG-P1-009 | Reminder správně páruje eventy přes půlnoc | otevřeno | karelmartinek-a11y | E — backend | reminder chronology testy | — |
 | DAG-P1-010 | Oddělené integrační rate-limit buckety | otevřeno | karelmartinek-a11y | C — integration API | 429 parametrické testy | — |
-| DAG-P1-011 | Časově omezený admin account lockout | otevřeno | karelmartinek-a11y | B — auth lifecycle | admin lockout testy | — |
+| DAG-P1-011 | Časově omezený admin account lockout | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: admin lockout testy | — |
 | DAG-P1-012 | Veřejný build bez sourcemap | otevřeno | karelmartinek-a11y | D — production | artifact sourcemap gate | — |
 | DAG-P1-013 | Enforced production CSP | otevřeno | karelmartinek-a11y | D — production | Nginx header/browser test | — |
 | DAG-P1-014 | Deploy bez credentialu v Git remote | otevřeno | karelmartinek-a11y | D — production | deploy preflight | — |
@@ -55,12 +55,12 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P2-022 | Plně klávesová kontextová menu | otevřeno | karelmartinek-a11y | F — frontend | menu Playwright testy | — |
 | DAG-P2-023 | Neomezené dynamické průchody v UI | otevřeno | karelmartinek-a11y | F — frontend | 0/1/4/5/8 event testy | — |
 | DAG-P2-024 | Zod validace všech JSON kontraktů | otevřeno | karelmartinek-a11y | F — frontend | negativní contract testy | — |
-| DAG-P2-025 | Browser auth pouze HttpOnly cookie | otevřeno | karelmartinek-a11y | B — auth lifecycle | cookie/CSRF/storage testy | — |
-| DAG-P2-026 | Jediná admin session implementace | otevřeno | karelmartinek-a11y | B — auth lifecycle | auth-source invariant | — |
-| DAG-P2-027 | Config je jediný admin password source | otevřeno | karelmartinek-a11y | B — auth lifecycle | admin login source test | — |
+| DAG-P2-025 | Browser auth pouze HttpOnly cookie | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: cookie/CSRF/storage + design `SCHVÁLENO` | — |
+| DAG-P2-026 | Jediná admin session implementace | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: auth-source invariant | — |
+| DAG-P2-027 | Config je jediný admin password source | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: admin login source test | — |
 | DAG-P2-028 | Povinný backend suite má 0 skipped | otevřeno | karelmartinek-a11y | E — backend | pytest strict/zero-skip | — |
-| DAG-P3-001 | Explicitní Alembic path separator | otevřeno | karelmartinek-a11y | G — governance | `alembic heads` bez warningu | — |
-| DAG-P3-002 | Testy bez deprecation warnings | otevřeno | karelmartinek-a11y | B — auth lifecycle | pytest `-W error` | — |
+| DAG-P3-001 | Explicitní Alembic path separator | splněno | karelmartinek-a11y | B — auth prerequisite | CI `31530934021`: Alembic bez warningu | — |
+| DAG-P3-002 | Testy bez deprecation warnings | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: pytest `-W error` | — |
 | DAG-P3-003 | Žádné auditované nepoužité `cls` | otevřeno | karelmartinek-a11y | G — governance | Vulture gate | — |
 | DAG-P3-004 | Textové configy končí LF | otevřeno | karelmartinek-a11y | G — governance | newline invariant | — |
 | DAG-P3-005 | Čitelné formátované TS/TSX | otevřeno | karelmartinek-a11y | G — governance | Prettier gate | — |

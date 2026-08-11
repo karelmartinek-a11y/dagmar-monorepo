@@ -79,7 +79,6 @@ jobs:
       DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_backend
       DAGMAR_DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_backend
       DAGMAR_SESSION_SECRET: ci-session-secret-ci-session-secret-1234
-      DAGMAR_CSRF_SECRET: ci-csrf-secret-ci-csrf-secret-123456
       DAGMAR_E2E_SEED: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -121,7 +120,7 @@ jobs:
         run: |
           python -m build --wheel --no-isolation
           mkdir -p backend-artifact/wheelhouse backend-artifact/dist
-          python -m pip download --require-hashes -r requirements-prod.lock -d backend-artifact/wheelhouse
+          python -m pip download --only-binary=:all: --require-hashes -r requirements-prod.lock -d backend-artifact/wheelhouse
           python -m pip download --only-binary=:all: pip==26.0 -d backend-artifact/wheelhouse
           cp dist/*.whl backend-artifact/dist/
           cp requirements-prod.lock alembic.ini gunicorn.conf.py backend-artifact/
@@ -133,9 +132,9 @@ jobs:
         run: |
           python -m venv /tmp/dagmar-wheel-test
           /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/wheelhouse pip==26.0
-          /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/wheelhouse --require-hashes -r requirements-prod.lock
+          /tmp/dagmar-wheel-test/bin/pip install --no-index --only-binary=:all: --find-links backend-artifact/wheelhouse --require-hashes -r requirements-prod.lock
           /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/dist --no-deps kajovodagmar
-          (cd /tmp && DAGMAR_DATABASE_URL="$DAGMAR_DATABASE_URL" DAGMAR_SESSION_SECRET="$DAGMAR_SESSION_SECRET" DAGMAR_CSRF_SECRET="$DAGMAR_CSRF_SECRET" /tmp/dagmar-wheel-test/bin/python -c 'from app.main import app; assert app.title')
+          (cd /tmp && DAGMAR_DATABASE_URL="$DAGMAR_DATABASE_URL" DAGMAR_SESSION_SECRET="$DAGMAR_SESSION_SECRET" /tmp/dagmar-wheel-test/bin/python -c 'from app.main import app; assert app.title')
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: backend-release
@@ -163,7 +162,6 @@ jobs:
       DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_web
       DAGMAR_DATABASE_URL: postgresql+psycopg://dagmar:dagmar-e2e@127.0.0.1:5433/dagmar_e2e_web
       DAGMAR_SESSION_SECRET: ci-session-secret-ci-session-secret-1234
-      DAGMAR_CSRF_SECRET: ci-csrf-secret-ci-csrf-secret-123456
       DAGMAR_COOKIE_SECURE: "false"
       DAGMAR_RATE_LIMIT_ENABLED: "false"
       DAGMAR_DISABLE_DOCS: "true"
@@ -298,7 +296,7 @@ jobs:
             (cd "$BACK_RELEASE" && sha256sum -c SHA256SUMS)
             python3 -m venv "$BACK_RELEASE/.venv"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" pip==26.0
-            "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
+            "$BACK_RELEASE/.venv/bin/pip" install --no-index --only-binary=:all: --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
             APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, app; print(pathlib.Path(app.__file__).parent)')
             ln -s "$APP_DIR" "$BACK_RELEASE/app"

@@ -76,7 +76,6 @@ def test_settings_reject_forbidden_public_domain() -> None:
     settings = Settings(
         database_url="sqlite:///tmp.db",
         session_secret="x" * 32,
-        csrf_secret="y" * 32,
         public_base_url=f"https://{FORBIDDEN_DOMAIN}",
     )
     with pytest.raises(ValueError):

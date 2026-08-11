@@ -290,14 +290,6 @@
     },
     {
       "auth_mode": "admin_session",
-      "handler": "app.api.v1.admin_auth.admin_logout_redirect",
-      "methods": [
-        "GET"
-      ],
-      "path": "/api/v1/admin/logout"
-    },
-    {
-      "auth_mode": "admin_session",
       "handler": "app.api.v1.admin_auth.admin_me",
       "methods": [
         "GET"
@@ -433,7 +425,7 @@
       "path": "/api/v1/admin/users/{user_id}/unlock"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.attendance.get_month_attendance",
       "methods": [
         "GET"
@@ -441,7 +433,7 @@
       "path": "/api/v1/attendance"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.attendance.upsert_attendance_status",
       "methods": [
         "PUT"
@@ -449,7 +441,7 @@
       "path": "/api/v1/attendance/day-status"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.attendance.get_month_employments",
       "methods": [
         "GET"
@@ -457,7 +449,7 @@
       "path": "/api/v1/attendance/employments"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.attendance.create_attendance_event",
       "methods": [
         "POST"
@@ -465,7 +457,7 @@
       "path": "/api/v1/attendance/events"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.attendance.update_attendance_event",
       "methods": [
         "PUT"
@@ -473,7 +465,7 @@
       "path": "/api/v1/attendance/events/{event_id}"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.attendance.delete_attendance_event",
       "methods": [
         "DELETE"
@@ -617,7 +609,7 @@
       "path": "/api/v1/integration/openapi.json"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.external_auth.employee_methods",
       "methods": [
         "GET"
@@ -625,7 +617,7 @@
       "path": "/api/v1/portal/auth-methods"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.external_auth.employee_unlink",
       "methods": [
         "DELETE"
@@ -633,12 +625,20 @@
       "path": "/api/v1/portal/auth-methods/{provider}"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.external_auth.employee_link",
       "methods": [
         "POST"
       ],
       "path": "/api/v1/portal/auth-methods/{provider}/link"
+    },
+    {
+      "auth_mode": "public",
+      "handler": "app.api.v1.portal_auth.portal_csrf",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/portal/csrf"
     },
     {
       "auth_mode": "public",
@@ -649,6 +649,14 @@
       "path": "/api/v1/portal/login"
     },
     {
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
+      "handler": "app.api.v1.portal_auth.portal_logout",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/portal/logout"
+    },
+    {
       "auth_mode": "public",
       "handler": "app.api.v1.portal_auth.portal_reset",
       "methods": [
@@ -657,7 +665,15 @@
       "path": "/api/v1/portal/reset"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
+      "handler": "app.api.v1.portal_auth.portal_session",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/portal/session"
+    },
+    {
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.shift_plan.portal_upsert_shift_plan",
       "methods": [
         "PUT"
@@ -665,7 +681,7 @@
       "path": "/api/v1/shift-plan"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.shift_plan.portal_upsert_day_status",
       "methods": [
         "PUT"
@@ -673,7 +689,7 @@
       "path": "/api/v1/shift-plan/day-status"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.shift_plan.portal_list_shift_plan_groups",
       "methods": [
         "GET"
@@ -681,7 +697,7 @@
       "path": "/api/v1/shift-plan/groups"
     },
     {
-      "auth_mode": "portal_bearer",
+      "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.shift_plan.portal_get_group_shift_plan_month",
       "methods": [
         "GET"
@@ -952,10 +968,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2013,
+    "line_count": 2001,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "94f59527fd1076a658ee49d5c5fac486df7ef8430a89d0d8786183fd9abe601e"
+    "sha256": "3d9078bf90bc7b6d1d612d5b12b4c75a391839a3278de93643fe2411ca8bf977"
   },
   "production": {
     "api_base_path": "/api/v1/",
@@ -1008,7 +1024,7 @@
     "api_namespace": "/api/v1/",
     "backend_bind": "127.0.0.1:8101",
     "canonical_domain": "https://dagmar.hcasc.cz",
-    "employee_auth": "bearer_instance_token",
+    "employee_auth": "portal_http_only_cookie_or_non_browser_bearer_plus_cookie_csrf",
     "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
     "hours_authority": "backend_daily_tenths_monthly_sum_of_daily_tenths",
     "integration_auth": "dgi_bearer_token",
