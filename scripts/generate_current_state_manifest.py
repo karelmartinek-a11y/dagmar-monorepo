@@ -150,6 +150,15 @@ def build_manifest() -> dict[str, object]:
             "backend_bind": "127.0.0.1:8101",
             "postgres_bind": "127.0.0.1:5433",
             "deploy_workflow": ".github/workflows/ci-cd.yml",
+            "backend_artifact": "tested_wheel_plus_hashed_offline_wheelhouse",
+        },
+        "supply_chain": {
+            "python_runtime_lock": "requirements-prod.lock",
+            "python_ci_lock": "requirements-dev.lock",
+            "pip_version": "26.0",
+            "pip_tools_version": "7.6.0",
+            "security_gates": ["pip-audit", "npm-audit", "bandit", "codeql", "secret-scan"],
+            "audit_exception_registry": ".security/audit-exceptions.yml",
         },
         "runtime_invariants": {
             "canonical_domain": "https://dagmar.hcasc.cz",

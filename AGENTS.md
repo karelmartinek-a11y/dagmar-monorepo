@@ -71,6 +71,9 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - Nezjednodušuj scope, nenahrazuj produkční logiku mocky, placeholdery, demo daty ani dočasnými zkratkami.
 - Široké přepisy souborů prováděj jen s konkrétním důvodem a následnou regresní validací.
 - Buildy, generátory a skripty nesmí zanechat neočekávané změny ve verzovaných souborech.
+- Python dependency kontrakt tvoří hashované `requirements-prod.lock` a `requirements-dev.lock`; CI i deploy používají `pip==26.0` a nesmějí řešit široké rozsahy za běhu.
+- Produkční backend se nasazuje pouze z CI vytvořeného wheelu a lokálního wheelhouse po ověření SHA-256 manifestu; produkční server nesmí stahovat balíčky ani sestavovat runtime z Git checkoutu.
+- Všechny GitHub Actions jsou připnuté na plný commit SHA a dependency audit, Bandit, CodeQL a secret scan jsou povinné gate bez `continue-on-error`.
 - Před commitem zkontroluj celý diff a potvrď, že nezmizela nesouvisející funkčnost.
 
 Každá změna, včetně malé opravy, musí být před commitem uzavřena napříč všemi dotčenými artefakty. Přidané chování musí být přidáno do relevantních testů, CI kontrol, dokumentace, komentářů, poznámek, manifestů a trvalých pravidel v AGENTS.md. Odstraněné chování musí být ze stejných míst skutečně odstraněno. Nestačí starý text označit jako historický nebo neaktivní. Přejmenování a změna kontraktu musí nahradit všechny staré výskyty. Git historie je jediným místem pro historii odstraněných funkcí.
@@ -146,12 +149,17 @@ alembic heads
 pytest -q
 python scripts/check_repo_invariants.py
 python scripts/generate_current_state_manifest.py --check
+python scripts/check_python_lock.py
+python scripts/check_security_policy.py
+pip-audit -r requirements-prod.lock
+bandit -r app scripts -ll
 ```
 
 Frontend z `web/`:
 
 ```bash
 npm ci
+npm audit --package-lock-only --audit-level=moderate
 npm run check:branding
 npm run lint
 npm run typecheck
