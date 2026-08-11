@@ -108,3 +108,25 @@ def test_google_discovery_revalidates_redirect_target(
     _mock_client(monkeypatch, handler)
     with pytest.raises(ExternalAuthError, match="provider_invalid_configuration"):
         external_auth.google_metadata(_settings())
+
+
+def test_google_discovery_refuses_even_an_allowlisted_redirect_after_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(
+            302,
+            request=request,
+            headers={
+                "location": "https://accounts.google.com/.well-known/openid-configuration"
+            },
+        )
+
+    _mock_client(monkeypatch, handler)
+    with pytest.raises(ExternalAuthError, match="provider_invalid_response"):
+        external_auth.google_metadata(_settings())
+    assert requests == 1

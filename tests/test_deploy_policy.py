@@ -13,7 +13,7 @@ def test_deploy_uses_readiness_and_public_https_browser_smoke() -> None:
     browser_smoke = DEPLOY.index("production-smoke.mjs", public_smoke)
     finalize = DEPLOY.index("Mark success and retain five safe releases", browser_smoke)
     assert activation < local_readiness < public_smoke < browser_smoke < finalize
-    assert "https://dagmar.hcasc.cz" in DEPLOY[public_smoke:finalize]
+    assert "DAGMAR_PRODUCTION_URL" in DEPLOY[public_smoke:finalize]
     assert "/api/v1/health" not in DEPLOY[activation:public_smoke]
 
 
