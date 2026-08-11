@@ -302,6 +302,7 @@ jobs:
             echo "production_arch=$(uname -m)"
             echo "production_python=$(python3 --version 2>&1 || true)"
             command -v python3
+            echo "production_cors_allow_origins=$(sed -n 's/^DAGMAR_CORS_ALLOW_ORIGINS=//p' /etc/dagmar/backend.env | head -n 1)"
 
             install -d "$RELEASES" "$WEB_RELEASES"
             REQUIRED_KB=$(( ($(stat -c %s "$UPLOAD/backend-release.tgz") + $(stat -c %s "$UPLOAD/web-release.tgz")) / 1024 * 10 + 524288 ))
