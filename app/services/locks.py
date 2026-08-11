@@ -29,7 +29,9 @@ def get_lock_model(lock_type: LockType):
     return LOCK_MODEL_BY_TYPE[lock_type]
 
 
-def is_month_locked(db: Session, *, lock_type: LockType, employment_id: int, year: int, month: int) -> bool:
+def is_month_locked(
+    db: Session, *, lock_type: LockType, employment_id: int, year: int, month: int
+) -> bool:
     model = get_lock_model(lock_type)
     row = db.execute(
         select(model).where(
@@ -41,8 +43,12 @@ def is_month_locked(db: Session, *, lock_type: LockType, employment_id: int, yea
     return row is not None
 
 
-def ensure_month_unlocked(db: Session, *, lock_type: LockType, employment_id: int, year: int, month: int) -> None:
-    if not is_month_locked(db, lock_type=lock_type, employment_id=employment_id, year=year, month=month):
+def ensure_month_unlocked(
+    db: Session, *, lock_type: LockType, employment_id: int, year: int, month: int
+) -> None:
+    if not is_month_locked(
+        db, lock_type=lock_type, employment_id=employment_id, year=year, month=month
+    ):
         return
     code, message = LOCK_ERROR_BY_TYPE[lock_type]
     raise_api_error(423, code, message)
@@ -121,13 +127,17 @@ def set_month_lock_state_bulk(
     if not employment_ids:
         return
     model = get_lock_model(lock_type)
-    existing_rows = db.execute(
-        select(model).where(
-            model.employment_id.in_(employment_ids),
-            model.year == year,
-            model.month == month,
+    existing_rows = (
+        db.execute(
+            select(model).where(
+                model.employment_id.in_(employment_ids),
+                model.year == year,
+                model.month == month,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     existing_by_employment_id = {row.employment_id: row for row in existing_rows}
     if locked:
         for employment_id, instance_id in employment_rows:

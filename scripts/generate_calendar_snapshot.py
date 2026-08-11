@@ -16,8 +16,18 @@ import urllib.request
 from pathlib import Path
 
 MONTHS = {
-    "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
-    "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12,
+    "January": 1,
+    "February": 2,
+    "March": 3,
+    "April": 4,
+    "May": 5,
+    "June": 6,
+    "July": 7,
+    "August": 8,
+    "September": 9,
+    "October": 10,
+    "November": 11,
+    "December": 12,
 }
 ALLOWED_FETCH_HOSTS = frozenset(
     {"unpkg.com", "www.churchofengland.org", "namenstage.katholisch.de"}
@@ -39,7 +49,9 @@ def validate_fetch_url(url: str) -> None:
 
 def fetch(url: str) -> str:
     validate_fetch_url(url)
-    request = urllib.request.Request(url, headers={"User-Agent": "KajovoDagmar calendar snapshot maintainer/1.0"})
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "KajovoDagmar calendar snapshot maintainer/1.0"}
+    )
     # B310 is safe here because both the requested and redirect-final URL are validated.
     with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
         validate_fetch_url(response.geturl())
@@ -67,8 +79,12 @@ def parse_common_worship(source: str) -> dict[str, list[str]]:
         if not month:
             continue
         body = section.split("</h5>", 1)[-1]
-        for paragraph in re.findall(r"<p[^>]*class=\"[^\"]*(?:nl1|nl2|ve1)[^\"]*\"[^>]*>(.*?)</p>", body, flags=re.I | re.S):
-            value = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", paragraph)).replace("\xa0", " ").split())
+        for paragraph in re.findall(
+            r"<p[^>]*class=\"[^\"]*(?:nl1|nl2|ve1)[^\"]*\"[^>]*>(.*?)</p>", body, flags=re.I | re.S
+        ):
+            value = " ".join(
+                html.unescape(re.sub(r"<[^>]+>", " ", paragraph)).replace("\xa0", " ").split()
+            )
             match = re.match(r"^(\d{1,2})\s+(.+)$", value)
             if match:
                 key = f"{month:02d}-{int(match.group(1)):02d}"
@@ -80,11 +96,20 @@ async def parse_german() -> dict[str, list[str]]:
     semaphore = asyncio.Semaphore(16)
 
     async def one(month: int, day: int) -> tuple[str, list[str]]:
-        url = "https://namenstage.katholisch.de/namenstage.php?" + urllib.parse.urlencode({"day": day, "month": f"{month:02d}"})
+        url = "https://namenstage.katholisch.de/namenstage.php?" + urllib.parse.urlencode(
+            {"day": day, "month": f"{month:02d}"}
+        )
         async with semaphore:
             source = await asyncio.to_thread(fetch, url)
-        names = [html.unescape(name).strip() for name in re.findall(r"<h2><a href=['\"]\?name=[^'\"]+['\"]>(.*?)</a></h2>", source, flags=re.S)]
-        return f"{month:02d}-{day:02d}", list(dict.fromkeys(re.sub(r"<[^>]+>", "", name) for name in names))
+        names = [
+            html.unescape(name).strip()
+            for name in re.findall(
+                r"<h2><a href=['\"]\?name=[^'\"]+['\"]>(.*?)</a></h2>", source, flags=re.S
+            )
+        ]
+        return f"{month:02d}-{day:02d}", list(
+            dict.fromkeys(re.sub(r"<[^>]+>", "", name) for name in names)
+        )
 
     tasks = [one(month, day) for month in range(1, 13) for day in range(1, 32)]
     return {key: names for key, names in await asyncio.gather(*tasks) if names}
@@ -92,7 +117,9 @@ async def parse_german() -> dict[str, list[str]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--slovak-text", type=Path, help="Text extracted from the pinned official PDF")
+    parser.add_argument(
+        "--slovak-text", type=Path, help="Text extracted from the pinned official PDF"
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.slovak_text:
@@ -101,7 +128,9 @@ def main() -> None:
         slovak = json.loads(args.output.read_text(encoding="utf-8"))["sk"]
     else:
         parser.error("--slovak-text is required when no existing output snapshot can be reused")
-    common_worship = fetch("https://www.churchofengland.org/prayer-and-worship/worship-texts-and-resources/common-worship/churchs-year/calendar")
+    common_worship = fetch(
+        "https://www.churchofengland.org/prayer-and-worship/worship-texts-and-resources/common-worship/churchs-year/calendar"
+    )
     payload = {
         "meta": {
             "version": "2026-07-18",
@@ -117,7 +146,9 @@ def main() -> None:
         "en": parse_common_worship(common_worship),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    args.output.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":

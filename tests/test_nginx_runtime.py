@@ -76,9 +76,7 @@ def test_real_nginx_configuration_and_headers() -> None:
 def _run_nginx_assertions(tls: Path) -> None:
     _generate_certificate(tls)
     mounts = _docker_args(tls)
-    subprocess.run(
-        ["docker", "run", "--rm", *mounts, NGINX_IMAGE, "nginx", "-T"], check=True
-    )
+    subprocess.run(["docker", "run", "--rm", *mounts, NGINX_IMAGE, "nginx", "-T"], check=True)
 
     port = _free_port()
     name = f"dagmar-nginx-test-{uuid.uuid4().hex}"

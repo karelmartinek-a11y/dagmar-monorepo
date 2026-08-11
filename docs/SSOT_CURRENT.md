@@ -342,7 +342,7 @@ Následující seznam je uzavřený inventář aktivních SQLAlchemy entit audit
 
 | Tabulka / entita | Primární klíč | Klíčová data a omezení | Životní cyklus |
 |---|---|---|---|
-| `instances` / `Instance` | UUID string | client type WEB/ANDROID, fingerprint, device JSON, status, display name, volitelná self-FK profilová instance, token pouze jako hash, activation/revoke/deactivate/last-seen timestamps | veřejná registrace → pending; auditovaný repozitář nemá veřejný/admin API endpoint pro přechod pending→active; admin create-user vytváří active WEB instanci přímo; claim rotuje token; FK používají SET NULL |
+| `instances` / `Instance` | UUID string | client type WEB/ANDROID, fingerprint, device JSON, status, display name, volitelná self-FK profilová instance, token pouze jako hash, activation/revoke/deactivate/last-seen timestamps | veřejná registrace → pending; admin může bezpečně vypsat pending instance a atomicky je aktivovat bez vydání tokenu; admin create-user vytváří active WEB instanci přímo; claim rotuje token; FK používají SET NULL |
 | `portal_users` / `PortalUser` | integer | unikátní e-mail, jméno, telefon, jediná role `employee`, password hash nullable, active, samostatný `is_blocked`, volitelná instance | vlastník úvazků; blokace neodebírá profil ani data, ale ruší bearer a reset tokeny; CASCADE na úvazky, reset tokeny a externí identity |
 | `employments` / `Employment` | integer | user FK CASCADE, title, enum type, workload, metric flags, afternoon start, period, active, timestamps; DB check constraints profilu | hlavní scope všech doménových dat; CASCADE na docházku, eventy, metriky, plán, zámky, výběry a členství |
 | `employment_groups` | integer | case-insensitive unikátní name, timestamps | admin CRUD; samotné odstranění nemaže plány |
@@ -380,7 +380,7 @@ Databázová schémata enumů mají stabilní názvy `instance_status`, `employm
 - databáze ukládá pouze hash bearer tokenu, čas vydání a last seen;
 - veřejná registrace vytvoří pending instanci; administrační vytvoření zaměstnance naproti tomu atomicky vytvoří již aktivní `WEB` instanci s fingerprintem `user:<normalizovaný e-mail>`;
 - status endpoint aktualizuje last seen a display name vrací pouze aktivní instanci;
-- claim token je dovolen jen aktivní instanci a vždy token rotuje; auditovaný repozitář však neposkytuje API, kterým by se veřejně registrovaná pending instance aktivovala. Aktivace je tedy mimo popsaný HTTP runtime nebo ruční/provisioning krok a nesmí být vygenerována domněnkou.
+- claim token je dovolen jen aktivní instanci a vždy token rotuje; přechod `PENDING → ACTIVE` provádí pouze CSRF chráněný admin endpoint, který token ani hash nevrací a změnu auditně loguje.
 
 ### PortalUser
 
@@ -562,7 +562,7 @@ Reminder worker:
 - každý pokus je unikátní podle `employment_id`, dne, typu reminderu a sequence number;
 - evidence obsahuje cílový e-mail a čas odeslání;
 - chyba workeru se zaloguje a nesmí shodit webový backend;
-- známý baseline edge case: den s dřívějším uzavřeným intervalem a pozdějším otevřeným `IN` same-day reminder nespustí, protože už existuje nějaký `OUT`; legitimní cross-midnight interval může naopak v předchozím dni vypadat jako `IN` bez `OUT`. Náprava je samostatná změna reminder algoritmu, ne součást UI refaktoringu.
+- otevřenou směnu určuje výhradně poslední event úvazku podle stabilního pořadí `(occurred_at,id)` napříč půlnocí; dřívější uzavřený interval ani cross-midnight `OUT` nesmí vytvořit falešný reminder.
 
 ## Autentizace, autorizace a bezpečnost
 
@@ -791,6 +791,8 @@ U operací, které skutečně vracejí strukturovaný 409 payload s dopadem, je 
 | POST | `/api/v1/instances/register` | vytvoří pending instanci |
 | GET | `/api/v1/instances/{instance_id}/status` | stav a last seen; display name jen active |
 | POST | `/api/v1/instances/{instance_id}/claim-token` | rotuje token aktivní instance |
+| GET | `/api/v1/admin/instances?status=PENDING` | admin session; bezpečná metadata čekajících instancí bez credentialu |
+| POST | `/api/v1/admin/instances/{instance_id}/activate` | admin session + CSRF; pouze `PENDING → ACTIVE`, bez vydání tokenu |
 | POST | `/api/v1/portal/login` | interní zaměstnanecký login |
 | POST | `/api/v1/portal/reset` | jednorázový reset hesla |
 | GET | `/api/v1/auth/providers` | enabled stav Google/Apple |
@@ -833,6 +835,7 @@ Běžné read endpointy vyžadují admin session a mutace současně CSRF. Login
 | users | GET/POST `/api/v1/admin/users` | GET session; POST session + CSRF | seznam / vytvoření |
 | users | PUT/DELETE `/api/v1/admin/users/{user_id}` | admin session + CSRF | editace / odstranění osoby, úvazků a připojené WEB instance v jedné transakci; případné potvrzení zajišťuje klientské UI |
 | users | PUT `/api/v1/admin/users/{user_id}/block` | admin session + CSRF | zapnutí/vypnutí samostatné blokace přihlášení; při zapnutí ruší instance bearer a reset tokeny, administrátorský přístup zůstává |
+| instances | GET `/api/v1/admin/instances?status=PENDING`; POST `/api/v1/admin/instances/{instance_id}/activate` | admin session; mutace navíc CSRF | bezpečný provisioning čekající instance bez zpřístupnění tokenu nebo hashe |
 | users | GET `/api/v1/admin/users/{user_id}/employments` | admin session | úvazky uživatele |
 | users | POST `/api/v1/admin/users/{user_id}/set-password` | admin session + CSRF | přímé heslo |
 | users | POST `/api/v1/admin/users/{user_id}/send-reset` | admin session + CSRF | 24h reset odkaz |
@@ -1338,12 +1341,12 @@ Tyto nesoulady byly nalezeny mezi aktivními vrstvami. Pro reprodukci platí vý
 
 | Nesoulad | Nález | Autoritativní chování |
 |---|---|---|
-| manifest auth mode vs router dependencies | generovaný manifest klasifikuje některé bootstrap admin cesty jako session/CSRF | skutečné chování routerů je public login/forgot/csrf/me/logout dle API sekce; manifest se má opravit, ne runtime zpřísnit bez samostatné změny |
+| manifest auth mode vs router dependencies | generátor rekurzivně čte skutečné FastAPI dependencies a používá malou explicitní mapu pouze pro bootstrap cesty | změna dependency musí změnit generovaný manifest a jeho contract test |
 | frontend `Instance` typ vs backend | historický TS interface používá numerické/odlišné fields | backend UUID `Instance` je autorita; dormant interface se nesmí použít jako nový kontrakt |
-| běžné API error envelope | doménové chyby používají objekt v `detail`, request validation používá `error`, část dependencies textový `detail` | frontend musí zpracovat všechny varianty; sjednocení je samostatná veřejná změna |
-| public instance activation | register vytváří `PENDING`, claim vyžaduje `ACTIVE`, ale auditovaný HTTP API nemá activation endpoint | neimprovizovat nový endpoint; aktivace je externí provisioning/ruční mezera |
+| běžné API error envelope | všechna neintegrační API selhání používají `{error:{code,message,details?,request_id}}`; integrační API zachovává vlastní verzovaný envelope | frontend používá jediný parser neintegrační obálky a interní výjimky se klientovi nevracejí |
+| public instance activation | register vytváří `PENDING`, admin list/activate provede auditovaný přechod a claim vyžaduje `ACTIVE` | aktivační odpověď nikdy neobsahuje token ani hash; token vzniká až explicitním claim/rotate flow |
 | `last_login_at` v admin users | hodnota pochází z `Instance.last_seen_at` a je nastavena už při vytvoření | prezentovat jako poslední aktivitu instance, ne auditně přesný login |
-| reminder „otevřená směna“ | worker testuje `any(IN) and not any(OUT)` v jednotlivém kalendářním dni, nikoli poslední event/párování přes půlnoc | zachovat baseline nebo opravit samostatnou změnou algoritmu a testy cross-midnight |
+| reminder „otevřená směna“ | worker načítá poslední event každého úvazku SQL pořadím `(occurred_at DESC,id DESC)` | reminder vznikne pouze když je poslední event `IN`; testy pokrývají IN/OUT/IN, cross-midnight i více uzavřených intervalů |
 | portal/admin event update DTO | update přijímá plný create-like payload a kontroluje immutable employment/type; integration PATCH jen timestamp | klient nesmí zjednodušit portal/admin payload na `{occurred_at}` bez kompatibilní změny API |
 | bind settings vs production Gunicorn | app Settings načte host/port, `gunicorn.conf.py` binduje pevně loopback 8101 | produkční reprodukce používá Gunicorn fakt; změna bindu vyžaduje úpravu jeho konfigurace |
 | SMTP a integration admin UI vs API | backend CRUD existuje, auditované routes jsou informační | reprodukovat API i informační UI; nevymýšlet plný editor bez schváleného scope |
@@ -1395,11 +1398,11 @@ Následující scénáře jsou minimální behaviorální fingerprint systému:
 20. **Locale parity:** stejné chování cs/en/sk/de/hi podle plochy, bez rozbití tabulky a bez viditelného směru eventu.
 21. **Reset lifecycle:** nový reset revokuje starší odkazy; použití platného `SENT` odkazu v jedné transakci změní heslo, revokuje všechny reset/unlock tokeny i non-browser instance bearer a okamžitě zneplatní všechny browserové relace navázané na předchozí password credential.
 22. **Integration data-scope baseline:** explicitní `allowed_employment_ids` omezuje data; samotný `SELECTED_EMPLOYEES` nebo `ALL_ACTIVE_EMPLOYMENTS` bez naplněného seznamu employment IDs aktivní router neomezí.
-23. **Error variants:** frontend správně zobrazí doménový objekt v `detail`, request-validation objekt v `error` i textový `detail`.
+23. **Error envelope:** frontend zpracuje jedinou neintegrační obálku `{error:{code,message,details?,request_id}}`; integrační envelope zůstává verzovaný odděleně.
 24. **Pagination truth:** každé `has_more=true` obsahuje neprázdný `next_cursor`; cizí nebo poškozený cursor vrací `invalid_cursor`.
 25. **Update DTO compatibility:** portal/admin update odmítne změněný `employment_id`, změněný `event_type` nebo nenulový `paired_occurred_at`; integration PATCH přijme pouze timestamp.
-26. **Instance lifecycle:** public register vytvoří pending instanci, claim selže 409 bez externí aktivace; admin create-user vytvoří active WEB instanci přímo.
-27. **Reminder edge:** den s IN–OUT–IN nesplní same-day `not any(OUT)` a cross-midnight IN z předchozího dne může splnit previous-day reminder podmínku.
+26. **Instance lifecycle:** public register vytvoří pending instanci, admin ji s CSRF aktivuje a claim teprve poté vydá rotovaný token; admin create-user vytvoří active WEB instanci přímo.
+27. **Reminder chronology:** IN–OUT–IN zůstává otevřený podle posledního eventu; cross-midnight OUT směnu uzavírá a stabilní tie-breaker je `id`.
 28. **Human plan CSV:** carryover a běžné plánové hranice jsou očíslované `PLÁN – PRŮCHOD N`; žádná hlavička neobsahuje `PŘESAH`.
 29. **Lockout:** třetí chybný portal login v hodinovém okně uzamkne účet na hodinu; pátý chybný admin login v 15minutovém okně uzamkne admin identitu na 15 minut bez prodlužování dalšími pokusy. Úspěšné přihlášení příslušný stav vyčistí.
 

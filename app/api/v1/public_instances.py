@@ -39,13 +39,17 @@ class ClaimTokenOut(BaseModel):
 
 
 @router.post("/api/v1/instances/register", response_model=RegisterInstanceOut)
-def register_instance(payload: RegisterInstanceIn, db: Session = Depends(get_db)) -> RegisterInstanceOut:
+def register_instance(
+    payload: RegisterInstanceIn, db: Session = Depends(get_db)
+) -> RegisterInstanceOut:
     now = datetime.now(UTC)
     inst = Instance(
         id=str(uuid4()),
         client_type=payload.client_type,
         device_fingerprint=payload.device_fingerprint.strip(),
-        device_info_json=(json.dumps(payload.device_info, ensure_ascii=False) if payload.device_info else None),
+        device_info_json=(
+            json.dumps(payload.device_info, ensure_ascii=False) if payload.device_info else None
+        ),
         status=InstanceStatus.PENDING,
         display_name=payload.display_name.strip() if payload.display_name else None,
         created_at=now,

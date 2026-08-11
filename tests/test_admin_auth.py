@@ -3,10 +3,10 @@ from __future__ import annotations
 import os
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-from starlette.testclient import TestClient
 
 os.environ.setdefault("DAGMAR_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("DAGMAR_SESSION_SECRET", "x" * 32)
@@ -79,7 +79,9 @@ def test_admin_login_cookie_is_scoped_to_whole_admin_app() -> None:
     )
     assert response.status_code == 200
     set_cookie_headers = response.headers.get_list("set-cookie")
-    session_cookie = next(header for header in set_cookie_headers if header.startswith("dagmar_admin_session="))
+    session_cookie = next(
+        header for header in set_cookie_headers if header.startswith("dagmar_admin_session=")
+    )
     assert "Path=/" in session_cookie
     assert "HttpOnly" in session_cookie
     assert "Secure" in session_cookie
@@ -132,10 +134,12 @@ def test_admin_login_rejects_invalid_password_after_json_parse(
         headers=_csrf_headers(client),
     )
     assert response.status_code == 401
-    assert response.json()["detail"] == {
+    assert response.json()["error"] | {"request_id": None} == {
         "code": "admin_login_invalid_credentials",
         "message": "Neplatné přihlašovací údaje",
+        "request_id": None,
     }
+    assert response.json()["error"]["request_id"] == response.headers["x-request-id"]
     security_log = caplog.text
     assert "security_event=admin_login_failed" in security_log
     assert f"request_id={response.headers['x-request-id']}" in security_log
@@ -168,17 +172,23 @@ def test_admin_login_locks_after_five_failures_and_rejects_correct_password() ->
 def test_successful_admin_login_clears_previous_failures() -> None:
     client = _build_client()
     for _ in range(2):
-        assert client.post(
-            "/api/v1/admin/login",
-            json={"username": ADMIN_IDENTITY_EMAIL, "password": "wrong-password"},
-            headers=_csrf_headers(client),
-        ).status_code == 401
+        assert (
+            client.post(
+                "/api/v1/admin/login",
+                json={"username": ADMIN_IDENTITY_EMAIL, "password": "wrong-password"},
+                headers=_csrf_headers(client),
+            ).status_code
+            == 401
+        )
 
-    assert client.post(
-        "/api/v1/admin/login",
-        json={"username": ADMIN_IDENTITY_EMAIL, "password": _admin_password()},
-        headers=_csrf_headers(client),
-    ).status_code == 200
+    assert (
+        client.post(
+            "/api/v1/admin/login",
+            json={"username": ADMIN_IDENTITY_EMAIL, "password": _admin_password()},
+            headers=_csrf_headers(client),
+        ).status_code
+        == 200
+    )
     assert client.post("/api/v1/admin/logout", headers=_csrf_headers(client)).status_code == 200
 
     statuses = [

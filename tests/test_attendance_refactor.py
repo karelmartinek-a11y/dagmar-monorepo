@@ -710,15 +710,16 @@ def test_admin_break_backfill_accepts_malformed_migrated_sequence() -> None:
             _=None,
             db=db,
         )
-        assert len(
-            db.execute(
-                select(AttendanceEvent).where(
-                    AttendanceEvent.employment_id == employment.id
+        assert (
+            len(
+                db.execute(
+                    select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id)
                 )
+                .scalars()
+                .all()
             )
-            .scalars()
-            .all()
-        ) == 5
+            == 5
+        )
 
 
 def test_admin_break_backfill_credits_existing_short_manual_pause() -> None:
@@ -1257,21 +1258,25 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
         employment.total_hours_enabled = False
         employment.night_hours_enabled = True
         db.add_all(
-            [ShiftPlan(
-                employment_id=employment.id,
-                date=date(2026, 8, 3),
-                arrival_time="22:00",
-                departure_time="02:00",
-            ), ShiftPlan(
-                employment_id=employment.id,
-                date=date(2026, 8, 4),
-                arrival_time="08:00",
-                departure_time="16:00",
-            ), Attendance(
-                employment_id=employment.id,
-                date=date(2026, 8, 5),
-                status="SICKNESS",
-            )]
+            [
+                ShiftPlan(
+                    employment_id=employment.id,
+                    date=date(2026, 8, 3),
+                    arrival_time="22:00",
+                    departure_time="02:00",
+                ),
+                ShiftPlan(
+                    employment_id=employment.id,
+                    date=date(2026, 8, 4),
+                    arrival_time="08:00",
+                    departure_time="16:00",
+                ),
+                Attendance(
+                    employment_id=employment.id,
+                    date=date(2026, 8, 5),
+                    status="SICKNESS",
+                ),
+            ]
         )
         sync_employment_metrics(db, employment=employment)
         db.commit()
@@ -1376,9 +1381,7 @@ def test_outputs_read_persisted_metrics_and_sync_rebuilds_from_raw_facts() -> No
         assert month.days[4].worked["total"] is not None
         assert month.days[4].worked["total"].hours == 1.7
         report = report_to_payload(
-            build_shift_plan_report(
-                db, year=2026, month=8, employment_ids=[employment.id]
-            )
+            build_shift_plan_report(db, year=2026, month=8, employment_ids=[employment.id])
         )
         report_employment = report["pages"][0]["employments"][0]  # type: ignore[index]
         assert report_employment["planned_metrics"]["total"]["hours"] == 2.3
@@ -1474,10 +1477,10 @@ def test_employment_period_change_rebuilds_metrics_after_confirmed_cleanup() -> 
         db.add_all(
             [
                 ShiftPlan(
-                employment_id=employment.id,
-                date=date(2026, 8, 10),
-                arrival_time="08:00",
-                departure_time="16:00",
+                    employment_id=employment.id,
+                    date=date(2026, 8, 10),
+                    arrival_time="08:00",
+                    departure_time="16:00",
                 ),
                 ShiftPlan(
                     employment_id=employment.id,
@@ -1528,19 +1531,25 @@ def test_employment_period_change_rebuilds_metrics_after_confirmed_cleanup() -> 
             db=db,
         )
 
-        rebuilt = list(db.execute(
-            select(EmploymentDailyTimeMetric).where(
-                EmploymentDailyTimeMetric.employment_id == employment.id,
-                EmploymentDailyTimeMetric.metric_date == date(2026, 8, 10),
-            )
-        ).scalars())
+        rebuilt = list(
+            db.execute(
+                select(EmploymentDailyTimeMetric).where(
+                    EmploymentDailyTimeMetric.employment_id == employment.id,
+                    EmploymentDailyTimeMetric.metric_date == date(2026, 8, 10),
+                )
+            ).scalars()
+        )
         assert all(row.total_tenths == 0 for row in rebuilt)
-        assert db.execute(
-            select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id)
-        ).first() is None
-        assert db.execute(
-            select(ShiftPlan).where(ShiftPlan.employment_id == employment.id)
-        ).first() is None
+        assert (
+            db.execute(
+                select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id)
+            ).first()
+            is None
+        )
+        assert (
+            db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == employment.id)).first()
+            is None
+        )
 
 
 def test_employment_delete_confirms_plan_locks_and_reports_event_rows() -> None:
@@ -1657,6 +1666,8 @@ def test_shift_plan_status_rejects_conflicting_attendance_for_admin_and_user() -
             )
         assert admin_error.value.status_code == 409
         assert portal_error.value.status_code == 409
+
+
 def test_overnight_plan_checks_next_month_lock() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -1699,7 +1710,9 @@ def test_overnight_plan_validates_carryover_day(blocked_by: str) -> None:
         if blocked_by == "period":
             employment.end_date = date(2026, 7, 31)
         else:
-            db.add(Attendance(employment_id=employment.id, date=date(2026, 8, 1), status="SICKNESS"))
+            db.add(
+                Attendance(employment_id=employment.id, date=date(2026, 8, 1), status="SICKNESS")
+            )
         db.commit()
         body = ShiftPlanUpsertIn(
             employment_id=employment.id,
@@ -2067,12 +2080,8 @@ def test_month_dto_pairs_overnight_interval_but_not_multiday_gap_as_pause() -> N
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
-        overnight_in = _event(
-            employment.id, datetime(2026, 7, 31, 22), AttendanceEventType.IN
-        )
-        overnight_out = _event(
-            employment.id, datetime(2026, 8, 1, 2), AttendanceEventType.OUT
-        )
+        overnight_in = _event(employment.id, datetime(2026, 7, 31, 22), AttendanceEventType.IN)
+        overnight_out = _event(employment.id, datetime(2026, 8, 1, 2), AttendanceEventType.OUT)
         next_in = _event(employment.id, datetime(2026, 8, 3, 8), AttendanceEventType.IN)
         next_out = _event(employment.id, datetime(2026, 8, 3, 16), AttendanceEventType.OUT)
         db.add_all([overnight_in, overnight_out, next_in, next_out])
@@ -2128,17 +2137,20 @@ def test_day_status_removes_confirmed_previous_overnight_plan() -> None:
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
-            [ShiftPlan(
-                employment_id=employment.id,
-                date=date(2026, 7, 31),
-                arrival_time="22:00",
-                departure_time="02:00",
-            ), AttendanceLock(
-                employment_id=employment.id,
-                year=2026,
-                month=7,
-                locked_by="admin",
-            )]
+            [
+                ShiftPlan(
+                    employment_id=employment.id,
+                    date=date(2026, 7, 31),
+                    arrival_time="22:00",
+                    departure_time="02:00",
+                ),
+                AttendanceLock(
+                    employment_id=employment.id,
+                    year=2026,
+                    month=7,
+                    locked_by="admin",
+                ),
+            ]
         )
         db.commit()
 
@@ -2272,29 +2284,35 @@ def test_month_sync_removes_zero_rows_after_last_source_fact() -> None:
         ]
         db.add_all(events)
         db.flush()
-        sync_employment_metric_months(
-            db, employment=employment, months={(2026, 8)}
-        )
+        sync_employment_metric_months(db, employment=employment, months={(2026, 8)})
         db.flush()
-        assert db.execute(
-            select(EmploymentDailyTimeMetric).where(
-                EmploymentDailyTimeMetric.employment_id == employment.id
+        assert (
+            db.execute(
+                select(EmploymentDailyTimeMetric).where(
+                    EmploymentDailyTimeMetric.employment_id == employment.id
+                )
             )
-        ).scalars().first() is not None
+            .scalars()
+            .first()
+            is not None
+        )
 
         for event in events:
             db.delete(event)
         db.flush()
-        sync_employment_metric_months(
-            db, employment=employment, months={(2026, 8)}
-        )
+        sync_employment_metric_months(db, employment=employment, months={(2026, 8)})
         db.flush()
 
-        assert db.execute(
-            select(EmploymentDailyTimeMetric).where(
-                EmploymentDailyTimeMetric.employment_id == employment.id
+        assert (
+            db.execute(
+                select(EmploymentDailyTimeMetric).where(
+                    EmploymentDailyTimeMetric.employment_id == employment.id
+                )
             )
-        ).scalars().all() == []
+            .scalars()
+            .all()
+            == []
+        )
 
 
 def test_metric_rebuild_includes_months_with_only_all_day_status(
@@ -2333,9 +2351,9 @@ def test_metric_rebuild_includes_months_with_only_all_day_status(
 def test_deploy_stops_backend_before_migration_and_metric_backfill() -> None:
     workflow = Path(".github/workflows/ci-cd.yml").read_text(encoding="utf-8")
     stop = workflow.index("systemctl stop dagmar-backend")
-    migration = workflow.index("alembic.ini\" upgrade head", stop)
-    apply = workflow.index('rebuild_daily_time_metrics.py\" --apply')
-    check = workflow.index('rebuild_daily_time_metrics.py\" --check')
+    migration = workflow.index('alembic.ini" upgrade head', stop)
+    apply = workflow.index('rebuild_daily_time_metrics.py" --apply')
+    check = workflow.index('rebuild_daily_time_metrics.py" --check')
     restart = workflow.index("systemctl restart dagmar-backend", check)
     version_check = workflow.index("backend_deploy_tag", restart)
     release_trap = workflow.index("trap - EXIT", version_check)

@@ -2,6 +2,13 @@
 
 Backend používá namespace `/api/v1/` a je jedinou autoritou časových výpočtů.
 
+## Chybové odpovědi
+
+Všechna neintegrační API selhání používají jedinou obálku
+`{"error":{"code":"…","message":"…","details":…,"request_id":"…"}}`; `details` je
+volitelné a interní výjimky se do odpovědi nepromítají. Integrační namespace zachovává
+svou samostatnou verzovanou obálku.
+
 ## Úvazek
 
 `employment_type` má jednu z hodnot `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` nebo `EXTERNAL_HOURLY`. Profil konkrétního úvazku obsahuje `workload_fraction` a přepínače `total_hours_enabled`, `automatic_breaks_enabled`, `afternoon_hours_enabled`, `afternoon_start_minutes`, `night_hours_enabled`, `weekend_hours_enabled` a `public_holiday_hours_enabled`.

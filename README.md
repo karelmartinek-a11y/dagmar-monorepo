@@ -53,6 +53,7 @@ python3.11 -m venv .venv
 .venv/bin/alembic heads
 .venv/bin/pytest -q
 .venv/bin/python scripts/check_repo_invariants.py
+.venv/bin/python scripts/check_broad_exceptions.py
 .venv/bin/python scripts/generate_current_state_manifest.py --check
 .venv/bin/python scripts/check_python_lock.py
 .venv/bin/python scripts/check_security_policy.py

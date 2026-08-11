@@ -39,7 +39,9 @@ def compile_lock(output: str, *, extra: str | None = None) -> None:
     first_requirement = re.search(r"(?m)^[A-Za-z0-9_.-]+==", generated)
     if first_requirement is None:
         raise RuntimeError(f"pip-compile produced no requirements for {output}")
-    body = generated[first_requirement.start() :].replace(str(ROOT / "pyproject.toml"), "pyproject.toml")
+    body = generated[first_requirement.start() :].replace(
+        str(ROOT / "pyproject.toml"), "pyproject.toml"
+    )
     command_label = "python scripts/update_python_locks.py"
     canonical_header = (
         "#\n# Generated deterministically by pip-tools 7.6.0 with Python 3.11 and pip 26.0.\n"

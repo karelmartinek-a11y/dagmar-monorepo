@@ -124,7 +124,9 @@ def _identity_query(portal: str, provider: str, account_ref: int | str):
     return query.where(ExternalIdentity.admin_username == str(account_ref))
 
 
-def _method_status(db: Session, settings: Settings, portal: str, account_ref: int | str) -> MethodsOut:
+def _method_status(
+    db: Session, settings: Settings, portal: str, account_ref: int | str
+) -> MethodsOut:
     methods: list[MethodOut] = []
     for provider in ("google", "apple"):
         identity = db.execute(_identity_query(portal, provider, account_ref)).scalar_one_or_none()
@@ -143,7 +145,10 @@ def _method_status(db: Session, settings: Settings, portal: str, account_ref: in
 
 @router.get("/auth/providers")
 def providers(settings: Settings = Depends(get_settings)):
-    return {"google": provider_enabled(settings, "google"), "apple": provider_enabled(settings, "apple")}
+    return {
+        "google": provider_enabled(settings, "google"),
+        "apple": provider_enabled(settings, "apple"),
+    }
 
 
 @router.get("/portal/auth-methods", response_model=MethodsOut)
@@ -164,9 +169,20 @@ def admin_methods(
     return _method_status(db, settings, "admin", str(admin.username))
 
 
-def _verify_link_password(portal: Portal, password: str, *, employee: PortalUser | None, admin_username: str | None, settings: Settings) -> None:
+def _verify_link_password(
+    portal: Portal,
+    password: str,
+    *,
+    employee: PortalUser | None,
+    admin_username: str | None,
+    settings: Settings,
+) -> None:
     if portal == "employee":
-        valid = bool(employee and employee.password_hash and verify_password(password, employee.password_hash))
+        valid = bool(
+            employee
+            and employee.password_hash
+            and verify_password(password, employee.password_hash)
+        )
     else:
         valid = bool(
             admin_username
@@ -175,7 +191,9 @@ def _verify_link_password(portal: Portal, password: str, *, employee: PortalUser
             and verify_password(password, settings.admin_password_hash)
         )
     if not valid:
-        raise_api_error(401, "fresh_password_required", "Pro tuto operaci je nutné znovu ověřit interní heslo.")
+        raise_api_error(
+            401, "fresh_password_required", "Pro tuto operaci je nutné znovu ověřit interní heslo."
+        )
 
 
 def _set_browser_cookie(response: Response, value: str, settings: Settings) -> None:
@@ -212,7 +230,15 @@ def login_start(
         )
     except ExternalAuthError as exc:
         raise_api_error(503, exc.code, "Externí přihlášení nyní není dostupné.")
-    _audit(db, request, settings, portal=portal, provider=provider, event="login_started", outcome="success")
+    _audit(
+        db,
+        request,
+        settings,
+        portal=portal,
+        provider=provider,
+        event="login_started",
+        outcome="success",
+    )
     db.commit()
     response = RedirectResponse(started.authorization_url, status_code=303)
     _set_browser_cookie(response, started.browser_secret, settings)
@@ -231,9 +257,17 @@ def _start_link(
     settings: Settings,
 ) -> Response:
     admin_username = str(account_ref).lower() if portal == "admin" else None
-    _verify_link_password(portal, payload.password, employee=employee, admin_username=admin_username, settings=settings)
+    _verify_link_password(
+        portal,
+        payload.password,
+        employee=employee,
+        admin_username=admin_username,
+        settings=settings,
+    )
     if db.execute(_identity_query(portal, provider, account_ref)).scalar_one_or_none():
-        raise_api_error(409, "identity_already_linked", "Tato přihlašovací metoda je již propojena.")
+        raise_api_error(
+            409, "identity_already_linked", "Tato přihlašovací metoda je již propojena."
+        )
     started = start_transaction(
         db,
         provider=provider,
@@ -245,7 +279,16 @@ def _start_link(
         portal_user_id=int(account_ref) if portal == "employee" else None,
         admin_username=admin_username,
     )
-    _audit(db, request, settings, portal=portal, provider=provider, event="link_started", outcome="success", account_ref=str(account_ref))
+    _audit(
+        db,
+        request,
+        settings,
+        portal=portal,
+        provider=provider,
+        event="link_started",
+        outcome="success",
+        account_ref=str(account_ref),
+    )
     db.commit()
     response = Response(
         content=StartOut(authorization_url=started.authorization_url).model_dump_json(),
@@ -266,7 +309,9 @@ def employee_link(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    return _start_link(request, payload, provider, "employee", auth.user.id, auth.user, db, settings)
+    return _start_link(
+        request, payload, provider, "employee", auth.user.id, auth.user, db, settings
+    )
 
 
 @router.post("/admin/auth-methods/{provider}/link")
@@ -294,7 +339,13 @@ def _unlink(
     settings: Settings,
 ):
     admin_username = str(account_ref).lower() if portal == "admin" else None
-    _verify_link_password(portal, payload.password, employee=employee, admin_username=admin_username, settings=settings)
+    _verify_link_password(
+        portal,
+        payload.password,
+        employee=employee,
+        admin_username=admin_username,
+        settings=settings,
+    )
     identity = db.execute(_identity_query(portal, provider, account_ref)).scalar_one_or_none()
     if identity is None:
         raise_api_error(404, "identity_not_linked", "Tato přihlašovací metoda není propojena.")
@@ -304,11 +355,29 @@ def _unlink(
         OAuthTransaction.purpose == "link",
         OAuthTransaction.consumed_at.is_(None),
     )
-    pending = pending.where(OAuthTransaction.portal_user_id == int(account_ref)) if portal == "employee" else pending.where(OAuthTransaction.admin_username == admin_username)
-    db.execute(delete(OAuthTransaction).where(OAuthTransaction.id.in_(pending.with_only_columns(OAuthTransaction.id))))
+    pending = (
+        pending.where(OAuthTransaction.portal_user_id == int(account_ref))
+        if portal == "employee"
+        else pending.where(OAuthTransaction.admin_username == admin_username)
+    )
+    db.execute(
+        delete(OAuthTransaction).where(
+            OAuthTransaction.id.in_(pending.with_only_columns(OAuthTransaction.id))
+        )
+    )
     subject = identity.subject
     db.delete(identity)
-    _audit(db, request, settings, portal=portal, provider=provider, event="unlinked", outcome="success", account_ref=str(account_ref), subject=subject)
+    _audit(
+        db,
+        request,
+        settings,
+        portal=portal,
+        provider=provider,
+        event="unlinked",
+        outcome="success",
+        account_ref=str(account_ref),
+        subject=subject,
+    )
     db.commit()
     return {"ok": True}
 
@@ -350,7 +419,13 @@ def _callback_error_path(transaction: OAuthTransaction | None, code: str) -> str
     return f"{base}{separator}external_auth_error={code}"
 
 
-def _complete_link(db: Session, request: Request, settings: Settings, transaction: OAuthTransaction, claims: ProviderClaims) -> None:
+def _complete_link(
+    db: Session,
+    request: Request,
+    settings: Settings,
+    transaction: OAuthTransaction,
+    claims: ProviderClaims,
+) -> None:
     existing_subject = db.execute(
         select(ExternalIdentity).where(
             ExternalIdentity.provider == transaction.provider,
@@ -359,11 +434,14 @@ def _complete_link(db: Session, request: Request, settings: Settings, transactio
         )
     ).scalar_one_or_none()
     if existing_subject is not None:
-        same_target = (
-            transaction.portal == existing_subject.account_type
-            and (
-                (transaction.portal == "employee" and transaction.portal_user_id == existing_subject.portal_user_id)
-                or (transaction.portal == "admin" and transaction.admin_username == existing_subject.admin_username)
+        same_target = transaction.portal == existing_subject.account_type and (
+            (
+                transaction.portal == "employee"
+                and transaction.portal_user_id == existing_subject.portal_user_id
+            )
+            or (
+                transaction.portal == "admin"
+                and transaction.admin_username == existing_subject.admin_username
             )
         )
         if same_target:
@@ -406,7 +484,9 @@ def _complete_login(
         raise ExternalAuthError("external_identity_not_linked")
     identity.last_login_at = datetime.now(UTC)
     identity.email = claims.email or identity.email
-    identity.email_verified = claims.email_verified if claims.email_verified is not None else identity.email_verified
+    identity.email_verified = (
+        claims.email_verified if claims.email_verified is not None else identity.email_verified
+    )
     db.add(identity)
     if transaction.portal == "employee":
         user = db.execute(
@@ -419,7 +499,10 @@ def _complete_login(
         if user.is_blocked:
             raise ExternalAuthError("portal_account_blocked")
         return issue_portal_login(user, db), user
-    if not settings.admin_password_hash or identity.admin_username != settings.admin_username.lower():
+    if (
+        not settings.admin_password_hash
+        or identity.admin_username != settings.admin_username.lower()
+    ):
         raise ExternalAuthError("external_account_inactive")
     return None
 
@@ -444,19 +527,43 @@ def _handle_callback(
             browser_secret=request.cookies.get(BROWSER_COOKIE),
         )
         if provider_error:
-            raise ExternalAuthError("provider_cancelled" if provider_error == "access_denied" else "provider_error")
+            raise ExternalAuthError(
+                "provider_cancelled" if provider_error == "access_denied" else "provider_error"
+            )
         if not code:
             raise ExternalAuthError("authorization_code_missing")
         claims = exchange_and_validate(provider, code, transaction, settings)
         account_ref = str(transaction.portal_user_id or transaction.admin_username or "") or None
         if transaction.purpose == "link":
             _complete_link(db, request, settings, transaction, claims)
-            _audit(db, request, settings, portal=transaction.portal, provider=provider, event="linked", outcome="success", account_ref=account_ref, subject=claims.subject)
+            _audit(
+                db,
+                request,
+                settings,
+                portal=transaction.portal,
+                provider=provider,
+                event="linked",
+                outcome="success",
+                account_ref=account_ref,
+                subject=claims.subject,
+            )
             db.commit()
-            response = RedirectResponse(transaction.return_path + "?external_auth_linked=" + provider, status_code=303)
+            response = RedirectResponse(
+                transaction.return_path + "?external_auth_linked=" + provider, status_code=303
+            )
         else:
             login_issue = _complete_login(db, transaction, claims, settings)
-            _audit(db, request, settings, portal=transaction.portal, provider=provider, event="login", outcome="success", account_ref=account_ref, subject=claims.subject)
+            _audit(
+                db,
+                request,
+                settings,
+                portal=transaction.portal,
+                provider=provider,
+                event="login",
+                outcome="success",
+                account_ref=account_ref,
+                subject=claims.subject,
+            )
             if transaction.portal == "employee":
                 if login_issue is None:
                     raise ExternalAuthError("external_account_inactive")
@@ -466,11 +573,25 @@ def _handle_callback(
                 transaction.result_payload = encrypt_secret(
                     login.model_dump_json(), secret=settings.session_secret
                 )
-                transaction.result_expires_at = datetime.now(UTC) + timedelta(seconds=settings.external_auth_result_ttl_seconds)
+                transaction.result_expires_at = datetime.now(UTC) + timedelta(
+                    seconds=settings.external_auth_result_ttl_seconds
+                )
                 db.add(transaction)
                 db.commit()
-                response = RedirectResponse(safe_return_path("employee", "login", transaction.return_path) + "?external_auth=complete", status_code=303)
-                response.set_cookie(RESULT_COOKIE, transaction.id, max_age=settings.external_auth_result_ttl_seconds, secure=settings.cookie_secure, httponly=True, samesite="lax", path="/api/v1/auth/result")
+                response = RedirectResponse(
+                    safe_return_path("employee", "login", transaction.return_path)
+                    + "?external_auth=complete",
+                    status_code=303,
+                )
+                response.set_cookie(
+                    RESULT_COOKIE,
+                    transaction.id,
+                    max_age=settings.external_auth_result_ttl_seconds,
+                    secure=settings.cookie_secure,
+                    httponly=True,
+                    samesite="lax",
+                    path="/api/v1/auth/result",
+                )
                 set_portal_session(
                     response,
                     user_id=portal_user.id,
@@ -479,15 +600,35 @@ def _handle_callback(
                 )
             else:
                 db.commit()
-                response = RedirectResponse(safe_return_path("admin", "login", transaction.return_path), status_code=303)
-                set_admin_session(response, username=str(transaction.admin_username or settings.admin_username).lower(), settings=settings)
+                response = RedirectResponse(
+                    safe_return_path("admin", "login", transaction.return_path), status_code=303
+                )
+                set_admin_session(
+                    response,
+                    username=str(transaction.admin_username or settings.admin_username).lower(),
+                    settings=settings,
+                )
         response.headers["Cache-Control"] = "no-store"
         return response
     except ExternalAuthError as exc:
         db.rollback()
         portal = transaction.portal if transaction else "employee"
-        account_ref = str(transaction.portal_user_id or transaction.admin_username or "") if transaction else None
-        _audit(db, request, settings, portal=portal, provider=provider, event="callback", outcome="failure", account_ref=account_ref, reason=exc.code)
+        account_ref = (
+            str(transaction.portal_user_id or transaction.admin_username or "")
+            if transaction
+            else None
+        )
+        _audit(
+            db,
+            request,
+            settings,
+            portal=portal,
+            provider=provider,
+            event="callback",
+            outcome="failure",
+            account_ref=account_ref,
+            reason=exc.code,
+        )
         db.commit()
         response = RedirectResponse(_callback_error_path(transaction, exc.code), status_code=303)
         response.headers["Cache-Control"] = "no-store"
@@ -553,7 +694,9 @@ def consume_login_result(
         or not transaction.result_payload
     ):
         response.delete_cookie(RESULT_COOKIE, path="/api/v1/auth/result")
-        raise_api_error(400, "oauth_result_invalid", "Výsledek přihlášení není dostupný nebo vypršel.")
+        raise_api_error(
+            400, "oauth_result_invalid", "Výsledek přihlášení není dostupný nebo vypršel."
+        )
     try:
         payload = decrypt_secret(transaction.result_payload, secret=settings.session_secret)
         login = PortalLoginOut.model_validate_json(payload or "")

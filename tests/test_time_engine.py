@@ -8,7 +8,9 @@ from app.services.time_metrics import round_minutes_to_tenths
 
 
 def test_daily_rounding_is_half_up_in_tenths() -> None:
-    assert [round_minutes_to_tenths(value) for value in (0, 2, 3, 5, 6, 8, 9, 57, 60, 62, 63, 66)] == [0, 0, 1, 1, 1, 1, 2, 10, 10, 10, 11, 11]
+    assert [
+        round_minutes_to_tenths(value) for value in (0, 2, 3, 5, 6, 8, 9, 57, 60, 62, 63, 66)
+    ] == [0, 0, 1, 1, 1, 1, 2, 10, 10, 10, 11, 11]
 
 
 def test_break_distribution_is_minimal_and_deterministic() -> None:
@@ -26,7 +28,9 @@ def test_pair_events_ignores_incomplete_historical_sequences() -> None:
 
     intervals = pair_events(events)
 
-    assert [(item.start.date(), item.end.date(), item.minutes) for item in intervals] == [(date(2026, 7, 2), date(2026, 7, 2), 480)]
+    assert [(item.start.date(), item.end.date(), item.minutes) for item in intervals] == [
+        (date(2026, 7, 2), date(2026, 7, 2), 480)
+    ]
 
 
 def test_czech_holidays_include_easter_and_fixed_days() -> None:
@@ -36,4 +40,9 @@ def test_czech_holidays_include_easter_and_fixed_days() -> None:
 
 
 def test_canonical_employment_types_are_exactly_four() -> None:
-    assert {item.value for item in EmploymentType} == {"WORK_CONTRACT", "DPP_DPC", "TASK_SHIFT_BASED", "EXTERNAL_HOURLY"}
+    assert {item.value for item in EmploymentType} == {
+        "WORK_CONTRACT",
+        "DPP_DPC",
+        "TASK_SHIFT_BASED",
+        "EXTERNAL_HOURLY",
+    }

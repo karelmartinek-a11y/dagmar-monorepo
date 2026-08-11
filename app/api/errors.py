@@ -17,7 +17,9 @@ def api_error_detail(code: str, message: str, **params: Any) -> dict[str, Any]:
 
 
 def raise_api_error(status_code: int, code: str, message: str, **params: Any) -> NoReturn:
-    raise HTTPException(status_code=status_code, detail=api_error_detail(code, message, **params))
+    raise EnvelopedAPIError(
+        status_code=status_code, detail=api_error_detail(code, message, **params)
+    )
 
 
 def raise_enveloped_api_error(

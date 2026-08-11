@@ -123,11 +123,26 @@ def test_manifest_includes_repository_layout_and_runtime_invariants() -> None:
     }
 
 
+def test_manifest_auth_modes_follow_route_dependencies_and_explicit_bootstrap_map() -> None:
+    endpoints = {item["path"]: item["auth_mode"] for item in build_manifest()["backend_endpoints"]}
+    assert endpoints["/api/v1/admin/login"] == "public"
+    assert endpoints["/api/v1/admin/forgot-password"] == "public"
+    assert endpoints["/api/v1/admin/csrf"] == "public_bootstrap"
+    assert endpoints["/api/v1/admin/me"] == "admin_session_optional"
+    assert endpoints["/api/v1/admin/logout"] == "admin_session_csrf"
+    assert endpoints["/api/v1/admin/instances"] == "admin_session"
+    assert endpoints["/api/v1/admin/instances/{instance_id}/activate"] == "admin_session_csrf"
+    assert endpoints["/api/v1/attendance"] == "portal_cookie_or_bearer_csrf_if_cookie"
+    assert endpoints["/api/v1/integration/employments"] == "integration_bearer"
+
+
 def test_frontend_routes_are_unique_and_match_manifest() -> None:
     manifest_routes = [item["path"] for item in _manifest()["frontend_routes"]]
     assert manifest_routes == sorted(set(manifest_routes), key=manifest_routes.index)
 
-    route_paths = [path for path in ROUTE_RE.findall(APP_TSX.read_text(encoding="utf-8")) if path != "*"]
+    route_paths = [
+        path for path in ROUTE_RE.findall(APP_TSX.read_text(encoding="utf-8")) if path != "*"
+    ]
     normalized = []
     for path in route_paths:
         if path.startswith("/"):
@@ -161,7 +176,9 @@ def test_frontend_api_literals_map_to_backend_routes() -> None:
             if "${" in raw:
                 continue
             hits.add(normalized)
-    unmatched = sorted(path for path in hits if not any(pattern.match(path) for pattern in patterns))
+    unmatched = sorted(
+        path for path in hits if not any(pattern.match(path) for pattern in patterns)
+    )
     assert unmatched == []
 
 

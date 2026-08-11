@@ -104,12 +104,14 @@ jobs:
           alembic current
       - name: Backend tests
         run: |
-          pytest -q
+          pytest -q --strict-markers -W error::DeprecationWarning -W error::PendingDeprecationWarning -r s | tee /tmp/pytest-output.txt
+          ! grep -Eq '[0-9]+ skipped' /tmp/pytest-output.txt
           python scripts/rebuild_daily_time_metrics.py --apply
           python scripts/rebuild_daily_time_metrics.py --check
       - name: Repository invariants
         run: |
           python scripts/check_repo_invariants.py
+          python scripts/check_broad_exceptions.py
           python scripts/generate_current_state_manifest.py --check
           python scripts/check_python_lock.py
       - name: Verify clean tree after backend checks

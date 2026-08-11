@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import and_, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import IntegrationAuth, require_integration_auth
@@ -134,7 +135,6 @@ def _employment(db: Session, employment_id: int) -> models.Employment:
         or not employment.user.is_active
     ):
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Úvazek nebyl nalezen.")
-    assert employment is not None
     return employment
 
 
@@ -466,7 +466,7 @@ def create_attendance_event(
         )
     try:
         db.flush()
-    except Exception:
+    except IntegrityError:
         db.rollback()
         raise_integration_error(
             status.HTTP_409_CONFLICT,
@@ -516,7 +516,6 @@ def update_attendance_event(
     event = db.get(models.AttendanceEvent, event_id)
     if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
-    assert event is not None
     require_employment_access(db, client=auth.client, employment_id=event.employment_id)
     employment = event.employment
     employment = lock_employment_for_time_mutation(db, employment.id)
@@ -529,7 +528,6 @@ def update_attendance_event(
     ).scalar_one_or_none()
     if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
-    assert event is not None
     if not employment.is_active or employment.user is None or not employment.user.is_active:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
     previous_occurred_at = prague_now(event.occurred_at)
@@ -554,7 +552,7 @@ def update_attendance_event(
     event.occurred_at = payload.occurred_at
     try:
         db.flush()
-    except Exception:
+    except IntegrityError:
         db.rollback()
         raise_integration_error(
             status.HTTP_409_CONFLICT,
@@ -598,7 +596,6 @@ def delete_attendance_event(
     event = db.get(models.AttendanceEvent, event_id)
     if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
-    assert event is not None
     require_employment_access(db, client=auth.client, employment_id=event.employment_id)
     employment = event.employment
     employment = lock_employment_for_time_mutation(db, employment.id)
@@ -611,7 +608,6 @@ def delete_attendance_event(
     ).scalar_one_or_none()
     if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
-    assert event is not None
     if not employment.is_active or employment.user is None or not employment.user.is_active:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
     events = list(
@@ -630,7 +626,6 @@ def delete_attendance_event(
             raise_integration_error(
                 status.HTTP_404_NOT_FOUND, "not_found", "Párový průchod nebyl nalezen."
             )
-        assert paired is not None
         deleted_ids.add(paired.id)
         timestamps.append(prague_now(paired.occurred_at))
     remaining_events = [item for item in events if item.id not in deleted_ids]

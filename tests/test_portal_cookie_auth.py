@@ -4,10 +4,10 @@ import hashlib
 import os
 from datetime import UTC, date, datetime, timedelta
 
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-from starlette.testclient import TestClient
 
 os.environ.setdefault("DAGMAR_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("DAGMAR_SESSION_SECRET", "x" * 32)
@@ -160,8 +160,7 @@ def test_cookie_mutation_requires_portal_csrf_but_bearer_contract_does_not() -> 
         headers={"Authorization": f"Bearer {raw_token}"},
     )
     assert not (
-        bearer.status_code == 403
-        and bearer.json().get("error", {}).get("code") == "csrf_invalid"
+        bearer.status_code == 403 and bearer.json().get("error", {}).get("code") == "csrf_invalid"
     )
     assert login.status_code == 200
 

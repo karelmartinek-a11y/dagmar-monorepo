@@ -166,13 +166,17 @@ def _accessible_group(
         .scalars()
         .first()
     )
-    if group is None or not auth.user.is_active or not any(
-        member.employment.user_id == auth.user.id
-        and member.employment.is_active
-        and member.employment.user is not None
-        and member.employment.user.is_active
-        and employment_overlaps_month(member.employment, month_start, month_end)
-        for member in group.members
+    if (
+        group is None
+        or not auth.user.is_active
+        or not any(
+            member.employment.user_id == auth.user.id
+            and member.employment.is_active
+            and member.employment.user is not None
+            and member.employment.user.is_active
+            and employment_overlaps_month(member.employment, month_start, month_end)
+            for member in group.members
+        )
     ):
         # Deliberately indistinguishable for absent and unauthorized groups.
         raise_api_error(status.HTTP_404_NOT_FOUND, "group_not_found", "Skupina nebyla nalezena.")
@@ -222,9 +226,7 @@ def portal_get_group_shift_plan_month(
     if year < 2000 or year > 2100 or month < 1 or month > 12:
         raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_month", "Neplatný měsíc.")
     start, end = _month_range(year, month)
-    group = _accessible_group(
-        db, group_id=group_id, auth=auth, month_start=start, month_end=end
-    )
+    group = _accessible_group(db, group_id=group_id, auth=auth, month_start=start, month_end=end)
     active_members = [
         member
         for member in group.members
@@ -265,7 +267,8 @@ def portal_get_group_shift_plan_month(
         ) -> GroupShiftPlanDayOut:
             direct_plan = by_key.get((current_employment.id, day))
             employment_plans = [
-                plan for (employment_id, _date), plan in by_key.items()
+                plan
+                for (employment_id, _date), plan in by_key.items()
                 if employment_id == current_employment.id
             ]
             carryover = shift_plan_carryover(employment_plans, day)
@@ -416,9 +419,10 @@ def portal_upsert_shift_plan(
         )
     for candidate_day in shift_plan_days(candidate):
         _ensure_day_in_employment_period(employment, candidate_day)
-        if candidate_day != day and get_day_status(
-            db, employment_id=employment.id, day=candidate_day
-        ) is not None:
+        if (
+            candidate_day != day
+            and get_day_status(db, employment_id=employment.id, day=candidate_day) is not None
+        ):
             raise_api_error(
                 status.HTTP_409_CONFLICT,
                 "shift_plan_blocked_by_day_status",

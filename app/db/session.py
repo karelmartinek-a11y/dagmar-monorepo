@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 
@@ -8,6 +9,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
@@ -72,8 +75,10 @@ def session_scope(database_url: str | None = None) -> Generator[Session, None, N
     try:
         yield db
         db.commit()
+    # process-boundary: every one-off transaction must roll back before propagating failure.
     except Exception:
         db.rollback()
+        logger.exception("Transactional session failed and was rolled back.")
         raise
     finally:
         db.close()

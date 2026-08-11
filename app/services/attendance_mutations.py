@@ -22,8 +22,7 @@ def has_strict_event_sequence(events: list[AttendanceEvent]) -> bool:
     """Return whether events form an IN/OUT sequence, allowing one trailing IN."""
     ordered = sorted(events, key=lambda item: (prague_now(item.occurred_at), item.id))
     return all(
-        event.event_type
-        == (AttendanceEventType.IN if index % 2 == 0 else AttendanceEventType.OUT)
+        event.event_type == (AttendanceEventType.IN if index % 2 == 0 else AttendanceEventType.OUT)
         for index, event in enumerate(ordered)
     )
 

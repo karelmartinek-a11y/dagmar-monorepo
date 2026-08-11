@@ -33,14 +33,14 @@ def _postgres_url() -> sa.URL | None:
 POSTGRES_URL = _postgres_url()
 
 
-@pytest.mark.skipif(
-    POSTGRES_URL is None, reason="Migration upgrade regression requires PostgreSQL."
-)
 def test_revision_0021_data_survives_event_migration_to_head(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source_url = POSTGRES_URL
-    assert source_url is not None
+    if source_url is None:
+        pytest.fail(
+            "Migration upgrade regression requires DAGMAR_DATABASE_URL pointing to PostgreSQL."
+        )
     database_name = f"dagmar_e2e_migration_{uuid.uuid4().hex[:12]}"
     admin_url = source_url.set(database="postgres")
     temp_url = source_url.set(database=database_name)

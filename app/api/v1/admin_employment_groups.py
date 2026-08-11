@@ -1,6 +1,8 @@
 # ruff: noqa: B008
 from __future__ import annotations
 
+from typing import NoReturn
+
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
@@ -68,7 +70,7 @@ class EmploymentGroupDeleteOut(BaseModel):
     group_deleted: bool = False
 
 
-def _error(error: EmploymentGroupError) -> None:
+def _error(error: EmploymentGroupError) -> NoReturn:
     code_to_status = {
         "group_not_found": status.HTTP_404_NOT_FOUND,
         "employment_not_found": status.HTTP_404_NOT_FOUND,
@@ -78,7 +80,9 @@ def _error(error: EmploymentGroupError) -> None:
         "invalid_group_name": status.HTTP_400_BAD_REQUEST,
         "group_requires_two_members": status.HTTP_400_BAD_REQUEST,
     }
-    raise_api_error(code_to_status.get(error.code, status.HTTP_400_BAD_REQUEST), error.code, str(error))
+    raise_api_error(
+        code_to_status.get(error.code, status.HTTP_400_BAD_REQUEST), error.code, str(error)
+    )
 
 
 def _to_out(group: EmploymentGroup) -> EmploymentGroupOut:
@@ -94,7 +98,9 @@ def _to_out(group: EmploymentGroup) -> EmploymentGroupOut:
                 employment_type=member.employment.employment_type,
                 display_label=employment_label(member.employment, member.employment.user.name),
                 start_date=member.employment.start_date.isoformat(),
-                end_date=member.employment.end_date.isoformat() if member.employment.end_date else None,
+                end_date=member.employment.end_date.isoformat()
+                if member.employment.end_date
+                else None,
             )
             for member in members
         ],
@@ -102,12 +108,23 @@ def _to_out(group: EmploymentGroup) -> EmploymentGroupOut:
 
 
 @router.get("/api/v1/admin/employment-groups", response_model=EmploymentGroupListOut)
-def admin_list_employment_groups(_admin=Depends(require_admin), db: Session = Depends(get_db)) -> EmploymentGroupListOut:
+def admin_list_employment_groups(
+    _admin=Depends(require_admin), db: Session = Depends(get_db)
+) -> EmploymentGroupListOut:
     return EmploymentGroupListOut(groups=[_to_out(group) for group in list_groups(db)])
 
 
-@router.post("/api/v1/admin/employment-groups", response_model=EmploymentGroupOut, status_code=status.HTTP_201_CREATED)
-def admin_create_employment_group(body: EmploymentGroupCreateIn, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> EmploymentGroupOut:
+@router.post(
+    "/api/v1/admin/employment-groups",
+    response_model=EmploymentGroupOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def admin_create_employment_group(
+    body: EmploymentGroupCreateIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> EmploymentGroupOut:
     try:
         group = create_group(db, name=body.name, member_ids=body.employment_ids)
         db.commit()
@@ -116,35 +133,70 @@ def admin_create_employment_group(body: EmploymentGroupCreateIn, _admin=Depends(
         _error(error)
     except IntegrityError:
         db.rollback()
-        raise_api_error(status.HTTP_409_CONFLICT, "duplicate_group_member", "Skupinu nelze uložit kvůli souběžné změně členství.")
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "duplicate_group_member",
+            "Skupinu nelze uložit kvůli souběžné změně členství.",
+        )
     return _to_out(group)
 
 
 @router.put("/api/v1/admin/employment-groups/{group_id}", response_model=EmploymentGroupOut)
-def admin_update_employment_group(group_id: int, body: EmploymentGroupNameIn, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> EmploymentGroupOut:
+def admin_update_employment_group(
+    group_id: int,
+    body: EmploymentGroupNameIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> EmploymentGroupOut:
     try:
         group = rename_group(db, group_id=group_id, name=body.name)
         db.commit()
     except EmploymentGroupError as error:
         db.rollback()
         _error(error)
+    if group is None:
+        raise_api_error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "data_integrity_error",
+            "Skupinu se nepodařilo po změně načíst.",
+        )
     return _to_out(group)
 
 
 @router.put("/api/v1/admin/employment-groups/{group_id}/members", response_model=EmploymentGroupOut)
-def admin_replace_employment_group_members(group_id: int, body: EmploymentGroupMembersIn, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> EmploymentGroupOut:
+def admin_replace_employment_group_members(
+    group_id: int,
+    body: EmploymentGroupMembersIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> EmploymentGroupOut:
     try:
         group = replace_members(db, group_id=group_id, member_ids=body.employment_ids)
         db.commit()
     except EmploymentGroupError as error:
         db.rollback()
         _error(error)
-    assert group is not None
+    if group is None:
+        raise_api_error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "data_integrity_error",
+            "Skupinu se nepodařilo po změně načíst.",
+        )
     return _to_out(group)
 
 
-@router.delete("/api/v1/admin/employment-groups/{group_id}/members", response_model=EmploymentGroupDeleteOut)
-def admin_remove_employment_group_members(group_id: int, body: EmploymentGroupMembersIn, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> EmploymentGroupDeleteOut:
+@router.delete(
+    "/api/v1/admin/employment-groups/{group_id}/members", response_model=EmploymentGroupDeleteOut
+)
+def admin_remove_employment_group_members(
+    group_id: int,
+    body: EmploymentGroupMembersIn,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> EmploymentGroupDeleteOut:
     try:
         group_deleted = remove_members(db, group_id=group_id, member_ids=body.employment_ids)
         db.commit()
@@ -154,8 +206,15 @@ def admin_remove_employment_group_members(group_id: int, body: EmploymentGroupMe
     return EmploymentGroupDeleteOut(group_deleted=group_deleted)
 
 
-@router.delete("/api/v1/admin/employment-groups/{group_id}", response_model=EmploymentGroupDeleteOut)
-def admin_delete_employment_group(group_id: int, _admin=Depends(require_admin), _: None = Depends(require_csrf), db: Session = Depends(get_db)) -> EmploymentGroupDeleteOut:
+@router.delete(
+    "/api/v1/admin/employment-groups/{group_id}", response_model=EmploymentGroupDeleteOut
+)
+def admin_delete_employment_group(
+    group_id: int,
+    _admin=Depends(require_admin),
+    _: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> EmploymentGroupDeleteOut:
     group = get_group(db, group_id, lock=True)
     if group is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "group_not_found", "Skupina nebyla nalezena.")

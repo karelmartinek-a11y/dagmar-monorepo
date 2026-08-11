@@ -25,7 +25,18 @@ TEXT_SUFFIXES = {
     ".html",
     ".css",
 }
-SKIP_DIRS = {".git", ".venv", "__pycache__", "node_modules", "dist", "playwright-report", "test-results", ".pytest_cache", ".ruff_cache", ".mypy_cache"}
+SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    "dist",
+    "playwright-report",
+    "test-results",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+}
 REMOVED_PATHS = [
     Path("AUDIT_SOURCE_CODE_FORENSIC.md"),
     Path("docs/backend-puls-audit-2026-02-20.md"),
@@ -238,15 +249,17 @@ def _validate_frontend_lock_contract(failures: list[str]) -> None:
         text = (ROOT / rel).read_text(encoding="utf-8")
         for legacy_value in ('lock_type: "ATTENDANCE"', 'lock_type: "SHIFT_PLAN"'):
             if legacy_value in text:
-                failures.append(
-                    f"frontend uses non-API lock value {legacy_value!r} in {rel}"
-                )
+                failures.append(f"frontend uses non-API lock value {legacy_value!r} in {rel}")
 
 
 def _validate_removed_contracts(failures: list[str]) -> None:
     for path in _text_files():
         rel = path.relative_to(ROOT).as_posix()
-        if rel in {"scripts/check_repo_invariants.py", *MIGRATION_FORENSIC_FILES} or rel.startswith("alembic/versions/") or rel.startswith("tests/migrations/"):
+        if (
+            rel in {"scripts/check_repo_invariants.py", *MIGRATION_FORENSIC_FILES}
+            or rel.startswith("alembic/versions/")
+            or rel.startswith("tests/migrations/")
+        ):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for needle in FORBIDDEN_ACTIVE_CONTRACTS:

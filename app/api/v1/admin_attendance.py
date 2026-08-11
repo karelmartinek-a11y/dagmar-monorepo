@@ -6,6 +6,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import require_admin
@@ -323,7 +324,7 @@ def create_event(
         raise_api_error(409, "attendance_event_alternation_conflict", str(exc))
     try:
         db.flush()
-    except Exception:
+    except IntegrityError:
         db.rollback()
         raise_api_error(
             409, "attendance_event_conflict", "Průchod se překrývá s existujícím průchodem."
@@ -336,9 +337,7 @@ def create_event(
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(after_events),
-        timestamps=tuple(
-            value for value in (occurred_at, paired_occurred_at) if value is not None
-        ),
+        timestamps=tuple(value for value in (occurred_at, paired_occurred_at) if value is not None),
     )
     try:
         ensure_days_have_no_status(db, employment_id=employment.id, days=changed_days)
@@ -394,7 +393,9 @@ def update_event(
     db: Session = Depends(get_db),
 ) -> AdminAttendanceEventOut:
     if body.paired_occurred_at is not None:
-        raise_api_error(400, "attendance_event_pair_update_forbidden", "Pár lze měnit po jednom průchodu.")
+        raise_api_error(
+            400, "attendance_event_pair_update_forbidden", "Pár lze měnit po jednom průchodu."
+        )
     event = db.get(AttendanceEvent, event_id)
     if event is None:
         raise_api_error(404, "attendance_event_not_found", "Průchod nebyl nalezen.")
@@ -442,7 +443,7 @@ def update_event(
     ordered = sorted([*events, event], key=lambda item: (prague_now(item.occurred_at), item.id))
     try:
         db.flush()
-    except Exception:
+    except IntegrityError:
         db.rollback()
         raise_api_error(
             409, "attendance_event_conflict", "Průchod se překrývá s existujícím průchodem."
