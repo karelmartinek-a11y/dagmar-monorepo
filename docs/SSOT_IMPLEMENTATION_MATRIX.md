@@ -12,7 +12,7 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | ID | Požadovaný stav | Stav | Owner | Implementační celek | Ověřovací test / gate | Exception ID |
 |---|---|---|---|---|---|---|
 | DAG-P0-001 | Audit-clean hashovaný Python lock | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: `pip-audit` 0 advisories | — |
-| DAG-P0-002 | Runtime enforcement integračního data scope | otevřeno | karelmartinek-a11y | C — integration API | negativní scope testy | — |
+| DAG-P0-002 | Runtime enforcement integračního data scope | splněno | karelmartinek-a11y | C — integration API | negativní scope testy | PR #43, CI `31534619320`, `tests/test_integration_contract.py` |
 | DAG-P0-003 | Reset revokuje všechny credentials | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: reset/race/atomicity testy | — |
 | DAG-P0-004 | Povinné security a secret CI gate | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: security/CodeQL/gitleaks | — |
 | DAG-P1-001 | Frontend lock bez moderate/high advisory | splněno | karelmartinek-a11y | A — supply chain | CI run `31522955074`: npm audit 0 advisories | — |
@@ -24,7 +24,7 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P1-007 | Auditovaná admin aktivace instance | otevřeno | karelmartinek-a11y | E — backend | register→activate→claim test | — |
 | DAG-P1-008 | Delete uživatele uklidí jeho WEB instanci | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: lifecycle + migrace 0025 | — |
 | DAG-P1-009 | Reminder správně páruje eventy přes půlnoc | otevřeno | karelmartinek-a11y | E — backend | reminder chronology testy | — |
-| DAG-P1-010 | Oddělené integrační rate-limit buckety | otevřeno | karelmartinek-a11y | C — integration API | 429 parametrické testy | — |
+| DAG-P1-010 | Oddělené integrační rate-limit buckety | splněno | karelmartinek-a11y | C — integration API | 429 parametrické testy | PR #43, CI `31534619320`, `test_health_data_and_openapi_have_separate_configured_rate_buckets` |
 | DAG-P1-011 | Časově omezený admin account lockout | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: admin lockout testy | — |
 | DAG-P1-012 | Veřejný build bez sourcemap | otevřeno | karelmartinek-a11y | D — production | artifact sourcemap gate | — |
 | DAG-P1-013 | Enforced production CSP | otevřeno | karelmartinek-a11y | D — production | Nginx header/browser test | — |
@@ -32,8 +32,8 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P1-015 | Bezpečná retence release | otevřeno | karelmartinek-a11y | D — production | cleanup script unit testy | — |
 | DAG-P1-016 | DB a revision readiness | otevřeno | karelmartinek-a11y | D — production | readiness dependency testy | — |
 | DAG-P2-001 | Manifest odvozuje skutečný auth režim | otevřeno | karelmartinek-a11y | E — backend | manifest route testy | — |
-| DAG-P2-002 | Stabilní opaque cursor pagination | otevřeno | karelmartinek-a11y | C — integration API | cursor continuity testy | — |
-| DAG-P2-003 | Pouze routami vynucené scopes jsou dostupné | otevřeno | karelmartinek-a11y | C — integration API | scope-route invariant | — |
+| DAG-P2-002 | Stabilní opaque cursor pagination | splněno | karelmartinek-a11y | C — integration API | cursor continuity testy | PR #43, CI `31534619320`, `test_cursor_pagination_is_stable_and_endpoint_specific` |
+| DAG-P2-003 | Pouze routami vynucené scopes jsou dostupné | splněno | karelmartinek-a11y | C — integration API | scope-route invariant | PR #43, CI `31534619320`, scope-route + per-route enforcement testy |
 | DAG-P2-004 | Jediná neintegrační error envelope | otevřeno | karelmartinek-a11y | E — backend | error contract testy | — |
 | DAG-P2-005 | External auth URL bez SSRF odchylek | otevřeno | karelmartinek-a11y | D — production | URL/redirect negativní testy | — |
 | DAG-P2-006 | Neplatné environment hodnoty fail-fast | otevřeno | karelmartinek-a11y | D — production | config testy | — |
