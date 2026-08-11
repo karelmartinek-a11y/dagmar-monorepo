@@ -135,7 +135,7 @@ jobs:
           /tmp/dagmar-wheel-test/bin/pip install --no-index --only-binary=:all: --find-links backend-artifact/wheelhouse --require-hashes -r requirements-prod.lock
           /tmp/dagmar-wheel-test/bin/pip install --no-index --find-links backend-artifact/dist --no-deps kajovodagmar
           (cd /tmp && DAGMAR_DATABASE_URL="$DAGMAR_DATABASE_URL" DAGMAR_SESSION_SECRET="$DAGMAR_SESSION_SECRET" /tmp/dagmar-wheel-test/bin/python -c 'from app.main import app; assert app.title')
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: backend-release
           path: backend-release.tgz
@@ -223,7 +223,7 @@ jobs:
         run: |
           printf '{"frontend_commit":"%s"}\n' "${GITHUB_SHA:0:7}" > web/dist/frontend-version.json
           tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -C web/dist -cf - . | gzip -n > web-release.tgz
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: web-release
           path: web-release.tgz
