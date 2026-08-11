@@ -123,6 +123,7 @@ jobs:
           python -m build --wheel --no-isolation
           mkdir -p backend-artifact/wheelhouse backend-artifact/dist
           python -m pip download --only-binary=:all: --require-hashes -r requirements-prod.lock -d backend-artifact/wheelhouse
+          python -m pip download --only-binary=:all: --require-hashes --platform manylinux_2_28_aarch64 --implementation cp --python-version 3.11 --abi cp311 -r requirements-prod.lock -d backend-artifact/wheelhouse
           python -m pip download --only-binary=:all: pip==26.0 -d backend-artifact/wheelhouse
           cp dist/*.whl backend-artifact/dist/
           cp requirements-prod.lock alembic.ini gunicorn.conf.py backend-artifact/
@@ -307,9 +308,8 @@ jobs:
             tar -xzf "$UPLOAD/backend-release.tgz" -C "$BACK_RELEASE"
             tar -xzf "$UPLOAD/web-release.tgz" -C "$WEB_RELEASE"
             (cd "$BACK_RELEASE" && sha256sum -c SHA256SUMS)
-            command -v python3.11
-            python3.11 --version | grep -Eq '^Python 3\.11\.'
-            python3.11 -m venv "$BACK_RELEASE/.venv"
+            python3 --version | grep -Eq '^Python 3\.11\.'
+            python3 -m venv "$BACK_RELEASE/.venv"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" pip==26.0
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --only-binary=:all: --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
