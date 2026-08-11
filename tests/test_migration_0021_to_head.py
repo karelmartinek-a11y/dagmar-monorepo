@@ -33,8 +33,12 @@ def _postgres_url() -> sa.URL | None:
 POSTGRES_URL = _postgres_url()
 
 
-@pytest.mark.skipif(POSTGRES_URL is None, reason="Migration upgrade regression requires PostgreSQL.")
-def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.skipif(
+    POSTGRES_URL is None, reason="Migration upgrade regression requires PostgreSQL."
+)
+def test_revision_0021_data_survives_event_migration_to_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     source_url = POSTGRES_URL
     assert source_url is not None
     database_name = f"dagmar_e2e_migration_{uuid.uuid4().hex[:12]}"
@@ -43,9 +47,7 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
     admin_engine = sa.create_engine(admin_url, isolation_level="AUTOCOMMIT")
     with admin_engine.connect() as connection:
         connection.exec_driver_sql(f'CREATE DATABASE "{database_name}"')
-        connection.exec_driver_sql(
-            f'ALTER DATABASE "{database_name}" SET timezone TO \'UTC\''
-        )
+        connection.exec_driver_sql(f"ALTER DATABASE \"{database_name}\" SET timezone TO 'UTC'")
     try:
         monkeypatch.setenv("DAGMAR_DATABASE_URL", temp_url.render_as_string(hide_password=False))
         monkeypatch.setenv("DATABASE_URL", temp_url.render_as_string(hide_password=False))
@@ -57,15 +59,49 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
         command.upgrade(cfg, "2026_07_26_0021")
         engine = sa.create_engine(temp_url)
         with engine.begin() as connection:
-            connection.execute(sa.text("INSERT INTO portal_users (id, email, name, role, is_active) VALUES (1, 'migration@example.test', 'Migrační uživatel', 'EMPLOYEE', true)"))
-            connection.execute(sa.text("INSERT INTO employments (id, user_id, title, employment_type, start_date, is_active) VALUES (10, 1, 'Pracovní smlouva', 'HPP', '2026-01-01', true), (11, 1, 'DPP', 'DPP_DPC', '2026-01-01', true)"))
-            connection.execute(sa.text("INSERT INTO attendance (employment_id, date, arrival_time, departure_time, arrival_time_2, departure_time_2, status) VALUES (10, '2026-06-08', '08:00', '12:00', '12:30', '16:00', NULL), (10, '2026-07-31', '22:00', '02:00', NULL, NULL, NULL), (11, '2026-07-15', '08:00', NULL, NULL, NULL, NULL), (11, '2026-07-16', NULL, NULL, NULL, NULL, 'SICKNESS')"))
-            connection.execute(sa.text("INSERT INTO shift_plan (employment_id, date, arrival_time, departure_time, status) VALUES (10, '2026-07-31', '22:00', '02:00', NULL), (11, '2026-07-16', NULL, NULL, 'HOLIDAY')"))
-            connection.execute(sa.text("INSERT INTO attendance_locks (employment_id, year, month, locked_by) VALUES (10, 2026, 6, 'migration')"))
-            connection.execute(sa.text("INSERT INTO shift_plan_locks (employment_id, year, month, locked_by) VALUES (10, 2026, 7, 'migration')"))
-            connection.execute(sa.text("INSERT INTO shift_plan_month_instances (year, month, employment_id) VALUES (2026, 7, 10), (2026, 7, 11)"))
-            connection.execute(sa.text("INSERT INTO employment_groups (id, name) VALUES (20, 'Migrační skupina')"))
-            connection.execute(sa.text("INSERT INTO employment_group_members (group_id, employment_id) VALUES (20, 10), (20, 11)"))
+            connection.execute(
+                sa.text(
+                    "INSERT INTO portal_users (id, email, name, role, is_active) VALUES (1, 'migration@example.test', 'Migrační uživatel', 'EMPLOYEE', true)"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO employments (id, user_id, title, employment_type, start_date, is_active) VALUES (10, 1, 'Pracovní smlouva', 'HPP', '2026-01-01', true), (11, 1, 'DPP', 'DPP_DPC', '2026-01-01', true)"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO attendance (employment_id, date, arrival_time, departure_time, arrival_time_2, departure_time_2, status) VALUES (10, '2026-06-08', '08:00', '12:00', '12:30', '16:00', NULL), (10, '2026-07-31', '22:00', '02:00', NULL, NULL, NULL), (11, '2026-07-15', '08:00', NULL, NULL, NULL, NULL), (11, '2026-07-16', NULL, NULL, NULL, NULL, 'SICKNESS')"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO shift_plan (employment_id, date, arrival_time, departure_time, status) VALUES (10, '2026-07-31', '22:00', '02:00', NULL), (11, '2026-07-16', NULL, NULL, 'HOLIDAY')"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO attendance_locks (employment_id, year, month, locked_by) VALUES (10, 2026, 6, 'migration')"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO shift_plan_locks (employment_id, year, month, locked_by) VALUES (10, 2026, 7, 'migration')"
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO shift_plan_month_instances (year, month, employment_id) VALUES (2026, 7, 10), (2026, 7, 11)"
+                )
+            )
+            connection.execute(
+                sa.text("INSERT INTO employment_groups (id, name) VALUES (20, 'Migrační skupina')")
+            )
+            connection.execute(
+                sa.text(
+                    "INSERT INTO employment_group_members (group_id, employment_id) VALUES (20, 10), (20, 11)"
+                )
+            )
         engine.dispose()
 
         command.upgrade(cfg, "2026_07_31_0022")
@@ -92,15 +128,27 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
                 )
             )
             connection.execute(
+                sa.text("UPDATE portal_users SET instance_id = 'linked-web-instance' WHERE id = 1")
+            )
+            connection.execute(
                 sa.text(
-                    "UPDATE portal_users SET instance_id = 'linked-web-instance' WHERE id = 1"
+                    "CREATE TABLE admin_users (id integer PRIMARY KEY, username text, password_hash text)"
                 )
             )
             connection.execute(
-                sa.text("CREATE TABLE admin_users (id integer PRIMARY KEY, username text, password_hash text)")
+                sa.text(
+                    "CREATE TABLE admin_sessions (id integer PRIMARY KEY, session_id_hash text)"
+                )
             )
             connection.execute(
-                sa.text("CREATE TABLE admin_sessions (id integer PRIMARY KEY, session_id_hash text)")
+                sa.text(
+                    "INSERT INTO integration_clients "
+                    "(id, name, status, scopes, allowed_employment_ids, allowed_employee_ids, "
+                    "data_scope_mode, include_inactive_employments, ip_allowlist) VALUES "
+                    "(50, 'Migration integration', 'ACTIVE', "
+                    '\'["integration:health","shift_plan:read","punches:read","employments:read"]\'::json, '
+                    "'[]'::json, '[1]'::json, 'ALL_EMPLOYMENTS', false, '[]'::json)"
+                )
             )
         engine.dispose()
 
@@ -161,35 +209,98 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
                 )
             )
         with engine.connect() as connection:
-            employments = connection.execute(sa.text("SELECT id, employment_type::text, total_hours_enabled, night_hours_enabled FROM employments WHERE id IN (10, 11) ORDER BY id")).all()
-            compatibility_profiles = connection.execute(sa.text("SELECT id, total_hours_enabled FROM employments WHERE id = 12")).all()
-            events = connection.execute(sa.text("SELECT employment_id, occurred_at, event_type::text FROM attendance_events ORDER BY employment_id, occurred_at")).all()
-            status = connection.execute(sa.text("SELECT status FROM attendance WHERE employment_id = 11 AND date = '2026-07-16'")).scalar_one()
-            plan = connection.execute(sa.text("SELECT arrival_time, departure_time FROM shift_plan WHERE employment_id = 10 AND date = '2026-07-31'")).one()
-            group_members = connection.execute(sa.text("SELECT employment_id FROM employment_group_members WHERE group_id = 20 ORDER BY employment_id")).scalars().all()
-            attendance_lock = connection.execute(sa.text("SELECT count(*) FROM attendance_locks WHERE employment_id = 10 AND year = 2026 AND month = 6")).scalar_one()
-            plan_lock = connection.execute(sa.text("SELECT count(*) FROM shift_plan_locks WHERE employment_id = 10 AND year = 2026 AND month = 7")).scalar_one()
-            selections = connection.execute(sa.text("SELECT employment_id FROM shift_plan_month_instances WHERE year = 2026 AND month = 7 ORDER BY employment_id")).scalars().all()
+            employments = connection.execute(
+                sa.text(
+                    "SELECT id, employment_type::text, total_hours_enabled, night_hours_enabled FROM employments WHERE id IN (10, 11) ORDER BY id"
+                )
+            ).all()
+            compatibility_profiles = connection.execute(
+                sa.text("SELECT id, total_hours_enabled FROM employments WHERE id = 12")
+            ).all()
+            events = connection.execute(
+                sa.text(
+                    "SELECT employment_id, occurred_at, event_type::text FROM attendance_events ORDER BY employment_id, occurred_at"
+                )
+            ).all()
+            status = connection.execute(
+                sa.text(
+                    "SELECT status FROM attendance WHERE employment_id = 11 AND date = '2026-07-16'"
+                )
+            ).scalar_one()
+            plan = connection.execute(
+                sa.text(
+                    "SELECT arrival_time, departure_time FROM shift_plan WHERE employment_id = 10 AND date = '2026-07-31'"
+                )
+            ).one()
+            group_members = (
+                connection.execute(
+                    sa.text(
+                        "SELECT employment_id FROM employment_group_members WHERE group_id = 20 ORDER BY employment_id"
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            attendance_lock = connection.execute(
+                sa.text(
+                    "SELECT count(*) FROM attendance_locks WHERE employment_id = 10 AND year = 2026 AND month = 6"
+                )
+            ).scalar_one()
+            plan_lock = connection.execute(
+                sa.text(
+                    "SELECT count(*) FROM shift_plan_locks WHERE employment_id = 10 AND year = 2026 AND month = 7"
+                )
+            ).scalar_one()
+            selections = (
+                connection.execute(
+                    sa.text(
+                        "SELECT employment_id FROM shift_plan_month_instances WHERE year = 2026 AND month = 7 ORDER BY employment_id"
+                    )
+                )
+                .scalars()
+                .all()
+            )
             reset_lifecycle = connection.execute(
                 sa.text(
                     "SELECT delivery_state::text, revoked_at IS NOT NULL "
                     "FROM portal_user_reset_tokens WHERE token_hash = 'legacy-reset-token'"
                 )
             ).one()
-            web_instances = connection.execute(
-                sa.text("SELECT id FROM instances WHERE id IN ('orphan-web-instance', 'linked-web-instance') ORDER BY id")
-            ).scalars().all()
+            web_instances = (
+                connection.execute(
+                    sa.text(
+                        "SELECT id FROM instances WHERE id IN ('orphan-web-instance', 'linked-web-instance') ORDER BY id"
+                    )
+                )
+                .scalars()
+                .all()
+            )
             inactive_admin_tables = {
                 name
                 for name in ("admin_sessions", "admin_users")
                 if sa.inspect(connection).has_table(name)
             }
+            integration_scope = connection.execute(
+                sa.text("SELECT data_scope_mode, scopes FROM integration_clients WHERE id = 50")
+            ).one()
+            integration_scope_audit = connection.execute(
+                sa.text(
+                    "SELECT before_state, after_state FROM integration_audit_log "
+                    "WHERE client_id = 50 AND operation = 'scope_normalize'"
+                )
+            ).one()
         engine.dispose()
 
         assert employments == [(10, "WORK_CONTRACT", True, True), (11, "DPP_DPC", True, True)]
         assert compatibility_profiles == [(12, False)]
         assert [(row[0], row[2]) for row in events] == [
-            (10, "IN"), (10, "OUT"), (10, "IN"), (10, "OUT"), (10, "IN"), (10, "OUT"), (11, "IN")
+            (10, "IN"),
+            (10, "OUT"),
+            (10, "IN"),
+            (10, "OUT"),
+            (10, "IN"),
+            (10, "OUT"),
+            (11, "IN"),
         ]
         assert events[5][1].date().isoformat() == "2026-08-01"
         local_times = [row[1].astimezone(ZoneInfo("Europe/Prague")) for row in events]
@@ -205,6 +316,22 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
         assert reset_lifecycle == ("FAILED", True)
         assert web_instances == ["linked-web-instance"]
         assert inactive_admin_tables == set()
+        assert integration_scope == (
+            "SELECTED_EMPLOYEES",
+            ["integration:health", "employments:read"],
+        )
+        assert integration_scope_audit[0]["scopes"] == [
+            "integration:health",
+            "shift_plan:read",
+            "punches:read",
+            "employments:read",
+        ]
+        assert integration_scope_audit[1]["scopes"] == [
+            "integration:health",
+            "employments:read",
+        ]
+        assert integration_scope_audit[0]["data_scope_mode"] == "ALL_EMPLOYMENTS"
+        assert integration_scope_audit[1]["data_scope_mode"] == "SELECTED_EMPLOYEES"
 
         engine = sa.create_engine(temp_url)
         with engine.begin() as connection:
@@ -228,6 +355,11 @@ def test_revision_0021_data_survives_event_migration_to_head(monkeypatch: pytest
         assert restored_profile == (True, True)
     finally:
         with admin_engine.connect() as connection:
-            connection.execute(sa.text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :name"), {"name": database_name})
+            connection.execute(
+                sa.text(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :name"
+                ),
+                {"name": database_name},
+            )
             connection.exec_driver_sql(f'DROP DATABASE IF EXISTS "{database_name}"')
         admin_engine.dispose()

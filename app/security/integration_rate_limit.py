@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from collections.abc import Callable
 
-from fastapi import Request
+from fastapi import Depends, Request
 
 from app.api.integration_common import IntegrationError
+from app.config import Settings, get_settings
 
 _WINDOW_SECONDS = 60
 _buckets: dict[str, deque[float]] = {}
@@ -22,7 +22,9 @@ def enforce_rate_limit(request: Request, *, namespace: str, limit_per_minute: in
         return
     client_key = getattr(request.state, "integration_rate_key", None)
     if not isinstance(client_key, str) or not client_key:
-        source_ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
+        source_ip = request.headers.get("x-real-ip") or (
+            request.client.host if request.client else "unknown"
+        )
         client_key = f"ip:{source_ip}"
     bucket_key = f"{namespace}:{client_key}"
     bucket = _buckets.setdefault(bucket_key, deque())
@@ -33,9 +35,53 @@ def enforce_rate_limit(request: Request, *, namespace: str, limit_per_minute: in
     bucket.append(now)
 
 
-def rate_limit_dependency(namespace: str, limit_per_minute: int) -> Callable[[Request], None]:
-    def _dependency(request: Request) -> None:
-        enforce_rate_limit(request, namespace=namespace, limit_per_minute=limit_per_minute)
+def _enforce_configured_limit(
+    request: Request,
+    *,
+    settings: Settings,
+    namespace: str,
+    limit_per_minute: int,
+) -> None:
+    if not settings.rate_limit_enabled:
+        return
+    enforce_rate_limit(request, namespace=namespace, limit_per_minute=limit_per_minute)
 
-    return _dependency
 
+def integration_health_rate_limit(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> None:
+    _enforce_configured_limit(
+        request,
+        settings=settings,
+        namespace="integration-health",
+        limit_per_minute=settings.rate_limit_integration_health_per_minute,
+    )
+
+
+def integration_data_rate_limit(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> None:
+    _enforce_configured_limit(
+        request,
+        settings=settings,
+        namespace="integration-data",
+        limit_per_minute=settings.rate_limit_integration_data_per_minute,
+    )
+
+
+def integration_openapi_rate_limit(
+    request: Request,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> None:
+    _enforce_configured_limit(
+        request,
+        settings=settings,
+        namespace="integration-openapi",
+        limit_per_minute=settings.rate_limit_integration_openapi_per_minute,
+    )
+
+
+def reset_integration_rate_limits() -> None:
+    _buckets.clear()

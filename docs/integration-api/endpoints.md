@@ -1,126 +1,58 @@
-# Endpointy a datové modely
+# Endpointy
 
-## Přehled
+Všechny cesty mají prefix `/api/v1/integration` a vyžadují bearer `dgi_…`.
 
-Integrační API je dostupné pod:
-
-`https://dagmar.hcasc.cz/api/v1/integration`
-
-Doporučené pořadí integrace:
-
-1. `health`
-2. `employments`
-3. `shift-plan`
-4. `attendances`
-5. `punches`
-6. `locks`
-7. write operace pro docházku
-
-## Datové významy
-
-- `employee_id` je identifikátor osoby v systému Dagmar.
-- `employment_id` je identifikátor konkrétního úvazku.
-- invariant docházky je `employment_id + date`
-- lokální časy jsou ve formátu `HH:MM`
-- UTC timestampy jsou ve formátu ISO 8601 s `Z`
-
-## Read endpointy
+## Technické endpointy
 
 ### `GET /health`
 
-- scope: `integration:health`
-- účel: ověření tokenu a dostupnosti API
-
-Úspěšná odpověď:
-
-```json
-{
-  "ok": true,
-  "service": "dagmar-integration-api",
-  "api_version": "v1",
-  "contract_version": "2026-06-23",
-  "timezone": "Europe/Prague"
-}
-```
-
-### `GET /employments`
-
-- scope: `employments:read`
-- vrací seznam úvazků dostupných pro klienta
-
-### `GET /shift-plan`
-
-- scope: `shift_plan:read`
-- vrací plán směn v období
-- maximální období: 31 dnů
-
-### `GET /attendances`
-
-- scope: `attendance:read`
-- vrací denní docházku
-- maximální období: 31 dnů
-- zapisovatelná doménová pole v aktuálním modelu jsou pouze `arrival_time` a `departure_time`
-
-### `GET /punches`
-
-- scope: `punches:read`
-- vrací pouze odvozené průchody `ARRIVAL` a `DEPARTURE`
-- nejde o raw terminálové eventy
-
-### `GET /locks`
-
-- scope: `locks:read`
-- vrací existující měsíční zámky docházky
+Scope `integration:health`. Vrací `ok`, název služby, `api_version`, `contract_version`, `client_id` a `timezone`. Nekontroluje databázovou připravenost celé aplikace.
 
 ### `GET /openapi.json`
 
-- scope: `openapi:read`
-- vrací chráněné OpenAPI schéma integračního routeru
+Scope `openapi:read`. Vrací chráněný OpenAPI 3.1 popis pouze aktivních integračních rout a aktuální verzi kontraktu.
 
-## Write endpointy pro docházku
+## `GET /employments`
 
-### `POST /attendances`
+Scope `employments:read`. Parametry `limit` (1–500, výchozí 100) a `cursor`. Vrací úvazky povolené datovým rozsahem klienta, včetně `employment_id`, `employee_id`, období, aktivity a časového profilu.
 
-- scope: `attendance:create`
-- vytváří nový docházkový záznam pro existující `employment_id` a `date`
-- pokud docházka pro stejný klíč už existuje, vrací `409 duplicate_attendance`
-- nesmí vytvořit uživatele, zaměstnance ani úvazek
+## `GET /attendance-events`
 
-Request body:
+Scope `attendance:read`. Parametry:
+
+- volitelný `employment_id`;
+- volitelné ISO datum `date_from` a `date_to` včetně;
+- `limit` a `cursor`.
+
+Filtry i datový rozsah se aplikují před stránkováním. Pořadí je stabilní podle `(occurred_at, id)`. Event obsahuje interní `event_type` `IN`/`OUT`, protože jde o strojový kontrakt.
+
+## `POST /attendance-events`
+
+Scope `attendance:create`. JSON:
 
 ```json
 {
-  "employment_id": 101,
-  "date": "2026-06-12",
-  "arrival_time": "08:00",
-  "departure_time": "16:30"
+  "employment_id": 42,
+  "occurred_at": "2026-08-11T08:00:00+02:00",
+  "event_type": "IN",
+  "paired_occurred_at": "2026-08-11T16:00:00+02:00"
 }
 ```
 
-### `PATCH /attendances/{attendance_id}`
+`paired_occurred_at` je volitelné atomické vložení uzavřeného intervalu a je platné pouze pro počáteční `IN`. Endpoint zachovává chronologii, zámky měsíců, celodenní stavy a přepočet dotčených metrik.
 
-- scope: `attendance:update`
-- částečně upravuje existující docházku
-- přijímá pouze `arrival_time`, `departure_time` a volitelné `expected_updated_at`
-- technická pole jako `id`, `created_at`, `updated_at` nebo `instance_id` nejsou přímo zapisovatelná
+## `PATCH /attendance-events/{event_id}`
 
-### `DELETE /attendances/{attendance_id}`
+Scope `attendance:update`. Přijímá pouze nový čas s časovým pásmem:
 
-- scope: `attendance:delete`
-- smaže existující docházku
-- volitelně přijímá `expected_updated_at`
-- mazání je auditované a respektuje datový rozsah i zámky
+```json
+{"occurred_at":"2026-08-11T08:15:00+02:00"}
+```
 
-## Zámky a konflikty
+## `DELETE /attendance-events/{event_id}`
 
-- write operace nikdy neobcházejí zamčené měsíce
-- zamčené období vrací `423 attendance_locked`
-- zastaralé `expected_updated_at` vrací `409 conflict`
-- write operace respektují stejný datový rozsah jako read endpointy
+Scope `attendance:delete`. Volitelný query parametr `paired_event_id` odstraní dva související eventy atomicky. Výsledná historie musí zůstat platná.
 
-## Nepodporované funkce
+## `GET /locks`
 
-- `PUT /attendances`
-- `/changes`
-- write operace mimo docházku
-- správa uživatelů, zaměstnanců, úvazků, plánů služeb a zámků
+Scope `locks:read`. Povinné parametry `year` a `month`, dále `limit` a `cursor`. Pro každý povolený `employment_id` vrací `attendance_locked` a `shift_plan_locked`.

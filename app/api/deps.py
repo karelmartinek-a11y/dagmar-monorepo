@@ -120,18 +120,30 @@ def require_portal_user_auth(
     else:
         browser_session = get_portal_session(request, settings)
         if not browser_session.is_authenticated or browser_session.user_id is None:
-            raise_enveloped_api_error(status.HTTP_401_UNAUTHORIZED, "portal_session_invalid", "Přihlášení není platné.")
+            raise_enveloped_api_error(
+                status.HTTP_401_UNAUTHORIZED, "portal_session_invalid", "Přihlášení není platné."
+            )
         user = db.get(models.PortalUser, browser_session.user_id)
-        if user is None or user.password_hash is None or not portal_session_matches_password(
-            browser_session, user.password_hash, settings
+        if (
+            user is None
+            or user.password_hash is None
+            or not portal_session_matches_password(browser_session, user.password_hash, settings)
         ):
-            raise_enveloped_api_error(status.HTTP_401_UNAUTHORIZED, "portal_session_invalid", "Přihlášení není platné.")
+            raise_enveloped_api_error(
+                status.HTTP_401_UNAUTHORIZED, "portal_session_invalid", "Přihlášení není platné."
+            )
         instance = user.instance
         require_csrf_header(request)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="K tokenu neni prirazen uzivatel")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="K tokenu neni prirazen uzivatel"
+        )
     if instance is None or instance.status != models.InstanceStatus.ACTIVE:
-        raise_enveloped_api_error(status.HTTP_403_FORBIDDEN, "portal_instance_inactive", "Přístupová instance není aktivní.")
+        raise_enveloped_api_error(
+            status.HTTP_403_FORBIDDEN,
+            "portal_instance_inactive",
+            "Přístupová instance není aktivní.",
+        )
     if user.is_blocked:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -173,6 +185,7 @@ def require_integration_auth(
 
     audit = get_audit_context(request)
     audit.client_id = auth.client.id
+    request.state.integration_rate_key = f"client:{auth.client.id}"
 
     try:
         touch_client_last_used(db, auth.client)

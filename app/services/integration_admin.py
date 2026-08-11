@@ -41,9 +41,7 @@ EXPIRATION_1_YEAR = "YEAR_1"
 EXPIRATION_CUSTOM = "CUSTOM_DATE"
 
 PERMISSION_PROFILE_HEALTH = "HEALTH_ONLY"
-PERMISSION_PROFILE_SHIFT_PLAN = "SHIFT_PLAN"
-PERMISSION_PROFILE_ATTENDANCE = "ATTENDANCE_NO_PUNCHES"
-PERMISSION_PROFILE_ATTENDANCE_WITH_PUNCHES = "ATTENDANCE_WITH_PUNCHES"
+PERMISSION_PROFILE_ATTENDANCE = "ATTENDANCE_READ"
 PERMISSION_PROFILE_FULL_READONLY = "FULL_READONLY"
 
 _NAME_TOKEN_PATTERN = re.compile(r"^[0-9A-Za-z\u00C0-\u024F _-]+$")
@@ -83,38 +81,40 @@ SCOPE_DEFINITIONS: tuple[ScopeDefinition, ...] = (
         label="Čtení plánu služeb",
         description="Umožní číst rozpis směn a volitelné měsíční zámky v povoleném rozsahu.",
         data_access="Vrací plánované příchody a odchody podle employment_id.",
-        when_to_enable="Zapněte pro plánovací nebo mzdové systémy, které potřebují směny.",
+        when_to_enable="Nelze zapnout, dokud nebude implementovaný a vynucený odpovídající endpoint.",
         risk="Střední riziko. Partner získá budoucí pracovní rozvrh lidí.",
+        available=False,
+        unavailable_reason="Endpoint plánu služeb není v této verzi integračního API dostupný.",
     ),
     ScopeDefinition(
         id=SCOPE_ATTENDANCE,
-        label="Čtení skutečné docházky",
-        description="Umožní číst skutečně evidovanou docházku včetně volitelných doplňkových dat.",
+        label="Čtení průchodů",
+        description="Umožní číst skutečně evidované chronologické průchody.",
         data_access="Vrací skutečné příchody a odchody podle employment_id.",
         when_to_enable="Zapněte pro mzdy, reporting nebo přenos skutečně odpracované doby.",
         risk="Vyšší riziko. Partner získá citlivá provozní data o docházce.",
     ),
     ScopeDefinition(
         id=SCOPE_ATTENDANCE_CREATE,
-        label="Vytváření docházky",
-        description="Umožní založit nový docházkový záznam pro existující employment_id a datum.",
-        data_access="Smí vytvořit pouze docházku. Nevytváří zaměstnance, uživatele ani úvazky.",
+        label="Vytváření průchodů",
+        description="Umožní založit nový průchod pro existující employment_id a čas.",
+        data_access="Smí vytvořit pouze průchod. Nevytváří zaměstnance, uživatele ani úvazky.",
         when_to_enable="Zapněte jen pokud externí systém skutečně zapisuje docházku a má jasný proces pro duplicitní pokusy.",
         risk="Vysoké riziko. Partner může založit nový docházkový záznam v povoleném rozsahu.",
     ),
     ScopeDefinition(
         id=SCOPE_ATTENDANCE_UPDATE,
-        label="Úprava docházky",
-        description="Umožní měnit časy existujícího docházkového záznamu v povoleném rozsahu.",
-        data_access="Smí upravovat pouze uložené časy docházky. Nemění zaměstnance, úvazky, plány služeb ani zámky.",
+        label="Úprava průchodů",
+        description="Umožní měnit časy existujícího průchodu v povoleném rozsahu.",
+        data_access="Smí upravovat pouze uložené časy průchodů. Nemění zaměstnance, úvazky, plány služeb ani zámky.",
         when_to_enable="Zapněte jen pokud partner potřebuje opravovat nebo doplňovat docházku a umí pracovat s konflikty změn.",
         risk="Vysoké riziko. Partner může změnit existující docházkový záznam.",
     ),
     ScopeDefinition(
         id=SCOPE_ATTENDANCE_DELETE,
-        label="Mazání docházky",
-        description="Umožní odstranit existující docházkový záznam v povoleném rozsahu.",
-        data_access="Smí mazat pouze docházku. Nemá oprávnění spravovat zaměstnance, úvazky, plány služeb ani zámky.",
+        label="Mazání průchodů",
+        description="Umožní odstranit existující průchod v povoleném rozsahu.",
+        data_access="Smí mazat pouze průchody. Nemá oprávnění spravovat zaměstnance, úvazky, plány služeb ani zámky.",
         when_to_enable="Zapněte jen pokud je mazání nezbytné a partner má řízený auditovaný proces oprav.",
         risk="Kritické riziko. Partner může smazat docházkový záznam; používejte pouze po výslovném schválení správce.",
     ),
@@ -123,8 +123,10 @@ SCOPE_DEFINITIONS: tuple[ScopeDefinition, ...] = (
         label="Čtení odvozených průchodů",
         description="Umožní číst odvozené události příchod/odchod vytvořené z docházky.",
         data_access="Vrací odvozené průchody ARRIVAL a DEPARTURE podle attendance dat.",
-        when_to_enable="Zapněte jen tehdy, když cílový systém očekává události po jednotlivých průchodech.",
+        when_to_enable="Nelze zapnout, dokud nebude implementovaný a vynucený odpovídající endpoint.",
         risk="Vyšší riziko. Partner získá detailnější provozní průběh dne.",
+        available=False,
+        unavailable_reason="Samostatný endpoint odvozených průchodů není v této verzi dostupný.",
     ),
     ScopeDefinition(
         id=SCOPE_LOCKS,
@@ -158,21 +160,11 @@ SCOPE_BY_ID = {item.id: item for item in SCOPE_DEFINITIONS}
 
 PERMISSION_PROFILES: dict[str, tuple[str, ...]] = {
     PERMISSION_PROFILE_HEALTH: (SCOPE_HEALTH,),
-    PERMISSION_PROFILE_SHIFT_PLAN: (SCOPE_HEALTH, SCOPE_EMPLOYMENTS, SCOPE_SHIFT_PLAN, SCOPE_LOCKS),
     PERMISSION_PROFILE_ATTENDANCE: (SCOPE_HEALTH, SCOPE_EMPLOYMENTS, SCOPE_ATTENDANCE, SCOPE_LOCKS),
-    PERMISSION_PROFILE_ATTENDANCE_WITH_PUNCHES: (
-        SCOPE_HEALTH,
-        SCOPE_EMPLOYMENTS,
-        SCOPE_ATTENDANCE,
-        SCOPE_PUNCHES,
-        SCOPE_LOCKS,
-    ),
     PERMISSION_PROFILE_FULL_READONLY: (
         SCOPE_HEALTH,
         SCOPE_EMPLOYMENTS,
-        SCOPE_SHIFT_PLAN,
         SCOPE_ATTENDANCE,
-        SCOPE_PUNCHES,
         SCOPE_LOCKS,
         SCOPE_OPENAPI,
     ),
@@ -180,9 +172,7 @@ PERMISSION_PROFILES: dict[str, tuple[str, ...]] = {
 
 PERMISSION_PROFILE_LABELS: dict[str, str] = {
     PERMISSION_PROFILE_HEALTH: "Pouze kontrola dostupnosti",
-    PERMISSION_PROFILE_SHIFT_PLAN: "Plán služeb",
-    PERMISSION_PROFILE_ATTENDANCE: "Docházka bez průchodů",
-    PERMISSION_PROFILE_ATTENDANCE_WITH_PUNCHES: "Docházka včetně odvozených průchodů",
+    PERMISSION_PROFILE_ATTENDANCE: "Čtení průchodů a zámků",
     PERMISSION_PROFILE_FULL_READONLY: "Kompletní read-only integrace",
 }
 
@@ -229,7 +219,9 @@ def validate_client_name(raw_name: str) -> str:
     if "<" in name or ">" in name:
         raise HTTPException(status_code=400, detail="Název integrace nesmí obsahovat HTML značky.")
     if lowered.startswith(("dgi_", "dg_", "sk-", "token", "secret")):
-        raise HTTPException(status_code=400, detail="Název integrace nesmí vypadat jako token nebo tajný údaj.")
+        raise HTTPException(
+            status_code=400, detail="Název integrace nesmí vypadat jako token nebo tajný údaj."
+        )
     return name
 
 
@@ -240,11 +232,18 @@ def validate_scopes(raw_scopes: list[str]) -> list[str]:
         if definition is None:
             raise HTTPException(status_code=400, detail=f"Neznámé oprávnění: {scope}.")
         if not definition.available:
-            raise HTTPException(status_code=400, detail=f"Oprávnění {scope} není v této verzi podporováno.")
+            raise HTTPException(
+                status_code=400, detail=f"Oprávnění {scope} není v této verzi podporováno."
+            )
     if not scopes:
-        raise HTTPException(status_code=400, detail="Vyberte alespoň jedno oprávnění integračního klienta.")
+        raise HTTPException(
+            status_code=400, detail="Vyberte alespoň jedno oprávnění integračního klienta."
+        )
     if SCOPE_HEALTH not in scopes:
-        raise HTTPException(status_code=400, detail="Každá integrace musí mít oprávnění pro kontrolu dostupnosti API.")
+        raise HTTPException(
+            status_code=400,
+            detail="Každá integrace musí mít oprávnění pro kontrolu dostupnosti API.",
+        )
     return scopes
 
 
@@ -308,7 +307,9 @@ def build_employee_options(db: Session) -> list[dict[str, object]]:
                 "is_active": bool(user.is_active),
                 "employment_count": len(employments),
                 "active_employment_count": active_count,
-                "employment_labels": [employment_label(item, user_name=user.name) for item in employments],
+                "employment_labels": [
+                    employment_label(item, user_name=user.name) for item in employments
+                ],
             }
         )
     return options
@@ -330,10 +331,14 @@ def build_employment_options(db: Session) -> list[dict[str, object]]:
             {
                 "id": employment.id,
                 "user_id": employment.user_id,
-                "label": employment_label(employment, user_name=getattr(employment.user, "name", None)),
+                "label": employment_label(
+                    employment, user_name=getattr(employment.user, "name", None)
+                ),
                 "employment_type": employment.employment_type,
                 "start_date": employment.start_date.isoformat(),
-                "end_date": employment.end_date.isoformat() if employment.end_date is not None else None,
+                "end_date": employment.end_date.isoformat()
+                if employment.end_date is not None
+                else None,
                 "is_active": employment.is_active,
             }
         )
@@ -346,7 +351,11 @@ def validate_selected_employee_ids(db: Session, employee_ids: list[int]) -> list
     normalized = sorted({int(item) for item in employee_ids})
     existing = {
         int(item)
-        for item in db.execute(select(models.PortalUser.id).where(models.PortalUser.id.in_(normalized))).scalars().all()
+        for item in db.execute(
+            select(models.PortalUser.id).where(models.PortalUser.id.in_(normalized))
+        )
+        .scalars()
+        .all()
     }
     missing = [item for item in normalized if item not in existing]
     if missing:
@@ -360,7 +369,11 @@ def validate_selected_employment_ids(db: Session, employment_ids: list[int]) -> 
     normalized = sorted({int(item) for item in employment_ids})
     existing = {
         int(item)
-        for item in db.execute(select(models.Employment.id).where(models.Employment.id.in_(normalized))).scalars().all()
+        for item in db.execute(
+            select(models.Employment.id).where(models.Employment.id.in_(normalized))
+        )
+        .scalars()
+        .all()
     }
     missing = [item for item in normalized if item not in existing]
     if missing:
@@ -420,7 +433,11 @@ def data_scope_summary(client: models.IntegrationClient) -> str:
     mode = infer_data_scope_mode(client)
     if mode == DATA_SCOPE_SELECTED_EMPLOYEES:
         count = len(client.allowed_employee_ids or [])
-        suffix = "včetně neaktivních úvazků" if bool(getattr(client, "include_inactive_employments", False)) else "jen aktivní úvazky"
+        suffix = (
+            "včetně neaktivních úvazků"
+            if bool(getattr(client, "include_inactive_employments", False))
+            else "jen aktivní úvazky"
+        )
         return f"Vybraní zaměstnanci ({count}) - {suffix}"
     if mode == DATA_SCOPE_SELECTED_EMPLOYMENTS:
         count = len(client.allowed_employment_ids or [])
@@ -447,7 +464,9 @@ def build_recent_audit_summary(db: Session, client_id: int) -> dict[str, object]
         db.execute(
             select(models.IntegrationAuditLog)
             .where(models.IntegrationAuditLog.client_id == client_id)
-            .order_by(models.IntegrationAuditLog.requested_at.desc(), models.IntegrationAuditLog.id.desc())
+            .order_by(
+                models.IntegrationAuditLog.requested_at.desc(), models.IntegrationAuditLog.id.desc()
+            )
             .limit(20)
         )
         .scalars()

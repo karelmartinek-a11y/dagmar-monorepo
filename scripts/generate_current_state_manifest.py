@@ -94,7 +94,11 @@ def _auth_mode(path: str, methods: list[str]) -> str:
     if path.startswith("/api/v1/auth/"):
         return "browser_redirect"
     if path.startswith("/api/v1/admin"):
-        return "admin_session_csrf" if any(method in {"POST", "PUT", "PATCH", "DELETE"} for method in methods) else "admin_session"
+        return (
+            "admin_session_csrf"
+            if any(method in {"POST", "PUT", "PATCH", "DELETE"} for method in methods)
+            else "admin_session"
+        )
     if path.startswith("/api/v1/attendance") or path.startswith("/api/v1/shift-plan"):
         return "portal_cookie_or_bearer_csrf_if_cookie"
     if path in {"/api/v1/portal/session", "/api/v1/portal/logout"}:
@@ -114,7 +118,9 @@ def build_manifest() -> dict[str, object]:
             if isinstance(route, APIRoute):
                 if not route.path.startswith("/api/"):
                     continue
-                methods = sorted(method for method in route.methods if method not in {"HEAD", "OPTIONS"})
+                methods = sorted(
+                    method for method in route.methods if method not in {"HEAD", "OPTIONS"}
+                )
                 key = (route.path, tuple(methods))
                 if key in seen:
                     continue
@@ -304,22 +310,37 @@ def build_manifest() -> dict[str, object]:
             {
                 "id": "employment_scope",
                 "rule": "Attendance, shift plan, locks and exports stay scoped by employment_id.",
-                "tests": ["tests/test_integration_api.py", "web/tests/employee-page-editing.test.tsx", "web/tests/admin-pages.test.tsx"],
+                "tests": [
+                    "tests/test_integration_contract.py",
+                    "web/tests/employee-page-editing.test.tsx",
+                    "web/tests/admin-pages.test.tsx",
+                ],
             },
             {
                 "id": "backend_hours_authority",
                 "rule": "Backend computes daily tenths and monthly hours as the sum of rounded daily values; frontend only formats *_hours.",
-                "tests": ["tests/test_month_summary.py", "web/tests/employee-page-editing.test.tsx", "scripts/check_repo_invariants.py"],
+                "tests": [
+                    "tests/test_month_summary.py",
+                    "web/tests/employee-page-editing.test.tsx",
+                    "scripts/check_repo_invariants.py",
+                ],
             },
             {
                 "id": "auth_modes",
                 "rule": "Admin uses session plus CSRF, employee uses bearer token, integrations use dgi_ bearer tokens.",
-                "tests": ["tests/test_admin_auth.py", "tests/test_integration_api.py", "web/tests/api.test.ts"],
+                "tests": [
+                    "tests/test_admin_auth.py",
+                    "tests/test_integration_contract.py",
+                    "web/tests/api.test.ts",
+                ],
             },
             {
                 "id": "route_contract",
                 "rule": "Frontend routes and backend endpoints match the active runtime registration.",
-                "tests": ["tests/test_current_state_manifest.py", "python scripts/generate_current_state_manifest.py --check"],
+                "tests": [
+                    "tests/test_current_state_manifest.py",
+                    "python scripts/generate_current_state_manifest.py --check",
+                ],
             },
             {
                 "id": "clean_build_outputs",

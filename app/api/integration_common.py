@@ -8,9 +8,9 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, NoReturn, cast
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -51,7 +51,9 @@ def ensure_request_id(request: Request) -> str:
     return request_id
 
 
-def integration_error_response(request: Request, status_code: int, code: str, message: str) -> JSONResponse:
+def integration_error_response(
+    request: Request, status_code: int, code: str, message: str
+) -> JSONResponse:
     request_id = ensure_request_id(request)
     audit = get_audit_context(request)
     audit.error_code = code
@@ -62,7 +64,7 @@ def integration_error_response(request: Request, status_code: int, code: str, me
     )
 
 
-def raise_integration_error(status_code: int, code: str, message: str) -> None:
+def raise_integration_error(status_code: int, code: str, message: str) -> NoReturn:
     raise IntegrationError(status_code=status_code, code=code, message=message)
 
 
@@ -163,17 +165,32 @@ def decode_cursor(cursor: str | None) -> dict[str, Any] | None:
         raw = base64.urlsafe_b64decode((cursor + padding).encode("ascii"))
         value = json.loads(raw.decode("utf-8"))
     except (ValueError, binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=400, detail="Neplatný cursor.") from exc
+        raise IntegrationError(400, "invalid_cursor", "Cursor není platný.") from exc
     if not isinstance(value, dict):
-        raise HTTPException(status_code=400, detail="Neplatný cursor.")
+        raise IntegrationError(400, "invalid_cursor", "Cursor není platný.")
     return value
+
+
+def encode_resource_cursor(resource: str, key: object) -> str:
+    return encode_cursor({"v": 1, "resource": resource, "key": key})
+
+
+def decode_resource_cursor(cursor: str | None, *, resource: str) -> object | None:
+    payload = decode_cursor(cursor)
+    if payload is None:
+        return None
+    if payload.get("v") != 1 or payload.get("resource") != resource or "key" not in payload:
+        raise IntegrationError(400, "invalid_cursor", "Cursor nepatří k tomuto seznamu.")
+    return cast(object, payload["key"])
 
 
 def parse_iso_date(value: str, *, field_name: str) -> date:
     try:
         return date.fromisoformat(value)
     except ValueError as exc:
-        raise_integration_error(status.HTTP_400_BAD_REQUEST, "invalid_request", f"Pole {field_name} není platné datum.")
+        raise_integration_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_request", f"Pole {field_name} není platné datum."
+        )
         raise AssertionError from exc
 
 

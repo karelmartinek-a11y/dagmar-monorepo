@@ -42,6 +42,8 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - administrace používá session cookie a CSRF
 - zaměstnanecký browser používá samostatnou podepsanou HttpOnly Secure SameSite=Lax cookie `dagmar_portal_session`, jejíž platnost je navázaná na aktuální password credential, a synchronizer CSRF pro mutace; souběžné browserové relace se při loginu navzájem neruší a explicitní bearer instance zůstává pouze pro non-browser klienty
 - integrační API používá samostatné bearer tokeny s prefixem `dgi_`
+- integrační API používá jedinou deny-by-default scope službu pro seznamy i přímá ID: `ALL_EMPLOYMENTS`, `ALL_ACTIVE_EMPLOYMENTS`, neprázdné `SELECTED_EMPLOYEES` a neprázdné `SELECTED_EMPLOYMENTS`; zápisy navíc vyžadují aktivní úvazek i uživatele
+- integrační seznamy používají verzovaný opaque cursor (`id`, u eventů `(occurred_at,id)`) a health/data/OpenAPI mají oddělené konfigurovatelné rate-limit buckety
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
 - skupiny úvazků jsou vztah M:N nad `employment_id`, mají nejméně dva členy a sdílejí pouze plán směn
 - časová autorita je `Europe/Prague`
