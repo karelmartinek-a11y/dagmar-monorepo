@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
@@ -86,7 +86,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install locked dependencies
         run: |
           python -m pip install --disable-pip-version-check pip==26.0
@@ -184,7 +184,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Prepare real backend
         run: |
           python -m pip install --disable-pip-version-check pip==26.0
@@ -240,7 +240,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - id: gate
         run: python scripts/check_release_gate.py --github-output
 
@@ -301,16 +301,7 @@ jobs:
 
             echo "production_arch=$(uname -m)"
             echo "production_python=$(python3 --version 2>&1 || true)"
-            if ! command -v python3.11 >/dev/null 2>&1; then
-              if [ "$(id -u)" -eq 0 ]; then
-                apt-get update
-                DEBIAN_FRONTEND=noninteractive apt-get install -y python3.11 python3.11-venv
-              else
-                sudo -n apt-get update
-                sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y python3.11 python3.11-venv
-              fi
-            fi
-            command -v python3.11
+            command -v python3
 
             install -d "$RELEASES" "$WEB_RELEASES"
             REQUIRED_KB=$(( ($(stat -c %s "$UPLOAD/backend-release.tgz") + $(stat -c %s "$UPLOAD/web-release.tgz")) / 1024 * 10 + 524288 ))
@@ -320,8 +311,8 @@ jobs:
             tar -xzf "$UPLOAD/backend-release.tgz" -C "$BACK_RELEASE"
             tar -xzf "$UPLOAD/web-release.tgz" -C "$WEB_RELEASE"
             (cd "$BACK_RELEASE" && sha256sum -c SHA256SUMS)
-            python3.11 --version | grep -Eq '^Python 3\.11\.'
-            python3.11 -m venv "$BACK_RELEASE/.venv"
+            python3 --version | grep -Eq '^Python 3\.12\.'
+            python3 -m venv "$BACK_RELEASE/.venv"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" pip==26.0
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --only-binary=:all: --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
