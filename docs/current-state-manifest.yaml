@@ -673,6 +673,14 @@
       "path": "/api/v1/portal/session"
     },
     {
+      "auth_mode": "public",
+      "handler": "app.main.readiness_v1",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/readiness"
+    },
+    {
       "auth_mode": "portal_cookie_or_bearer_csrf_if_cookie",
       "handler": "app.api.v1.shift_plan.portal_upsert_shift_plan",
       "methods": [
@@ -968,10 +976,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 1985,
+    "line_count": 1991,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "50071a2f569913a1f67dbdd6bac21fbcb1082187db9485a84621418241281481"
+    "sha256": "16b12298af358b89f0d8c3140b29ada74a08a934a4aea4ebbdd984edb49c9980"
   },
   "production": {
     "api_base_path": "/api/v1/",

@@ -79,7 +79,7 @@ Aktivní routy definuje [web/src/App.tsx](../web/src/App.tsx):
 
 Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
-- veřejné endpointy zahrnují `/api/v1/health`, `/api/health`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`;
+- veřejné endpointy zahrnují DB-independent liveness `/api/v1/health` a `/api/health`, databázovou a migrační `/api/v1/readiness`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`;
 - zaměstnanecký browser používá HttpOnly Secure SameSite=Lax cookie `dagmar_portal_session`; ne-browser instance klient může nadále použít explicitní bearer `dg_…`. Cookie-auth mutace vyžadují portálový synchronizer token z `/api/v1/portal/csrf`. Doménové endpointy jsou `/api/v1/attendance`, `/api/v1/attendance/employments`, `/api/v1/attendance/events*`, `/api/v1/attendance/day-status`, `/api/v1/shift-plan`, `/api/v1/shift-plan/day-status`, `/api/v1/shift-plan/groups*` a `/api/v1/portal/auth-methods*`;
 - administrace používá session cookie `dagmar_admin_session`, CSRF hlavičku `X-CSRF-Token` a `/api/v1/admin/*` endpointy pro login, uživatele, úvazky, docházkové eventy, plán služeb, zámky, exporty, SMTP a integrační klienty;
 - integrační API používá bearer tokeny s prefixem `dgi_` a běží na `/api/v1/integration/*`;
@@ -177,6 +177,8 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 
 - kanonická veřejná adresa je výhradně `https://dagmar.hcasc.cz`;
 - Nginx ukončuje TLS, obsluhuje statický frontend a proxyuje API;
+- HTTPS web i API dostávají právě jednu společnou sadu security hlaviček: enforced CSP bez dynamických script zdrojů, roční HSTS, rozšířenou Permissions-Policy, `COOP: same-origin-allow-popups` a `CORP: same-origin`;
+- HSTS záměrně nepoužívá `includeSubDomains` ani `preload`, dokud nebude doložené vlastnictví a TLS připravenost všech subdomén `hcasc.cz`; hlavička patří pouze kanonickému HTTPS serveru;
 - backend poslouchá pouze na `127.0.0.1:8101`;
 - PostgreSQL je publikovaný pouze na `127.0.0.1:5433`;
 - backend běží jako systemd služba uživatele a skupiny `dagmar` v `/opt/dagmar/backend`;
@@ -196,7 +198,7 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 
 ### Konfigurace
 
-Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní proměnné mají přednost. Neznámé nebo chybné `DAGMAR_ENV` se normalizuje na `production`, neznámé `SameSite` na `lax`. Následující proměnné a defaulty jsou součástí reprodukčního kontraktu; tajné hodnoty se v SSOT nikdy neuvádějí:
+Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní proměnné mají přednost. Neznámé, prázdné nebo syntakticky chybné `DAGMAR_ENV`, `DAGMAR_COOKIE_SAMESITE`, veřejná URL, CORS origin nebo provider URL zastaví start s názvem chybné proměnné. Následující proměnné a defaulty jsou součástí reprodukčního kontraktu; tajné hodnoty se v SSOT nikdy neuvádějí:
 
 | Proměnná | Povinnost / default | Význam |
 |---|---|---|
@@ -248,7 +250,7 @@ Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní 
 | `DAGMAR_APPLE_CALLBACK_URL` | volitelná, ale při zadání přesně kanonická | callback |
 | `DAGMAR_DEPLOY_TAG` | automaticky `YYMMDDHHMM`, lze přepsat | identita buildu |
 
-Admin identita je vždy normalizována na `provoz@hotelchodovasc.cz`; runtime ji nesmí změnit libovolnou environment proměnnou. Guard výslovně odmítá zakázanou doménu `dochazka.hcasc.cz` v public URL i CORS. Zapnutý provider bez všech povinných hodnot, ne-HTTPS endpoint, nečitelný Apple key file nebo nekanonický callback zastaví start aplikace.
+Admin identita je vždy normalizována na `provoz@hotelchodovasc.cz`; runtime ji nesmí změnit libovolnou environment proměnnou. Produkční public URL je strukturálně přesně `https://dagmar.hcasc.cz` bez portu, userinfo, cesty, query nebo fragmentu a produkční CORS allowlist obsahuje pouze stejný origin, i když je CORS vypnuté. Zapnutý provider bez všech povinných hodnot, nečitelný Apple key file nebo nekanonický callback zastaví start aplikace. Google discovery a všechny objevené Google endpointy i pevné Apple endpointy jsou HTTPS URL s přesným oficiálním hostem a cestou; IP adresy, localhost, private/link-local cíle, userinfo, porty a odkloněné redirecty se odmítají před síťovým pokračováním.
 
 Instance token má pevně 32 náhodných bytů a prefix `dg_`. Synchronizer-token CSRF používá náhodný token uložený v oddělené podepsané Starlette session. Délka tokenu ani samostatné CSRF tajemství nejsou falešně konfigurovatelné; podepsaný session store používá výhradně `session_secret`.
 
@@ -783,6 +785,7 @@ U operací, které skutečně vracejí strukturovaný 409 payload s dopadem, je 
 |---|---|---|
 | GET | `/api/health` | kompatibilní health |
 | GET | `/api/v1/health` | primární health |
+| GET | `/api/v1/readiness` | `SELECT 1` a přesná shoda jediné DB Alembic revision s jediným zabaleným headem; bezpečné 503 bez interních údajů |
 | GET | `/api/version` | build/deploy verze a prostředí |
 | GET | `/api/v1/time` | aktuální pražský čas |
 | POST | `/api/v1/instances/register` | vytvoří pending instanci |
@@ -1294,9 +1297,10 @@ Na Node 22 s reálným backendem a PostgreSQL 17:
 5. typecheck;
 6. Vitest;
 7. Vite build;
-8. Playwright Chromium E2E včetně browser, accessibility a visual projektů;
-9. čistý git diff/status;
-10. zabalení přesného web artefaktu.
+8. zákaz `.map` souborů a `sourceMappingURL` v produkčním artefaktu;
+9. Playwright Chromium E2E včetně browser, accessibility a visual projektů;
+10. čistý git diff/status;
+11. zabalení přesného web artefaktu.
 
 Povinný security job před merge i deployem navíc provádí Python a npm dependency audit,
 Bandit, CodeQL pro Python a JavaScript/TypeScript, secret scan a validaci centrálního
@@ -1308,13 +1312,15 @@ GitHub Action je připnuta na plný commit SHA.
 - běží pouze po úspěšném security+backend+web jobu při push na `main` a po uzavření všech P0/P1 v implementační matici;
 - release je immutable adresář identifikovaný přesným SHA;
 - používá deployment lock;
+- před změnou schématu ověřuje dostatek místa a případné serverové `.git/config` bez vložených credentialů; server nepoužívá Git jako zdroj release;
 - backend se zastaví před migrací;
 - Alembic upgrade a daily-metric rebuild apply/check proběhnou před aktivací release;
 - po zahájení změny schématu nesmí žádná chybová větev znovu spustit starý backend;
 - symlinky backendu a webu se přepnou atomicky;
 - systemd a Nginx konfigurace se validují;
-- ověří se health a přesná nasazená verze;
-- webový symlink lze při selhání vrátit, ale databázově nekompatibilní starý backend se nesmí spustit;
+- po lokální readiness a verzi ověřuje samostatný GitHub runner veřejné HTTPS readiness, verzi, bezpečnostní hlavičky, frontend commit a anonymní Chromium shell bez console/network chyb;
+- neúspěšná veřejná validace vrátí webový symlink; starý backend se vrátí a spustí pouze při prokázané shodě DB revision před a po deployi, jinak backend zůstane zastavený;
+- release se označí jako úspěšný teprve po veřejném smoke a až potom se bezpečným skriptem zachová přesně pět úspěšných release včetně chráněného current/previous targetu; neznámé adresáře a symlinky se nesledují ani nemažou;
 - nasazený frontend a backend musí být z jednoho commitu;
 - backend je nasazován pouze z CI vytvořeného wheelu a přibaleného wheelhouse s ověřeným SHA-256 manifestem; produkční server nestahuje balíčky z indexu ani nesestavuje runtime z Git checkoutu.
 
@@ -1907,9 +1913,9 @@ Po vizuální změně se k automatickým kontrolám přidává dokončená desig
 ## Deploy invarianty
 
 - deploy zastaví starý backend před migrací, provede Alembic upgrade, backfill denních metrik a čistý `--check`, a až potom atomicky aktivuje nový release;
-- po zahájení změny schématu žádná chybová větev nespustí starý backend; při neúspěchu zůstane služba zastavená, dokud není dostupný kompatibilní release;
+- po zahájení změny schématu žádná chybová větev nespustí starý backend, pokud se DB revision změnila; při neúspěchu zůstane služba zastavená, dokud není dostupný kompatibilní release;
 - UI změna podléhající design gate se nesmí nasadit bez dohledatelného finálního schválení všech dotčených variant;
-- nasazený frontend a backend musí pocházet ze stejného ověřeného commitu a po nasazení se ověří health, verze, hlavní docházkový tok, plán služeb, zámky a tiskový náhled.
+- nasazený frontend a backend musí pocházet ze stejného ověřeného commitu a po nasazení se ověří veřejná readiness, verze, frontend shell bez console errors, hlavní docházkový tok, plán služeb, zámky a tiskový náhled.
 
 
 ## Forenzní trasovatelnost uživatelských požadavků

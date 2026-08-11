@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import ipaddress
 import os
 from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Literal, cast
+from urllib.parse import SplitResult, urlsplit
 
 from pydantic import BaseModel, Field
 
@@ -21,14 +23,57 @@ def _coerce_environment(value: str) -> Literal["production", "staging", "develop
     normalized = value.lower()
     if normalized in _ENV_VALUES:
         return cast(Literal["production", "staging", "development"], normalized)
-    return "production"
+    raise ValueError(
+        f"DAGMAR_ENV must be one of: production, staging, development (received {value!r})."
+    )
 
 
 def _coerce_cookie_samesite(value: str) -> Literal["lax", "strict"]:
     normalized = value.lower()
     if normalized in _SAMESITE_VALUES:
         return cast(Literal["lax", "strict"], normalized)
-    return "lax"
+    raise ValueError(f"DAGMAR_COOKIE_SAMESITE must be one of: lax, strict (received {value!r}).")
+
+
+def _split_https_url(value: str, *, setting_name: str) -> SplitResult:
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"{setting_name} is not a valid URL.") from exc
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError(f"{setting_name} must be an absolute HTTPS URL.")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError(f"{setting_name} must not contain userinfo.")
+    if port is not None:
+        raise ValueError(f"{setting_name} must not contain a port.")
+    if parsed.query or parsed.fragment:
+        raise ValueError(f"{setting_name} must not contain a query or fragment.")
+    return parsed
+
+
+def validate_external_endpoint_url(
+    value: str,
+    *,
+    setting_name: str,
+    allowed_hosts: set[str],
+    allowed_paths: set[str],
+) -> str:
+    """Validate an outbound OAuth/OIDC URL against an exact public allowlist."""
+
+    parsed = _split_https_url(value, setting_name=setting_name)
+    hostname = str(parsed.hostname).lower().rstrip(".")
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        raise ValueError(f"{setting_name} must not target localhost.")
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        address = None
+    if address is not None:
+        raise ValueError(f"{setting_name} must not target an IP address.")
+    if hostname not in allowed_hosts or parsed.path not in allowed_paths:
+        raise ValueError(f"{setting_name} is outside the approved provider allowlist.")
+    return value
 
 
 class Settings(BaseModel):
@@ -132,15 +177,27 @@ class Settings(BaseModel):
     )
 
     def ensure_canonical_domain(self) -> None:
-        # Hard guard: forbid the incorrect domain anywhere in runtime config.
-        bad = "dochazka.hcasc.cz"
-        if bad in self.public_base_url:
-            raise ValueError(f"Invalid domain detected in public_base_url: {bad} is forbidden")
+        parsed = _split_https_url(self.public_base_url, setting_name="DAGMAR_PUBLIC_BASE_URL")
+        if parsed.path not in {"", "/"}:
+            raise ValueError("DAGMAR_PUBLIC_BASE_URL must not contain a path.")
+        normalized = f"https://{parsed.hostname}"
+        if self.environment == "production" and normalized != "https://dagmar.hcasc.cz":
+            raise ValueError(
+                "Production DAGMAR_PUBLIC_BASE_URL must be exactly https://dagmar.hcasc.cz."
+            )
+        self.public_base_url = normalized
+
+        normalized_origins: list[str] = []
         for origin in self.cors_allow_origins:
-            if bad in origin:
-                raise ValueError(
-                    f"Invalid domain detected in cors_allow_origins: {bad} is forbidden"
-                )
+            cors = _split_https_url(origin, setting_name="DAGMAR_CORS_ALLOW_ORIGINS")
+            if cors.path not in {"", "/"}:
+                raise ValueError("DAGMAR_CORS_ALLOW_ORIGINS entries must be origins without paths.")
+            normalized_origins.append(f"https://{cors.hostname}")
+        if self.environment == "production" and normalized_origins != ["https://dagmar.hcasc.cz"]:
+            raise ValueError(
+                "Production DAGMAR_CORS_ALLOW_ORIGINS must contain only https://dagmar.hcasc.cz."
+            )
+        self.cors_allow_origins = normalized_origins
 
     def validate_external_auth(self) -> None:
         canonical = self.public_base_url.rstrip("/")
@@ -166,8 +223,12 @@ class Settings(BaseModel):
                 raise ValueError(
                     "Google callback URL musí přesně odpovídat kanonické HTTPS callback cestě."
                 )
-            if not self.google_oidc_discovery_url.startswith("https://"):
-                raise ValueError("Google discovery URL musí používat HTTPS.")
+            validate_external_endpoint_url(
+                self.google_oidc_discovery_url,
+                setting_name="DAGMAR_GOOGLE_OIDC_DISCOVERY_URL",
+                allowed_hosts={"accounts.google.com"},
+                allowed_paths={"/.well-known/openid-configuration"},
+            )
         if self.apple_signin_enabled:
             missing = [
                 name
@@ -187,13 +248,27 @@ class Settings(BaseModel):
                 raise ValueError(
                     "Apple callback URL musí přesně odpovídat kanonické HTTPS callback cestě."
                 )
-            for endpoint in (
-                self.apple_authorization_endpoint,
-                self.apple_token_endpoint,
-                self.apple_jwks_endpoint,
+            for name, endpoint, path in (
+                (
+                    "DAGMAR_APPLE_AUTHORIZATION_ENDPOINT",
+                    self.apple_authorization_endpoint,
+                    "/auth/authorize",
+                ),
+                ("DAGMAR_APPLE_TOKEN_ENDPOINT", self.apple_token_endpoint, "/auth/token"),
+                ("DAGMAR_APPLE_JWKS_ENDPOINT", self.apple_jwks_endpoint, "/auth/keys"),
             ):
-                if not endpoint.startswith("https://"):
-                    raise ValueError("Apple endpointy musí používat HTTPS.")
+                validate_external_endpoint_url(
+                    endpoint,
+                    setting_name=name,
+                    allowed_hosts={"appleid.apple.com"},
+                    allowed_paths={path},
+                )
+            validate_external_endpoint_url(
+                self.apple_issuer,
+                setting_name="DAGMAR_APPLE_ISSUER",
+                allowed_hosts={"appleid.apple.com"},
+                allowed_paths={""},
+            )
 
     def external_callback_url(self, provider: str) -> str:
         if provider == "google":
