@@ -1,0 +1,18 @@
+status: BLOKOVÁNO
+verdict: null
+reviewer: design-agent
+evidence:
+  backend: pending
+  frontend: pending
+  viewports:
+    - 1440x900
+    - 768x1024
+    - 390x844
+    - print
+  languages:
+    - cs
+    - en
+    - sk
+    - de
+    - hi
+notes: "Design review must use real local backend/frontend renders before release."
