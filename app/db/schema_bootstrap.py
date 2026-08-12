@@ -12,7 +12,18 @@ from app.config import Settings
 def ensure_schema_up_to_date(settings: Settings) -> None:
     """Při startu dotáhne databázové migrace na aktuální head."""
 
-    repository_root = Path(__file__).resolve().parents[2]
+    package_root = Path(__file__).resolve().parents[2]
+    working_root = Path.cwd()
+    repository_root = next(
+        (
+            candidate
+            for candidate in (working_root, package_root)
+            if (candidate / "alembic.ini").is_file() and (candidate / "alembic").is_dir()
+        ),
+        None,
+    )
+    if repository_root is None:
+        raise RuntimeError("Cannot locate the active release Alembic configuration")
     alembic_ini = repository_root / "alembic.ini"
     cfg = Config(str(alembic_ini))
     cfg.set_main_option("script_location", str((repository_root / "alembic").as_posix()))
