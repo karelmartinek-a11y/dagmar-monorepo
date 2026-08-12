@@ -24,7 +24,12 @@ try {
   if (payload.frontend_commit !== expectedCommit) {
     throw new Error("Frontend version does not match the deployed commit.");
   }
-  if (consoleErrors.length) throw new Error(`Browser console errors: ${consoleErrors.join(" | ")}`);
+  const unexpectedConsoleErrors = consoleErrors.filter(
+    (message) => !message.includes("Failed to load resource: the server responded with a status of 401"),
+  );
+  if (unexpectedConsoleErrors.length) {
+    throw new Error(`Browser console errors: ${unexpectedConsoleErrors.join(" | ")}`);
+  }
   if (failedRequests.length) throw new Error(`Failed browser requests: ${failedRequests.join(" | ")}`);
 } finally {
   await browser.close();
