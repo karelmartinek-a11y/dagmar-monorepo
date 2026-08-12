@@ -319,6 +319,9 @@ jobs:
             APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, app; print(pathlib.Path(app.__file__).parent)')
             ln -s "$APP_DIR" "$BACK_RELEASE/app"
             install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
+            install -d /etc/nginx/snippets
+            install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-security-headers.conf" /etc/nginx/snippets/dagmar-security-headers.conf
+            install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-location.conf" /etc/nginx/snippets/dagmar-location.conf
 
             while IFS= read -r -d '' config; do
               "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/check_git_config_credentials.py" "$config"
@@ -349,6 +352,7 @@ jobs:
             systemctl daemon-reload
             systemctl enable --now dagmar-shift-plan-month-auto-lock.timer
             nginx -t
+            systemctl reload nginx
 
             switch_link "$BACK_RELEASE" "$CURRENT_BACK"
             switch_link "$WEB_RELEASE" "$CURRENT_WEB"
