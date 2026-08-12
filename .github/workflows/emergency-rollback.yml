@@ -29,6 +29,9 @@ jobs:
             STATE="/tmp/dagmar-$SHA/deploy-state"
             test -r "$STATE"
             mapfile -t DEPLOY_STATE < "$STATE"
+            printf 'deploy-state=%s\n' "$(tr '\n' '|' < "$STATE")"
+            readlink -f /opt/dagmar/backend || true
+            ls -ld /opt/dagmar/releases/* /var/www/dagmar/releases/* 2>/dev/null | tail -n 12
             PREV_BACK="${DEPLOY_STATE[0]}"
             PREV_WEB="${DEPLOY_STATE[1]}"
             test -n "$PREV_BACK" -a -d "$PREV_BACK"
