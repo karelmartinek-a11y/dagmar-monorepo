@@ -1,0 +1,46 @@
+name: Emergency production rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Failed deployment commit SHA"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore previous release
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          password: ${{ secrets.DEPLOY_PASS }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            SHA="${{ inputs.sha }}"
+            STATE="/tmp/dagmar-$SHA/deploy-state"
+            test -r "$STATE"
+            mapfile -t DEPLOY_STATE < "$STATE"
+            PREV_BACK="${DEPLOY_STATE[0]}"
+            PREV_WEB="${DEPLOY_STATE[1]}"
+            test -n "$PREV_BACK" -a -d "$PREV_BACK"
+            test -n "$PREV_WEB" -a -d "$PREV_WEB"
+            systemctl stop dagmar-backend || true
+            ln -sfn "$PREV_BACK" /opt/dagmar/backend
+            ln -sfn "$PREV_WEB" /var/www/dagmar/frontend
+            systemctl daemon-reload
+            systemctl start dagmar-backend
+            for attempt in $(seq 1 15); do
+              if curl -fsS http://127.0.0.1:8101/api/v1/health >/dev/null; then exit 0; fi
+              sleep 2
+            done
+            systemctl status dagmar-backend --no-pager
+            exit 1
