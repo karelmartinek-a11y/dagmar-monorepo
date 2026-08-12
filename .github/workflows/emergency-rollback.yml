@@ -26,8 +26,8 @@ jobs:
           script: |
             set -euo pipefail
             SHA="${{ inputs.sha }}"
-            PREV_BACK="/opt/dagmar/releases/2b16a1277aeca2153e110d2324af4615ccdfa0fd-1"
-            PREV_WEB="/var/www/dagmar/releases/2b16a1277aeca2153e110d2324af4615ccdfa0fd-1"
+            PREV_BACK="/opt/dagmar/releases/f84616033d9893ce0bcbe57b2dc72f095343b607-1"
+            PREV_WEB="/var/www/dagmar/releases/f84616033d9893ce0bcbe57b2dc72f095343b607-1"
             test -n "$PREV_BACK" -a -d "$PREV_BACK"
             test -n "$PREV_WEB" -a -d "$PREV_WEB"
             systemctl stop dagmar-backend || true
