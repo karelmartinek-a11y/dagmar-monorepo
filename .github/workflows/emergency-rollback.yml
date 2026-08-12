@@ -26,14 +26,8 @@ jobs:
           script: |
             set -euo pipefail
             SHA="${{ inputs.sha }}"
-            STATE="/tmp/dagmar-$SHA/deploy-state"
-            ls -ld /tmp/dagmar-* /opt/dagmar/releases/* /var/www/dagmar/releases/* 2>/dev/null | tail -n 20 || true
-            readlink -f /opt/dagmar/backend || true
-            test -r "$STATE"
-            mapfile -t DEPLOY_STATE < "$STATE"
-            printf 'deploy-state=%s\n' "$(tr '\n' '|' < "$STATE")"
-            PREV_BACK="${DEPLOY_STATE[0]}"
-            PREV_WEB="${DEPLOY_STATE[1]}"
+            PREV_BACK="/opt/dagmar/releases/2dd11f65e8d24f09803ca943c1083932f5b74e50-1"
+            PREV_WEB="/var/www/dagmar/releases/2dd11f65e8d24f09803ca943c1083932f5b74e50-1"
             test -n "$PREV_BACK" -a -d "$PREV_BACK"
             test -n "$PREV_WEB" -a -d "$PREV_WEB"
             systemctl stop dagmar-backend || true
