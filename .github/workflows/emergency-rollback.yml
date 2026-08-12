@@ -26,8 +26,8 @@ jobs:
           script: |
             set -euo pipefail
             SHA="${{ inputs.sha }}"
-            PREV_BACK="/opt/dagmar/releases/2dd11f65e8d24f09803ca943c1083932f5b74e50-1"
-            PREV_WEB="/var/www/dagmar/releases/2dd11f65e8d24f09803ca943c1083932f5b74e50-1"
+            PREV_BACK="/opt/dagmar/releases/2b16a1277aeca2153e110d2324af4615ccdfa0fd-1"
+            PREV_WEB="/var/www/dagmar/releases/2b16a1277aeca2153e110d2324af4615ccdfa0fd-1"
             test -n "$PREV_BACK" -a -d "$PREV_BACK"
             test -n "$PREV_WEB" -a -d "$PREV_WEB"
             systemctl stop dagmar-backend || true
@@ -39,5 +39,6 @@ jobs:
               if curl -fsS http://127.0.0.1:8101/api/v1/health >/dev/null; then exit 0; fi
               sleep 2
             done
+            journalctl -u dagmar-backend -n 120 --no-pager
             systemctl status dagmar-backend --no-pager
             exit 1
