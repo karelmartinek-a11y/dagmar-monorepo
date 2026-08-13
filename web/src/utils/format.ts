@@ -32,3 +32,11 @@ export function formatDateForLanguage(language: AppLanguage, value: Date, option
 export function formatDateForCurrentLanguage(value: Date, language: AppLanguage, options: Intl.DateTimeFormatOptions): string {
   return formatDateForLanguage(language, value, options);
 }
+
+export function formatCalendarDate(value: string, language: AppLanguage = "cs"): string {
+  return formatDateForLanguage(language, new Date(`${value}T12:00:00`), {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  });
+}

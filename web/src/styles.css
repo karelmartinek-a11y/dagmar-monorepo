@@ -358,7 +358,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .admin-employment-table__header{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.65rem}
 .admin-employment-table__header>span{color:var(--muted);font-size:.72rem}
 .admin-employment-table__header .matrix-user__actions{margin-left:auto}
-.admin-employment-table .data-table-wrap{max-height:none}
+.admin-employment-table .data-table-wrap{max-height:none;overflow-x:auto;overflow-y:clip}
 .admin-employment-table .employee-month-table{width:100%;min-width:max-content}
 .admin-employment-table .employee-month-table th,.admin-employment-table .employee-month-table td{vertical-align:middle}
 .admin-user-picker__hint{grid-column:1/-1;margin:0;padding:.65rem .75rem;border-left:3px solid var(--accent);background:rgba(39,215,166,.06);color:var(--text);font-size:.76rem}
@@ -400,7 +400,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 }
 
 /* Kanonický tabulkový model: jeden den/úvazek je vždy jeden řádek. */
-.employee-table-wrap{max-height:calc(100vh - 300px);border:1px solid var(--line-strong);border-radius:var(--r-sm)}
+.employee-table-wrap{max-height:none;overflow-x:auto;overflow-y:clip;border:1px solid var(--line-strong);border-radius:var(--r-sm)}
 .employee-month-table{min-width:max-content}
 .employee-month-table th:first-child{position:sticky;left:0;z-index:7;background:#10231e}
 .employee-month-table td,.employee-month-table th{vertical-align:middle}

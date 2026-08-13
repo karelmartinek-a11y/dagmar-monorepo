@@ -76,7 +76,7 @@ export function ClockInput({
       return;
     }
     setInvalid(true);
-    setError(t("errors.invalid_time_format", "Neplatný čas, použijte HH:mm."));
+    setError(t("errors.invalid_time_format", "Neplatný čas, použijte HH:MM."));
   };
   const handleBlur = () => {
     if (cancelBlur.current) {
@@ -132,7 +132,7 @@ export function ClockInput({
         className={`${props.className ?? ""} clock-input${saving ? " clock-input--saving" : ""}${saved ? " clock-input--saved" : ""}${error ? " clock-input--error" : ""}`.trim()}
         type="text"
         inputMode="numeric"
-        placeholder="HH:mm"
+        placeholder="HH:MM"
         maxLength={5}
         value={draft}
         aria-invalid={invalid || undefined}
