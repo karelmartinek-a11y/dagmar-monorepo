@@ -132,10 +132,10 @@ describe("attendance print layout", () => {
     expect(
       screen.getByText("Den slovanských věrozvěstů Cyrila a Metoděje"),
     ).toBeInTheDocument();
-    expect(screen.getByText("5. 7.").closest("tr")).toHaveClass(
+    expect(screen.getByText("5. 7. 2026").closest("tr")).toHaveClass(
       "print-day--holiday",
     );
-    expect(screen.getByText("6. 7.").closest("tr")).toHaveClass(
+    expect(screen.getByText("6. 7. 2026").closest("tr")).toHaveClass(
       "print-day--holiday",
     );
     expect(screen.getByText("sobota").closest("tr")).toHaveClass(
