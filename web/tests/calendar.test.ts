@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asPragueDate, getCalendarDayInfo, getHolidayLabel } from "../src/utils/calendar";
+import { formatCalendarDate } from "../src/utils/format";
 
 describe("localized employee calendars", () => {
   it.each([
@@ -41,5 +42,9 @@ describe("localized employee calendars", () => {
     expect(value.getUTCFullYear()).toBe(2026);
     expect(value.getUTCMonth()).toBe(0);
     expect(value.getUTCDate()).toBe(1);
+  });
+
+  it("formats attendance and shift-plan dates as day, month, year", () => {
+    expect(formatCalendarDate("2026-08-03")).toBe("3. 8. 2026");
   });
 });

@@ -13,6 +13,7 @@ import type {
   MetricKey,
 } from "../api/types";
 import { asPragueDate, getWeekdayLongLabel } from "../utils/calendar";
+import { formatCalendarDate } from "../utils/format";
 import { formatHours as formatHoursValue } from "../utils/hoursFormat";
 import {
   chronologicalPlanBoundaries,
@@ -174,10 +175,7 @@ function AttendancePrint({
                   >
                     <td>
                       <strong>
-                        {new Intl.DateTimeFormat("cs-CZ", {
-                          day: "numeric",
-                          month: "numeric",
-                        }).format(date)}
+                        {formatCalendarDate(day.date)}
                       </strong>
                       <span>{getWeekdayLongLabel(date, "cs")}</span>
                       {day.public_holiday_label && (
@@ -695,7 +693,7 @@ function ShiftPlanPreview({ report }: { report: ShiftPlanReport }) {
             <thead><tr><th>{t("employee.page.table.date", "Datum")}</th>{Array.from({ length: planColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass", "PRŮCHOD")} {index + 1}</th>)}<th>{t("employee.page.table.status", "Stav")}</th>{employment.display_metrics.map((key) => <th key={key}>{translatedMetricLabel(t, key)} (h)</th>)}</tr></thead>
             <tbody>
               {employment.cells.map((cell) => <tr key={cell.date_iso}>
-                <td>{cell.date_iso}</td>
+                <td>{formatCalendarDate(cell.date_iso)}</td>
                 {chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).map((time, index) => <td key={index}>{time}</td>)}
                 {Array.from({ length: planColumns - chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length }, (_, index) => <td key={`empty-${index}`} />)}
                 <td>{cell.status_label ?? ""}</td>
