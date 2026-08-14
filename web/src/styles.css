@@ -105,7 +105,7 @@ a { color: inherit; }
 .group-plan-legend__swatch { display:inline-block;width:.7rem;height:.7rem;border-radius:3px;border:1px solid currentColor; }
 .group-plan-legend__swatch--own { color:var(--accent-strong);background:rgba(39,215,166,.2); }
 .group-plan-legend__swatch--other { color:var(--muted);background:rgba(255,255,255,.04); }
-.group-plan-table-wrap { overflow-x:auto;overflow-y:clip;border:1px solid var(--line-strong);border-radius:var(--r-sm); }
+.group-plan-table-wrap { min-width:0;max-width:100%;overflow-x:auto;overflow-y:clip;border:1px solid var(--line-strong);border-radius:var(--r-sm); }
 .group-plan-table { min-width:max-content; }
 .group-plan-table thead th { top:0; }
 .group-plan-table__identity-head { min-width:220px; }
