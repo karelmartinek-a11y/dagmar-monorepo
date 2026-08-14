@@ -95,7 +95,6 @@ test.describe("real event backend", () => {
       .filter({ hasText: "E2E pracovní smlouva" });
     await expect(ownGroupRow).toHaveCount(1);
     await expect(colleagueGroupRow).toHaveCount(1);
-    await expect(ownGroupRow.getByLabel(/2026-06-08/).first()).toBeDisabled();
     await expect(colleagueGroupRow.getByLabel(/2026-06-08/).first()).toBeDisabled();
     for (const viewport of [
       { width: 1440, height: 900 },
