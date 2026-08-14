@@ -82,16 +82,66 @@ test.describe("real event backend", () => {
     );
     await page.getByRole("tab", { name: "Skupinový plán služeb" }).click();
     await expect(page.getByLabel("Skupina")).not.toHaveValue("");
-    await expect(
-      page.locator(".group-plan-table-wrap .employee-month-table thead").first(),
-    ).toBeVisible();
+    const groupPlanTable = page.getByTestId("employee-group-plan-table");
+    await expect(groupPlanTable).toBeVisible();
+    await expect(page.locator(".group-plan-table-wrap table")).toHaveCount(1);
+    await expect(groupPlanTable.locator("tbody tr")).toHaveCount(3);
+    await expect(groupPlanTable.locator("thead .group-plan-day-head")).toHaveCount(30);
+    const ownGroupRow = page
+      .getByTestId(/employee-group-plan-row-/)
+      .filter({ hasText: "E2E provozní úvazek" });
+    const colleagueGroupRow = page
+      .getByTestId(/employee-group-plan-row-/)
+      .filter({ hasText: "E2E pracovní smlouva" });
+    await expect(ownGroupRow).toHaveCount(1);
+    await expect(colleagueGroupRow).toHaveCount(1);
+    await expect(colleagueGroupRow.getByLabel(/2026-06-08/).first()).toBeDisabled();
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 768, height: 1024 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const overflow = await page.evaluate(() => {
+        const groupPlanWrappers = [...document.querySelectorAll<HTMLElement>(".group-plan-table-wrap")];
+        const scrollContainers = [...document.querySelectorAll<HTMLElement>("*")].filter((element) => {
+          const style = getComputedStyle(element);
+          return !element.matches("body, html, .group-plan-table-wrap") &&
+            ["auto", "scroll"].includes(style.overflowY) && element.scrollHeight > element.clientHeight;
+        });
+        const overflowingPageElements = [...document.querySelectorAll<HTMLElement>("*")].filter((element) => {
+          if (element.closest(".group-plan-table-wrap")) return false;
+          return element.getBoundingClientRect().right > window.innerWidth + 1;
+        });
+        return {
+          pageOverflow: overflowingPageElements.length > 0,
+          overflowingElements: overflowingPageElements.slice(0, 5)
+            .map((element) => `${element.tagName}.${element.className}`),
+          groupPlanWrapperCount: groupPlanWrappers.length,
+          groupPlanHorizontalOverflow: groupPlanWrappers.some(
+            (element) => element.scrollWidth > element.clientWidth && ["auto", "scroll"].includes(getComputedStyle(element).overflowX),
+          ),
+          groupPlanVerticalOverflow: groupPlanWrappers.some(
+            (element) => element.scrollHeight > element.clientHeight && getComputedStyle(element).overflowY !== "visible",
+          ),
+          verticalScrollContainers: scrollContainers.length,
+        };
+      });
+      expect(overflow.pageOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(false);
+      expect(overflow.groupPlanWrapperCount, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(1);
+      expect(overflow.groupPlanHorizontalOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(true);
+      expect(overflow.groupPlanVerticalOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(false);
+      expect(overflow.verticalScrollContainers, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(0);
+    }
     await page.getByRole("button", { name: "›" }).click();
     await page.getByRole("button", { name: "›" }).click();
+    await expect(ownGroupRow.getByLabel(/2026-08-03/).first()).toBeEnabled();
+    await expect(colleagueGroupRow.getByLabel(/2026-08-03/).first()).toBeDisabled();
+    await expect(ownGroupRow.getByText("Přesah 02:00", { exact: true })).toBeVisible();
     await expect(
-      page
-        .locator(".group-plan-table-wrap .admin-employment-table")
+      page.getByTestId(/employee-group-plan-row-/)
         .filter({ hasText: "E2E provozní úvazek" })
-        .getByText("Volno", { exact: true }).first(),
+        .getByText("Volno", { exact: true }),
     ).toBeVisible();
     await page.getByLabel("Skupina").selectOption("");
     await expect(page.getByText("Načítám skupinový plán")).not.toBeVisible();
