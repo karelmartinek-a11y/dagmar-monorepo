@@ -95,9 +95,8 @@ test.describe("real event backend", () => {
       .filter({ hasText: "E2E pracovní smlouva" });
     await expect(ownGroupRow).toHaveCount(1);
     await expect(colleagueGroupRow).toHaveCount(1);
-    await expect(ownGroupRow.getByLabel(/2026-08-03/).first()).toBeEnabled();
-    await expect(colleagueGroupRow.getByLabel(/2026-08-03/).first()).toBeDisabled();
-    await expect(ownGroupRow.getByText("Přesah 02:00", { exact: true })).toBeVisible();
+    await expect(ownGroupRow.getByLabel(/2026-06-08/).first()).toBeDisabled();
+    await expect(colleagueGroupRow.getByLabel(/2026-06-08/).first()).toBeDisabled();
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 768, height: 1024 },
@@ -124,6 +123,9 @@ test.describe("real event backend", () => {
     }
     await page.getByRole("button", { name: "›" }).click();
     await page.getByRole("button", { name: "›" }).click();
+    await expect(ownGroupRow.getByLabel(/2026-08-03/).first()).toBeEnabled();
+    await expect(colleagueGroupRow.getByLabel(/2026-08-03/).first()).toBeDisabled();
+    await expect(ownGroupRow.getByText("Přesah 02:00", { exact: true })).toBeVisible();
     await expect(
       page.getByTestId(/employee-group-plan-row-/)
         .filter({ hasText: "E2E provozní úvazek" })
