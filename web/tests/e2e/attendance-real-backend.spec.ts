@@ -82,16 +82,52 @@ test.describe("real event backend", () => {
     );
     await page.getByRole("tab", { name: "Skupinový plán služeb" }).click();
     await expect(page.getByLabel("Skupina")).not.toHaveValue("");
-    await expect(
-      page.locator(".group-plan-table-wrap .employee-month-table thead").first(),
-    ).toBeVisible();
+    const groupPlanTable = page.getByTestId("employee-group-plan-table");
+    await expect(groupPlanTable).toBeVisible();
+    await expect(page.locator(".group-plan-table-wrap table")).toHaveCount(1);
+    await expect(groupPlanTable.locator("tbody tr")).toHaveCount(3);
+    await expect(groupPlanTable.locator("thead .group-plan-day-head")).toHaveCount(31);
+    const ownGroupRow = page
+      .getByTestId(/employee-group-plan-row-/)
+      .filter({ hasText: "E2E provozní úvazek" });
+    const colleagueGroupRow = page
+      .getByTestId(/employee-group-plan-row-/)
+      .filter({ hasText: "E2E pracovní smlouva" });
+    await expect(ownGroupRow).toHaveCount(1);
+    await expect(colleagueGroupRow).toHaveCount(1);
+    await expect(ownGroupRow.getByLabel(/2026-08-03/).first()).toBeEnabled();
+    await expect(colleagueGroupRow.getByLabel(/2026-08-03/).first()).toBeDisabled();
+    await expect(ownGroupRow.getByText("Přesah 02:00", { exact: true })).toBeVisible();
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 768, height: 1024 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const overflow = await page.evaluate(() => {
+        const scrollContainers = [...document.querySelectorAll<HTMLElement>("*")].filter((element) => {
+          const style = getComputedStyle(element);
+          return !element.matches("body, html, .group-plan-table-wrap") &&
+            ["auto", "scroll"].includes(style.overflowY) && element.scrollHeight > element.clientHeight;
+        });
+        return {
+          pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+          groupPlanVerticalOverflow: [...document.querySelectorAll<HTMLElement>(".group-plan-table-wrap")].some(
+            (element) => element.scrollHeight > element.clientHeight && getComputedStyle(element).overflowY !== "visible",
+          ),
+          verticalScrollContainers: scrollContainers.length,
+        };
+      });
+      expect(overflow.pageOverflow).toBe(false);
+      expect(overflow.groupPlanVerticalOverflow).toBe(false);
+      expect(overflow.verticalScrollContainers).toBe(0);
+    }
     await page.getByRole("button", { name: "›" }).click();
     await page.getByRole("button", { name: "›" }).click();
     await expect(
-      page
-        .locator(".group-plan-table-wrap .admin-employment-table")
+      page.getByTestId(/employee-group-plan-row-/)
         .filter({ hasText: "E2E provozní úvazek" })
-        .getByText("Volno", { exact: true }).first(),
+        .getByText("Volno", { exact: true }),
     ).toBeVisible();
     await page.getByLabel("Skupina").selectOption("");
     await expect(page.getByText("Načítám skupinový plán")).not.toBeVisible();
