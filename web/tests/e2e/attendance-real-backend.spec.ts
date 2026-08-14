@@ -116,9 +116,9 @@ test.describe("real event backend", () => {
           verticalScrollContainers: scrollContainers.length,
         };
       });
-      expect(overflow.pageOverflow).toBe(false);
-      expect(overflow.groupPlanVerticalOverflow).toBe(false);
-      expect(overflow.verticalScrollContainers).toBe(0);
+      expect(overflow.pageOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(false);
+      expect(overflow.groupPlanVerticalOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(false);
+      expect(overflow.verticalScrollContainers, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(0);
     }
     await page.getByRole("button", { name: "›" }).click();
     await page.getByRole("button", { name: "›" }).click();
