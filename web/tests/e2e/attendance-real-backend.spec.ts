@@ -110,6 +110,10 @@ test.describe("real event backend", () => {
         });
         return {
           pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+          overflowingElements: [...document.querySelectorAll<HTMLElement>("*")]
+            .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 1)
+            .slice(0, 5)
+            .map((element) => `${element.tagName}.${element.className}`),
           groupPlanVerticalOverflow: [...document.querySelectorAll<HTMLElement>(".group-plan-table-wrap")].some(
             (element) => element.scrollHeight > element.clientHeight && getComputedStyle(element).overflowY !== "visible",
           ),
