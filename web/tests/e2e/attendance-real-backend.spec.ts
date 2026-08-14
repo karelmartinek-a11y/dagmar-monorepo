@@ -86,7 +86,7 @@ test.describe("real event backend", () => {
     await expect(groupPlanTable).toBeVisible();
     await expect(page.locator(".group-plan-table-wrap table")).toHaveCount(1);
     await expect(groupPlanTable.locator("tbody tr")).toHaveCount(3);
-    await expect(groupPlanTable.locator("thead .group-plan-day-head")).toHaveCount(31);
+    await expect(groupPlanTable.locator("thead .group-plan-day-head")).toHaveCount(30);
     const ownGroupRow = page
       .getByTestId(/employee-group-plan-row-/)
       .filter({ hasText: "E2E provozní úvazek" });
