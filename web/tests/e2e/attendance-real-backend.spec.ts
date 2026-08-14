@@ -103,24 +103,33 @@ test.describe("real event backend", () => {
     ]) {
       await page.setViewportSize(viewport);
       const overflow = await page.evaluate(() => {
+        const groupPlanWrappers = [...document.querySelectorAll<HTMLElement>(".group-plan-table-wrap")];
         const scrollContainers = [...document.querySelectorAll<HTMLElement>("*")].filter((element) => {
           const style = getComputedStyle(element);
           return !element.matches("body, html, .group-plan-table-wrap") &&
             ["auto", "scroll"].includes(style.overflowY) && element.scrollHeight > element.clientHeight;
         });
+        const overflowingPageElements = [...document.querySelectorAll<HTMLElement>("*")].filter((element) => {
+          if (element.closest(".group-plan-table-wrap")) return false;
+          return element.getBoundingClientRect().right > window.innerWidth + 1;
+        });
         return {
-          pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
-          overflowingElements: [...document.querySelectorAll<HTMLElement>("*")]
-            .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 1)
-            .slice(0, 5)
+          pageOverflow: overflowingPageElements.length > 0,
+          overflowingElements: overflowingPageElements.slice(0, 5)
             .map((element) => `${element.tagName}.${element.className}`),
-          groupPlanVerticalOverflow: [...document.querySelectorAll<HTMLElement>(".group-plan-table-wrap")].some(
+          groupPlanWrapperCount: groupPlanWrappers.length,
+          groupPlanHorizontalOverflow: groupPlanWrappers.some(
+            (element) => element.scrollWidth > element.clientWidth && ["auto", "scroll"].includes(getComputedStyle(element).overflowX),
+          ),
+          groupPlanVerticalOverflow: groupPlanWrappers.some(
             (element) => element.scrollHeight > element.clientHeight && getComputedStyle(element).overflowY !== "visible",
           ),
           verticalScrollContainers: scrollContainers.length,
         };
       });
       expect(overflow.pageOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(false);
+      expect(overflow.groupPlanWrapperCount, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(1);
+      expect(overflow.groupPlanHorizontalOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(true);
       expect(overflow.groupPlanVerticalOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(false);
       expect(overflow.verticalScrollContainers, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(0);
     }
