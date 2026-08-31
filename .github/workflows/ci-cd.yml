@@ -317,9 +317,13 @@ jobs:
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --only-binary=:all: --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
             APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, sysconfig; print(pathlib.Path(sysconfig.get_path("purelib")) / "app")')
+            printf 'packaged_app_dir=%s\n' "$APP_DIR"
             test -d "$APP_DIR"
             ln -sfn "$APP_DIR" "$BACK_RELEASE/app"
+            test -L "$BACK_RELEASE/app"
+            echo "packaged_app_link=ok"
             install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
+            echo "systemd_units=ok"
             install -d -m 0755 /usr/local/libexec
             install -m 0755 "$BACK_RELEASE/ops/certbot/wedos_dns_hook.py" /usr/local/libexec/dagmar-wedos-dns-hook.py
             install -m 0755 "$BACK_RELEASE/ops/certbot/dagmar-certbot-deploy-hook" /usr/local/libexec/dagmar-certbot-deploy-hook
@@ -327,6 +331,7 @@ jobs:
             install -d /etc/nginx/snippets
             install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-security-headers.conf" /etc/nginx/snippets/dagmar-security-headers.conf
             install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-location.conf" /etc/nginx/snippets/dagmar-location.conf
+            echo "release_support_files=ok"
 
             test -r /etc/letsencrypt/wedos-wapi.env
             test "$(stat -c '%a' /etc/letsencrypt/wedos-wapi.env)" = 600
