@@ -177,7 +177,6 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 
 - kanonická veřejná adresa je výhradně `https://dagmar.hcasc.cz`;
 - Nginx ukončuje TLS, obsluhuje statický frontend a proxyuje API;
-- všechny certifikáty aktivně používané Nginxem nebo KCML se obnovují přes vlastní `dagmar-certbot-renew.timer` a WEDOS DNS-01 hook; vendor `certbot.timer` je vypnutý, WEDOS credentials jsou root-only mimo Git a deploy hook po úspěšné obnově validuje/reloaduje Nginx;
 - HTTPS web i API dostávají právě jednu společnou sadu security hlaviček: enforced CSP bez dynamických script zdrojů, roční HSTS, rozšířenou Permissions-Policy, `COOP: same-origin-allow-popups` a `CORP: same-origin`;
 - HSTS záměrně nepoužívá `includeSubDomains` ani `preload`, dokud nebude doložené vlastnictví a TLS připravenost všech subdomén `hcasc.cz`; hlavička patří pouze kanonickému HTTPS serveru;
 - backend poslouchá pouze na `127.0.0.1:8101`;
