@@ -59,3 +59,4 @@ def test_deploy_installs_and_validates_dns01_certificate_automation() -> None:
 
 def test_deploy_recreates_backend_app_link_idempotently() -> None:
     assert 'ln -sfn "$APP_DIR" "$BACK_RELEASE/app"' in DEPLOY
+    assert 'sysconfig.get_path("purelib")' in DEPLOY

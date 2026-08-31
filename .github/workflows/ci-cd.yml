@@ -316,7 +316,7 @@ jobs:
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/wheelhouse" pip==26.0
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --only-binary=:all: --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
-            APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, app; print(pathlib.Path(app.__file__).parent)')
+            APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, sysconfig; print(pathlib.Path(sysconfig.get_path("purelib")) / "app")')
             test -d "$APP_DIR"
             ln -sfn "$APP_DIR" "$BACK_RELEASE/app"
             install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
