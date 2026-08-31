@@ -1,16 +1,24 @@
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
+from app.api.v1.attendance import _metric_out
 from app.db.models import EmploymentType
 from app.services.czech_holidays import is_czech_public_holiday
 from app.services.time_intervals import break_segments, pair_events
-from app.services.time_metrics import round_minutes_to_tenths
+from app.services.time_metrics import MetricValue, round_minutes_to_tenths
 
 
 def test_daily_rounding_is_half_up_in_tenths() -> None:
     assert [
         round_minutes_to_tenths(value) for value in (0, 2, 3, 5, 6, 8, 9, 57, 60, 62, 63, 66)
     ] == [0, 0, 1, 1, 1, 1, 2, 10, 10, 10, 11, 11]
+
+
+def test_metric_output_includes_backend_owned_clock_format() -> None:
+    metric = _metric_out(MetricValue(minutes=1505, tenths=251))
+
+    assert metric is not None
+    assert metric.clock == "25:05"
 
 
 def test_break_distribution_is_minimal_and_deterministic() -> None:

@@ -177,6 +177,7 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 
 - kanonická veřejná adresa je výhradně `https://dagmar.hcasc.cz`;
 - Nginx ukončuje TLS, obsluhuje statický frontend a proxyuje API;
+- všechny certifikáty aktivně používané Nginxem nebo KCML se obnovují přes vlastní `dagmar-certbot-renew.timer` a WEDOS DNS-01 hook; vendor `certbot.timer` je vypnutý, WEDOS credentials jsou root-only mimo Git a deploy hook po úspěšné obnově validuje/reloaduje Nginx;
 - HTTPS web i API dostávají právě jednu společnou sadu security hlaviček: enforced CSP bez dynamických script zdrojů, roční HSTS, rozšířenou Permissions-Policy, `COOP: same-origin-allow-popups` a `CORP: same-origin`;
 - HSTS záměrně nepoužívá `includeSubDomains` ani `preload`, dokud nebude doložené vlastnictví a TLS připravenost všech subdomén `hcasc.cz`; hlavička patří pouze kanonickému HTTPS serveru;
 - backend poslouchá pouze na `127.0.0.1:8101`;
@@ -667,7 +668,7 @@ Migrace `2026_08_11_0025` zneplatní nedoložitelně doručené starší reset t
 Tyto struktury definují minimální význam polí napříč backendem a frontendem. Interní `event_type` je nutný pro round-trip a chronologickou validaci, ale nesmí se převést na lidský label.
 
 ```text
-Metric = { minutes:int, tenths:int, hours:number }
+Metric = { minutes:int, tenths:int, hours:number, clock:string }
 TimeMetrics = {
   total:Metric|null,
   afternoon:Metric|null,
@@ -1594,9 +1595,9 @@ Dvojtečka není povinná. Parser je jednotný ve všech tabulkách, jazycích a
 
 ### Detail jednoho úvazku
 
-Pro tisk docházky i plánu služeb platí:
+Pro tisk docházky platí:
 
-- jeden `employment_id` za jeden měsíc je jedna stránka A4 na šířku; stránka obsahuje všechny dny, název osoby, název úvazku, typ výstupu, měsíc, denní data a měsíční součty;
+- jeden `employment_id` za jeden měsíc je jedna stránka A4 na výšku podle schválené předlohy docházkového listu; stránka obsahuje všechny dny, název osoby, název úvazku, typ výstupu, měsíc, denní data a měsíční součty;
 - každý kalendářní den je přesně jeden řádek;
 - časové hodnoty jsou pouze `HH:mm` pod neutrálním záhlavím `PRŮCHOD`; žádný směr ani interní typ se netiskne;
 - základní a povinně automaticky testovaná kapacitní obálka je 28–31 dní, nejvýše čtyři průchody v jednom dni, všech pět aktivních metrik, dlouhé jméno, dlouhý název úvazku a všechny podporované jazyky. V této obálce musí být výstup vždy právě jedna čitelná A4 bez druhé stránky, ořezu nebo překryvu;

@@ -51,7 +51,7 @@ jobs:
         run: |
           pip-audit -r requirements-prod.lock
           npm audit --prefix web --package-lock-only --audit-level=moderate
-          bandit -r app scripts -ll
+          bandit -r app scripts ops/certbot -ll
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,8 +93,8 @@ jobs:
           python -m pip install --require-hashes -r requirements-dev.lock
       - name: Compile, lint and typecheck
         run: |
-          python -m compileall -q app
-          ruff check app tests scripts
+          python -m compileall -q app ops/certbot
+          ruff check app tests scripts ops/certbot
           mypy app
       - name: Alembic revision chain
         run: |
@@ -319,9 +319,22 @@ jobs:
             APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, app; print(pathlib.Path(app.__file__).parent)')
             ln -s "$APP_DIR" "$BACK_RELEASE/app"
             install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
+            install -d -m 0755 /usr/local/libexec
+            install -m 0755 "$BACK_RELEASE/ops/certbot/wedos_dns_hook.py" /usr/local/libexec/dagmar-wedos-dns-hook.py
+            install -m 0755 "$BACK_RELEASE/ops/certbot/dagmar-certbot-deploy-hook" /usr/local/libexec/dagmar-certbot-deploy-hook
+            install -m 0755 "$BACK_RELEASE/ops/certbot/configure_certbot_dns01.py" /usr/local/libexec/configure-certbot-dns01.py
             install -d /etc/nginx/snippets
             install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-security-headers.conf" /etc/nginx/snippets/dagmar-security-headers.conf
             install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-location.conf" /etc/nginx/snippets/dagmar-location.conf
+
+            test -r /etc/letsencrypt/wedos-wapi.env
+            test "$(stat -c '%a' /etc/letsencrypt/wedos-wapi.env)" = 600
+            test "$(stat -c '%u:%g' /etc/letsencrypt/wedos-wapi.env)" = 0:0
+            systemctl disable --now certbot.timer || true
+            systemctl stop dagmar-certbot-renew.timer || true
+            systemctl daemon-reload
+            /usr/local/libexec/configure-certbot-dns01.py
+            certbot renew --dry-run --non-interactive
 
             while IFS= read -r -d '' config; do
               "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/check_git_config_credentials.py" "$config"
@@ -351,6 +364,7 @@ jobs:
             "$BACK_RELEASE/.venv/bin/python" "$BACK_RELEASE/scripts/rebuild_daily_time_metrics.py" --check
             systemctl daemon-reload
             systemctl enable --now dagmar-shift-plan-month-auto-lock.timer
+            systemctl enable --now dagmar-certbot-renew.timer
             nginx -t
             systemctl reload nginx
 

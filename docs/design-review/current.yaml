@@ -1,9 +1,9 @@
-status: BLOKOVÁNO
-verdict: null
+status: SCHVÁLENO
+verdict: SCHVÁLENO
 reviewer: design-agent
 evidence:
-  backend: pending
-  frontend: pending
+  backend: complete
+  frontend: complete
   viewports:
     - 1440x900
     - 768x1024
@@ -15,4 +15,4 @@ evidence:
     - sk
     - de
     - hi
-notes: "Design review must use real local backend/frontend renders before release."
+notes: "SCHVÁLENO po vizuální kontrole skutečného lokálního FastAPI/PostgreSQL backendu a Vite/React frontendu; renderovací důkazy jsou mimo repozitář v /tmp/dagmar-design-review-20260831. Pokryto je 1440x900, 768x1024, 390x844, print a jazyky cs/en/sk/de/hi; A4 docházkový list se vejde na jednu stránku bez ořezu nebo překryvu."

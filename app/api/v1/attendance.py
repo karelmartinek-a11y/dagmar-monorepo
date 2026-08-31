@@ -88,6 +88,7 @@ class MetricOut(BaseModel):
     minutes: int
     tenths: int
     hours: float
+    clock: str
 
 
 class AttendanceDayOut(BaseModel):
@@ -144,7 +145,12 @@ def _metric_out(value: MetricValue | None) -> MetricOut | None:
     return (
         None
         if value is None
-        else MetricOut(minutes=value.minutes, tenths=value.tenths, hours=value.hours)
+        else MetricOut(
+            minutes=value.minutes,
+            tenths=value.tenths,
+            hours=value.hours,
+            clock=f"{value.minutes // 60}:{value.minutes % 60:02d}",
+        )
     )
 
 

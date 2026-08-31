@@ -44,3 +44,14 @@ def test_web_artifact_is_checked_before_packaging() -> None:
     map_check = WORKFLOW.index("check_web_artifact.py", build)
     package = WORKFLOW.index("Package exact web artifact", map_check)
     assert build < map_check < package
+
+
+def test_deploy_installs_and_validates_dns01_certificate_automation() -> None:
+    install = DEPLOY.index("install -m 0755 \"$BACK_RELEASE/ops/certbot/wedos_dns_hook.py\"")
+    secret = DEPLOY.index("/etc/letsencrypt/wedos-wapi.env", install)
+    disable_vendor_timer = DEPLOY.index("systemctl disable --now certbot.timer", secret)
+    configure = DEPLOY.index("configure-certbot-dns01.py", disable_vendor_timer)
+    dry_run = DEPLOY.index("certbot renew --dry-run", configure)
+    enable_timer = DEPLOY.index("systemctl enable --now dagmar-certbot-renew.timer", dry_run)
+    assert install < secret < disable_vendor_timer < configure < dry_run < enable_timer
+    assert "GITHUB_TOKEN" not in DEPLOY[install:enable_timer]

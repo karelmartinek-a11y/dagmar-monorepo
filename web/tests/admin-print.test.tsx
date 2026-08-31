@@ -30,11 +30,18 @@ describe("attendance print layout", () => {
       vi.fn(
         async () =>
           new Response(
-            JSON.stringify({
+              JSON.stringify({
               data: [
                 {
                   employment_id: 22,
                   employment_label: "Bendová Klára — pokojská",
+                  user_id: 7,
+                  user_name: "Bendová Klára",
+                  employment_title: "pokojská",
+                  employment_type: "WORK_CONTRACT",
+                  start_date: "2026-01-01",
+                  end_date: null,
+                  is_active_in_month: true,
                   display_metrics: ["total"],
                   days: [
                     {
@@ -69,7 +76,7 @@ describe("attendance print layout", () => {
                         },
                       ],
                       worked: {
-                        total: { hours: 10.5 },
+                        total: { minutes: 630, tenths: 105, hours: 10.5, clock: "10:30" },
                         afternoon: null,
                         night: null,
                         weekend: null,
@@ -106,7 +113,7 @@ describe("attendance print layout", () => {
                     },
                   ],
                   worked: {
-                    total: { hours: 10.5 },
+                        total: { minutes: 630, tenths: 105, hours: 10.5, clock: "10:30" },
                     afternoon: null,
                     night: null,
                     weekend: null,
@@ -125,21 +132,28 @@ describe("attendance print layout", () => {
     expect(
       await screen.findByRole("columnheader", { name: "PRŮCHOD 4" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("MĚSÍČNÍ DOCHÁZKOVÝ LIST")).toBeInTheDocument();
+    const sheet = screen.getByTestId("print-attendance-sheet-22");
+    const identity = sheet.querySelector<HTMLElement>(".print-form__identity");
+    if (!identity) throw new Error("print identity block is missing");
+    expect(identity).toHaveTextContent("Bendová Klára");
+    expect(identity).toHaveTextContent("Pracovní smlouva");
     expect(screen.getByText("12:00")).toBeInTheDocument();
-    expect(screen.getAllByText("10,5 h")).toHaveLength(2);
-    expect(screen.getByText("sobota")).toBeInTheDocument();
-    expect(screen.getByText("Nemoc")).toBeInTheDocument();
+    expect(screen.getAllByText("10:30")).toHaveLength(3);
+    expect(screen.getByText("So")).toBeInTheDocument();
+    expect(screen.getByText("NEM")).toBeInTheDocument();
     expect(
       screen.getByText("Den slovanských věrozvěstů Cyrila a Metoděje"),
     ).toBeInTheDocument();
-    expect(screen.getByText("5. 7. 2026").closest("tr")).toHaveClass(
+    expect(screen.getByTestId("print-attendance-sheet-22").querySelector('[data-date="2026-07-05"]')).toHaveClass(
       "print-day--holiday",
     );
-    expect(screen.getByText("6. 7. 2026").closest("tr")).toHaveClass(
+    expect(screen.getByTestId("print-attendance-sheet-22").querySelector('[data-date="2026-07-06"]')).toHaveClass(
       "print-day--holiday",
     );
-    expect(screen.getByText("sobota").closest("tr")).toHaveClass(
+    expect(screen.getByTestId("print-attendance-sheet-22").querySelector('[data-date="2026-07-18"]')).toHaveClass(
       "print-day--weekend",
     );
+    expect(screen.queryByText(/Příchod|Odchod/)).not.toBeInTheDocument();
   });
 });

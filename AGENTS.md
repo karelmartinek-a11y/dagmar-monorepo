@@ -49,6 +49,7 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - časová autorita je `Europe/Prague`
 - backend je jediná autorita hodin: denní `*_tenths` používají matematické half-up zaokrouhlení `floor((denní_minuty + 3) / 6)` a denní `*_hours` jsou `*_tenths / 10`; měsíční hodnoty jsou součtem již zaokrouhlených denních desetin a frontend, tisky i exporty je pouze zobrazují
 - reverse proxy a TLS obsluhuje Nginx
+- všechny produkční certbot lineages používané Nginxem nebo KCML se obnovují přes jednotný WEDOS DNS-01 hook; WEDOS credentials jsou pouze v root-only `/etc/letsencrypt/wedos-wapi.env`, vendor `certbot.timer` je vypnutý a změna certifikátu vždy validuje/reloaduje Nginx
 - produkční public URL a CORS jsou přesně `https://dagmar.hcasc.cz`; chybné prostředí, SameSite nebo URL konfigurační hodnoty selžou při startu, externí OAuth síťové cíle jsou omezené na přesné oficiální HTTPS hosty a cesty
 - `/api/v1/health` a `/api/health` jsou DB-independent liveness; `/api/v1/readiness` ověřuje databázové spojení a přesnou shodu jediné DB Alembic revision s jediným zabaleným headem
 - úvazky mají pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; profilová nastavení patří konkrétnímu `Employment`
@@ -131,6 +132,7 @@ Každá změna, včetně malé opravy, musí být před commitem uzavřena např
 - Tajné údaje čti jen z ignorovaných lokálních `.env` souborů nebo z autorizovaných serverových environment souborů.
 - Nikdy nevypisuj tajné hodnoty do odpovědí, commitů, logů ani dokumentace.
 - Produkční data, firewall ani secret konfiguraci neměň bez explicitní potřeby a ověření.
+- TLS automatizace nesmí zapisovat WEDOS credentials do repozitáře, GitHub Actions ani artefaktů; změny DNS smějí cílit pouze na `_acme-challenge` v zóně `hcasc.cz`.
 - Používej pouze kanonickou doménu `dagmar.hcasc.cz` v kódu, dokumentaci, testech i konfiguraci.
 
 ## Validace

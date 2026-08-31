@@ -37,6 +37,7 @@ Strojově čitelný manifest je v [docs/current-state-manifest.yaml](docs/curren
 - viditelné hodinové sloupce dodává backend v `display_metrics` podle aktuálního profilu konkrétního úvazku; frontend, tisk, CSV, ZIP a PDF pouze interpretují dodaná čísla
 - zaměstnanec i admin vybírají ve zvoleném měsíci jen aktivní úvazky aktivních uživatelů s překryvem období; docházka a plán mají samostatné zámky
 - administrátor může potvrzenou idempotentní akcí „Přidej pauzy“ fyzicky doplnit chybějící `OUT`/`IN` eventy do historické docházky
+- docházkový tisk jednotlivého úvazku používá jeden A4 list na výšku podle schválené předlohy; náhled i browserové PDF sdílejí stejnou kompozici
 - neexistuje pracovní fond ani bilanční porovnávání s fondem nebo plánem
 
 ## Lokální ověření

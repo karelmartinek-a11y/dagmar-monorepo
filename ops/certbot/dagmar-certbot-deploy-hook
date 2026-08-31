@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+nginx -t
+systemctl reload nginx
+
+case "${RENEWED_LINEAGE:-}" in
+  */wildcard.hcasc.cz|*/kcml-wildcards)
+    if systemctl is-active --quiet kcml.service; then
+      systemctl restart kcml.service
+    fi
+    ;;
+esac

@@ -4,6 +4,7 @@ export const metricSchema = z.object({
   minutes: z.number(),
   tenths: z.number(),
   hours: z.number(),
+  clock: z.string().optional(),
 });
 export const timeMetricsSchema = z.object({
   total: metricSchema.nullable(),

@@ -1,0 +1,11 @@
+[Unit]
+Description=Twice-daily Dagmar TLS renewal
+
+[Timer]
+OnCalendar=*-*-* 00,12:00:00
+RandomizedDelaySec=1800
+Persistent=true
+Unit=dagmar-certbot-renew.service
+
+[Install]
+WantedBy=timers.target
