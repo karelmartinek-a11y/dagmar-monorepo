@@ -55,3 +55,7 @@ def test_deploy_installs_and_validates_dns01_certificate_automation() -> None:
     enable_timer = DEPLOY.index("systemctl enable --now dagmar-certbot-renew.timer", dry_run)
     assert install < secret < disable_vendor_timer < configure < dry_run < enable_timer
     assert "GITHUB_TOKEN" not in DEPLOY[install:enable_timer]
+
+
+def test_deploy_recreates_backend_app_link_idempotently() -> None:
+    assert 'ln -sfn "$APP_DIR" "$BACK_RELEASE/app"' in DEPLOY

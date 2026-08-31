@@ -317,7 +317,8 @@ jobs:
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --only-binary=:all: --find-links "$BACK_RELEASE/wheelhouse" --require-hashes -r "$BACK_RELEASE/requirements-prod.lock"
             "$BACK_RELEASE/.venv/bin/pip" install --no-index --find-links "$BACK_RELEASE/dist" --no-deps kajovodagmar
             APP_DIR=$("$BACK_RELEASE/.venv/bin/python" -c 'import pathlib, app; print(pathlib.Path(app.__file__).parent)')
-            ln -s "$APP_DIR" "$BACK_RELEASE/app"
+            test -d "$APP_DIR"
+            ln -sfn "$APP_DIR" "$BACK_RELEASE/app"
             install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
             install -d -m 0755 /usr/local/libexec
             install -m 0755 "$BACK_RELEASE/ops/certbot/wedos_dns_hook.py" /usr/local/libexec/dagmar-wedos-dns-hook.py
