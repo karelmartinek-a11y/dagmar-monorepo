@@ -255,7 +255,9 @@ def portal_get_group_shift_plan_month(
     by_key = {(plan.employment_id, plan.date): plan for plan in plans}
     days = [start + dt.timedelta(days=index) for index in range((end - start).days)]
     member_employments = [member.employment for member in active_members]
-    summaries = build_month_summaries(db, employments=member_employments, year=year, month=month)
+    summaries = build_month_summaries(
+        db, employments=member_employments, year=year, month=month, use_persisted=False
+    )
     rows: list[GroupShiftPlanRowOut] = []
     for member in sorted(
         active_members, key=lambda item: (item.employment.user.name.lower(), item.employment_id)

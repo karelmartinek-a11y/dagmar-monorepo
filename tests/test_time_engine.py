@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from app.api.v1.attendance import _metric_out
 from app.db.models import EmploymentType
+from app.services.attendance_mutations import has_strict_event_sequence
 from app.services.czech_holidays import is_czech_public_holiday
 from app.services.time_intervals import break_segments, pair_events
 from app.services.time_metrics import (
@@ -65,6 +66,20 @@ def test_pair_events_ignores_incomplete_historical_sequences() -> None:
     assert [(item.start.date(), item.end.date(), item.minutes) for item in intervals] == [
         (date(2026, 7, 2), date(2026, 7, 2), 480)
     ]
+
+
+def test_pair_events_sums_two_work_intervals_separated_by_a_pause() -> None:
+    events = [
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 8, 27, 5, 30), event_type="IN"),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 27, 9), event_type="OUT"),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 27, 9, 30), event_type="IN"),
+        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 27, 13), event_type="OUT"),
+    ]
+
+    intervals = pair_events(events)
+
+    assert [item.minutes for item in intervals] == [210, 210]
+    assert has_strict_event_sequence(events)
 
 
 def test_czech_holidays_include_easter_and_fixed_days() -> None:

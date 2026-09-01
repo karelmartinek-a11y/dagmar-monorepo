@@ -92,7 +92,7 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 - docházka je neomezená posloupnost chronologických `IN`/`OUT` eventů; intervaly se párují přes půlnoc i hranice měsíců;
 - žádný nový UI layout, kompaktní matice, tisk ani export nesmí neomezenou posloupnost eventů redukovat, přepisovat na pevný počet databázových polí nebo zahazovat skryté eventy;
 - backend je jedinou autoritou časové matematiky; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíční součty vznikají součtem denních desetin;
-- backend synchronizuje `EmploymentDailyTimeMetric` po změně eventu, plánu nebo profilu; běžná mutace přepočítá jen skutečně dotčené měsíce, zatímco změna profilu a provozní backfill pokryjí celou historii;
+- backend synchronizuje `EmploymentDailyTimeMetric` po změně eventu, plánu nebo profilu jako provozní cache; všechny čtecí endpointy a reporty vždy přepočítají hodnoty z aktuálních denních zdrojových faktů, takže cache nesmí ovlivnit zobrazené součty;
 - aktivní hodinová metrika bez zdrojových faktů má backendovou nulu; frontend, tisky a exporty řídí sloupce pouze pomocí `display_metrics` a dodané hodnoty nepřepočítávají;
 - `WORK_CONTRACT` má povinnou celkovou a noční metriku; ostatní zvláštní metriky jsou volitelné. `DPP_DPC` a `EXTERNAL_HOURLY` mají všechny metriky volitelné a `TASK_SHIFT_BASED` nemá hodinové metriky;
 - přestávky se při běžném provozu fyzicky vkládají při uzavření nového intervalu; potvrzené adminské „Přidej pauzy“ je idempotentně doplní také do historických uzavřených intervalů bez hromadného undo a započítá přitom délku už existujících ručních pauz;

@@ -17,6 +17,7 @@ from app.services.attendance_events import add_closed_interval_with_breaks, add_
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
+    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -240,7 +241,9 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
         ).scalars()
     )
     plans = {item.date: item for item in plan_rows if item.date >= start}
-    summary = build_month_summary(db, employment=employment, year=year, month=month)
+    summary = build_month_summary(
+        db, employment=employment, year=year, month=month, use_persisted=False
+    )
     summary_days = {item.date: item for item in summary.day_summaries}
     ordered_events = sorted(events, key=lambda item: (prague_now(item.occurred_at), item.id))
     deletion_partners: dict[int, int] = {}
@@ -466,6 +469,13 @@ def create_attendance_event(
             select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id)
         ).scalars()
     )
+    if not has_strict_event_sequence(after_events):
+        db.rollback()
+        raise_api_error(
+            409,
+            "attendance_event_alternation_conflict",
+            "Průchody musí střídat příchod a odchod.",
+        )
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(after_events),

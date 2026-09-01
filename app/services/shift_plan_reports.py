@@ -328,7 +328,9 @@ def build_shift_plan_report(
         .all()
     )
     plan_map = {(row.employment_id, row.date): row for row in plan_rows}
-    summaries = build_month_summaries(db, employments=ordered_employments, year=year, month=month)
+    summaries = build_month_summaries(
+        db, employments=ordered_employments, year=year, month=month, use_persisted=False
+    )
 
     day_headers: list[dict[str, str | int | None]] = []
     current = start

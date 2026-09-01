@@ -537,6 +537,46 @@ def test_event_creation_uses_chronological_slot_when_requested_type_is_stale() -
         assert inserted.event_type == AttendanceEventType.OUT
 
 
+def test_event_endpoint_rejects_stale_event_type_without_persisting_it() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db, EmploymentType.DPP_DPC)
+        db.add_all(
+            [
+                _event(employment.id, datetime(2026, 8, 27, 5, 30), AttendanceEventType.IN),
+                _event(employment.id, datetime(2026, 8, 27, 9), AttendanceEventType.OUT),
+            ]
+        )
+        db.flush()
+        db.commit()
+        auth = PortalUserAuth(instance=None, user=employment.user)  # type: ignore[arg-type]
+
+        with pytest.raises(HTTPException) as error:
+            create_attendance_event(
+                AttendanceEventIn(
+                    employment_id=employment.id,
+                    occurred_at=datetime(2026, 8, 27, 9, 30, tzinfo=PRAGUE_TIMEZONE),
+                    event_type=AttendanceEventType.OUT,
+                ),
+                db=db,
+                auth=auth,
+            )
+
+        assert error.value.status_code == 409
+        events = list(
+            db.execute(
+                select(AttendanceEvent)
+                .where(AttendanceEvent.employment_id == employment.id)
+                .order_by(AttendanceEvent.occurred_at)
+            ).scalars()
+        )
+        assert [(event.occurred_at.hour, event.occurred_at.minute) for event in events] == [
+            (5, 30),
+            (9, 0),
+        ]
+
+
 def test_event_creation_rejects_any_addition_to_malformed_migrated_sequence() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -1384,7 +1424,7 @@ def test_csv_keeps_days_inside_long_cross_month_interval() -> None:
         assert "2026-07-15" in csv_text
 
 
-def test_outputs_read_persisted_metrics_and_sync_rebuilds_from_raw_facts() -> None:
+def test_outputs_recompute_from_raw_facts_and_sync_rebuilds_persisted_rows() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -1420,19 +1460,19 @@ def test_outputs_read_persisted_metrics_and_sync_rebuilds_from_raw_facts() -> No
         month = _build_month(db, employment, 2026, 8)
         assert month.days[4].worked is not None
         assert month.days[4].worked["total"] is not None
-        assert month.days[4].worked["total"].hours == 1.7
+        assert month.days[4].worked["total"].hours == 8.0
         report = report_to_payload(
             build_shift_plan_report(db, year=2026, month=8, employment_ids=[employment.id])
         )
         report_employment = report["pages"][0]["employments"][0]  # type: ignore[index]
-        assert report_employment["planned_metrics"]["total"]["hours"] == 2.3
+        assert report_employment["planned_metrics"]["total"]["hours"] == 8.0
         csv_text = _csv_for_employment(
             db=db,
             employment=employment,
             start=date(2026, 8, 1),
             end=date(2026, 9, 1),
         ).decode("utf-8")
-        assert "2026-08-05" in csv_text and ",1.7" in csv_text
+        assert "2026-08-05" in csv_text and ",8.0" in csv_text
 
         sync_employment_metrics(db, employment=employment)
         db.flush()

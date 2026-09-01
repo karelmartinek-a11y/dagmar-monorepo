@@ -340,7 +340,9 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         month=month,
     )
     selected_employments = [item for item in available_employments if item.id in selected_ids]
-    summaries = build_month_summaries(db, employments=selected_employments, year=year, month=month)
+    summaries = build_month_summaries(
+        db, employments=selected_employments, year=year, month=month, use_persisted=False
+    )
     rows: list[ShiftPlanRowOut] = []
     for employment in selected_employments:
         employment_id = employment.id

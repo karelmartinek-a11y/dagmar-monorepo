@@ -19,6 +19,7 @@ from app.services.attendance_events import add_closed_interval_with_breaks, add_
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
+    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -333,6 +334,13 @@ def create_event(
             select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id)
         ).scalars()
     )
+    if not has_strict_event_sequence(after_events):
+        db.rollback()
+        raise_api_error(
+            409,
+            "attendance_event_alternation_conflict",
+            "Průchody musí střídat příchod a odchod.",
+        )
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(after_events),
