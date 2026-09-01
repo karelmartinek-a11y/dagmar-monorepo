@@ -63,10 +63,8 @@ test.describe("real event backend", () => {
     ).toBeEnabled();
     await expect(page.getByTestId("attendance-day-2026-08-11")).toContainText("Paragraf");
     await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
-    await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toHaveValue(
-      "02:00",
-    );
-    await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toBeDisabled();
+    await expect(page.getByLabel("PLÁN – PRŮCHOD 1 2026-08-01")).toHaveValue("");
+    await expect(page.getByLabel("PLÁN – PRŮCHOD 2 2026-08-01")).toHaveValue("");
     await page.getByRole("tab", { name: "Docházka", exact: true }).click();
 
     await page.getByRole("button", { name: "‹" }).click();
@@ -146,7 +144,7 @@ test.describe("real event backend", () => {
     await page.getByRole("button", { name: "›" }).click();
     await expect(ownGroupRow.getByLabel(/2026-08-03/).first()).toBeEnabled();
     await expect(colleagueGroupRow.getByLabel(/2026-08-03/).first()).toBeDisabled();
-    await expect(ownGroupRow.getByText("Přesah 02:00", { exact: true })).toBeVisible();
+    await expect(ownGroupRow.getByText("Přesah 02:00", { exact: true })).toHaveCount(0);
     await expect(
       page.getByTestId(/employee-group-plan-row-/)
         .filter({ hasText: "E2E provozní úvazek" })

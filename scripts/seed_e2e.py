@@ -226,8 +226,8 @@ def main() -> None:
                     employment_id=own.id,
                     instance_id=user.instance_id,
                     date=date(2026, 7, 31),
-                    arrival_time="22:00",
-                    departure_time="02:00",
+                    arrival_time="14:00",
+                    departure_time="22:00",
                 ),
                 ShiftPlan(
                     employment_id=own.id,
