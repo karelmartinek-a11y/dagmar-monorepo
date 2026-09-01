@@ -159,6 +159,7 @@ describe("attendance print layout", () => {
     const sheet = screen.getByTestId("print-attendance-sheet-22");
     expect(sheet.querySelector(".print-form__brand")).toHaveTextContent("Bendová Klára");
     expect(sheet.querySelector(".print-form__brand small")).not.toBeInTheDocument();
+    expect(sheet.querySelector(".print-form__footer")).toHaveClass("print-form__footer");
     const identity = sheet.querySelector<HTMLElement>(".print-form__identity");
     if (!identity) throw new Error("print identity block is missing");
     expect(identity).not.toHaveTextContent("Bendová Klára");

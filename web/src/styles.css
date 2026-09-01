@@ -541,7 +541,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .print-summary-grid span,.print-summary-grid strong { display:block; }
 .print-summary-grid span { font-size:7pt; line-height:1.1; }
 .print-summary-grid strong { margin-top:.6mm; font-size:9pt; line-height:1; font-weight:700; }
-.print-form__footer { position:absolute; left:var(--content-x); top:289.86mm; width:var(--content-w); border-top:.5pt solid #a6a6a6; padding-top:1.5mm; }
+.print-form__footer { position:absolute; left:var(--content-x); top:279.86mm; width:var(--content-w); border-top:.5pt solid #a6a6a6; padding-top:1.5mm; }
 .print-form__footer>small { display:block; color:#666; font-size:5.5pt; line-height:1; text-align:right; }
 .print-sheet--attendance-detail .status-message { margin-top:4mm; color:#8a1c1c; }
 @media print {
