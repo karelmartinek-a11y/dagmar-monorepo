@@ -513,7 +513,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .print-form__brand strong { font-size:12pt; font-weight:700; line-height:1.05; }
 .print-form__title { min-width:0; padding:0; }
 .print-form__document-title { margin:0; font-size:7pt; font-weight:700; line-height:1; }
-.print-form__title h1 { margin:1mm 0 0; padding:0 0 1mm; border-bottom:1.25pt solid #2f2f2f; font-size:16pt; line-height:1; font-weight:700; letter-spacing:0; }
+.print-form__title h1 { margin:1mm 0 0; padding:0 0 1mm; border-bottom:0; font-size:16pt; line-height:1; font-weight:700; letter-spacing:0; }
 .print-form__identity { position:absolute; left:var(--content-x); top:18.52mm; width:var(--content-w); height:11.18mm; display:grid; grid-template-columns:repeat(3,1fr); border:1pt solid #5a5a5a; }
 .print-form__identity div { display:flex; align-items:center; min-width:0; height:11.18mm; padding:0 1.25mm; border-right:.75pt solid #8b8b8b; font-size:7pt; white-space:nowrap; }
 .print-form__identity div:last-child { border-right:0; }
