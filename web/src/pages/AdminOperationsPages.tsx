@@ -245,7 +245,7 @@ function AttendancePrint({
     <div className="print-report-pages">
       {sheets.map((sheet) => {
         const maxEventsPerDay = Math.max(0, ...sheet.days.map((day) => day.events.length));
-        const { landscape, eventColumns, capacityExceeded: eventCapacityExceeded } = attendancePrintLayout(maxEventsPerDay);
+        const { eventColumns, capacityExceeded: eventCapacityExceeded } = attendancePrintLayout(maxEventsPerDay);
         const overflowDays = sheet.days
           .filter((day) => day.events.length > eventColumns)
           .map((day) => day.date);
@@ -257,7 +257,7 @@ function AttendancePrint({
         );
         return (
         <article
-          className={`print-sheet print-sheet--attendance-detail${landscape ? " print-sheet--attendance-landscape" : ""}`}
+          className="print-sheet print-sheet--attendance-detail"
           data-testid={`print-attendance-sheet-${sheet.employment_id}`}
           key={sheet.employment_id}
         >
@@ -270,7 +270,7 @@ function AttendancePrint({
             </div>
             <div className="print-form__title">
               <p className="print-form__document-title">
-                {t("adminOps.prints.template.documentTitle")}{landscape ? " - 8 PRŮCHODŮ" : ""}
+                {t("adminOps.prints.template.documentTitle")} - 8 PRŮCHODŮ
               </p>
               <h1>
                 {t("adminOps.prints.template.periodBanner", {

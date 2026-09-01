@@ -631,7 +631,7 @@ export const resources = {
             night: "Noční práce",
             weekend: "Práce o víkendu",
             publicHoliday: "Práce ve svátku",
-            overflowDays: "Dny s více než čtyřmi průchody",
+            overflowDays: "Dny s více než osmi průchody",
             codes: {
               weekend: "VÍKEND",
               work: "PRÁCE",
@@ -1491,7 +1491,7 @@ export const resources = {
             night: "Night work",
             weekend: "Weekend work",
             publicHoliday: "Public-holiday work",
-            overflowDays: "Days with more than four passages",
+            overflowDays: "Days with more than eight passages",
             codes: {
               weekend: "WEEKEND",
               work: "WORK",
@@ -2342,7 +2342,7 @@ export const resources = {
             night: "Nočná práca",
             weekend: "Práca cez víkend",
             publicHoliday: "Práca vo sviatok",
-            overflowDays: "Dni s viac ako štyrmi prechodmi",
+            overflowDays: "Dni s viac ako ôsmimi prechodmi",
             codes: {
               weekend: "VÍKEND",
               work: "PRÁCA",
@@ -3211,7 +3211,7 @@ export const resources = {
             night: "Nachtarbeit",
             weekend: "Wochenendarbeit",
             publicHoliday: "Feiertagsarbeit",
-            overflowDays: "Tage mit mehr als vier Durchgängen",
+            overflowDays: "Tage mit mehr als acht Durchgängen",
             codes: {
               weekend: "WOCHENENDE",
               work: "ARBEIT",

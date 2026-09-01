@@ -71,10 +71,9 @@ export function humanEventHeaders(count: number): string[] {
 }
 
 export function attendancePrintLayout(maxEventsPerDay: number) {
-  const landscape = maxEventsPerDay > 4;
   return {
-    landscape,
-    eventColumns: landscape ? 8 : 4,
+    landscape: true,
+    eventColumns: 8,
     capacityExceeded: maxEventsPerDay > 8,
   };
 }

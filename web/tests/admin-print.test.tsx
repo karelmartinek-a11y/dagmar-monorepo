@@ -25,14 +25,15 @@ function renderPreview() {
 afterEach(() => vi.restoreAllMocks());
 
 describe("attendance print layout", () => {
-  it("switches to the eight-passage landscape layout after four passages", () => {
-    expect(attendancePrintLayout(4)).toEqual({ landscape: false, eventColumns: 4, capacityExceeded: false });
+  it("uses the eight-passage landscape layout for every attendance print", () => {
+    expect(attendancePrintLayout(0)).toEqual({ landscape: true, eventColumns: 8, capacityExceeded: false });
+    expect(attendancePrintLayout(4)).toEqual({ landscape: true, eventColumns: 8, capacityExceeded: false });
     expect(attendancePrintLayout(5)).toEqual({ landscape: true, eventColumns: 8, capacityExceeded: false });
     expect(attendancePrintLayout(8)).toEqual({ landscape: true, eventColumns: 8, capacityExceeded: false });
     expect(attendancePrintLayout(9).capacityExceeded).toBe(true);
   });
 
-  it("keeps four pass columns, units, weekdays, and calendar tones", async () => {
+  it("keeps eight pass columns, units, weekdays, and calendar tones", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -159,10 +160,11 @@ describe("attendance print layout", () => {
     expect(
       await screen.findByRole("columnheader", { name: "PRŮCHOD 4" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "PRŮCHOD 8" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Den" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Den v týdnu" })).toBeInTheDocument();
     expect(screen.getByText("ČERVENEC 2026")).toBeInTheDocument();
-    expect(screen.getByText("MĚSÍČNÍ DOCHÁZKOVÝ LIST")).toBeInTheDocument();
+    expect(screen.getByText(/MĚSÍČNÍ DOCHÁZKOVÝ LIST/)).toBeInTheDocument();
     expect(screen.queryByText(/Evidence pracovní doby/)).not.toBeInTheDocument();
     const sheet = screen.getByTestId("print-attendance-sheet-22");
     expect(sheet.querySelector(".print-form__brand")).toHaveTextContent("Bendová Klára");
@@ -200,7 +202,7 @@ describe("attendance print layout", () => {
     expect(
       screen.getByText("PRÁCE · SVÁTEK"),
     ).toBeInTheDocument();
-    expect(sheet.querySelectorAll(".print-attendance-table col")).toHaveLength(12);
+    expect(sheet.querySelectorAll(".print-attendance-table col")).toHaveLength(16);
     expect(screen.queryByText("—")).not.toBeInTheDocument();
     expect(screen.getByTestId("print-attendance-sheet-22").querySelector('[data-date="2026-07-05"]')).toHaveClass(
       "print-day--holiday",
