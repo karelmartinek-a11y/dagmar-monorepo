@@ -115,7 +115,8 @@ function translatedMetricLabel(t: TFunction, key: MetricKey) {
   return t(paths[key], metricLabels[key]);
 }
 const formatDuration = (value: { clock?: string } | null | undefined) => {
-  return value?.clock ?? "";
+  const clock = value?.clock ?? "";
+  return clock.replace(/^(\d):/, "0$1:");
 };
 
 function printMetricIsRelevant(sheet: AdminAttendanceSheet, key: MetricKey) {
@@ -126,14 +127,14 @@ function printMetricCellValue(
   value: { clock?: string } | null | undefined,
   relevant: boolean,
 ) {
-  return relevant ? formatDuration(value) : "—";
+  return relevant ? formatDuration(value) : "-";
 }
 
 function printSummaryValue(
   value: { clock?: string } | null | undefined,
   relevant: boolean,
 ) {
-  return relevant ? formatDuration(value) || "—" : "—";
+  return relevant ? formatDuration(value) || "-" : "-";
 }
 
 function PrintSummaryCard({
@@ -264,6 +265,7 @@ function AttendancePrint({
               <small>{t("adminOps.prints.template.employee")}</small>
             </div>
             <div className="print-form__title">
+              <p className="print-form__document-title">{t("adminOps.prints.template.documentTitle")}</p>
               <h1>
                 {t("adminOps.prints.template.periodBanner", {
                   month: formatPrintPeriod(sheet.days[0]?.date ?? "", locale),

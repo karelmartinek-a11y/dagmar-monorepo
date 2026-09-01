@@ -154,7 +154,7 @@ describe("attendance print layout", () => {
     expect(screen.getByRole("columnheader", { name: "Den" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Den v týdnu" })).toBeInTheDocument();
     expect(screen.getByText("OBDOBÍ: ČERVENEC 2026")).toBeInTheDocument();
-    expect(screen.queryByText("MĚSÍČNÍ DOCHÁZKOVÝ LIST")).not.toBeInTheDocument();
+    expect(screen.getByText("MĚSÍČNÍ DOCHÁZKOVÝ LIST")).toBeInTheDocument();
     expect(screen.queryByText(/Evidence pracovní doby/)).not.toBeInTheDocument();
     const sheet = screen.getByTestId("print-attendance-sheet-22");
     expect(sheet.querySelector(".print-form__brand")).toHaveTextContent("Bendová Klára");
@@ -183,10 +183,12 @@ describe("attendance print layout", () => {
     expect(screen.getAllByText("10:30")).toHaveLength(3);
     expect(screen.getByText("So")).toBeInTheDocument();
     expect(screen.getByText(/NEM/)).toBeInTheDocument();
-    expect(screen.getByText("NEM 8:00")).toBeInTheDocument();
+    expect(screen.getByText("NEM 08:00")).toBeInTheDocument();
     expect(
       screen.getByText("PRÁCE · SVÁTEK"),
     ).toBeInTheDocument();
+    expect(sheet.querySelectorAll(".print-attendance-table col")).toHaveLength(12);
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
     expect(screen.getByTestId("print-attendance-sheet-22").querySelector('[data-date="2026-07-05"]')).toHaveClass(
       "print-day--holiday",
     );
