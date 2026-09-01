@@ -5,7 +5,11 @@ from app.api.v1.attendance import _metric_out
 from app.db.models import EmploymentType
 from app.services.czech_holidays import is_czech_public_holiday
 from app.services.time_intervals import break_segments, pair_events
-from app.services.time_metrics import MetricValue, round_minutes_to_tenths
+from app.services.time_metrics import (
+    MetricValue,
+    calculate_day_status_metrics,
+    round_minutes_to_tenths,
+)
 
 
 def test_daily_rounding_is_half_up_in_tenths() -> None:
@@ -19,6 +23,28 @@ def test_metric_output_includes_backend_owned_clock_format() -> None:
 
     assert metric is not None
     assert metric.clock == "25:05"
+
+
+def test_full_day_status_metrics_are_backend_owned_and_separate() -> None:
+    employment = SimpleNamespace(employment_type=EmploymentType.WORK_CONTRACT)
+
+    holiday = calculate_day_status_metrics(employment, "HOLIDAY")
+    sickness = calculate_day_status_metrics(employment, "SICKNESS")
+    paragraph = calculate_day_status_metrics(employment, "PARAGRAPH")
+    off = calculate_day_status_metrics(employment, "OFF")
+
+    assert holiday.holiday is not None and holiday.holiday.hours == 8.0
+    assert sickness.sickness is not None and sickness.sickness.hours == 8.0
+    assert paragraph.paragraph is not None and paragraph.paragraph.hours == 8.0
+    assert off == type(off)(holiday=None, sickness=None, paragraph=None)
+
+
+def test_shift_based_employment_has_no_hourly_status_credit() -> None:
+    employment = SimpleNamespace(employment_type=EmploymentType.TASK_SHIFT_BASED)
+
+    metrics = calculate_day_status_metrics(employment, "HOLIDAY")
+
+    assert metrics.holiday is None
 
 
 def test_break_distribution_is_minimal_and_deterministic() -> None:

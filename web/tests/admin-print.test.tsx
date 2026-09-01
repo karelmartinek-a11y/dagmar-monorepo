@@ -82,6 +82,7 @@ describe("attendance print layout", () => {
                         weekend: null,
                         public_holiday: null,
                       },
+                      status_metrics: { holiday: null, sickness: null, paragraph: null },
                     },
                     {
                       date: "2026-07-06",
@@ -97,6 +98,11 @@ describe("attendance print layout", () => {
                         weekend: null,
                         public_holiday: null,
                       },
+                      status_metrics: {
+                        holiday: null,
+                        sickness: { minutes: 480, tenths: 80, hours: 8, clock: "8:00" },
+                        paragraph: null,
+                      },
                     },
                     {
                       date: "2026-07-18",
@@ -110,6 +116,7 @@ describe("attendance print layout", () => {
                         weekend: null,
                         public_holiday: null,
                       },
+                      status_metrics: { holiday: null, sickness: null, paragraph: null },
                     },
                   ],
                   worked: {
@@ -118,6 +125,11 @@ describe("attendance print layout", () => {
                     night: null,
                     weekend: null,
                     public_holiday: null,
+                  },
+                  status_metrics: {
+                    holiday: null,
+                    sickness: { minutes: 480, tenths: 80, hours: 8, clock: "8:00" },
+                    paragraph: null,
                   },
                 },
               ],
@@ -141,7 +153,8 @@ describe("attendance print layout", () => {
     expect(screen.getByText("12:00")).toBeInTheDocument();
     expect(screen.getAllByText("10:30")).toHaveLength(3);
     expect(screen.getByText("So")).toBeInTheDocument();
-    expect(screen.getByText("NEM")).toBeInTheDocument();
+    expect(screen.getByText(/NEM/)).toBeInTheDocument();
+    expect(screen.getByText("NEM 8:00")).toBeInTheDocument();
     expect(
       screen.getByText("Den slovanských věrozvěstů Cyrila a Metoděje"),
     ).toBeInTheDocument();

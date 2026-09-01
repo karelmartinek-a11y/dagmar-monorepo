@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
-from app.api.v1.attendance import MetricOut, _metric_out, _metrics_out
+from app.api.v1.attendance import MetricOut, _metric_out, _metrics_out, _status_metrics_out
 from app.db.models import (
     AttendanceEvent,
     Employment,
@@ -92,6 +92,7 @@ class ShiftPlanDayOut(BaseModel):
     planned_hours: float
     planned_state: str
     planned: dict[str, MetricOut | None] | None
+    status_metrics: dict[str, MetricOut | None]
 
 
 class ShiftPlanSummaryOut(BaseModel):
@@ -101,6 +102,7 @@ class ShiftPlanSummaryOut(BaseModel):
     holiday_days: int
     off_days: int
     planned: dict[str, MetricOut | None] | None
+    status_metrics: dict[str, MetricOut | None]
 
 
 class ShiftPlanRowOut(BaseModel):
@@ -390,6 +392,10 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                     planned_hours=day_summary.planned_hours,
                     planned_state=day_summary.planned_state,
                     planned=_metrics_out(day_summary.planned),
+                    status_metrics=_status_metrics_out({
+                        key: getattr(day_summary.status_metrics, key)
+                        for key in ("holiday", "sickness", "paragraph")
+                    }),
                 )
             )
             cur = cur + dt.timedelta(days=1)
@@ -422,6 +428,7 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                     }
                     if summary.planned
                     else None,
+                    status_metrics=_status_metrics_out(summary.status_metrics),
                 ),
             )
         )

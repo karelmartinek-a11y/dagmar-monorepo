@@ -519,6 +519,8 @@ hours = tenths / 10
 - sváteční je celý total v český státní svátek, jinak nula;
 - hourly profil bez faktů vrací backendové nuly pro aktivní metriky;
 - `TASK_SHIFT_BASED` nevrací hodinové metriky;
+- celodenní `HOLIDAY`, `SICKNESS` a `PARAGRAPH` mají na hodinovém úvazku samostatný kredit `8:00`; `OFF` kredit nemá a `TASK_SHIFT_BASED` žádné hodinové stavové kredity nevrací;
+- stavové kredity nejsou součástí `worked` ani `planned`, aby se nemíchaly odpracované a intervalově naplánované hodiny; jejich denní i měsíční hodnoty počítá stejný backendový engine a klient je pouze zobrazuje;
 - měsíční desetiny jsou součet již zaokrouhlených denních desetin; nesmí se znovu zaokrouhlit součet minut;
 - `worked_state` je `empty`, `incomplete` nebo `complete`; historicky neuzavřený den je viditelný, ale otevřená část nepřispívá do metrik;
 - `planned_state` je `complete`, má-li plán nenulové metriky, jinak `empty`;
@@ -695,11 +697,13 @@ AttendanceDay = {
   calendar_tone:holiday|weekend|work,
   public_holiday_label?, is_within_employment_period:bool,
   worked:TimeMetrics|null, planned:TimeMetrics|null,
+  status_metrics:StatusMetrics,
   worked_state:string, planned_state:string
 }
 AttendanceMonth = {
   employment_id, employment_label, display_metrics:MetricKey[],
   days:AttendanceDay[], worked:TimeMetrics|null, planned:TimeMetrics|null,
+  status_metrics:StatusMetrics,
   attendance_locked:bool, shift_plan_locked:bool
 }
 PortalLogin = {
@@ -709,6 +713,16 @@ PortalLogin = {
 ```
 
 `MetricKey` je pouze `total`, `afternoon`, `night`, `weekend`, `public_holiday`. `display_metrics` určuje nejen viditelnost, ale i pořadí všech denních/měsíčních metrik.
+
+`StatusMetrics` je backendový souhrn hodin celodenních stavů mimo intervalové metriky:
+
+```text
+StatusMetrics = {
+  holiday:Metric|null, sickness:Metric|null, paragraph:Metric|null
+}
+```
+
+Každý den i měsíc jej dodává API jako `status_metrics`. `holiday`, `sickness` a `paragraph` obsahují pouze příslušný stav; ostatní klíče jsou `null`. Stavový kredit se nikdy neodvozuje ve frontendu, tisku, PDF ani CSV. `display_metrics` řídí pouze intervalové sloupce `worked`/`planned`; stavové hodiny se zobrazují samostatně podle `status_metrics`.
 
 Zaměstnanecké mutace:
 
@@ -748,12 +762,13 @@ GroupShiftPlanMonth = {
     employment_id:int, display_label:string, is_own_employment:bool,
     shift_plan_locked:bool, display_metrics:MetricKey[],
     planned_minutes:int, planned_hours:number, planned:TimeMetrics|null,
+    status_metrics:StatusMetrics,
     days:[{
       date, arrival_time?, departure_time?, status?, effective_status?,
       is_carryover:bool, carryover_departure_time?,
       is_within_employment_period:bool,
       planned_minutes:int, planned_hours:number,
-      planned_state:string, planned:TimeMetrics|null
+    planned_state:string, planned:TimeMetrics|null, status_metrics:StatusMetrics
     }]
   }]
 }

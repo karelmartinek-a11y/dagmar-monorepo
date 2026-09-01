@@ -247,6 +247,39 @@ def test_empty_hourly_month_preserves_backend_zero_visual_contract() -> None:
         assert month.days[0].worked["total"].hours == 0.0
 
 
+def test_month_summary_exposes_hours_for_full_day_statuses() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db, EmploymentType.WORK_CONTRACT)
+        db.add_all(
+            [
+                ShiftPlan(employment_id=employment.id, date=date(2026, 8, 4), status="HOLIDAY"),
+                Attendance(employment_id=employment.id, date=date(2026, 8, 5), status="SICKNESS"),
+                Attendance(employment_id=employment.id, date=date(2026, 8, 6), status="PARAGRAPH"),
+                ShiftPlan(employment_id=employment.id, date=date(2026, 8, 7), status="OFF"),
+            ]
+        )
+        db.commit()
+
+        month = _build_month(db, employment, 2026, 8)
+
+        assert month.status_metrics["holiday"] is not None
+        assert month.status_metrics["holiday"].hours == 8.0
+        assert month.status_metrics["sickness"] is not None
+        assert month.status_metrics["sickness"].hours == 8.0
+        assert month.status_metrics["paragraph"] is not None
+        assert month.status_metrics["paragraph"].hours == 8.0
+        assert month.days[3].status_metrics["holiday"] is not None
+        assert month.days[4].status_metrics["sickness"] is not None
+        assert month.days[5].status_metrics["paragraph"] is not None
+        assert month.days[6].status_metrics == {
+            "holiday": None,
+            "sickness": None,
+            "paragraph": None,
+        }
+
+
 def test_employment_mutation_lock_refreshes_an_existing_identity() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -1299,6 +1332,8 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
         assert report_employment["cells"][3]["planned_metrics"]["night"]["hours"] == 2.0
         assert report_employment["cells"][4]["status"] == "SICKNESS"
         assert report_employment["cells"][4]["status_label"] == "Nemoc"
+        assert report_employment["status_metrics"]["sickness"]["hours"] == 8.0
+        assert report_employment["cells"][4]["status_metrics"]["sickness"]["hours"] == 8.0
         assert report_employment["cells"][4]["interval_label"] == ""
         csv_text = _csv_for_employment(
             db=db,
@@ -1307,6 +1342,7 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
             end=date(2026, 9, 1),
         ).decode("utf-8")
         assert "PLÁN – PRŮCHOD 1" in csv_text
+        assert "nemoc_h" in csv_text and "8.0" in csv_text
         assert "2026-08-04" in csv_text and "02:00" in csv_text
 
 

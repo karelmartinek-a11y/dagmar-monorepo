@@ -10,6 +10,7 @@ import type {
   AdminAttendanceSheet,
   AttendanceDay,
   MetricKey,
+  StatusMetricKey,
 } from "../api/types";
 import { asPragueDate } from "../utils/calendar";
 import { formatCalendarDate } from "../utils/format";
@@ -19,6 +20,7 @@ import {
   humanEventHeaders,
   isPrintCapacityExceeded,
 } from "../utils/presentationAdapters";
+import { statusMetricKeyForStatus, statusMetricKeys } from "../utils/statusMetrics";
 
 type EmploymentChoice = {
   id: number;
@@ -147,14 +149,24 @@ function printDayCode(t: TFunction, day: AttendanceDay) {
   };
   if (day.effective_status) {
     const status = t(statusKeys[day.effective_status] ?? "adminOps.prints.template.codes.status");
-    const plannedTotal = formatDuration(day.planned?.total);
-    return plannedTotal ? `${status} ${plannedTotal}` : status;
+    const statusKey = statusMetricKeyForStatus(day.effective_status);
+    const creditedHours = statusKey ? formatDuration(day.status_metrics[statusKey]) : "";
+    return creditedHours ? `${status} ${creditedHours}` : status;
   }
   if (day.calendar_tone === "weekend") return t("adminOps.prints.template.codes.weekend");
   if (day.events.length > 0 || day.worked?.total?.minutes) {
     return t("adminOps.prints.template.codes.work");
   }
   return "";
+}
+
+function printStatusMetricLabel(t: TFunction, key: StatusMetricKey) {
+  const paths: Record<StatusMetricKey, string> = {
+    holiday: "employee.metrics.holiday",
+    sickness: "employee.metrics.sickness",
+    paragraph: "employee.metrics.paragraph",
+  };
+  return t(paths[key]);
 }
 
 function AttendancePrint({
@@ -273,6 +285,12 @@ function AttendancePrint({
                   <div key={key}>
                     <span>{printMetricLabel(t, key)}</span>
                     <strong>{formatDuration(sheet.worked?.[key])}</strong>
+                  </div>
+                ))}
+                {statusMetricKeys.map((key) => (
+                  <div key={key}>
+                    <span>{printStatusMetricLabel(t, key)}</span>
+                    <strong>{formatDuration(sheet.status_metrics[key])}</strong>
                   </div>
                 ))}
               </div>
@@ -753,6 +771,9 @@ type ShiftPlanReport = {
       planned_metrics: Partial<
         Record<MetricKey, { minutes: number; tenths: number; hours: number }>
       >;
+      status_metrics: Partial<
+        Record<StatusMetricKey, { minutes: number; tenths: number; hours: number }>
+      >;
       scheduled_days: number;
       holiday_days: number;
       off_days: number;
@@ -763,6 +784,9 @@ type ShiftPlanReport = {
         carryover_departure_time: string | null;
         planned_metrics: Partial<
           Record<MetricKey, { minutes: number; tenths: number; hours: number }>
+        >;
+        status_metrics: Partial<
+          Record<StatusMetricKey, { minutes: number; tenths: number; hours: number }>
         >;
         status_label: string | null;
         tone: string;
@@ -786,7 +810,7 @@ function ShiftPlanPreview({ report }: { report: ShiftPlanReport }) {
             <small>Plán služeb · {report.month_label} · {report.generated_at_label}</small>
           </header>
           {isPrintCapacityExceeded(employment.cells.length, Math.max(0, ...employment.cells.map((cell) => [cell.carryover_departure_time, cell.arrival_time, cell.departure_time].filter(Boolean).length)), employment.display_metrics) ? <StatusMessage kind="error" title={t("adminOps.prints.capacityExceeded")} /> : <table className="print-shift-plan-detail-table">
-            <thead><tr><th>{t("employee.page.table.date", "Datum")}</th>{Array.from({ length: planColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass", "PRŮCHOD")} {index + 1}</th>)}<th>{t("employee.page.table.status", "Stav")}</th>{employment.display_metrics.map((key) => <th key={key}>{translatedMetricLabel(t, key)} (h)</th>)}</tr></thead>
+            <thead><tr><th>{t("employee.page.table.date", "Datum")}</th>{Array.from({ length: planColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass", "PRŮCHOD")} {index + 1}</th>)}<th>{t("employee.page.table.status", "Stav")}</th>{employment.display_metrics.map((key) => <th key={key}>{translatedMetricLabel(t, key)} (h)</th>)}<th>Celodenní stavy (h)</th></tr></thead>
             <tbody>
               {employment.cells.map((cell) => <tr key={cell.date_iso}>
                 <td>{formatCalendarDate(cell.date_iso)}</td>
@@ -794,8 +818,9 @@ function ShiftPlanPreview({ report }: { report: ShiftPlanReport }) {
                 {Array.from({ length: planColumns - chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length }, (_, index) => <td key={`empty-${index}`} />)}
                 <td>{cell.status_label ?? ""}</td>
                 {employment.display_metrics.map((key) => <td key={key}>{cell.planned_metrics[key] ? formatHoursValue(cell.planned_metrics[key]!.hours, "cs-CZ") : ""}</td>)}
+                <td>{statusMetricKeys.map((key) => cell.status_metrics[key] ? `${printStatusMetricLabel(t, key)} ${formatHoursValue(cell.status_metrics[key]!.hours, "cs-CZ")}` : "").filter(Boolean).join(" · ")}</td>
               </tr>)}
-              <tr className="print-attendance-total"><th colSpan={2 + planColumns}>{t("employee.page.table.sum", "Součet")}</th>{employment.display_metrics.map((key) => <th key={key}>{employment.planned_metrics[key] ? formatHoursValue(employment.planned_metrics[key]!.hours, "cs-CZ") : ""}</th>)}</tr>
+              <tr className="print-attendance-total"><th colSpan={2 + planColumns}>{t("employee.page.table.sum", "Součet")}</th>{employment.display_metrics.map((key) => <th key={key}>{employment.planned_metrics[key] ? formatHoursValue(employment.planned_metrics[key]!.hours, "cs-CZ") : ""}</th>)}<th>{statusMetricKeys.map((key) => employment.status_metrics[key] ? `${printStatusMetricLabel(t, key)} ${formatHoursValue(employment.status_metrics[key]!.hours, "cs-CZ")}` : "").filter(Boolean).join(" · ")}</th></tr>
             </tbody>
           </table>}
         </article>

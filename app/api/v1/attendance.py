@@ -107,6 +107,7 @@ class AttendanceDayOut(BaseModel):
     is_within_employment_period: bool
     worked: dict[str, MetricOut | None] | None
     planned: dict[str, MetricOut | None] | None
+    status_metrics: dict[str, MetricOut | None]
     worked_state: str = "empty"
     planned_state: str = "empty"
 
@@ -118,6 +119,7 @@ class AttendanceMonthOut(BaseModel):
     days: list[AttendanceDayOut]
     worked: dict[str, MetricOut | None] | None
     planned: dict[str, MetricOut | None] | None
+    status_metrics: dict[str, MetricOut | None]
     attendance_locked: bool = False
     shift_plan_locked: bool = False
 
@@ -161,6 +163,10 @@ def _metrics_out(metrics: DailyMetrics | None) -> dict[str, MetricOut | None] | 
         key: _metric_out(getattr(metrics, key))
         for key in ("total", "afternoon", "night", "weekend", "public_holiday")
     }
+
+
+def _status_metrics_out(metrics: dict[str, MetricValue | None]) -> dict[str, MetricOut | None]:
+    return {key: _metric_out(value) for key, value in metrics.items()}
 
 
 def _employment(auth: PortalUserAuth, employment_id: int, db: Session) -> Employment:
@@ -307,6 +313,12 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
                 and (employment.end_date is None or day <= employment.end_date),
                 worked=_metrics_out(worked_metrics),
                 planned=_metrics_out(planned_metrics),
+                status_metrics=_status_metrics_out(
+                    {
+                        key: getattr(day_summary.status_metrics, key)
+                        for key in ("holiday", "sickness", "paragraph")
+                    }
+                ),
                 worked_state=day_summary.worked_state,
                 planned_state=day_summary.planned_state,
             )
@@ -322,6 +334,7 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
         planned={key: _metric_out(value) for key, value in summary.planned.items()}
         if summary.planned
         else None,
+        status_metrics=_status_metrics_out(summary.status_metrics),
         attendance_locked=is_month_locked(
             db, lock_type=LockType.ATTENDANCE, employment_id=employment.id, year=year, month=month
         ),

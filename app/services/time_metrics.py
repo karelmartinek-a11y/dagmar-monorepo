@@ -5,6 +5,12 @@ from datetime import date, datetime, time, timedelta
 
 from app.db.models import Employment, EmploymentType
 from app.services.czech_holidays import is_czech_public_holiday
+from app.services.day_status import (
+    DAY_STATUS_HOLIDAY,
+    DAY_STATUS_PARAGRAPH,
+    DAY_STATUS_SICKNESS,
+    FULL_DAY_STATUS_MINUTES,
+)
 from app.services.prague_time import PRAGUE_TIMEZONE
 from app.services.time_intervals import WorkInterval, overlap_minutes, split_by_day
 
@@ -28,6 +34,16 @@ class DailyMetrics:
     public_holiday: MetricValue | None
 
 
+@dataclass(frozen=True)
+class DayStatusMetrics:
+    holiday: MetricValue | None
+    sickness: MetricValue | None
+    paragraph: MetricValue | None
+
+
+STATUS_METRIC_KEYS = ("holiday", "sickness", "paragraph")
+
+
 def round_minutes_to_tenths(minutes: int) -> int:
     if minutes < 0:
         raise ValueError("minutes must be non-negative")
@@ -49,6 +65,29 @@ def empty_daily_metrics(employment: Employment) -> DailyMetrics | None:
         night=zero if employment.night_hours_enabled else None,
         weekend=zero if employment.weekend_hours_enabled else None,
         public_holiday=zero if employment.public_holiday_hours_enabled else None,
+    )
+
+
+def calculate_day_status_metrics(
+    employment: Employment, status: str | None
+) -> DayStatusMetrics:
+    """Calculate backend-owned credited hours for a full-day status.
+
+    Status hours are deliberately separate from worked/planned intervals. A full
+    day of vacation, sickness, or care leave is credited as the existing
+    canonical eight-hour day; a day off and shift-based profiles have no hourly
+    status credit.
+    """
+    if employment.employment_type == EmploymentType.TASK_SHIFT_BASED:
+        value = None
+    elif status in {DAY_STATUS_HOLIDAY, DAY_STATUS_SICKNESS, DAY_STATUS_PARAGRAPH}:
+        value = metric_value(FULL_DAY_STATUS_MINUTES)
+    else:
+        value = None
+    return DayStatusMetrics(
+        holiday=value if status == DAY_STATUS_HOLIDAY else None,
+        sickness=value if status == DAY_STATUS_SICKNESS else None,
+        paragraph=value if status == DAY_STATUS_PARAGRAPH else None,
     )
 
 

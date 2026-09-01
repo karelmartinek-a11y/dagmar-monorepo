@@ -35,6 +35,7 @@ Strojově čitelný manifest je v [docs/current-state-manifest.yaml](docs/curren
 - docházka používá neomezené chronologické `IN`/`OUT` průchody a automatické přestávky jsou fyzické, neretroaktivní eventy
 - backend je jedinou autoritou časových intervalů a kategorií; denní desetiny se matematicky zaokrouhlují a měsíce sčítají z denních desetin
 - viditelné hodinové sloupce dodává backend v `display_metrics` podle aktuálního profilu konkrétního úvazku; frontend, tisk, CSV, ZIP a PDF pouze interpretují dodaná čísla
+- celodenní dovolená, nemoc a paragraf dodává backend odděleně v `status_metrics` jako 8:00 na hodinovém úvazku; volno a úkolový/směnový úvazek hodinový kredit nemají
 - zaměstnanec i admin vybírají ve zvoleném měsíci jen aktivní úvazky aktivních uživatelů s překryvem období; docházka a plán mají samostatné zámky
 - administrátor může potvrzenou idempotentní akcí „Přidej pauzy“ fyzicky doplnit chybějící `OUT`/`IN` eventy do historické docházky
 - docházkový tisk jednotlivého úvazku používá jeden A4 list na výšku podle schválené předlohy; náhled i browserové PDF sdílejí stejnou kompozici

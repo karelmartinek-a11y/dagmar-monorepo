@@ -18,7 +18,7 @@ from app.services.employment_access import (
 from app.services.month_summary import build_month_summaries, is_czech_holiday
 from app.services.prague_time import prague_now
 from app.services.time_intervals import shift_plan_carryover
-from app.services.time_metrics import DailyMetrics, MetricValue
+from app.services.time_metrics import STATUS_METRIC_KEYS, DailyMetrics, MetricValue
 
 EMPLOYMENTS_PER_PAGE = 5
 PDF_DPI = 200
@@ -87,6 +87,7 @@ class ShiftPlanReportCell:
     planned_minutes: int
     planned_hours: float
     planned_metrics: dict[str, dict[str, int | float]]
+    status_metrics: dict[str, dict[str, int | float]]
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,7 @@ class ShiftPlanReportEmployment:
     planned_minutes_total: int
     planned_hours: float
     planned_metrics: dict[str, dict[str, int | float]]
+    status_metrics: dict[str, dict[str, int | float]]
     scheduled_days: int
     holiday_days: int
     off_days: int
@@ -181,6 +183,16 @@ def _monthly_metric_payload(
     }
 
 
+def _status_metric_payload(
+    metrics: dict[str, MetricValue | None],
+) -> dict[str, dict[str, int | float]]:
+    return {
+        key: _metric_payload(value)
+        for key in STATUS_METRIC_KEYS
+        if (value := metrics.get(key)) is not None
+    }
+
+
 def _metric_summary_label(metrics: dict[str, dict[str, int | float]]) -> str:
     return "\n".join(
         f"{METRIC_LABELS[key]} {_format_hours(float(value['hours']))}"
@@ -198,6 +210,22 @@ def _metric_cell_label(metrics: dict[str, dict[str, int | float]]) -> str:
     }
     return "\n".join(
         f"{abbreviations[key]} {float(value['hours']):.1f}".replace(".", ",")
+        for key, value in metrics.items()
+    )
+
+
+def _status_metric_summary_label(metrics: dict[str, dict[str, int | float]]) -> str:
+    labels = {"holiday": "Dovolená", "sickness": "Nemoc", "paragraph": "Paragraf"}
+    return "\n".join(
+        f"{labels[key]} {_format_hours(float(value['hours']))}"
+        for key, value in metrics.items()
+    )
+
+
+def _status_metric_cell_label(metrics: dict[str, dict[str, int | float]]) -> str:
+    labels = {"holiday": "DOV", "sickness": "NEM", "paragraph": "PAR"}
+    return "\n".join(
+        f"{labels[key]} {float(value['hours']):.1f}".replace(".", ",")
         for key, value in metrics.items()
     )
 
@@ -376,6 +404,10 @@ def build_shift_plan_report(
                     planned_minutes=duration_minutes,
                     planned_hours=day_summary.planned_hours,
                     planned_metrics=_daily_metric_payload(day_summary.planned, display_metrics),
+                    status_metrics=_status_metric_payload({
+                        key: getattr(day_summary.status_metrics, key)
+                        for key in STATUS_METRIC_KEYS
+                    }),
                 )
             )
             current += timedelta(days=1)
@@ -397,6 +429,7 @@ def build_shift_plan_report(
                 planned_minutes_total=summary.planned_minutes,
                 planned_hours=summary.planned_hours,
                 planned_metrics=_monthly_metric_payload(summary.planned, display_metrics),
+                status_metrics=_status_metric_payload(summary.status_metrics),
                 scheduled_days=scheduled_days,
                 holiday_days=holiday_days,
                 off_days=off_days,
@@ -453,6 +486,7 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
                         "is_active_in_month": employment.is_active_in_month,
                         "display_metrics": employment.display_metrics,
                         "planned_metrics": employment.planned_metrics,
+                        "status_metrics": employment.status_metrics,
                         "scheduled_days": employment.scheduled_days,
                         "holiday_days": employment.holiday_days,
                         "off_days": employment.off_days,
@@ -472,6 +506,7 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
                                 "interval_label": cell.interval_label,
                                 "duration_label": cell.duration_label,
                                 "planned_metrics": cell.planned_metrics,
+                                "status_metrics": cell.status_metrics,
                             }
                             for cell in employment.cells
                         ],
@@ -643,7 +678,15 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             )
             draw.multiline_text(
                 (x0 + LABEL_COLUMN_WIDTH + 10, row_top + 12),
-                f"{_metric_summary_label(employment.planned_metrics) or ''}\n{employment.scheduled_days} směn",
+                "\n".join(
+                    value
+                    for value in (
+                        _metric_summary_label(employment.planned_metrics),
+                        _status_metric_summary_label(employment.status_metrics),
+                        f"{employment.scheduled_days} směn",
+                    )
+                    if value
+                ),
                 font=small,
                 fill="#111111",
                 spacing=5,
@@ -700,6 +743,15 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                         cell.status_label,
                         font=tiny,
                         fill="#8a4b08",
+                    )
+                status_metric_label = _status_metric_cell_label(cell.status_metrics)
+                if status_metric_label:
+                    draw.multiline_text(
+                        (cell_left + 5, cell_top + 48),
+                        status_metric_label,
+                        font=tiny,
+                        fill="#8a4b08",
+                        spacing=1,
                     )
                 metric_label = _metric_cell_label(cell.planned_metrics)
                 if metric_label:

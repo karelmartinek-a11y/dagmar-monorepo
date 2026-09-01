@@ -15,6 +15,7 @@ import type {
   GroupShiftPlanMonth,
   MetricKey,
   PortalSession,
+  StatusMetricKey,
 } from "../api/types";
 import { Brand } from "../components/Brand";
 import { ExternalLoginButtons } from "../components/ExternalLoginButtons";
@@ -32,6 +33,7 @@ import { formatCalendarDate } from "../utils/format";
 import { reconcileSelectedGroup } from "../utils/groupSelection";
 import { plannedHintForEvent } from "../utils/plannedEventHint";
 import { chronologicalPlanBoundaries, formatPragueTime } from "../utils/presentationAdapters";
+import { statusMetricKeyForStatus, statusMetricKeys } from "../utils/statusMetrics";
 
 type View = "attendance" | "plan" | "group-plan";
 const metricLabels: Record<MetricKey, string> = {
@@ -51,6 +53,11 @@ const statusLabels: Record<string, string> = {
   SICKNESS: "Nemoc",
   PARAGRAPH: "Paragraf",
 };
+const statusMetricLabels: Record<StatusMetricKey, string> = {
+  holiday: "Dovolená",
+  sickness: "Nemoc",
+  paragraph: "Paragraf",
+};
 type GroupPlanRow = GroupShiftPlanMonth["rows"][number];
 type GroupPlanDay = GroupPlanRow["days"][number];
 
@@ -62,6 +69,28 @@ function weekdayLabel(date: string, language: string): string {
 
 function absenceLabel(status: string | null | undefined): string {
   return status ? statusLabels[status] ?? status : "";
+}
+
+function statusHoursLabel(day: AttendanceDay): string {
+  const key = statusMetricKeyForStatus(day.effective_status);
+  const metric = key ? day.status_metrics[key] : null;
+  return metric ? ` · ${formatHours(metric.hours, "cs-CZ")}` : "";
+}
+
+function StatusMetricsSummary({ month }: { month: AttendanceMonth }) {
+  return (
+    <div className="employee-status-metrics" aria-label="Hodiny celodenních stavů">
+      {statusMetricKeys.map((key) => {
+        const metric = month.status_metrics[key];
+        return metric ? (
+          <div className="metric metric--status" key={key}>
+            <span>{statusMetricLabels[key]}</span>
+            <strong>{formatHours(metric.hours, "cs-CZ")}</strong>
+          </div>
+        ) : null;
+      })}
+    </div>
+  );
 }
 
 function AbsenceContextMenu({
@@ -187,7 +216,7 @@ function EmployeeGroupPlanTable({
                       onContextMenu={(event) => onContextMenu(row, day, event)}
                     >
                       {status ? (
-                        <strong className="day-absence-label">{absenceLabel(status)}</strong>
+                        <strong className="day-absence-label">{absenceLabel(status)}{day.status_metrics[statusMetricKeyForStatus(status) ?? "holiday"] ? ` · ${formatHours(day.status_metrics[statusMetricKeyForStatus(status) ?? "holiday"]!.hours, "cs-CZ")}` : ""}</strong>
                       ) : (
                         <div className={`group-plan-cell ${editable ? "" : "group-plan-cell--readonly"}`}>
                           {day.carryover_departure_time ? (
@@ -227,6 +256,7 @@ function EmployeeGroupPlanTable({
                   {row.display_metrics.map((key) => (
                     <span key={key}>{plannedMetricLabels[key]}: {row.planned?.[key] ? formatHours(row.planned[key]!.hours, "cs-CZ") : "—"}</span>
                   ))}
+                  {statusMetricKeys.map((key) => row.status_metrics[key] ? <span key={key}>{statusMetricLabels[key]}: {formatHours(row.status_metrics[key]!.hours, "cs-CZ")}</span> : null)}
                 </td>
               </tr>
             );
@@ -360,7 +390,7 @@ function EmployeeAttendanceTable({
                 const editable = !locked && day.is_within_employment_period && !day.effective_status;
                 return (
                   <td key={index}>
-                    {day.effective_status ? <strong className="day-absence-label">{absenceLabel(day.effective_status)}</strong> : <><em className="planned-hint">{plannedTime ? `plán ${plannedTime}` : ""}</em><ClockInput aria-label={`${month.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={event ? eventTime(event) : ""} disabled={!editable} onCommit={(value) => update(day, event, value)} /></>}
+                    {day.effective_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status)}</strong> : <><em className="planned-hint">{plannedTime ? `plán ${plannedTime}` : ""}</em><ClockInput aria-label={`${month.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={event ? eventTime(event) : ""} disabled={!editable} onCommit={(value) => update(day, event, value)} /></>}
                   </td>
                 );
               })}
@@ -408,7 +438,7 @@ function EmployeePlanTable({
               <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ day, x: event.clientX, y: event.clientY }); }}>
                 <th>{formatCalendarDate(day.date, i18n.language as "cs" | "de" | "en" | "hi")}</th>
                 <td>{weekdayLabel(day.date, i18n.language)}</td>
-                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || (carryover && index > 2) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save(index === arrivalIndex ? value || null : day.planned_arrival_time ?? null, index === departureIndex ? value || null : day.planned_departure_time ?? null); }} />}</td>)}
+                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status || day.planned_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || (carryover && index > 2) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save(index === arrivalIndex ? value || null : day.planned_arrival_time ?? null, index === departureIndex ? value || null : day.planned_departure_time ?? null); }} />}</td>)}
                 {month.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}
               </tr>
             );
@@ -659,6 +689,7 @@ export function EmployeePage() {
                   </div>
                 ))}
               </div>
+              <StatusMetricsSummary month={query.data} />
               <div className="employee-locks">
                 <span
                   className={`badge ${query.data.attendance_locked ? "badge--danger" : "badge--good"}`}

@@ -417,6 +417,9 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .employee-month-table .day-status-select span{display:none}
 .employee-month-table .day-status-select select{min-width:120px}
 .employee-month-table .summary-row th{position:static!important;background:rgba(39,215,166,.08);color:var(--text)}
+.employee-status-metrics{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:.75rem}
+.metric--status{border-left:3px solid var(--accent-strong);background:rgba(39,215,166,.08)}
+.status-metrics-summary{margin:.65rem 0 0;color:var(--muted);font-size:.82rem}
 .clock-input--saving{opacity:.72;box-shadow:0 0 0 2px rgba(246,189,93,.35)}
 .clock-input--error{border-color:var(--danger)!important;box-shadow:0 0 0 2px rgba(255,118,109,.25)}
 @media (max-width:900px){

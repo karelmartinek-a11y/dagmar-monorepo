@@ -13,6 +13,11 @@ export const timeMetricsSchema = z.object({
   weekend: metricSchema.nullable(),
   public_holiday: metricSchema.nullable(),
 });
+export const statusMetricsSchema = z.object({
+  holiday: metricSchema.nullable(),
+  sickness: metricSchema.nullable(),
+  paragraph: metricSchema.nullable(),
+});
 export const employmentSchema = z.object({
   id: z.number(),
   user_id: z.number().optional(),
@@ -66,6 +71,7 @@ export const attendanceDaySchema = z.object({
   is_within_employment_period: z.boolean(),
   worked: timeMetricsSchema.nullable(),
   planned: timeMetricsSchema.nullable(),
+  status_metrics: statusMetricsSchema,
   worked_state: z.string(),
   planned_state: z.string(),
 });
@@ -76,12 +82,14 @@ export const attendanceMonthSchema = z.object({
   days: z.array(attendanceDaySchema),
   worked: timeMetricsSchema.nullable(),
   planned: timeMetricsSchema.nullable(),
+  status_metrics: statusMetricsSchema,
   attendance_locked: z.boolean(),
   shift_plan_locked: z.boolean(),
 });
 
 export type Metric = z.infer<typeof metricSchema>;
 export type TimeMetrics = z.infer<typeof timeMetricsSchema>;
+export type StatusMetrics = z.infer<typeof statusMetricsSchema>;
 export type Employment = z.infer<typeof employmentSchema>;
 export type PortalLogin = z.infer<typeof portalLoginSchema>;
 export type AttendanceEvent = z.infer<typeof attendanceEventSchema>;
@@ -89,6 +97,7 @@ export type AttendanceDay = z.infer<typeof attendanceDaySchema>;
 export type AttendanceMonth = z.infer<typeof attendanceMonthSchema>;
 export type AttendanceMonthSummary = TimeMetrics;
 export type MetricKey = z.infer<typeof metricKeySchema>;
+export type StatusMetricKey = keyof StatusMetrics;
 
 export interface EmploymentGroupMember {
   employment_id: number;
@@ -118,6 +127,7 @@ export interface GroupShiftPlanMonth {
     planned_minutes: number;
     planned_hours: number;
     planned: TimeMetrics | null;
+    status_metrics: StatusMetrics;
     days: Array<{
       date: string;
       arrival_time: string | null;
@@ -131,6 +141,7 @@ export interface GroupShiftPlanMonth {
       planned_hours: number;
       planned_state: string;
       planned: TimeMetrics | null;
+      status_metrics: StatusMetrics;
     }>;
   }>;
 }
@@ -183,6 +194,7 @@ export interface AttendanceMatrixRow {
   days: AttendanceDay[];
   worked: TimeMetrics | null;
   planned: TimeMetrics | null;
+  status_metrics: StatusMetrics;
 }
 export type AdminAttendanceSheet = AttendanceMonth & {
   user_id: number;

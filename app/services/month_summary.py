@@ -20,9 +20,12 @@ from app.services.czech_holidays import is_czech_public_holiday
 from app.services.prague_time import prague_now
 from app.services.time_intervals import pair_events, paired_event_ids, shift_plan_intervals
 from app.services.time_metrics import (
+    STATUS_METRIC_KEYS,
     DailyMetrics,
+    DayStatusMetrics,
     MetricValue,
     calculate_daily_metrics,
+    calculate_day_status_metrics,
     empty_daily_metrics,
 )
 
@@ -37,6 +40,7 @@ class DaySummary:
     planned: DailyMetrics | None
     worked_state: str
     planned_state: str
+    status_metrics: DayStatusMetrics
 
     @property
     def planned_minutes(self) -> int:
@@ -52,6 +56,7 @@ class MonthSummary:
     day_summaries: list[DaySummary]
     worked: dict[str, MetricValue | None] | None
     planned: dict[str, MetricValue | None] | None
+    status_metrics: dict[str, MetricValue | None]
 
     @property
     def planned_minutes(self) -> int:
@@ -70,6 +75,15 @@ def _month_range(year: int, month: int) -> tuple[date, date]:
 
 
 def _sum(values: list[DailyMetrics], key: str) -> MetricValue | None:
+    items = [getattr(value, key) for value in values if getattr(value, key) is not None]
+    return (
+        MetricValue(sum(item.minutes for item in items), sum(item.tenths for item in items))
+        if items
+        else None
+    )
+
+
+def _sum_status(values: list[DayStatusMetrics], key: str) -> MetricValue | None:
     items = [getattr(value, key) for value in values if getattr(value, key) is not None]
     return (
         MetricValue(sum(item.minutes for item in items), sum(item.tenths for item in items))
@@ -154,8 +168,20 @@ def build_month_summaries(
         days: list[DaySummary] = []
         worked_values: list[DailyMetrics] = []
         planned_values: list[DailyMetrics] = []
+        status_values: list[DayStatusMetrics] = []
         for offset in range((end - start).days):
             day = start + timedelta(days=offset)
+            day_events = [event for event in events if prague_now(event.occurred_at).date() == day]
+            attendance_row = attendance.get(day)
+            plan_row = plans.get(day)
+            effective_status = (
+                attendance_row.status
+                if attendance_row is not None and attendance_row.status
+                else plan_row.status
+                if plan_row is not None
+                else None
+            )
+            day_status_metrics = calculate_day_status_metrics(employment, effective_status)
             worked = (
                 _stored_metrics(stored.get((day, DailyMetricSource.ATTENDANCE)), employment)
                 if use_persisted
@@ -170,16 +196,7 @@ def build_month_summaries(
                 worked_values.append(worked)
             if planned is not None:
                 planned_values.append(planned)
-            day_events = [event for event in events if prague_now(event.occurred_at).date() == day]
-            attendance_row = attendance.get(day)
-            plan_row = plans.get(day)
-            effective_status = (
-                attendance_row.status
-                if attendance_row is not None
-                else plan_row.status
-                if plan_row is not None
-                else None
-            )
+            status_values.append(day_status_metrics)
             worked_state = (
                 "complete"
                 if day_events and all(event.id in closed_event_ids for event in day_events)
@@ -197,6 +214,7 @@ def build_month_summaries(
                     planned,
                     worked_state,
                     "complete" if planned and planned.total.minutes else "empty",
+                    day_status_metrics,
                 )
             )
         result[employment.id] = MonthSummary(
@@ -213,6 +231,7 @@ def build_month_summaries(
             }
             if planned_values
             else None,
+            {key: _sum_status(status_values, key) for key in STATUS_METRIC_KEYS},
         )
     return result
 

@@ -75,6 +75,11 @@ def _csv_for_employment(
         "weekend": "vikend_h",
         "public_holiday": "svatek_h",
     }
+    status_metric_labels = {
+        "holiday": "dovolena_h",
+        "sickness": "nemoc_h",
+        "paragraph": "paragraf_h",
+    }
     event_column_count = max(4, max((len(day.events) for day in month_data.days), default=0))
     plan_column_count = max(
         3,
@@ -103,6 +108,7 @@ def _csv_for_employment(
             "typ_uvazku",
             "datum",
             "stav_dne",
+            *status_metric_labels.values(),
             *[f"PRŮCHOD {index}" for index in range(1, event_column_count + 1)],
             *[f"PLÁN – PRŮCHOD {index}" for index in range(1, plan_column_count + 1)],
             *[metric_labels[key] for key in month_data.display_metrics],
@@ -111,6 +117,10 @@ def _csv_for_employment(
 
     def displayed_hours(day, key: str) -> float | str:
         metric = day.worked.get(key) if day.worked else None
+        return metric.hours if metric is not None else ""
+
+    def status_hours(day, key: str) -> float | str:
+        metric = day.status_metrics.get(key)
         return metric.hours if metric is not None else ""
 
     user_name = employment.user.name if employment.user else f"Uzivatel {employment.user_id}"
@@ -123,6 +133,10 @@ def _csv_for_employment(
                 if (metric := day.worked.get(key)) is not None
             )
         )
+        has_status_hours = any(
+            metric is not None and metric.tenths != 0
+            for metric in day.status_metrics.values()
+        )
         if (
             not day.events
             and not day.effective_status
@@ -130,6 +144,7 @@ def _csv_for_employment(
             and not day.planned_departure_time
             and not day.planned_carryover_departure_time
             and not has_displayed_work
+            and not has_status_hours
         ):
             continue
         w.writerow(
@@ -139,6 +154,7 @@ def _csv_for_employment(
                 employment.employment_type,
                 day.date,
                 day.effective_status or "",
+                *[status_hours(day, key) for key in status_metric_labels],
                 *[
                     datetime.fromisoformat(day.events[index].occurred_at)
                     .astimezone(PRAGUE_TIMEZONE)

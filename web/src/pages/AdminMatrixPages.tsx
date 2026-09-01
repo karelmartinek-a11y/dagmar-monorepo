@@ -11,6 +11,8 @@ import type {
   AttendanceDay,
   AttendanceEvent,
   MetricKey,
+  StatusMetrics,
+  StatusMetricKey,
   TimeMetrics,
 } from "../api/types";
 import { Button, Panel, StatusMessage } from "../components/Primitives";
@@ -19,6 +21,7 @@ import { formatHours } from "../utils/hoursFormat";
 import { formatCalendarDate } from "../utils/format";
 import { chronologicalPlanBoundaries, formatPragueTime } from "../utils/presentationAdapters";
 import { normalizeTimeInput } from "../utils/timeInput";
+import { statusMetricKeyForStatus, statusMetricKeys } from "../utils/statusMetrics";
 
 const metricLabels: Record<MetricKey, string> = {
   total: "Odpracováno",
@@ -31,6 +34,18 @@ const plannedMetricLabels: Record<MetricKey, string> = {
   ...metricLabels,
   total: "Plán",
 };
+const statusMetricLabels: Record<StatusMetricKey, string> = {
+  holiday: "Dovolená",
+  sickness: "Nemoc",
+  paragraph: "Paragraf",
+};
+
+function statusMetricText(metrics: Record<StatusMetricKey, { hours: number } | null>) {
+  return statusMetricKeys
+    .filter((key) => metrics[key])
+    .map((key) => `${statusMetricLabels[key]}: ${formatHours(metrics[key]!.hours, "cs-CZ")}`)
+    .join(" · ");
+}
 
 function monthParts() {
   const now = new Date();
@@ -56,7 +71,8 @@ function AdminAttendanceMatrix({ sheets, refresh, onLock, onBreaks }: { sheets: 
   const labels: Record<string, string> = { SICKNESS: "Nemoc", PARAGRAPH: "Paragraf", HOLIDAY: "Dovolená", OFF: "Volno" };
   return <div className="admin-day-tables admin-attendance-matrix-wrap">{sheets.map((sheet) => <section className="admin-employment-table" key={sheet.employment_id} data-testid={`admin-attendance-${sheet.employment_id}`}>
     <header className="admin-employment-table__header"><strong>{sheet.employment_label}</strong><span>{sheet.attendance_locked ? "Zamčeno" : "Odemčeno"}</span><div className="matrix-user__actions"><Button variant="quiet" onClick={() => onLock(sheet)}>{sheet.attendance_locked ? <UnlockKeyhole /> : <LockKeyhole />}{sheet.attendance_locked ? "Odemknout docházku" : "Zamknout docházku"}</Button><Button variant="quiet" onClick={() => onBreaks(sheet)}>Přidej pauzy</Button></div></header>
-    <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: Math.max(4, ...sheet.days.map((day) => day.events.length)) }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{sheet.display_metrics.map((key) => <th key={key}>{metricLabels[key]} (h)</th>)}</tr></thead><tbody>{sheet.days.map((day) => { const disabled = sheet.attendance_locked || !day.is_within_employment_period || Boolean(day.effective_status); return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ sheet, day, x: event.clientX, y: event.clientY }); }}><th>{formatCalendarDate(day.date)}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: Math.max(4, ...sheet.days.map((item) => item.events.length)) }, (_, index) => { const item = day.events[index]; return <td key={index}>{day.effective_status ? <strong className="day-absence-label">{labels[day.effective_status] ?? day.effective_status}</strong> : <ClockInput aria-label={`${sheet.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={item ? eventTime(item) : ""} disabled={disabled} onCommit={(value) => update(sheet, day, item, value)} />}</td>; })}{sheet.display_metrics.map((key) => <td key={key}>{day.worked?.[key] ? formatHours(day.worked[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+    <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: Math.max(4, ...sheet.days.map((day) => day.events.length)) }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{sheet.display_metrics.map((key) => <th key={key}>{metricLabels[key]} (h)</th>)}</tr></thead><tbody>{sheet.days.map((day) => { const disabled = sheet.attendance_locked || !day.is_within_employment_period || Boolean(day.effective_status); const statusKey = statusMetricKeyForStatus(day.effective_status); const statusValue = statusKey ? day.status_metrics[statusKey] : null; return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ sheet, day, x: event.clientX, y: event.clientY }); }}><th>{formatCalendarDate(day.date)}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: Math.max(4, ...sheet.days.map((item) => item.events.length)) }, (_, index) => { const item = day.events[index]; return <td key={index}>{day.effective_status ? <strong className="day-absence-label">{index === 0 ? `${labels[day.effective_status] ?? day.effective_status}${statusValue ? ` · ${formatHours(statusValue.hours, "cs-CZ")}` : ""}` : labels[day.effective_status] ?? day.effective_status}</strong> : <ClockInput aria-label={`${sheet.employment_label} ${day.date} PRŮCHOD ${index + 1}`} value={item ? eventTime(item) : ""} disabled={disabled} onCommit={(value) => update(sheet, day, item, value)} />}</td>; })}{sheet.display_metrics.map((key) => <td key={key}>{day.worked?.[key] ? formatHours(day.worked[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+    {statusMetricText(sheet.status_metrics) ? <p className="status-metrics-summary">Celodenní stavy: {statusMetricText(sheet.status_metrics)}</p> : null}
   </section>)}{context ? <div className="row-context-menu" role="menu" style={{ left: context.x, top: context.y }} onMouseLeave={() => setContext(null)}><strong>Celodenní nepřítomnost</strong>{Object.entries(labels).map(([status, label]) => <button type="button" role="menuitem" key={status} onClick={() => { if (window.confirm(`Nastavit ${label} pro ${context.day.date}?`)) void updateStatus(context.sheet, context.day, status).then(() => setContext(null)); }}>{label}</button>)}<button type="button" role="menuitem" disabled={!context.day.effective_status} onClick={() => void updateStatus(context.sheet, context.day, "").then(() => setContext(null))}>Pracovní den</button></div> : null}</div>;
 }
 
@@ -226,6 +242,7 @@ type ShiftPlanDay = {
   planned_hours: number;
   planned: TimeMetrics | null;
   planned_state: string;
+  status_metrics: StatusMetrics;
 };
 type ShiftPlanRow = {
   employment_id: number;
@@ -240,6 +257,7 @@ type ShiftPlanRow = {
     scheduled_days: number;
     holiday_days: number;
     off_days: number;
+    status_metrics: StatusMetrics;
   };
 };
 type PlanMonth = {
@@ -396,7 +414,8 @@ export function AdminShiftPlanPage() {
               <div className="admin-day-tables admin-shift-plan-matrix-wrap">
                 {rows.map((row) => <section className="admin-employment-table" key={row.employment_id} data-testid={`admin-shift-plan-${row.employment_id}`}>
                   <header className="admin-employment-table__header"><strong>{row.display_label}</strong><div className="matrix-user__actions"><Button variant="quiet" onClick={() => lock.mutate({ row, locked: !row.shift_plan_locked })}>{row.shift_plan_locked ? <UnlockKeyhole /> : <LockKeyhole />}{row.shift_plan_locked ? "Odemknout plán" : "Zamknout plán"}</Button></div></header>
-                  <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: Math.max(4, ...row.days.map((day) => chronologicalPlanBoundaries({ carryover_departure_time: day.carryover_departure_time, arrival_time: day.arrival_time, departure_time: day.departure_time }).length)) }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{row.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead><tbody>{row.days.map((day) => { const disabled = row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status); const planTimes = chronologicalPlanBoundaries({ carryover_departure_time: day.carryover_departure_time, arrival_time: day.arrival_time, departure_time: day.departure_time }); const carryover = Boolean(day.carryover_departure_time); return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ row, day, x: event.clientX, y: event.clientY }); }}><th>{formatCalendarDate(day.date)}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: Math.max(4, ...row.days.map((item) => chronologicalPlanBoundaries({ carryover_departure_time: item.carryover_departure_time, arrival_time: item.arrival_time, departure_time: item.departure_time }).length)) }, (_, index) => <td key={index}>{day.effective_status || day.status ? <strong className="day-absence-label">{day.effective_status || day.status}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />}</td>)}{row.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+                  <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: Math.max(4, ...row.days.map((day) => chronologicalPlanBoundaries({ carryover_departure_time: day.carryover_departure_time, arrival_time: day.arrival_time, departure_time: day.departure_time }).length)) }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{row.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead><tbody>{row.days.map((day) => { const disabled = row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status); const planTimes = chronologicalPlanBoundaries({ carryover_departure_time: day.carryover_departure_time, arrival_time: day.arrival_time, departure_time: day.departure_time }); const carryover = Boolean(day.carryover_departure_time); const statusKey = statusMetricKeyForStatus(day.effective_status || day.status); const statusMetric = statusKey ? day.status_metrics[statusKey] : null; return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ row, day, x: event.clientX, y: event.clientY }); }}><th>{formatCalendarDate(day.date)}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: Math.max(4, ...row.days.map((item) => chronologicalPlanBoundaries({ carryover_departure_time: item.carryover_departure_time, arrival_time: item.arrival_time, departure_time: item.departure_time }).length)) }, (_, index) => <td key={index}>{day.effective_status || day.status ? <strong className="day-absence-label">{index === 0 ? `${day.effective_status || day.status}${statusMetric ? ` · ${formatHours(statusMetric.hours, "cs-CZ")}` : ""}` : day.effective_status || day.status}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save.mutateAsync({ employment_id: row.employment_id, date: day.date, arrival_time: index === arrivalIndex ? value || null : day.arrival_time, departure_time: index === departureIndex ? value || null : day.departure_time, status: day.status }); }} />}</td>)}{row.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+                  {statusMetricText(row.summary.status_metrics) ? <p className="status-metrics-summary">Celodenní stavy: {statusMetricText(row.summary.status_metrics)}</p> : null}
                 </section>)}
                 {context ? <div className="row-context-menu" role="menu" style={{ left: context.x, top: context.y }} onMouseLeave={() => setContext(null)}><strong>Celodenní nepřítomnost</strong>{["HOLIDAY", "OFF"].map((status) => <button type="button" role="menuitem" key={status} onClick={() => { if (window.confirm(`Nastavit ${status} pro ${context.day.date}?`)) void save.mutateAsync({ employment_id: context.row.employment_id, date: context.day.date, arrival_time: null, departure_time: null, status }).then(() => setContext(null)); }}>{status === "HOLIDAY" ? "Dovolená" : "Volno"}</button>)}<button type="button" role="menuitem" disabled={!context.day.status} onClick={() => void save.mutateAsync({ employment_id: context.row.employment_id, date: context.day.date, arrival_time: null, departure_time: null, status: null }).then(() => setContext(null))}>Pracovní den</button></div> : null}
               </div>

@@ -39,7 +39,13 @@ from ...services.time_intervals import (
 )
 from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
-from .attendance import MetricOut, _metric_out, _metrics_out, _require_accessible_employment
+from .attendance import (
+    MetricOut,
+    _metric_out,
+    _metrics_out,
+    _require_accessible_employment,
+    _status_metrics_out,
+)
 
 router = APIRouter(tags=["shift-plan"])
 
@@ -96,6 +102,7 @@ class GroupShiftPlanDayOut(BaseModel):
     planned_hours: float
     planned_state: str
     planned: dict[str, MetricOut | None] | None
+    status_metrics: dict[str, MetricOut | None]
 
 
 class GroupShiftPlanRowOut(BaseModel):
@@ -108,6 +115,7 @@ class GroupShiftPlanRowOut(BaseModel):
     planned_minutes: int
     planned_hours: float
     planned: dict[str, MetricOut | None] | None
+    status_metrics: dict[str, MetricOut | None]
 
 
 class GroupShiftPlanMonthOut(BaseModel):
@@ -293,6 +301,10 @@ def portal_get_group_shift_plan_month(
                 planned_hours=day_summary.planned_hours,
                 planned_state=day_summary.planned_state,
                 planned=_metrics_out(day_summary.planned),
+                status_metrics=_status_metrics_out({
+                    key: getattr(day_summary.status_metrics, key)
+                    for key in ("holiday", "sickness", "paragraph")
+                }),
             )
 
         rows.append(
@@ -314,6 +326,7 @@ def portal_get_group_shift_plan_month(
                 planned={key: _metric_out(value) for key, value in (summary.planned or {}).items()}
                 if summary.planned
                 else None,
+                status_metrics=_status_metrics_out(summary.status_metrics),
             )
         )
     return GroupShiftPlanMonthOut(
