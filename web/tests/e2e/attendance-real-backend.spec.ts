@@ -75,7 +75,7 @@ test.describe("real event backend", () => {
     const julyFirstPass = page.getByLabel(/2026-07-01 PRŮCHOD 1/);
     await expect(julyFirstPass).toHaveValue("08:00");
     await expect(page.getByTestId("attendance-day-2026-07-03")).toBeVisible();
-    await expect(page.getByTestId("attendance-day-2026-07-31")).toContainText("22:00");
+    await expect(page.getByTestId("attendance-day-2026-07-31")).toContainText("plán 14:00");
 
     await page.getByRole("button", { name: "‹" }).click();
     await expect(page.getByText("červen 2026", { exact: false })).toBeVisible();
