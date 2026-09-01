@@ -102,6 +102,14 @@ const metricLabels: Record<MetricKey, string> = {
   weekend: "Víkend",
   public_holiday: "Svátek",
 };
+const printMetricKeys: MetricKey[] = [
+  "total",
+  "afternoon",
+  "night",
+  "weekend",
+  "public_holiday",
+];
+
 function translatedMetricLabel(t: TFunction, key: MetricKey) {
   const paths: Record<MetricKey, string> = { total: "employee.metrics.worked", afternoon: "employee.metrics.afternoon", night: "employee.metrics.night", weekend: "employee.metrics.weekendHoliday", public_holiday: "employee.metrics.weekendHoliday" };
   return t(paths[key], metricLabels[key]);
@@ -109,6 +117,41 @@ function translatedMetricLabel(t: TFunction, key: MetricKey) {
 const formatDuration = (value: { clock?: string } | null | undefined) => {
   return value?.clock ?? "";
 };
+
+function printMetricIsRelevant(sheet: AdminAttendanceSheet, key: MetricKey) {
+  return sheet.display_metrics.includes(key);
+}
+
+function printMetricCellValue(
+  value: { clock?: string } | null | undefined,
+  relevant: boolean,
+) {
+  return relevant ? formatDuration(value) : "—";
+}
+
+function printSummaryValue(
+  value: { clock?: string } | null | undefined,
+  relevant: boolean,
+) {
+  return relevant ? formatDuration(value) || "—" : "—";
+}
+
+function PrintSummaryCard({
+  label,
+  value,
+  relevant,
+}: {
+  label: string;
+  value: { clock?: string } | null | undefined;
+  relevant: boolean;
+}) {
+  return (
+    <div className={relevant ? "" : "print-summary-card--inactive"}>
+      <span>{label}</span>
+      <strong>{printSummaryValue(value, relevant)}</strong>
+    </div>
+  );
+}
 
 function printWeekday(date: Date, locale: string) {
   const label = new Intl.DateTimeFormat(locale, {
@@ -120,11 +163,22 @@ function printWeekday(date: Date, locale: string) {
 
 function printMetricLabel(t: TFunction, key: MetricKey) {
   const paths: Record<MetricKey, string> = {
-    total: "adminOps.prints.template.worked",
+    total: "adminOps.prints.template.total",
     afternoon: "adminOps.prints.template.afternoon",
     night: "adminOps.prints.template.night",
     weekend: "adminOps.prints.template.weekend",
     public_holiday: "adminOps.prints.template.publicHoliday",
+  };
+  return t(paths[key]);
+}
+
+function printMetricTableLabel(t: TFunction, key: MetricKey) {
+  const paths: Record<MetricKey, string> = {
+    total: "adminOps.prints.template.tableMetrics.total",
+    afternoon: "adminOps.prints.template.tableMetrics.afternoon",
+    night: "adminOps.prints.template.tableMetrics.night",
+    weekend: "adminOps.prints.template.tableMetrics.weekend",
+    public_holiday: "adminOps.prints.template.tableMetrics.publicHoliday",
   };
   return t(paths[key]);
 }
@@ -153,11 +207,20 @@ function printDayCode(t: TFunction, day: AttendanceDay) {
     const creditedHours = statusKey ? formatDuration(day.status_metrics[statusKey]) : "";
     return creditedHours ? `${status} ${creditedHours}` : status;
   }
-  if (day.calendar_tone === "weekend") return t("adminOps.prints.template.codes.weekend");
-  if (day.events.length > 0 || day.worked?.total?.minutes) {
-    return t("adminOps.prints.template.codes.work");
+  const holidayCode = day.public_holiday_label
+    ? t("adminOps.prints.template.codes.publicHoliday")
+    : "";
+  if (day.calendar_tone === "weekend") {
+    return holidayCode
+      ? `${t("adminOps.prints.template.codes.weekend")} · ${holidayCode}`
+      : t("adminOps.prints.template.codes.weekend");
   }
-  return "";
+  if (day.events.length > 0 || day.worked?.total?.minutes) {
+    return holidayCode
+      ? `${t("adminOps.prints.template.codes.work")} · ${holidayCode}`
+      : t("adminOps.prints.template.codes.work");
+  }
+  return holidayCode;
 }
 
 function printStatusMetricLabel(t: TFunction, key: StatusMetricKey) {
@@ -188,26 +251,36 @@ function AttendancePrint({
         );
         return (
         <article
-          className={`print-sheet print-sheet--attendance-detail print-attendance-metrics--${Math.min(sheet.display_metrics.length, 5)}`}
+          className="print-sheet print-sheet--attendance-detail"
           data-testid={`print-attendance-sheet-${sheet.employment_id}`}
           key={sheet.employment_id}
         >
           <header className="print-form__header">
-            <div className="print-form__brand" aria-label="KájovoDagmar">
-              <strong>KÁJOVO<br />DAGMAR</strong>
+            <div
+              className="print-form__brand"
+              aria-label={`${t("adminOps.prints.template.employee")}: ${sheet.user_name}`}
+            >
+              <strong>{sheet.user_name}</strong>
+              <small>{t("adminOps.prints.template.employee")}</small>
             </div>
             <div className="print-form__title">
-              <h1>{t("adminOps.prints.template.title")}</h1>
-              <p>{t("adminOps.prints.template.subtitle")}</p>
+              <h1>
+                {t("adminOps.prints.template.periodBanner", {
+                  month: formatPrintPeriod(sheet.days[0]?.date ?? "", locale),
+                })}
+              </h1>
             </div>
           </header>
           <section className="print-form__identity" aria-label={t("adminOps.prints.template.identity")}>
-            <div><strong>{t("adminOps.prints.template.employee")}:</strong> {sheet.user_name}</div>
-            <div><strong>{t("adminOps.prints.template.employment")}:</strong> {sheet.employment_title}</div>
-            <div><strong>{t("adminOps.prints.template.period")}:</strong> {formatPrintMonth(sheet.days[0]?.date ?? "")}</div>
             <div><strong>{t("adminOps.prints.template.type")}:</strong> {employmentTypeLabel(t, sheet.employment_type)}</div>
-            <div><strong>{t("adminOps.prints.template.validity")}:</strong> {formatEmploymentValidity(sheet.start_date, sheet.end_date, t)}</div>
-            <div><strong>{t("adminOps.prints.template.scope")}:</strong> {t("adminOps.prints.template.scopeValue")}</div>
+            <div>
+              <strong>{t("adminOps.prints.template.validity")}:</strong>{" "}
+              <span>{formatEmploymentValidityStart(sheet.start_date)} -</span>{" "}
+              <span className={sheet.end_date ? undefined : "print-validity-open-ended"}>
+                {formatEmploymentValidityEnd(sheet.end_date, t)}
+              </span>
+            </div>
+            <div><strong>{t("adminOps.prints.template.employment")}:</strong> {sheet.employment_title}</div>
           </section>
           {capacityExceeded ? (
             <StatusMessage
@@ -224,9 +297,12 @@ function AttendancePrint({
               {Array.from({ length: eventColumns }, (_, index) => (
                 <col className="print-attendance-col-event" key={index} />
               ))}
-              {sheet.display_metrics.map((key) => (
-                <col className="print-attendance-col-metric" key={key} />
-              ))}
+                {printMetricKeys.map((key) => (
+                  <col
+                    className={`print-attendance-col-metric print-attendance-col-metric--${key}`}
+                    key={key}
+                  />
+                ))}
               <col className="print-attendance-col-code" />
             </colgroup>
             <thead>
@@ -234,10 +310,15 @@ function AttendancePrint({
                 <th>{t("adminOps.prints.template.day")}</th>
                 <th>{t("adminOps.prints.template.weekday")}</th>
                 {humanEventHeaders(eventColumns).map((header) => (
-                  <th aria-label={header} key={header}>{t("adminOps.prints.template.pass")}</th>
+                  <th className="print-event-header" aria-label={header} key={header}>{t("adminOps.prints.template.pass")}</th>
                 ))}
-                {sheet.display_metrics.map((key) => (
-                  <th key={key}>{printMetricLabel(t, key)}</th>
+                {printMetricKeys.map((key) => (
+                  <th
+                    className={printMetricIsRelevant(sheet, key) ? "" : "print-cell--inactive"}
+                    key={key}
+                  >
+                    {printMetricTableLabel(t, key)}
+                  </th>
                 ))}
                 <th>{t("adminOps.prints.template.code")}</th>
               </tr>
@@ -258,53 +339,66 @@ function AttendancePrint({
                         {formatEventTime(day, index)}
                       </td>
                     ))}
-                    {sheet.display_metrics.map((key) => (
-                      <td key={key}>{formatDuration(day.worked?.[key])}</td>
-                    ))}
+                    {printMetricKeys.map((key) => {
+                      const relevant = printMetricIsRelevant(sheet, key);
+                      return (
+                        <td
+                          className={relevant ? "" : "print-cell--inactive"}
+                          key={key}
+                        >
+                          {printMetricCellValue(day.worked?.[key], relevant)}
+                        </td>
+                      );
+                    })}
                     <td className="print-code-cell">
                       <strong>{printDayCode(t, day)}</strong>
-                      {day.public_holiday_label && <small>{day.public_holiday_label}</small>}
                     </td>
                   </tr>
                 );
               })}
               <tr className="print-attendance-total">
                 <th colSpan={2 + eventColumns}>{t("adminOps.prints.template.monthTotal")}</th>
-                {sheet.display_metrics.map((key) => (
-                  <th key={key}>{formatDuration(sheet.worked?.[key])}</th>
-                ))}
+                {printMetricKeys.map((key) => {
+                  const relevant = printMetricIsRelevant(sheet, key);
+                  return (
+                    <th className={relevant ? "" : "print-cell--inactive"} key={key}>
+                      {printMetricCellValue(sheet.worked?.[key], relevant)}
+                    </th>
+                  );
+                })}
                 <th />
               </tr>
             </tbody>
           </table>}
-          {sheet.display_metrics.length > 0 && !capacityExceeded && (
+          {!capacityExceeded && (
             <section className="print-attendance-summary">
               <h2>{t("adminOps.prints.template.summaryTitle")}</h2>
               <div className="print-summary-grid">
-                {sheet.display_metrics.map((key) => (
-                  <div key={key}>
-                    <span>{printMetricLabel(t, key)}</span>
-                    <strong>{formatDuration(sheet.worked?.[key])}</strong>
-                  </div>
+                {printMetricKeys.map((key) => (
+                  <PrintSummaryCard
+                    key={key}
+                    label={printMetricLabel(t, key)}
+                    value={sheet.worked?.[key]}
+                    relevant={printMetricIsRelevant(sheet, key)}
+                  />
                 ))}
+                <PrintSummaryCard
+                  label={t("adminOps.prints.template.plannedTotal")}
+                  value={sheet.planned?.total}
+                  relevant={Boolean(sheet.planned?.total)}
+                />
                 {statusMetricKeys.map((key) => (
-                  <div key={key}>
-                    <span>{printStatusMetricLabel(t, key)}</span>
-                    <strong>{formatDuration(sheet.status_metrics[key])}</strong>
-                  </div>
+                  <PrintSummaryCard
+                    key={key}
+                    label={printStatusMetricLabel(t, key)}
+                    value={sheet.status_metrics[key]}
+                    relevant={sheet.employment_type !== "TASK_SHIFT_BASED"}
+                  />
                 ))}
               </div>
             </section>
           )}
           <footer className="print-form__footer">
-            <div className="print-signatures">
-              {["employee", "approver", "payroll"].map((key) => (
-                <div key={key}>
-                  <span />
-                  <strong>{t(`adminOps.prints.template.signatures.${key}`)}</strong>
-                </div>
-              ))}
-            </div>
             <small>{t("adminOps.prints.template.footer", { generatedAt: new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date()) })}</small>
           </footer>
         </article>
@@ -314,17 +408,27 @@ function AttendancePrint({
   );
 }
 
-function formatPrintMonth(dateValue: string) {
+function formatPrintPeriod(dateValue: string, locale: string) {
   if (!dateValue) return "";
   const date = new Date(`${dateValue}T12:00:00`);
-  return `${String(date.getMonth() + 1).padStart(2, "0")} / ${date.getFullYear()}`;
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+  })
+    .format(date)
+    .toLocaleUpperCase(locale);
 }
 
-function formatEmploymentValidity(startDate: string, endDate: string | null, t: TFunction) {
+function formatEmploymentValidityStart(startDate: string) {
   const locale = document.documentElement.lang || "cs-CZ";
-  const start = startDate ? new Intl.DateTimeFormat(locale).format(new Date(`${startDate}T12:00:00`)) : "";
-  const end = endDate ? new Intl.DateTimeFormat(locale).format(new Date(`${endDate}T12:00:00`)) : t("adminOps.prints.template.openEnded");
-  return `${start} - ${end}`;
+  return startDate ? new Intl.DateTimeFormat(locale).format(new Date(`${startDate}T12:00:00`)) : "";
+}
+
+function formatEmploymentValidityEnd(endDate: string | null, t: TFunction) {
+  const locale = document.documentElement.lang || "cs-CZ";
+  return endDate
+    ? new Intl.DateTimeFormat(locale).format(new Date(`${endDate}T12:00:00`))
+    : t("adminOps.prints.template.openEnded");
 }
 
 export function AdminExportPage() {

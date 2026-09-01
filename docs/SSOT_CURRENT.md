@@ -1611,17 +1611,18 @@ Dvojtečka není povinná. Parser je jednotný ve všech tabulkách, jazycích a
 
 Pro tisk docházky platí:
 
-- jeden `employment_id` za jeden měsíc je jedna stránka A4 na výšku podle schválené předlohy docházkového listu; stránka obsahuje všechny dny, název osoby, název úvazku, typ výstupu, měsíc, denní data a měsíční součty;
+- jeden `employment_id` za jeden měsíc je jedna stránka A4 na výšku podle schválené předlohy docházkového listu; stránka obsahuje černý identifikační pruh se jménem osoby, titul `OBDOBÍ: MĚSÍC RRRR`, typ úvazku, platnost úvazku od–do (u otevřeného konce text `na dobu neurčitou`), název úvazku, denní data a měsíční součty. Stav úvazku v období a samostatný údaj období se v identifikační mřížce neopakují;
 - každý kalendářní den je přesně jeden řádek;
 - časové hodnoty jsou pouze `HH:mm` pod neutrálním záhlavím `PRŮCHOD`; žádný směr ani interní typ se netiskne;
 - základní a povinně automaticky testovaná kapacitní obálka je 28–31 dní, nejvýše čtyři průchody v jednom dni, všech pět aktivních metrik, dlouhé jméno, dlouhý název úvazku a všechny podporované jazyky. V této obálce musí být výstup vždy právě jedna čitelná A4 bez druhé stránky, ořezu nebo překryvu;
 - datový model zůstává neomezený. Pro den s více než čtyřmi eventy se další časy skládají chronologicky do téže časové části stejného řádku, bez `+N` jako náhrady skutečných hodnot;
 - neomezený počet eventů a současně absolutní garance jedné čitelné fyzické A4 jsou matematicky neslučitelné. Pokud konkrétní data překročí schválenou tiskovou kapacitu i při minimální povolené velikosti písma a spacingu, systém nesmí vytvořit lossy, oříznutý ani nečitelný tisk. Náhled musí vrátit explicitní lokalizovaný stav `print_capacity_exceeded`, označit dotčený úvazek/dny a nabídnout úplný lidský CSV/ZIP export; rozšíření tiskového formátu je před dalším deployem produktový blocker a podléhá design gate;
 - minimální velikost běžného tiskového textu i časů/součtů je 7 pt; pod tuto hranici se layout nesmí automaticky zmenšovat;
-- měsíční součty všech aktivních `display_metrics` jsou v pevném souhrnu dole na stejné stránce;
+- tisková maska je pro všechny typy úvazků pevná: denní tabulka i měsíční souhrn vždy obsahují intervalové sloupce `Celkem`, `Odpoledne`, `Noční práce`, `Práce o víkendu` a `Práce ve svátku` ve stabilním pořadí. Backendové `display_metrics` určují, které z nich jsou relevantní; ostatní zůstávají viditelné jako výslovně proškrtnuté/nerelevantní buňky. Měsíční souhrn navíc zobrazuje měsíční plán z relevantního plánovacího kalendáře, pokud jej backend dodal v `planned`;
 - šířky sloupců, řádkování, fonty a mezery jsou deterministické a verzované v tiskovém layoutu;
 - tisk respektuje všechny podporované jazyky a delší překlady;
 - tiskový náhled a skutečný browser tisk/PDF používají stejný datový kontrakt a shodnou kompozici;
+- podpisový prostor se netiskne; zápatí obsahuje lokalizovaný text `Tento přehled pro Vás vytiskla KájovoDagmar - Vaše virtuální asistentka` (resp. překlad) a timestamp generování;
 - serverový souhrnný PDF plánu může zůstat samostatným víceosobovým reportem, ale nenahrazuje tento detailní A4 kontrakt.
 
 ### Souhrnné a hromadné tisky

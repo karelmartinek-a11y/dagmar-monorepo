@@ -14,5 +14,4 @@ evidence:
     - en
     - sk
     - de
-    - hi
-notes: "SCHVÁLENO po vizuální kontrole skutečného lokálního FastAPI/PostgreSQL backendu a Vite/React frontendu; renderovací důkazy jsou mimo repozitář v /tmp/dagmar-design-review-20260831. Pokryto je 1440x900, 768x1024, 390x844, print a jazyky cs/en/sk/de/hi; A4 docházkový list se vejde na jednu stránku bez ořezu nebo překryvu."
+notes: "SCHVÁLENO design agentem Nash po vizuální kontrole skutečného lokálního FastAPI/PostgreSQL backendu a Vite/React frontendu; aktuální renderovací důkazy jsou mimo repozitář v /tmp/dagmar-print-layout-design-20260901. Pokryto je 1440x900, 768x1024, 390x844, print a jazyky cs/en/sk/de; A4 docházkový list se vejde na jednu stránku bez ořezu nebo překryvu."
