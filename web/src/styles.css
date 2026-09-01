@@ -531,7 +531,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .print-day--holiday td { background:#fff; }
 .print-attendance-total th { height:6.72mm; background:#e6e6e6; border-top:1.25pt solid #3f3f3f; font-size:6.5pt; font-weight:700; }
 .print-attendance-summary { position:absolute; left:var(--content-x); top:220mm; width:var(--content-w); }
-.print-attendance-summary h2 { margin:0 0 1.2mm; font-size:9.5pt; line-height:1; font-weight:700; text-transform:uppercase; }
+.print-attendance-summary h2 { margin:0 0 1.02mm; font-size:9.5pt; line-height:1; font-weight:700; text-transform:uppercase; }
 .print-summary-grid { display:grid; grid-template-columns:repeat(3,1fr); width:var(--content-w); height:36.93mm; border:1pt solid #555; }
 .print-summary-grid div { display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:0; height:12.31mm; padding:0 1mm; border-right:.6pt solid #929292; border-bottom:.6pt solid #929292; text-align:center; }
 .print-summary-grid div:nth-child(3n) { border-right:0; }
