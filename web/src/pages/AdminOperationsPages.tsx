@@ -262,7 +262,6 @@ function AttendancePrint({
               aria-label={`${t("adminOps.prints.template.employee")}: ${sheet.user_name}`}
             >
               <strong>{sheet.user_name}</strong>
-              <small>{t("adminOps.prints.template.employee")}</small>
             </div>
             <div className="print-form__title">
               <p className="print-form__document-title">{t("adminOps.prints.template.documentTitle")}</p>
@@ -363,7 +362,7 @@ function AttendancePrint({
                 {printMetricKeys.map((key) => {
                   const relevant = printMetricIsRelevant(sheet, key);
                   return (
-                    <th className={relevant ? "" : "print-cell--inactive"} key={key}>
+                    <th className={`print-attendance-total-value ${relevant ? "" : "print-cell--inactive"}`} key={key}>
                       {printMetricCellValue(sheet.worked?.[key], relevant)}
                     </th>
                   );

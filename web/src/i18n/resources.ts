@@ -605,7 +605,7 @@ export const resources = {
           shiftPlanStatusSummary: "Dovolená {{holidayDays}} · Volno {{offDays}}",
           template: {
             documentTitle: "MĚSÍČNÍ DOCHÁZKOVÝ LIST",
-            periodBanner: "OBDOBÍ: {{month}}",
+            periodBanner: "{{month}}",
             identity: "Identifikace docházkového listu",
             employee: "Zaměstnanec",
             employment: "Úvazek",
@@ -1465,7 +1465,7 @@ export const resources = {
           shiftPlanStatusSummary: "Vacation {{holidayDays}} · Day off {{offDays}}",
           template: {
             documentTitle: "MONTHLY ATTENDANCE SHEET",
-            periodBanner: "PERIOD: {{month}}",
+            periodBanner: "{{month}}",
             identity: "Attendance sheet identification",
             employee: "Employee",
             employment: "Employment",
@@ -2316,7 +2316,7 @@ export const resources = {
           shiftPlanStatusSummary: "Dovolenka {{holidayDays}} · Voľno {{offDays}}",
           template: {
             documentTitle: "MESAČNÝ VÝKAZ DOCHÁDZKY",
-            periodBanner: "OBDOBIE: {{month}}",
+            periodBanner: "{{month}}",
             identity: "Identifikácia dochádzkového listu",
             employee: "Zamestnanec",
             employment: "Úväzok",
@@ -3185,7 +3185,7 @@ export const resources = {
           shiftPlanStatusSummary: "Urlaub {{holidayDays}} · Frei {{offDays}}",
           template: {
             documentTitle: "MONATLICHER ANWESENHEITSBOGEN",
-            periodBanner: "ZEITRAUM: {{month}}",
+            periodBanner: "{{month}}",
             identity: "Identifikation des Zeiterfassungsblatts",
             employee: "Mitarbeiter",
             employment: "Beschäftigung",

@@ -153,11 +153,12 @@ describe("attendance print layout", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Den" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Den v týdnu" })).toBeInTheDocument();
-    expect(screen.getByText("OBDOBÍ: ČERVENEC 2026")).toBeInTheDocument();
+    expect(screen.getByText("ČERVENEC 2026")).toBeInTheDocument();
     expect(screen.getByText("MĚSÍČNÍ DOCHÁZKOVÝ LIST")).toBeInTheDocument();
     expect(screen.queryByText(/Evidence pracovní doby/)).not.toBeInTheDocument();
     const sheet = screen.getByTestId("print-attendance-sheet-22");
     expect(sheet.querySelector(".print-form__brand")).toHaveTextContent("Bendová Klára");
+    expect(sheet.querySelector(".print-form__brand small")).not.toBeInTheDocument();
     const identity = sheet.querySelector<HTMLElement>(".print-form__identity");
     if (!identity) throw new Error("print identity block is missing");
     expect(identity).not.toHaveTextContent("Bendová Klára");
@@ -174,6 +175,7 @@ describe("attendance print layout", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Odpoledne" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Celkem" })).toBeInTheDocument();
+    expect(sheet.querySelectorAll(".print-attendance-total-value")).toHaveLength(5);
     expect(screen.getByRole("columnheader", { name: "Noční práce" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Práce o víkendu" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Práce ve svátku" })).toBeInTheDocument();

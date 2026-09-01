@@ -509,8 +509,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .print-sheet--attendance-detail:last-child { break-after:auto; page-break-after:auto; }
 .print-form__header { position:absolute; left:var(--content-x); top:8.5mm; width:var(--content-w); height:9mm; display:grid; grid-template-columns:97.97mm 98.03mm; }
 .print-form__brand { display:grid; place-items:center; align-content:start; padding:0; color:#333; text-align:center; line-height:1; }
-.print-form__brand strong { font-size:11pt; font-weight:700; line-height:1.05; }
-.print-form__brand small { margin-top:.8mm; font-size:6pt; font-weight:700; text-transform:uppercase; }
+.print-form__brand strong { font-size:12pt; font-weight:700; line-height:1.05; }
 .print-form__title { min-width:0; padding:0; }
 .print-form__document-title { margin:0; font-size:7pt; font-weight:700; line-height:1; }
 .print-form__title h1 { margin:1mm 0 0; padding:0 0 1mm; border-bottom:1.25pt solid #2f2f2f; font-size:16pt; line-height:1; font-weight:700; letter-spacing:0; }
@@ -530,6 +529,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .print-day--weekend td { background:#f2f2f2; }
 .print-day--holiday td { background:#fff; }
 .print-attendance-total th { height:6.72mm; background:#e6e6e6; border-top:1.25pt solid #3f3f3f; font-size:6.5pt; font-weight:700; }
+.print-attendance-total-value { font-weight:700; }
 .print-attendance-summary { position:absolute; left:var(--content-x); top:220mm; width:var(--content-w); }
 .print-attendance-summary h2 { margin:0 0 1.02mm; font-size:9.5pt; line-height:1; font-weight:700; text-transform:uppercase; }
 .print-summary-grid { display:grid; grid-template-columns:repeat(3,1fr); width:var(--content-w); height:36.93mm; border:1pt solid #555; }
