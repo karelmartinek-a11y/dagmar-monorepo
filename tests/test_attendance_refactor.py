@@ -376,7 +376,7 @@ def test_optional_total_and_confirmed_all_day_absence() -> None:
         assert month.days[3].planned_arrival_time is None
 
 
-def test_metric_sync_covers_month_without_boundary_event() -> None:
+def test_metric_sync_covers_month_with_cross_boundary_interval() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -384,7 +384,7 @@ def test_metric_sync_covers_month_without_boundary_event() -> None:
         db.add_all(
             [
                 _event(employment.id, datetime(2026, 6, 30, 22), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 1, 2), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 7, 1, 2), AttendanceEventType.OUT),
             ]
         )
         db.flush()
@@ -404,7 +404,7 @@ def test_metric_sync_covers_month_without_boundary_event() -> None:
             .all()
         )
         assert len(july_rows) == 31
-        assert sum(row.total_tenths for row in july_rows) == 31 * 240
+        assert sum(row.total_tenths for row in july_rows) == 20
 
 
 def test_all_day_absence_removes_confirmed_interval_spanning_the_day() -> None:
@@ -415,7 +415,7 @@ def test_all_day_absence_removes_confirmed_interval_spanning_the_day() -> None:
         db.add_all(
             [
                 _event(employment.id, datetime(2026, 8, 3, 22), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 2), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 4, 2), AttendanceEventType.OUT),
             ]
         )
         db.flush()
@@ -795,7 +795,7 @@ def test_admin_break_backfill_accepts_malformed_migrated_sequence() -> None:
                 .scalars()
                 .all()
             )
-            == 5
+            == 3
         )
 
 
@@ -1391,7 +1391,7 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
         assert "2026-08-04" in csv_text and "02:00" in csv_text
 
 
-def test_csv_keeps_days_inside_long_cross_month_interval() -> None:
+def test_csv_keeps_days_inside_cross_month_interval() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -1405,7 +1405,7 @@ def test_csv_keeps_days_inside_long_cross_month_interval() -> None:
                 ),
                 _event(
                     employment.id,
-                    datetime(2026, 8, 1, 2),
+                    datetime(2026, 7, 1, 2),
                     AttendanceEventType.OUT,
                 ),
             ]
@@ -1420,8 +1420,8 @@ def test_csv_keeps_days_inside_long_cross_month_interval() -> None:
             end=date(2026, 8, 1),
         ).decode("utf-8")
 
-        assert len(csv_text.strip().splitlines()) == 32
-        assert "2026-07-15" in csv_text
+        assert len(csv_text.strip().splitlines()) == 2
+        assert "2026-07-01" in csv_text
 
 
 def test_outputs_recompute_from_raw_facts_and_sync_rebuilds_persisted_rows() -> None:

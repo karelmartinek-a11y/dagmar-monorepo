@@ -89,7 +89,7 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`;
 - existují pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; všechna časová nastavení patří konkrétnímu `Employment`;
-- docházka je neomezená posloupnost chronologických `IN`/`OUT` eventů; intervaly se párují přes půlnoc i hranice měsíců;
+- docházka je neomezená posloupnost chronologických časů; intervaly pro metriky se párují po dvojicích podle pořadí časů přes půlnoc i hranice měsíců, započítá se pouze kladný interval kratší než 24 hodin, zatímco interní směrový typ slouží pouze k validaci nových zápisů a round-tripu;
 - žádný nový UI layout, kompaktní matice, tisk ani export nesmí neomezenou posloupnost eventů redukovat, přepisovat na pevný počet databázových polí nebo zahazovat skryté eventy;
 - backend je jedinou autoritou časové matematiky; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíční součty vznikají součtem denních desetin;
 - backend synchronizuje `EmploymentDailyTimeMetric` po změně eventu, plánu nebo profilu jako provozní cache; všechny čtecí endpointy a reporty vždy přepočítají hodnoty z aktuálních denních zdrojových faktů, takže cache nesmí ovlivnit zobrazené součty;

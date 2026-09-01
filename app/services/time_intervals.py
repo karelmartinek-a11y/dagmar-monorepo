@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from app.db.models import AttendanceEvent, AttendanceEventType, ShiftPlan
+from app.db.models import AttendanceEvent, ShiftPlan
 from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
 
 
@@ -86,19 +86,22 @@ def ordered_events(events: list[AttendanceEvent]) -> list[AttendanceEvent]:
 
 
 def pair_event_rows(events: list[AttendanceEvent]) -> list[tuple[AttendanceEvent, AttendanceEvent]]:
-    """Return chronologically valid IN/OUT event pairs."""
+    """Pair chronologically ordered stored times into consecutive intervals.
+
+    The event direction is an internal write-time invariant, not a source for
+    calculating historical time. This keeps already stored daily times useful
+    when an old or externally imported row has an inconsistent direction.
+    """
     ordered = ordered_events(events)
     pairs: list[tuple[AttendanceEvent, AttendanceEvent]] = []
-    opened: AttendanceEvent | None = None
-    for event in ordered:
-        if event.event_type == AttendanceEventType.IN:
-            opened = event
-            continue
-        if opened is None:
-            continue
-        if prague_now(event.occurred_at) > prague_now(opened.occurred_at):
-            pairs.append((opened, event))
-        opened = None
+    index = 0
+    while index < len(ordered) - 1:
+        start, end = ordered[index : index + 2]
+        start_at = prague_now(start.occurred_at)
+        end_at = prague_now(end.occurred_at)
+        if timedelta(0) < end_at - start_at < timedelta(days=1):
+            pairs.append((start, end))
+        index += 2
     return pairs
 
 
@@ -108,14 +111,7 @@ def paired_event_ids(events: list[AttendanceEvent]) -> set[int]:
 
 
 def pair_events(events: list[AttendanceEvent]) -> list[WorkInterval]:
-    """Build closed work intervals without failing on incomplete history.
-
-    Historical attendance can contain an open IN or an orphan OUT, especially
-    for data converted from the pre-event schema. Those events remain visible
-    to callers, while only chronologically valid IN/OUT pairs contribute to
-    metrics. New event writes still enforce strict alternation at the API
-    boundary.
-    """
+    """Build closed intervals from consecutive chronological stored times."""
     return [
         WorkInterval(start=prague_now(start.occurred_at), end=prague_now(end.occurred_at))
         for start, end in pair_event_rows(events)
