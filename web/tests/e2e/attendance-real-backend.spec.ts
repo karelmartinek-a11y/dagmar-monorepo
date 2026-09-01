@@ -37,6 +37,15 @@ async function loginAdmin(page: Page, next = "/admin/dochazka") {
   await expect(page).toHaveURL(new RegExp(next.replaceAll("/", "\\/")));
 }
 
+async function goToMonth(page: Page, label: string) {
+  const monthLabel = page.getByText(label, { exact: false }).first();
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    if (await monthLabel.isVisible().catch(() => false)) return;
+    await page.getByRole("button", { name: "‹", exact: true }).click();
+  }
+  throw new Error(`Month ${label} was not reachable from the current month.`);
+}
+
 test.describe("real event backend", () => {
   test.describe.configure({ mode: "serial" });
   test.skip(!realBackend, "Requires the isolated PostgreSQL E2E backend.");
@@ -45,7 +54,7 @@ test.describe("real event backend", () => {
     page,
   }) => {
     await loginEmployee(page);
-    await expect(page.getByText("srpen 2026", { exact: false })).toBeVisible();
+    await goToMonth(page, "srpen 2026");
     await expect(page.getByTestId("attendance-day-2026-08-03")).toContainText(
       "plán 08:30",
     );
