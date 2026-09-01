@@ -1382,7 +1382,7 @@ Tato tabulka zabraňuje tomu, aby generátor slepě reprodukoval části auditov
 | Admin plan | jedna tabulka na úvazek | společná matice člověk × den |
 | Přidávání eventu | pomocný „nový průchod/pár“ blok | přímá prázdná buňka v kanonickém řádku |
 | Viditelné směry | některé labely/aria/tisk obsahují IN/OUT/Příchod/Odchod | všude pro člověka pouze `PRŮCHOD` a čas |
-| Docházkový tisk | čtyři eventy, typ před časem, overflow `+N` | všechny časy bez typu, úplně auditovatelné, jeden člověk/měsíc/A4 |
+| Docházkový tisk | čtyři eventy, typ před časem, overflow `+N` | všechny časy bez typu, úplně auditovatelné, jeden člověk/měsíc/A4; 5–8 průchodů používá landscape variantu |
 | CSV | jeden `pruchody` string s `TYPE:timestamp` | chronologické `PRŮCHOD 1..N`, hodnoty pouze `HH:mm` |
 | Mobile | část detailů se mění na cards | tabulka zůstává tabulkou, horizontální scroll/sticky |
 | Design review | vizuální testy, ale bez povinné nekonečné design smyčky | blokující iterativní design gate podle tohoto SSOT |
@@ -1409,7 +1409,7 @@ Následující scénáře jsou minimální behaviorální fingerprint systému:
 14. **External login:** nepropojený provider subject nevytvoří účet a vrátí bezpečnou chybu.
 15. **Integration scope:** klient bez scope nebo mimo allowed employment nedostane data ani nemutuje.
 16. **CSV target:** žádný human CSV cell/header neobsahuje směrový typ; všechny průchody jsou jednotlivé chronologické `HH:mm`.
-17. **A4 detail:** 31 dní, maximální metriky a nejvýše čtyři průchody denně se vejdou na jednu čitelnou A4; data nad schválenou kapacitou vyvolají `print_capacity_exceeded`, nikoli ztrátu hodnot.
+17. **A4 detail:** 31 dní, maximální metriky a nejvýše čtyři průchody denně se vejdou na jednu čitelnou A4 portrait; 5–8 průchodů denně na jednu A4 landscape; data nad schválenou kapacitou vyvolají `print_capacity_exceeded`, nikoli ztrátu hodnot.
 18. **Inline edit:** blur/Tab/Shift+Tab/Enter commit; Escape cancel; Delete+Enter po vstupu smaže; po pohybu caret maže znak.
 19. **Server acknowledgment:** zelený flash až po úspěšné odpovědi; konflikt zachová draft a nezobrazí success.
 20. **Locale parity:** stejné chování cs/en/sk/de/hi podle plochy, bez rozbití tabulky a bez viditelného směru eventu.
@@ -1613,12 +1613,12 @@ Dvojtečka není povinná. Parser je jednotný ve všech tabulkách, jazycích a
 
 Pro tisk docházky platí:
 
-- jeden `employment_id` za jeden měsíc je jedna stránka A4 na výšku podle schválené předlohy docházkového listu; stránka obsahuje černý identifikační pruh se jménem osoby, titul `OBDOBÍ: MĚSÍC RRRR`, typ úvazku, platnost úvazku od–do (u otevřeného konce text `na dobu neurčitou`), název úvazku, denní data a měsíční součty. Stav úvazku v období a samostatný údaj období se v identifikační mřížce neopakují;
+- jeden `employment_id` za jeden měsíc je jedna stránka A4; při nejvýše čtyřech průchodech na výšku, při 5–8 průchodech na šířku podle osmi-průchodové předlohy. Stránka obsahuje jméno osoby bez popisku, titul pouze s měsícem a rokem, typ úvazku, platnost úvazku od–do (u otevřeného konce text `na dobu neurčitou`), název úvazku, denní data a měsíční součty. Stav úvazku v období a samostatný údaj období se v identifikační mřížce neopakují;
 - každý kalendářní den je přesně jeden řádek;
 - časové hodnoty jsou pouze `HH:mm` pod neutrálním záhlavím `PRŮCHOD`; žádný směr ani interní typ se netiskne;
-- základní a povinně automaticky testovaná kapacitní obálka je 28–31 dní, nejvýše čtyři průchody v jednom dni, všech pět aktivních metrik, dlouhé jméno, dlouhý název úvazku a všechny podporované jazyky. V této obálce musí být výstup vždy právě jedna čitelná A4 bez druhé stránky, ořezu nebo překryvu;
-- datový model zůstává neomezený. Pro den s více než čtyřmi eventy se další časy skládají chronologicky do téže časové části stejného řádku, bez `+N` jako náhrady skutečných hodnot;
-- neomezený počet eventů a současně absolutní garance jedné čitelné fyzické A4 jsou matematicky neslučitelné. Pokud konkrétní data překročí schválenou tiskovou kapacitu i při minimální povolené velikosti písma a spacingu, systém nesmí vytvořit lossy, oříznutý ani nečitelný tisk. Náhled musí vrátit explicitní lokalizovaný stav `print_capacity_exceeded`, označit dotčený úvazek/dny a nabídnout úplný lidský CSV/ZIP export; rozšíření tiskového formátu je před dalším deployem produktový blocker a podléhá design gate;
+- základní a povinně automaticky testovaná kapacitní obálka je 28–31 dní, nejvýše čtyři průchody v jednom dni, všech pět aktivních metrik, dlouhé jméno, dlouhý název úvazku a všechny podporované jazyky. V této obálce musí být výstup vždy právě jedna čitelná A4 na výšku bez druhé stránky, ořezu nebo překryvu;
+- datový model zůstává neomezený. Pro 5–8 průchodů v libovolném dni se detail automaticky přepne na jednu čitelnou A4 na šířku s osmi chronologickými sloupci `PRŮCHOD`; žádná skutečná hodnota se nenahrazuje `+N`;
+- pokud konkrétní data překročí kapacitu osmi průchodů nebo jiné schválené tiskové obálky, systém nesmí vytvořit lossy, oříznutý ani nečitelný tisk. Náhled musí vrátit explicitní lokalizovaný stav `print_capacity_exceeded`, označit dotčený úvazek/dny a nabídnout úplný lidský CSV/ZIP export;
 - minimální velikost běžného tiskového textu i časů/součtů je 7 pt; pod tuto hranici se layout nesmí automaticky zmenšovat;
 - tisková maska je pro všechny typy úvazků pevná: denní tabulka i měsíční souhrn vždy obsahují intervalové sloupce `Celkem`, `Odpoledne`, `Noční práce`, `Práce o víkendu` a `Práce ve svátku` ve stabilním pořadí. Backendové `display_metrics` určují, které z nich jsou relevantní; ostatní zůstávají viditelné jako výslovně proškrtnuté/nerelevantní buňky. Měsíční souhrn navíc zobrazuje měsíční plán z relevantního plánovacího kalendáře, pokud jej backend dodal v `planned`;
 - šířky sloupců, řádkování, fonty a mezery jsou deterministické a verzované v tiskovém layoutu;
@@ -1682,7 +1682,7 @@ Pro tabulkové změny docházky a plánu musí každá finální iterace obsahov
 - úvazek s maximálním počtem aktivních `display_metrics`;
 - dlouhé jméno a dlouhý název úvazku;
 - všechny relevantní jazykové varianty;
-- tisk docházky a plánu s 31 dny a nejvýše čtyřmi průchody denně fitnutý na jednu A4 a samostatný důkaz bezpečného `print_capacity_exceeded` nad touto obálkou.
+- tisk docházky s 31 dny a nejvýše čtyřmi průchody denně fitnutý na jednu A4 na výšku, s 5–8 průchody na jednu A4 na šířku, a samostatný důkaz bezpečného `print_capacity_exceeded` nad touto obálkou.
 
 Důkazy a finální souhlas designera musí být dohledatelné v pull requestu, navázaném issue nebo verzovaném design-review záznamu. Pouhé ústní potvrzení bez dohledatelného artefaktu nestačí.
 
@@ -1787,7 +1787,7 @@ Implementátor postupuje v následujícím pořadí. Přeskakování balíku je 
 - vytvořit deterministické šířky sloupců, tiskové CSS a jednoznačné chronologické CSV/ZIP hlavičky `PRŮCHOD 1..N`;
 - odstranit ze všech UI, tisků, PDF a lidských exportů viditelné `IN`, `OUT`, příchod, odchod, směrové ikony, šipky a jiné směrové kódy;
 - ověřit docházku i plán pro 28, 29, 30 a 31 dní, maximální aktivní metriky, dlouhá jména, dlouhý název úvazku, všechny relevantní jazyky a nula až čtyři průchody denně;
-- v této kapacitní obálce musí být jeden úvazek / jeden měsíc přesně jedna A4 bez druhé stránky; zvláštní fixture s více než čtyřmi eventy musí prokázat buď čitelné jedno-A4 zobrazení, nebo deterministický `print_capacity_exceeded` bez ztráty dat;
+- v této kapacitní obálce musí být jeden úvazek / jeden měsíc přesně jedna A4 bez druhé stránky; zvláštní fixture s 5–8 eventy musí prokázat čitelné jedno-A4 landscape zobrazení a fixture s devíti eventy deterministický `print_capacity_exceeded` bez ztráty dat;
 - CSV/ZIP vzorky musí prokázat, že všechny časové hlavičky jsou `PRŮCHOD 1..N` a všechny neprázdné hodnoty jsou pouze `HH:mm`.
 
 ### Balík 7 – odstranění nahrazeného řešení
@@ -1887,7 +1887,7 @@ Musí existovat automatizované nebo auditovatelně opakovatelné kontroly alesp
 - úspěšné uložení, konflikt, offline stav a serverovou chybu;
 - více intervalů, neúplnou posloupnost, automatickou pauzu a přesah přes půlnoc;
 - skutečný tiskový náhled a vyrenderované PDF docházky i plánu;
-- jeden úvazek, 31denní měsíc, nejvýše čtyři průchody denně a všechny aktivní metriky přesně na jedné A4 bez ořezu a bez druhé stránky; samostatně data nad kapacitní obálkou musí vrátit `print_capacity_exceeded` a nesmí vytvořit zkrácený výstup;
+- jeden úvazek, 31denní měsíc, nejvýše čtyři průchody denně a všechny aktivní metriky přesně na jedné A4 portrait; samostatně fixture s 5–8 průchody denně přesně na jedné A4 landscape a data nad osmi průchody musí vrátit `print_capacity_exceeded` bez zkráceného výstupu;
 - vizuální regresi všech výše uvedených kanonických viewportů;
 - textovou kontrolu DOM, tiskového náhledu a vyrenderovaného PDF, že se v časových polích nevyskytují `IN`, `OUT`, `Příchod`, `Odchod` ani jejich lokalizované směrové ekvivalenty;
 - kontrolu CSV/ZIP exportu, že hlavičky časů jsou pouze `PRŮCHOD 1..N` a hodnoty pouze prázdné nebo `HH:mm`.

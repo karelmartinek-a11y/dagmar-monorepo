@@ -70,6 +70,15 @@ export function humanEventHeaders(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `PRŮCHOD ${index + 1}`);
 }
 
+export function attendancePrintLayout(maxEventsPerDay: number) {
+  const landscape = maxEventsPerDay > 4;
+  return {
+    landscape,
+    eventColumns: landscape ? 8 : 4,
+    capacityExceeded: maxEventsPerDay > 8,
+  };
+}
+
 export function isPrintCapacityExceeded(
   daysInMonth: number,
   maxEventsPerDay: number,

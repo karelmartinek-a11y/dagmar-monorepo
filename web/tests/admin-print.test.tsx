@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminPrintPreviewPage } from "../src/pages/AdminOperationsPages";
+import { attendancePrintLayout } from "../src/utils/presentationAdapters";
 
 function renderPreview() {
   const client = new QueryClient({
@@ -24,6 +25,13 @@ function renderPreview() {
 afterEach(() => vi.restoreAllMocks());
 
 describe("attendance print layout", () => {
+  it("switches to the eight-passage landscape layout after four passages", () => {
+    expect(attendancePrintLayout(4)).toEqual({ landscape: false, eventColumns: 4, capacityExceeded: false });
+    expect(attendancePrintLayout(5)).toEqual({ landscape: true, eventColumns: 8, capacityExceeded: false });
+    expect(attendancePrintLayout(8)).toEqual({ landscape: true, eventColumns: 8, capacityExceeded: false });
+    expect(attendancePrintLayout(9).capacityExceeded).toBe(true);
+  });
+
   it("keeps four pass columns, units, weekdays, and calendar tones", async () => {
     vi.stubGlobal(
       "fetch",

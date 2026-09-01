@@ -17,6 +17,7 @@ import { formatCalendarDate } from "../utils/format";
 import { formatHours as formatHoursValue } from "../utils/hoursFormat";
 import {
   chronologicalPlanBoundaries,
+  attendancePrintLayout,
   humanEventHeaders,
   isPrintCapacityExceeded,
 } from "../utils/presentationAdapters";
@@ -243,16 +244,20 @@ function AttendancePrint({
   return (
     <div className="print-report-pages">
       {sheets.map((sheet) => {
-        const eventColumns = 4;
+        const maxEventsPerDay = Math.max(0, ...sheet.days.map((day) => day.events.length));
+        const { landscape, eventColumns, capacityExceeded: eventCapacityExceeded } = attendancePrintLayout(maxEventsPerDay);
         const overflowDays = sheet.days
           .filter((day) => day.events.length > eventColumns)
           .map((day) => day.date);
-        const capacityExceeded = sheet.days.some((day) =>
-          isPrintCapacityExceeded(sheet.days.length, day.events.length, sheet.display_metrics),
+        const capacityExceeded = eventCapacityExceeded || isPrintCapacityExceeded(
+          sheet.days.length,
+          maxEventsPerDay,
+          sheet.display_metrics,
+          { maxEvents: 8 },
         );
         return (
         <article
-          className="print-sheet print-sheet--attendance-detail"
+          className={`print-sheet print-sheet--attendance-detail${landscape ? " print-sheet--attendance-landscape" : ""}`}
           data-testid={`print-attendance-sheet-${sheet.employment_id}`}
           key={sheet.employment_id}
         >
@@ -264,7 +269,9 @@ function AttendancePrint({
               <strong>{sheet.user_name}</strong>
             </div>
             <div className="print-form__title">
-              <p className="print-form__document-title">{t("adminOps.prints.template.documentTitle")}</p>
+              <p className="print-form__document-title">
+                {t("adminOps.prints.template.documentTitle")}{landscape ? " - 8 PRŮCHODŮ" : ""}
+              </p>
               <h1>
                 {t("adminOps.prints.template.periodBanner", {
                   month: formatPrintPeriod(sheet.days[0]?.date ?? "", locale),
