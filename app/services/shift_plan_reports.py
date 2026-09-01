@@ -309,10 +309,9 @@ def build_shift_plan_report(
     for employment_id in selected_ids:
         employment = employment_map[employment_id]
         if (
-            not employment.is_active
+            not employment_overlaps_month(employment, start, end)
             or employment.user is None
             or not employment.user.is_active
-            or not employment_overlaps_month(employment, start, end)
         ):
             raise ValueError("Vybraný úvazek není v zadaném měsíci aktivní.")
         ordered_employments.append(employment)

@@ -179,7 +179,6 @@ def _accessible_group(
         or not auth.user.is_active
         or not any(
             member.employment.user_id == auth.user.id
-            and member.employment.is_active
             and member.employment.user is not None
             and member.employment.user.is_active
             and employment_overlaps_month(member.employment, month_start, month_end)
@@ -209,7 +208,6 @@ def portal_list_shift_plan_groups(
             .join(PortalUser, PortalUser.id == Employment.user_id)
             .where(
                 Employment.user_id == auth.user.id,
-                Employment.is_active.is_(True),
                 PortalUser.is_active.is_(True),
                 Employment.start_date < end,
                 Employment.end_date.is_(None) | (Employment.end_date >= start),
@@ -238,8 +236,7 @@ def portal_get_group_shift_plan_month(
     active_members = [
         member
         for member in group.members
-        if member.employment.is_active
-        and member.employment.user is not None
+        if member.employment.user is not None
         and member.employment.user.is_active
         and employment_overlaps_month(member.employment, start, end)
     ]

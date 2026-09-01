@@ -306,11 +306,12 @@ def test_locked_time_mutation_rechecks_employment_and_user_activity() -> None:
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
+        employment.is_active = False
         db.flush()
         db.execute(
             update(Employment)
             .where(Employment.id == employment.id)
-            .values(is_active=False)
+            .values(end_date=date(2026, 8, 31))
             .execution_options(synchronize_session=False)
         )
 
@@ -321,10 +322,11 @@ def test_locked_time_mutation_rechecks_employment_and_user_activity() -> None:
         db.execute(
             update(Employment)
             .where(Employment.id == employment.id)
-            .values(is_active=True)
+            .values(end_date=None)
             .execution_options(synchronize_session=False)
         )
         locked = lock_employment_for_time_mutation(db, employment.id)
+        assert locked_employment_has_active_user(db, locked)
         db.execute(
             update(PortalUser)
             .where(PortalUser.id == employment.user_id)
@@ -459,7 +461,8 @@ def test_month_employment_options_require_active_overlap() -> None:
             employment_type=EmploymentType.DPP_DPC,
             total_hours_enabled=True,
             start_date=date(2026, 8, 1),
-            is_active=False,
+            is_active=True,
+            end_date=date(2026, 7, 31),
         )
         db.add_all([hidden, inactive])
         db.commit()
@@ -576,7 +579,7 @@ def test_group_plan_contains_only_active_overlapping_employments() -> None:
             email="inactive-group@example.test",
             name="Neaktivní člen",
             role=PortalUserRole.EMPLOYEE,
-            is_active=False,
+            is_active=True,
         )
         db.add_all([future, inactive_user])
         db.flush()
@@ -587,6 +590,7 @@ def test_group_plan_contains_only_active_overlapping_employments() -> None:
             total_hours_enabled=True,
             start_date=date(2026, 6, 1),
             is_active=True,
+            end_date=date(2026, 7, 31),
         )
         group = EmploymentGroup(name="Aktivní skupina")
         db.add_all([inactive_member, group])
@@ -875,7 +879,8 @@ def test_admin_plan_falls_back_when_saved_selection_is_inactive() -> None:
             employment_type=EmploymentType.DPP_DPC,
             total_hours_enabled=True,
             start_date=date(2026, 6, 1),
-            is_active=False,
+            is_active=True,
+            end_date=date(2026, 7, 31),
         )
         db.add(inactive)
         db.flush()
@@ -1156,7 +1161,7 @@ def test_event_mutations_reject_day_status_and_inactive_employment() -> None:
         )
         db.add(event)
         db.commit()
-        employment.is_active = False
+        employment.end_date = date(2026, 7, 5)
         db.commit()
 
         body = AttendanceEventIn(
@@ -1168,8 +1173,8 @@ def test_event_mutations_reject_day_status_and_inactive_employment() -> None:
             update_attendance_event(event.id, body, db=db, auth=auth)
         with pytest.raises(HTTPException) as delete_error:
             delete_attendance_event(event.id, db=db, auth=auth)
-        assert update_error.value.status_code == 404
-        assert delete_error.value.status_code == 404
+        assert update_error.value.status_code == 409
+        assert delete_error.value.status_code == 409
 
 
 def test_day_status_requires_period_and_both_conflicting_domains_unlocked() -> None:

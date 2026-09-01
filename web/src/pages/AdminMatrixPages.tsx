@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Check,
+  ChevronDown,
   LockKeyhole,
   UnlockKeyhole,
 } from "lucide-react";
@@ -54,6 +57,85 @@ function monthParts() {
 
 function eventTime(event: AttendanceEvent) {
   return formatPragueTime(event.occurred_at);
+}
+
+type EmploymentOption = { id: number; label: string; disabled?: boolean };
+
+function EmploymentSelector({
+  options,
+  selectedIds,
+  onChange,
+  label,
+}: {
+  options: EmploymentOption[];
+  selectedIds: Set<number>;
+  onChange: (ids: Set<number>) => void;
+  label: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (wasOpen.current && !open) triggerRef.current?.focus();
+    wasOpen.current = open;
+    if (!open) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+  const visible = options.filter((item) =>
+    item.label.toLocaleLowerCase("cs-CZ").includes(query.toLocaleLowerCase("cs-CZ")),
+  );
+  const toggle = (id: number) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onChange(next);
+  };
+  return (
+    <div className="employment-selector">
+      <button ref={triggerRef} type="button" className="employment-selector__trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        <span>{label}</span>
+        <strong>{selectedIds.size}/{options.filter((item) => !item.disabled).length}</strong>
+        <ChevronDown aria-hidden="true" />
+      </button>
+      {open && createPortal(<>
+        <button type="button" className="employment-selector__scrim" aria-label="Zavřít výběr úvazků" onClick={() => setOpen(false)} />
+        <div ref={menuRef} className="employment-selector__menu" role="dialog" aria-modal="true" aria-label={label} onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          const focusable = Array.from(menuRef.current?.querySelectorAll<HTMLElement>("button, input, [href], [tabindex]:not([tabindex='-1'])") ?? []);
+          if (focusable.length === 0) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }}>
+          <div className="employment-selector__toolbar">
+            <input autoFocus placeholder="Hledat úvazek nebo jméno" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <div className="employment-selector__actions">
+              <button type="button" onClick={() => onChange(new Set(options.filter((item) => !item.disabled).map((item) => item.id)))}>Všechny</button>
+              <button type="button" onClick={() => onChange(new Set())}>Zrušit výběr</button>
+              <button type="button" className="employment-selector__close" onClick={() => setOpen(false)}>Hotovo</button>
+            </div>
+          </div>
+          <div className="employment-selector__list">
+            {visible.map((item) => (
+              <label key={item.id} className={item.disabled ? "is-disabled" : ""}>
+                <input type="checkbox" checked={selectedIds.has(item.id)} disabled={item.disabled} onChange={() => toggle(item.id)} />
+                <span>{item.label}</span>
+                {selectedIds.has(item.id) && <Check aria-hidden="true" />}
+              </label>
+            ))}
+            {visible.length === 0 && <p className="employment-selector__empty">Pro hledání nejsou žádné úvazky.</p>}
+          </div>
+        </div>
+      </>, document.body)}
+    </div>
+  );
 }
 
 function AdminAttendanceMatrix({ sheets, refresh, onLock, onBreaks }: { sheets: AdminAttendanceSheet[]; refresh: () => Promise<void>; onLock: (sheet: AdminAttendanceSheet) => void; onBreaks: (sheet: AdminAttendanceSheet) => void; }) {
@@ -122,15 +204,6 @@ export function AdminAttendancePage() {
       ),
     [availableSheets, filter, selectedIds],
   );
-  const toggleSelection = (id: number) =>
-    setSelected((current) => {
-      const next = new Set(
-        current ?? availableSheets.map((sheet) => sheet.employment_id),
-      );
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   return (
     <Panel title={t("adminMatrix.attendance.title")}>
       <div className="panel-body">
@@ -190,20 +263,13 @@ export function AdminAttendancePage() {
           )}
         {availableSheets.length > 0 && (
           <>
-            <div className="attendance-sheet-selection">
-              <strong>{t("adminMatrix.attendance.selectionTitle")}</strong>
-              <div className="attendance-sheet-selection__items">
-                {availableSheets.map((sheet) => (
-                  <label key={sheet.employment_id}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(sheet.employment_id)}
-                      onChange={() => toggleSelection(sheet.employment_id)}
-                    />
-                    {sheet.employment_label}
-                  </label>
-                ))}
-              </div>
+            <div className="matrix-toolbar">
+              <EmploymentSelector
+                label={t("adminMatrix.attendance.selectionTitle")}
+                options={availableSheets.map((sheet) => ({ id: sheet.employment_id, label: sheet.employment_label }))}
+                selectedIds={selectedIds}
+                onChange={setSelected}
+              />
             </div>
             {visibleSheets.length === 0 ? (
               <StatusMessage
@@ -343,10 +409,6 @@ export function AdminShiftPlanPage() {
         .toLocaleLowerCase("cs-CZ")
         .includes(filter.toLocaleLowerCase("cs-CZ")),
   );
-  const toggle = (id: number, checked: boolean) =>
-    select.mutate(
-      checked ? [...selected, id] : selected.filter((item) => item !== id),
-    );
   return (
     <Panel title={t("adminMatrix.shiftPlan.title")}>
       <div className="panel-body">
@@ -387,23 +449,13 @@ export function AdminShiftPlanPage() {
         )}
         {plan.data && (
           <>
-            <div className="attendance-sheet-selection">
-              <strong>Výběr úvazků pro plán</strong>
-              <div className="attendance-sheet-selection__items">
-                {available.map((item) => (
-                  <label key={item.id}>
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(item.id)}
-                      disabled={!item.is_active_in_month}
-                      onChange={(event) =>
-                        toggle(item.id, event.target.checked)
-                      }
-                    />
-                    {item.display_label ?? `${item.user_name} — ${item.title}`}
-                  </label>
-                ))}
-              </div>
+            <div className="matrix-toolbar">
+              <EmploymentSelector
+                label="Výběr úvazků pro zobrazení"
+                options={available.map((item) => ({ id: item.id, label: item.display_label ?? `${item.user_name} — ${item.title}`, disabled: !item.is_active_in_month }))}
+                selectedIds={new Set(selected)}
+                onChange={(ids) => select.mutate([...ids])}
+              />
             </div>
             {rows.length === 0 ? (
               <StatusMessage

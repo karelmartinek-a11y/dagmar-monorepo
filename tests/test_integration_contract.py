@@ -114,7 +114,8 @@ def integration_fixture(monkeypatch: pytest.MonkeyPatch) -> IntegrationFixture:
                 workload_fraction=1,
                 night_hours_enabled=True,
                 start_date=date(2026, 1, 1),
-                is_active=False,
+                is_active=True,
+                end_date=date(2026, 8, 31),
             ),
             "inactive_user": Employment(
                 user_id=inactive_user.id,

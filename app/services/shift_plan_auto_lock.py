@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Employment, ShiftPlanAutoLockRun
-from app.services.employment_access import employment_overlaps_month
+from app.services.employment_access import employment_is_currently_valid, employment_overlaps_month
 from app.services.locks import LockType, set_month_lock_state_bulk
 from app.services.prague_time import prague_now
 
@@ -65,7 +65,7 @@ def auto_lock_current_shift_plan_month(
             employment.user.instance_id if employment.user is not None else None,
         )
         for employment in employments
-        if employment.is_active
+        if employment_is_currently_valid(employment)
         and employment.user is not None
         and employment.user.is_active
         and employment_overlaps_month(employment, month_start, month_end_exclusive)

@@ -607,7 +607,6 @@ function EmploymentForm({
   );
   const [end, setEnd] = useState(value?.end_date ?? "");
   const [indefinite, setIndefinite] = useState(value?.end_date == null);
-  const [active, setActive] = useState(value?.is_active ?? true);
   const [workloadFraction, setWorkloadFraction] = useState(
     value?.workload_fraction ?? "1.000",
   );
@@ -656,7 +655,6 @@ function EmploymentForm({
       employment_type: type,
       start_date: start,
       end_date: indefinite ? null : end || null,
-      is_active: active,
       workload_fraction:
         type === "WORK_CONTRACT" ? Number(workloadFraction || "1") : null,
       total_hours_enabled: type === "TASK_SHIFT_BASED" ? false : totalEnabled,
@@ -724,16 +722,6 @@ function EmploymentForm({
             }}
           />{" "}
           Na dobu neurčitou
-        </span>
-      </label>
-      <label className="field full">
-        <span>
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(event) => setActive(event.target.checked)}
-          />{" "}
-          {t("users.fields.activeEmployment")}
         </span>
       </label>
       <fieldset className="full form-grid">

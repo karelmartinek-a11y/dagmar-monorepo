@@ -96,7 +96,7 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 - aktivní hodinová metrika bez zdrojových faktů má backendovou nulu; frontend, tisky a exporty řídí sloupce pouze pomocí `display_metrics` a dodané hodnoty nepřepočítávají;
 - `WORK_CONTRACT` má povinnou celkovou a noční metriku; ostatní zvláštní metriky jsou volitelné. `DPP_DPC` a `EXTERNAL_HOURLY` mají všechny metriky volitelné a `TASK_SHIFT_BASED` nemá hodinové metriky;
 - přestávky se při běžném provozu fyzicky vkládají při uzavření nového intervalu; potvrzené adminské „Přidej pauzy“ je idempotentně doplní také do historických uzavřených intervalů bez hromadného undo a započítá přitom délku už existujících ručních pauz;
-- zaměstnanecké i adminské měsíční výběry vyžadují aktivního uživatele, aktivní úvazek a překryv období úvazku se zvoleným měsícem;
+- zaměstnanecké i adminské měsíční výběry vyžadují aktivního uživatele a úvazek platný v překryvu se zvoleným měsícem;
 - docházka a plán služeb mají nezávislé měsíční zámky; celodenní nepřítomnosti podporují dovolenou, nemoc, volno a paragraf;
 - noční plán musí být platný a odemčený ve všech dnech a měsících, do kterých zasahuje, a nesmí se překrývat s jinou směnou stejného úvazku;
 - všechny časové mutace jednoho úvazku serializuje řádkový databázový zámek; po jeho získání se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele;
@@ -611,7 +611,7 @@ Adminský i portálový CSRF jsou oddělené od autentizačních cookies:
 - aktuálně platný úvazek je preferovaný default;
 - pokud žádný není aktuální, zvolí se nejbližší budoucí;
 - jinak nejnovější nedávno skončený;
-- měsíční výběry po loginu jsou přísnější: aktivní osoba, aktivní úvazek a skutečný překryv vybraného měsíce.
+- měsíční výběry po loginu jsou přísnější: aktivní osoba a skutečný překryv platnosti úvazku s vybraným měsícem.
 
 ### Reset hesla zaměstnance
 
@@ -647,7 +647,7 @@ Migrace `2026_08_11_0025` zneplatní nedoložitelně doručené starší reset t
 - klient musí být `ACTIVE`, neexpirovaný, mít nerevokovaný secret a případně projít IP allowlistem;
 - endpointové scope se kontroluje v každém aktivním integračním handleru podle tabulky níže;
 - jediná scope služba vynucuje režimy `ALL_EMPLOYMENTS`, `ALL_ACTIVE_EMPLOYMENTS`, `SELECTED_EMPLOYEES` a `SELECTED_EMPLOYMENTS` na SQL seznamech i přímých ID operacích; neznámý režim a prázdný selektivní seznam nepovolí žádný úvazek;
-- `SELECTED_EMPLOYEES` respektuje `include_inactive_employments`; `ALL_ACTIVE_EMPLOYMENTS` vždy vyžaduje aktivní úvazek i uživatele a všechny zápisy tuto aktivitu vyžadují bez ohledu na režim;
+- `SELECTED_EMPLOYEES` respektuje `include_inactive_employments`; `ALL_ACTIVE_EMPLOYMENTS` vždy vyžaduje úvazek platný k aktuálnímu dni i aktivního uživatele a všechny zápisy tuto platnost vyžadují bez ohledu na režim;
 - IP restriction je buď žádná, nebo server-managed allowlist, který UI nesmí samo vymyslet;
 - expirace: žádná, 30, 90, 365 dní nebo custom datum;
 - klient lze enable/disable, rotate secret a revoke secret;
@@ -684,6 +684,8 @@ Employment = {
   is_current?:bool, label?:string, workload_fraction?:string|null,
   time_profile?:object
 }
+
+Aktivní úvazek je definován výhradně překryvem svého `start_date`/`end_date` s aktuálním dnem nebo vybraným měsícem; samostatný ruční příznak aktivity ani jeho checkbox nejsou součástí aktivního kontraktu.
 AttendanceEvent = {
   id:int, employment_id:int, occurred_at:ISO-timestamp,
   event_type:IN|OUT, deletion_partner_id?:int|null
@@ -900,7 +902,7 @@ Vše vyžaduje `dgi_` bearer a audit:
 
 Seznamové odpovědi mají `{data, pagination}`; `limit` je 1–500, výchozí 100. Opaque cursor je verzovaný a vázaný na zdroj: úvazky a zámky pokračují podle `id`, eventy podle `(occurred_at,id)`. Poškozený nebo cizí cursor vrací `invalid_cursor`. Každý event payload obsahuje interní typ, timezone `Europe/Prague` a `last_changed_at`, protože integrační API je strojový round-trip a nepodléhá zákazu lidského směrového labelu.
 
-Jediná scope služba vynucuje datový rozsah na SQL dotazech i přímých ID operacích. `ALL_EMPLOYMENTS` povoluje všechny úvazky; `ALL_ACTIVE_EMPLOYMENTS` pouze aktivní úvazky aktivních uživatelů; `SELECTED_EMPLOYEES` vyžaduje neprázdné employee IDs a respektuje include-inactive; `SELECTED_EMPLOYMENTS` vyžaduje neprázdné employment IDs. Neznámý nebo prázdný selektivní režim nepovolí nic. Zápis navíc vždy vyžaduje aktivní úvazek i uživatele.
+Jediná scope služba vynucuje datový rozsah na SQL dotazech i přímých ID operacích. `ALL_EMPLOYMENTS` povoluje všechny úvazky; `ALL_ACTIVE_EMPLOYMENTS` pouze úvazky platné k aktuálnímu dni a aktivní uživatele; `SELECTED_EMPLOYEES` vyžaduje neprázdné employee IDs a respektuje include-inactive; `SELECTED_EMPLOYMENTS` vyžaduje neprázdné employment IDs. Neznámý nebo prázdný selektivní režim nepovolí nic. Zápis navíc vždy vyžaduje úvazek platný k aktuálnímu dni i uživatele.
 
 Aktivní scopes mají invariantně propojenou skutečnou routu. `shift_plan:read`, `punches:read` a `changes:read` jsou nedostupné a nesmí být uloženy. Health, data a OpenAPI používají oddělené, konfigurovatelné rate-limit buckety; globální `rate_limit_enabled=false` je vypne společně.
 
@@ -1176,7 +1178,7 @@ Baseline poskytuje výběr aktivních sheets, filtr, separátní sekci úvazku, 
 
 - měsíc je povinný `YYYY-MM`;
 - jedna volba úvazku → CSV;
-- bez volby + `bulk=true` → ZIP s jedním CSV na relevantní aktivní úvazek aktivní osoby;
+- bez volby + `bulk=true` → ZIP s jedním CSV na relevantní úvazek platný v aktuálním dni aktivní osoby;
 - filename je bezpečný slug lidského labelu a měsíc;
 - encoding UTF-8;
 - relevance: start před koncem měsíce, end není před začátkem měsíce, osoba i úvazek aktivní;

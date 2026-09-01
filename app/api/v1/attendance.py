@@ -34,6 +34,7 @@ from app.services.day_status import (
 )
 from app.services.employment_access import (
     display_metrics_for_employment,
+    employment_is_currently_valid,
     employment_label,
     lock_employment_for_time_mutation,
     locked_employment_has_active_user,
@@ -174,7 +175,6 @@ def _employment(auth: PortalUserAuth, employment_id: int, db: Session) -> Employ
     if (
         employment is None
         or employment.user_id != auth.user.id
-        or not employment.is_active
         or not auth.user.is_active
     ):
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
@@ -376,7 +376,6 @@ def get_month_employments(
             select(Employment)
             .where(
                 Employment.user_id == auth.user.id,
-                Employment.is_active.is_(True),
                 Employment.start_date < end,
                 (Employment.end_date.is_(None) | (Employment.end_date >= start)),
             )
@@ -391,8 +390,8 @@ def get_month_employments(
             employment_type=str(getattr(item.employment_type, "value", item.employment_type)),
             start_date=item.start_date.isoformat(),
             end_date=item.end_date.isoformat() if item.end_date else None,
-            is_active=True,
-            is_current=True,
+            is_active=employment_is_currently_valid(item),
+            is_current=employment_is_currently_valid(item),
             label=employment_label(item),
         )
         for item in employments

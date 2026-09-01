@@ -33,6 +33,7 @@ from app.security.lockout import (
 from app.security.passwords import hash_password, verify_password_details
 from app.security.sessions import clear_portal_session, set_portal_session
 from app.services.employment_access import (
+    employment_is_currently_valid,
     employment_is_valid_on_day,
     employment_label,
     select_login_employments,
@@ -99,7 +100,7 @@ def _to_login_employment_out(employment: Employment, today) -> LoginEmploymentOu
         employment_type=employment.employment_type,
         start_date=employment.start_date.isoformat(),
         end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
-        is_active=employment.is_active,
+        is_active=employment_is_currently_valid(employment),
         is_current=employment_is_valid_on_day(employment, today),
         label=employment_label(employment),
     )

@@ -24,6 +24,7 @@ from app.services.attendance_mutations import (
 )
 from app.services.daily_metrics import sync_employment_metric_months
 from app.services.employment_access import (
+    employment_is_currently_valid,
     employment_overlaps_month,
     lock_employment_for_time_mutation,
     locked_employment_has_active_user,
@@ -112,7 +113,6 @@ def _employment(db: Session, employment_id: int) -> Employment:
     employment = db.get(Employment, employment_id)
     if (
         employment is None
-        or not employment.is_active
         or employment.user is None
         or not employment.user.is_active
     ):
@@ -125,7 +125,6 @@ def _load_month_employments(db: Session, *, start: date, end: date) -> list[Empl
         db.execute(
             select(Employment)
             .options(selectinload(Employment.user))
-            .where(Employment.is_active.is_(True))
             .where(Employment.start_date < end)
             .where(Employment.end_date.is_(None) | (Employment.end_date >= start))
             .order_by(Employment.user_id, Employment.start_date, Employment.id)
@@ -419,7 +418,7 @@ def update_event(
     ).scalar_one_or_none()
     if event is None:
         raise_api_error(404, "attendance_event_not_found", "Průchod nebyl nalezen.")
-    if not employment.is_active or employment.user is None or not employment.user.is_active:
+    if not employment_is_currently_valid(employment) or employment.user is None or not employment.user.is_active:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
     previous_occurred_at = prague_now(event.occurred_at)
     next_occurred_at = prague_now(body.occurred_at)
@@ -494,7 +493,7 @@ def delete_event(
     ).scalar_one_or_none()
     if event is None:
         raise_api_error(404, "attendance_event_not_found", "Průchod nebyl nalezen.")
-    if not employment.is_active or employment.user is None or not employment.user.is_active:
+    if not employment_is_currently_valid(employment) or employment.user is None or not employment.user.is_active:
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
     occurred_at = prague_now(event.occurred_at)
     events = list(

@@ -28,8 +28,8 @@ Scopes `shift_plan:read`, `punches:read` a `changes:read` nejsou v kontraktu `20
 Jediná backendová služba aplikuje stejný SQL predicate na všechny seznamy i přímé ID operace:
 
 - `ALL_EMPLOYMENTS`: všechny úvazky;
-- `ALL_ACTIVE_EMPLOYMENTS`: pouze aktivní úvazky aktivních uživatelů;
+- `ALL_ACTIVE_EMPLOYMENTS`: pouze úvazky platné k dnešnímu pražskému datu aktivních uživatelů;
 - `SELECTED_EMPLOYEES`: úvazky osob z neprázdného `allowed_employee_ids`; neaktivní úvazky se zahrnou jen při `include_inactive_employments=true`;
 - `SELECTED_EMPLOYMENTS`: úvazky z neprázdného `allowed_employment_ids`.
 
-Neznámý režim nebo prázdný seznam u selektivního režimu nepovolí žádný úvazek. Zápisové endpointy bez ohledu na režim odmítnou neaktivní úvazek nebo neaktivního uživatele.
+Neznámý režim nebo prázdný seznam u selektivního režimu nepovolí žádný úvazek. Zápisové endpointy bez ohledu na režim odmítnou úvazek mimo jeho `start_date`/`end_date` nebo neaktivního uživatele.

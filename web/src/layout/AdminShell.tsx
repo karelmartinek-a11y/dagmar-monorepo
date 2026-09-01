@@ -32,7 +32,11 @@ export function AdminShell() {
   return <div className="admin-layout">
     <aside className={`sidebar ${open ? "sidebar--open" : ""}`}>
       <div className="sidebar__head"><Brand compact /><Button className="sidebar__close" variant="quiet" aria-label={t("nav.menuClose")} onClick={() => setOpen(false)}><X /></Button></div>
-      <nav aria-label={t("nav.adminLabel")}>{nav.map(([to, label, Icon]) => <NavLink key={to} to={to} onClick={() => setOpen(false)}><Icon /><span>{label}</span></NavLink>)}</nav>
+      <nav aria-label={t("nav.adminLabel")}>
+        <div className="sidebar__group"><span className="sidebar__group-label">Řízení</span>{nav.slice(0, 5).map(([to, label, Icon]) => <NavLink key={to} to={to} onClick={() => setOpen(false)} title={label}><Icon /><span>{label}</span></NavLink>)}</div>
+        <div className="sidebar__group"><span className="sidebar__group-label">Výstupy</span>{nav.slice(5, 8).map(([to, label, Icon]) => <NavLink key={to} to={to} onClick={() => setOpen(false)} title={label}><Icon /><span>{label}</span></NavLink>)}</div>
+        <div className="sidebar__group"><span className="sidebar__group-label">Systém</span>{nav.slice(8).map(([to, label, Icon]) => <NavLink key={to} to={to} onClick={() => setOpen(false)} title={label}><Icon /><span>{label}</span></NavLink>)}</div>
+      </nav>
       <div className="sidebar__foot"><span><i />{t("common.states.production")}</span><div className="sidebar__controls"><LanguageSwitcher compact /><button onClick={logout}>{t("nav.logoutAdmin")}</button></div></div>
     </aside>
     <div className="admin-stage">

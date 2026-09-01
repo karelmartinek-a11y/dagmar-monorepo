@@ -15,7 +15,7 @@ Každý požadavek používá samostatný bearer token s prefixem `dgi_`, explic
 - `DELETE /attendance-events/{event_id}`
 - `GET /locks`
 
-Seznamové endpointy používají neprůhledný cursor a datový rozsah klienta. Přímé operace nad `employment_id` procházejí stejným deny-by-default rozsahem; zápisy navíc vyžadují aktivní úvazek i aktivního uživatele.
+Seznamové endpointy používají neprůhledný cursor a datový rozsah klienta. Přímé operace nad `employment_id` procházejí stejným deny-by-default rozsahem; zápisy navíc vyžadují úvazek platný k aktuálnímu dni podle `start_date`/`end_date` i aktivního uživatele.
 
 Podrobnosti:
 

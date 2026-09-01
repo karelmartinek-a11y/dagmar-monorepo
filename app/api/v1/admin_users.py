@@ -33,7 +33,11 @@ from app.db.session import get_db
 from app.security.crypto import decrypt_secret
 from app.security.csrf import require_csrf
 from app.security.lockout import as_utc, clear_user_lockout, is_locked, revoke_unlock_tokens
-from app.services.employment_access import employment_label, select_login_employments
+from app.services.employment_access import (
+    employment_is_currently_valid,
+    employment_label,
+    select_login_employments,
+)
 from app.services.portal_credentials import (
     change_portal_password,
     lock_portal_user,
@@ -277,7 +281,7 @@ def _to_employment_out(employment: Employment) -> EmploymentOut:
         employment_type=employment_type,
         start_date=_safe_iso_date(employment.start_date) or "1970-01-01",
         end_date=_safe_iso_date(employment.end_date),
-        is_active=employment.is_active,
+        is_active=employment_is_currently_valid(employment),
         label=employment_label(employment, user_name=getattr(employment.user, "name", None)),
         workload_fraction=f"{employment.workload_fraction:.3f}"
         if getattr(employment, "workload_fraction", None) is not None

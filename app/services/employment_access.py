@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Employment, EmploymentType, PortalUser
+from app.services.prague_time import prague_today
 
 LOGIN_WINDOW_MONTHS = 1
 
@@ -31,7 +32,7 @@ def locked_employment_has_active_user(db: Session, employment: Employment) -> bo
         .with_for_update()
         .execution_options(populate_existing=True)
     ).scalar_one_or_none()
-    return employment.is_active and user_is_active is True
+    return employment_is_valid_on_day(employment, prague_today()) and user_is_active is True
 
 
 def add_calendar_months(value: date, months: int) -> date:
@@ -101,8 +102,6 @@ def employment_is_valid_on_day(employment: Employment, day: date) -> bool:
     end_date = _safe_end_date(employment)
     if start_date is None:
         return False
-    if not employment.is_active:
-        return False
     if start_date > day:
         return False
     if end_date is not None and end_date < day:
@@ -114,8 +113,6 @@ def employment_is_within_login_window(employment: Employment, day: date) -> bool
     start_date = _safe_start_date(employment)
     end_date = _safe_end_date(employment)
     if start_date is None:
-        return False
-    if not employment.is_active:
         return False
     allowed_from = add_calendar_months(start_date, -LOGIN_WINDOW_MONTHS)
     if day < allowed_from:
@@ -131,13 +128,16 @@ def employment_overlaps_month(employment: Employment, month_start: date, month_e
     end_date = _safe_end_date(employment)
     if start_date is None:
         return False
-    if not employment.is_active:
-        return False
     if start_date >= month_end:
         return False
     if end_date is not None and end_date < month_start:
         return False
     return True
+
+
+def employment_is_currently_valid(employment: Employment) -> bool:
+    """An employment is active solely when its validity period includes today."""
+    return employment_is_valid_on_day(employment, prague_today())
 
 
 def employment_label(employment: Employment, user_name: str | None = None) -> str:

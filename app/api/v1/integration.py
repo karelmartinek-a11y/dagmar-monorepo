@@ -38,6 +38,7 @@ from app.services.attendance_mutations import (
 )
 from app.services.daily_metrics import sync_employment_metric_months
 from app.services.employment_access import (
+    employment_is_currently_valid,
     employment_label,
     lock_employment_for_time_mutation,
     locked_employment_has_active_user,
@@ -130,7 +131,7 @@ def _employment(db: Session, employment_id: int) -> models.Employment:
     )
     if (
         employment is None
-        or not employment.is_active
+        or not employment_is_currently_valid(employment)
         or employment.user is None
         or not employment.user.is_active
     ):
@@ -248,7 +249,7 @@ def _employment_payload(employment: models.Employment) -> dict[str, Any]:
         "label": employment_label(employment),
         "start_date": employment.start_date.isoformat(),
         "end_date": employment.end_date.isoformat() if employment.end_date else None,
-        "is_active": employment.is_active,
+        "is_active": employment_is_currently_valid(employment),
         "time_profile": {
             "total_hours_enabled": employment.total_hours_enabled,
             "automatic_breaks_enabled": employment.automatic_breaks_enabled,
@@ -528,7 +529,7 @@ def update_attendance_event(
     ).scalar_one_or_none()
     if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
-    if not employment.is_active or employment.user is None or not employment.user.is_active:
+    if not employment_is_currently_valid(employment) or employment.user is None or not employment.user.is_active:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
     previous_occurred_at = prague_now(event.occurred_at)
     next_occurred_at = prague_now(payload.occurred_at)
@@ -608,7 +609,7 @@ def delete_attendance_event(
     ).scalar_one_or_none()
     if event is None:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
-    if not employment.is_active or employment.user is None or not employment.user.is_active:
+    if not employment_is_currently_valid(employment) or employment.user is None or not employment.user.is_active:
         raise_integration_error(status.HTTP_404_NOT_FOUND, "not_found", "Průchod nebyl nalezen.")
     events = list(
         db.execute(

@@ -17,6 +17,7 @@ from ...api.v1.attendance import _build_month
 from ...db.models import Employment
 from ...db.session import get_db
 from ...security.csrf import require_csrf
+from ...services.employment_access import employment_is_currently_valid
 from ...services.prague_time import PRAGUE_TIMEZONE
 from ...services.shift_plan_reports import (
     build_shift_plan_report,
@@ -204,7 +205,7 @@ def _load_relevant_employments(db: Session, start: date, end: date) -> list[Empl
     relevant = [
         employment
         for employment in candidates
-        if employment.is_active and employment.user is not None and employment.user.is_active
+        if employment_is_currently_valid(employment) and employment.user is not None and employment.user.is_active
     ]
     relevant.sort(key=lambda item: (item.user.name if item.user else "", item.start_date, item.id))
     return relevant
@@ -242,7 +243,7 @@ def export_csv_or_zip(
         )
         if (
             not employment
-            or not employment.is_active
+            or not employment_is_currently_valid(employment)
             or employment.user is None
             or not employment.user.is_active
             or employment.start_date >= end

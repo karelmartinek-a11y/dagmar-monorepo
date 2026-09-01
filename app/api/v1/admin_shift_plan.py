@@ -205,7 +205,7 @@ def _to_active_employment_out(
         display_label=employment_label(employment, user_name),
         start_date=employment.start_date.isoformat(),
         end_date=employment.end_date.isoformat() if employment.end_date is not None else None,
-        is_active=employment.is_active,
+        is_active=_employment_is_active_in_month(employment, month_start, month_end),
         user_is_active=bool(employment.user.is_active) if employment.user is not None else False,
         is_active_in_month=_employment_is_active_in_month(employment, month_start, month_end),
     )
@@ -231,7 +231,6 @@ def _load_available_employment_rows(db: Session, start: dt.date, end: dt.date) -
         db.execute(
             select(Employment)
             .options(joinedload(Employment.user))
-            .where(Employment.is_active.is_(True))
             .where(Employment.start_date < end)
             .where(Employment.end_date.is_(None) | (Employment.end_date >= start))
             .order_by(Employment.start_date.asc(), Employment.id.asc())

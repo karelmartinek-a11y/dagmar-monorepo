@@ -48,7 +48,6 @@ class EmploymentCreateIn(BaseModel):
     employment_type: str = Field(min_length=3, max_length=16)
     start_date: str = Field(description="YYYY-MM-DD")
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
-    is_active: bool = True
     workload_fraction: Decimal | None = Field(
         default=None, ge=Decimal("0.001"), le=Decimal("1.000")
     )
@@ -108,7 +107,6 @@ class EmploymentUpdateIn(BaseModel):
     employment_type: str | None = Field(default=None, min_length=3, max_length=16)
     start_date: str | None = Field(default=None, description="YYYY-MM-DD")
     end_date: str | None = Field(default=None, description="YYYY-MM-DD nebo null")
-    is_active: bool | None = None
     confirm_delete_out_of_range: bool = False
     workload_fraction: Decimal | None = Field(
         default=None, ge=Decimal("0.001"), le=Decimal("1.000")
@@ -731,7 +729,7 @@ def create_employment(
         employment_type=payload.employment_type,
         start_date=start_date,
         end_date=end_date,
-        is_active=payload.is_active,
+        is_active=True,
         workload_fraction=payload.workload_fraction,
         total_hours_enabled=payload.total_hours_enabled,
         automatic_breaks_enabled=payload.automatic_breaks_enabled,
@@ -816,8 +814,6 @@ def update_employment(
     employment.employment_type = EmploymentType(next_type)
     employment.start_date = next_start_date
     employment.end_date = next_end_date
-    if payload.is_active is not None:
-        employment.is_active = payload.is_active
     if "afternoon_start_time" in payload.model_fields_set:
         requested_afternoon_minutes = None
         if payload.afternoon_start_time is not None:

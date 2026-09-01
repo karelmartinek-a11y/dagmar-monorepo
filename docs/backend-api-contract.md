@@ -17,7 +17,7 @@ svou samostatnou verzovanou obálku.
 - `DPP_DPC` a `EXTERNAL_HOURLY`: celková i všechny zvláštní metriky jsou volitelné.
 - `TASK_SHIFT_BASED`: žádná hodinová metrika není aktivní.
 
-Profil patří konkrétnímu `Employment` a jeho změna se retroaktivně projeví ve všech obdobích. Aktivní měsíční výběr vyžaduje aktivního uživatele, aktivní úvazek a překryv `start_date`/`end_date` se zvoleným měsícem. Zaměstnanecký výběr poskytuje `GET /api/v1/attendance/employments?year=...&month=...`.
+Profil patří konkrétnímu `Employment` a jeho změna se retroaktivně projeví ve všech obdobích. Měsíční výběr vyžaduje aktivního uživatele a platnost úvazku podle `start_date`/`end_date` s překryvem se zvoleným měsícem; aktivita úvazku se neřídí samostatným příznakem. Zaměstnanecký výběr poskytuje `GET /api/v1/attendance/employments?year=...&month=...`.
 
 ## Docházkové eventy
 

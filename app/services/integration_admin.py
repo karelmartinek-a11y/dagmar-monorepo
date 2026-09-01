@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import models
-from app.services.employment_access import employment_label
+from app.services.employment_access import employment_is_currently_valid, employment_label
 
 NAME_MIN_LENGTH = 3
 NAME_MAX_LENGTH = 80
@@ -297,7 +297,7 @@ def build_employee_options(db: Session) -> list[dict[str, object]]:
     options: list[dict[str, object]] = []
     for user in users:
         employments = sorted(user.employments, key=lambda item: (item.start_date, item.id))
-        active_count = sum(1 for item in employments if item.is_active)
+        active_count = sum(1 for item in employments if employment_is_currently_valid(item))
         label = (user.name or "").strip() or (user.email or "").strip() or f"Uživatel {user.id}"
         options.append(
             {
@@ -339,7 +339,7 @@ def build_employment_options(db: Session) -> list[dict[str, object]]:
                 "end_date": employment.end_date.isoformat()
                 if employment.end_date is not None
                 else None,
-                "is_active": employment.is_active,
+                "is_active": employment_is_currently_valid(employment),
             }
         )
     return options
