@@ -12,7 +12,6 @@ from sqlalchemy.engine import make_url
 from app.db.models import (
     Attendance,
     AttendanceEvent,
-    AttendanceEventType,
     AttendanceLock,
     ClientType,
     Employment,
@@ -43,12 +42,10 @@ def _event(
     day: int,
     hour: int,
     minute: int,
-    kind: AttendanceEventType,
 ) -> AttendanceEvent:
     return AttendanceEvent(
         employment_id=employment_id,
         occurred_at=datetime(year, month, day, hour, minute, tzinfo=PRAGUE_TIMEZONE),
-        event_type=kind,
     )
 
 
@@ -185,18 +182,18 @@ def main() -> None:
 
         db.add_all(
             [
-                _event(own.id, 2026, 6, 8, 8, 0, AttendanceEventType.IN),
-                _event(own.id, 2026, 6, 8, 16, 3, AttendanceEventType.OUT),
-                _event(own.id, 2026, 7, 1, 8, 0, AttendanceEventType.IN),
-                _event(own.id, 2026, 7, 1, 12, 0, AttendanceEventType.OUT),
-                _event(own.id, 2026, 7, 1, 12, 30, AttendanceEventType.IN),
-                _event(own.id, 2026, 7, 1, 17, 0, AttendanceEventType.OUT),
-                _event(own.id, 2026, 7, 31, 22, 0, AttendanceEventType.IN),
-                _event(own.id, 2026, 8, 1, 2, 0, AttendanceEventType.OUT),
-                _event(own.id, 2026, 8, 3, 8, 0, AttendanceEventType.IN),
-                _event(own.id, 2026, 8, 3, 16, 0, AttendanceEventType.OUT),
-                _event(own.id, 2026, 8, 4, 8, 0, AttendanceEventType.IN),
-                _event(own.id, 2026, 8, 4, 15, 0, AttendanceEventType.OUT),
+                _event(own.id, 2026, 6, 8, 8, 0),
+                _event(own.id, 2026, 6, 8, 16, 3),
+                _event(own.id, 2026, 7, 1, 8, 0),
+                _event(own.id, 2026, 7, 1, 12, 0),
+                _event(own.id, 2026, 7, 1, 12, 30),
+                _event(own.id, 2026, 7, 1, 17, 0),
+                _event(own.id, 2026, 7, 31, 14, 0),
+                _event(own.id, 2026, 7, 31, 22, 0),
+                _event(own.id, 2026, 8, 3, 8, 0),
+                _event(own.id, 2026, 8, 3, 16, 0),
+                _event(own.id, 2026, 8, 4, 8, 0),
+                _event(own.id, 2026, 8, 4, 15, 0),
                 Attendance(
                     employment_id=own.id,
                     instance_id=user.instance_id,

@@ -345,7 +345,6 @@ function EmployeeAttendanceTable({
         await api.createAttendanceEvent({
           employment_id: month.employment_id,
           occurred_at: `${day.date}T${value}:00`,
-          event_type: day.next_event_type,
         });
       } else if (event && !value) {
         await api.deleteAttendanceEvent(event.id, event.deletion_partner_id ?? undefined);
@@ -353,7 +352,6 @@ function EmployeeAttendanceTable({
         await api.updateAttendanceEvent(event.id, {
           employment_id: month.employment_id,
           occurred_at: `${day.date}T${value}:00`,
-          event_type: event.event_type,
         });
       } else {
         return;

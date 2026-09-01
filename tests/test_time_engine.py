@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 from app.api.v1.attendance import _metric_out
 from app.db.models import EmploymentType
-from app.services.attendance_mutations import has_strict_event_sequence
 from app.services.czech_holidays import is_czech_public_holiday
 from app.services.time_intervals import break_segments, pair_events
 from app.services.time_metrics import (
@@ -56,9 +55,9 @@ def test_break_distribution_is_minimal_and_deterministic() -> None:
 
 def test_pair_events_does_not_let_an_orphan_shift_the_next_day() -> None:
     events = [
-        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 1, 8, tzinfo=UTC), event_type="IN"),
-        SimpleNamespace(id=2, occurred_at=datetime(2026, 7, 2, 8, tzinfo=UTC), event_type="IN"),
-        SimpleNamespace(id=3, occurred_at=datetime(2026, 7, 2, 16, tzinfo=UTC), event_type="OUT"),
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 1, 8, tzinfo=UTC)),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 7, 2, 8, tzinfo=UTC)),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 7, 2, 16, tzinfo=UTC)),
     ]
 
     intervals = pair_events(events)
@@ -68,24 +67,23 @@ def test_pair_events_does_not_let_an_orphan_shift_the_next_day() -> None:
 
 def test_pair_events_sums_two_work_intervals_separated_by_a_pause() -> None:
     events = [
-        SimpleNamespace(id=1, occurred_at=datetime(2026, 8, 27, 5, 30), event_type="IN"),
-        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 27, 9), event_type="OUT"),
-        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 27, 9, 30), event_type="IN"),
-        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 27, 13), event_type="OUT"),
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 8, 27, 5, 30)),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 27, 9)),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 27, 9, 30)),
+        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 27, 13)),
     ]
 
     intervals = pair_events(events)
 
     assert [item.minutes for item in intervals] == [210, 210]
-    assert has_strict_event_sequence(events)
 
 
-def test_pair_events_keeps_historical_times_even_when_direction_is_wrong() -> None:
+def test_pair_events_uses_every_chronological_time() -> None:
     events = [
-        SimpleNamespace(id=1, occurred_at=datetime(2026, 8, 27, 5, 30), event_type="IN"),
-        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 27, 9), event_type="IN"),
-        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 27, 10), event_type="IN"),
-        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 27, 13), event_type="OUT"),
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 8, 27, 5, 30)),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 27, 9)),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 27, 10)),
+        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 27, 13)),
     ]
 
     intervals = pair_events(events)
@@ -95,11 +93,11 @@ def test_pair_events_keeps_historical_times_even_when_direction_is_wrong() -> No
 
 def test_pair_events_anchors_karel_case_to_the_current_day() -> None:
     events = [
-        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 30, 12), event_type="IN"),
-        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 1, 6), event_type="OUT"),
-        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 1, 22), event_type="IN"),
-        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 2, 7), event_type="OUT"),
-        SimpleNamespace(id=5, occurred_at=datetime(2026, 8, 2, 20), event_type="IN"),
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 30, 12)),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 1, 6)),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 1, 22)),
+        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 2, 7)),
+        SimpleNamespace(id=5, occurred_at=datetime(2026, 8, 2, 20)),
     ]
 
     intervals = pair_events(events)
@@ -109,10 +107,10 @@ def test_pair_events_anchors_karel_case_to_the_current_day() -> None:
 
 def test_pair_events_never_pairs_times_across_midnight() -> None:
     events = [
-        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 31, 22), event_type="OUT"),
-        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 1, 2), event_type="IN"),
-        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 2, 8), event_type="OUT"),
-        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 2, 16), event_type="IN"),
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 31, 22)),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 1, 2)),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 2, 8)),
+        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 2, 16)),
     ]
 
     intervals = pair_events(events)

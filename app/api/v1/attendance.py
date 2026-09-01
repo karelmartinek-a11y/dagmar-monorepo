@@ -11,13 +11,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import PortalUserAuth, require_portal_user_auth
 from app.api.errors import raise_api_error
-from app.db.models import AttendanceEvent, AttendanceEventType, Employment, ShiftPlan
+from app.db.models import AttendanceEvent, Employment, ShiftPlan
 from app.db.session import get_db
 from app.services.attendance_events import add_closed_interval_with_breaks, add_event_with_breaks
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
-    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -62,7 +61,6 @@ def _require_locked_active_employment(
 class AttendanceEventIn(BaseModel):
     employment_id: int = Field(..., ge=1)
     occurred_at: datetime
-    event_type: AttendanceEventType
     paired_occurred_at: datetime | None = None
 
     @field_validator("occurred_at", "paired_occurred_at")
@@ -79,7 +77,6 @@ class AttendanceEventOut(BaseModel):
     id: int
     employment_id: int
     occurred_at: str
-    event_type: AttendanceEventType
     deletion_partner_id: int | None = None
 
 
@@ -98,7 +95,6 @@ class AttendanceDayOut(BaseModel):
     planned_arrival_time: str | None = None
     planned_departure_time: str | None = None
     planned_status: str | None = None
-    next_event_type: AttendanceEventType
     calendar_tone: str
     public_holiday_label: str | None = None
     is_within_employment_period: bool
@@ -244,30 +240,12 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
     deletion_partners: dict[int, int] = {}
     for index, event in enumerate(ordered_events[:-1]):
         following = ordered_events[index + 1]
-        same_day = prague_now(event.occurred_at).date() == prague_now(following.occurred_at).date()
-        if (
-            same_day
-            and event.event_type == AttendanceEventType.IN
-            and following.event_type == AttendanceEventType.OUT
-        ):
-            deletion_partners[event.id] = following.id
-        elif (
-            event.event_type == AttendanceEventType.OUT
-            and following.event_type == AttendanceEventType.IN
-            and same_day
-        ):
-            # OUT+IN is removable as one physical pause only inside the same local day.
+        if prague_now(event.occurred_at).date() == prague_now(following.occurred_at).date():
             deletion_partners[event.id] = following.id
     days: list[AttendanceDayOut] = []
     for offset in range((end - start).days):
         day = start + timedelta(days=offset)
         day_events = [event for event in events if prague_now(event.occurred_at).date() == day]
-        events_through_day = [
-            event for event in events if prague_now(event.occurred_at).date() <= day
-        ]
-        next_event_type = AttendanceEventType.IN
-        if events_through_day and events_through_day[-1].event_type == AttendanceEventType.IN:
-            next_event_type = AttendanceEventType.OUT
         day_summary = summary_days[day]
         attendance = day_summary.attendance
         worked_metrics = day_summary.worked
@@ -287,7 +265,6 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
                         id=event.id,
                         employment_id=event.employment_id,
                         occurred_at=prague_now(event.occurred_at).isoformat(),
-                        event_type=event.event_type,
                         deletion_partner_id=deletion_partners.get(event.id),
                     )
                     for event in day_events
@@ -297,7 +274,6 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
                 planned_arrival_time=plan_for_day.arrival_time if plan_for_day else None,
                 planned_departure_time=plan_for_day.departure_time if plan_for_day else None,
                 planned_status=plan_for_day.status if plan_for_day else None,
-                next_event_type=next_event_type,
                 calendar_tone=calendar_tone,
                 public_holiday_label=holiday_label,
                 is_within_employment_period=employment.start_date <= day
@@ -428,12 +404,10 @@ def create_attendance_event(
     )
     before_intervals = interval_signatures(existing_events)
     event = AttendanceEvent(
-        employment_id=employment.id, occurred_at=occurred_at, event_type=body.event_type
+        employment_id=employment.id, occurred_at=occurred_at
     )
     try:
         if paired_occurred_at is not None:
-            if body.event_type != AttendanceEventType.IN:
-                raise ValueError("Párové vložení musí začínat příchodem.")
             additions = add_closed_interval_with_breaks(
                 db,
                 employment=employment,
@@ -457,13 +431,6 @@ def create_attendance_event(
             select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id)
         ).scalars()
     )
-    if not has_strict_event_sequence(after_events):
-        db.rollback()
-        raise_api_error(
-            409,
-            "attendance_event_alternation_conflict",
-            "Průchody musí střídat příchod a odchod.",
-        )
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(after_events),
@@ -499,7 +466,6 @@ def create_attendance_event(
         id=event.id,
         employment_id=event.employment_id,
         occurred_at=prague_now(event.occurred_at).isoformat(),
-        event_type=event.event_type,
     )
 
 
@@ -530,12 +496,6 @@ def update_attendance_event(
     if body.employment_id != event.employment_id:
         raise_api_error(
             400, "attendance_event_employment_immutable", "Průchod nelze přesunout na jiný úvazek."
-        )
-    if body.event_type != event.event_type:
-        raise_api_error(
-            400,
-            "attendance_event_type_immutable",
-            "Typ průchodu se mění smazáním a novým vytvořením.",
         )
     previous_occurred_at = prague_now(event.occurred_at)
     occurred_at = body.occurred_at
@@ -603,7 +563,6 @@ def update_attendance_event(
         id=event.id,
         employment_id=event.employment_id,
         occurred_at=prague_now(event.occurred_at).isoformat(),
-        event_type=event.event_type,
     )
 
 

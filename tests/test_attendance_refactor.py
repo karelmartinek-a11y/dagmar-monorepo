@@ -42,6 +42,7 @@ from app.api.v1.admin_shift_plan import (
 )
 from app.api.v1.attendance import (
     AttendanceEventIn,
+    AttendanceEventOut,
     AttendanceStatusUpsertIn,
     _build_month,
     create_attendance_event,
@@ -64,7 +65,6 @@ from app.api.v1.shift_plan import (
 from app.db.models import (
     Attendance,
     AttendanceEvent,
-    AttendanceEventType,
     AttendanceLock,
     Base,
     DailyMetricSource,
@@ -82,7 +82,6 @@ from app.db.models import (
     ShiftPlanMonthInstance,
 )
 from app.services.attendance_events import add_event_with_breaks
-from app.services.attendance_mutations import has_strict_event_sequence
 from app.services.daily_metrics import (
     CALCULATION_REVISION,
     sync_employment_metric_months,
@@ -132,11 +131,10 @@ def _employment(
     return employment
 
 
-def _event(employment_id: int, value: datetime, event_type: AttendanceEventType) -> AttendanceEvent:
+def _event(employment_id: int, value: datetime) -> AttendanceEvent:
     return AttendanceEvent(
         employment_id=employment_id,
         occurred_at=value.replace(tzinfo=PRAGUE_TIMEZONE),
-        event_type=event_type,
     )
 
 
@@ -147,13 +145,13 @@ def test_three_month_event_contract_and_retroactive_metric_visibility() -> None:
         employment = _employment(db)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 6, 10, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 6, 10, 16, 3), AttendanceEventType.OUT),
-                _event(employment.id, datetime(2026, 7, 31, 22), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 1, 2), AttendanceEventType.OUT),
-                _event(employment.id, datetime(2026, 8, 4, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 4, 12), AttendanceEventType.OUT),
-                _event(employment.id, datetime(2026, 8, 4, 13), AttendanceEventType.IN),
+                _event(employment.id, datetime(2026, 6, 10, 8)),
+                _event(employment.id, datetime(2026, 6, 10, 16, 3)),
+                _event(employment.id, datetime(2026, 7, 31, 22)),
+                _event(employment.id, datetime(2026, 8, 1, 2)),
+                _event(employment.id, datetime(2026, 8, 4, 8)),
+                _event(employment.id, datetime(2026, 8, 4, 12)),
+                _event(employment.id, datetime(2026, 8, 4, 13)),
                 ShiftPlan(
                     employment_id=employment.id,
                     date=date(2026, 7, 31),
@@ -192,7 +190,6 @@ def test_three_month_event_contract_and_retroactive_metric_visibility() -> None:
         assert august.days[2].planned_departure_time == "17:00"
         assert august.days[2].planned is not None and august.days[2].planned["total"] is not None
         assert august.days[2].planned["total"].hours == 8.0
-        assert august.days[0].next_event_type == AttendanceEventType.IN
         assert july.days[30].planned is not None and july.days[30].planned["total"] is not None
         assert july.days[30].planned["total"].hours == 0.0
         assert august.days[0].planned is not None and august.days[0].planned["total"] is not None
@@ -345,8 +342,8 @@ def test_optional_total_and_confirmed_all_day_absence() -> None:
         employment.total_hours_enabled = False
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 4, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 4, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 4, 8)),
+                _event(employment.id, datetime(2026, 8, 4, 16)),
                 ShiftPlan(
                     employment_id=employment.id,
                     date=date(2026, 8, 4),
@@ -383,8 +380,8 @@ def test_metric_sync_does_not_count_cross_boundary_times() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 6, 30, 22), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 7, 1, 2), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 6, 30, 22)),
+                _event(employment.id, datetime(2026, 7, 1, 2)),
             ]
         )
         db.flush()
@@ -414,8 +411,8 @@ def test_all_day_absence_removes_only_times_from_the_selected_day() -> None:
         employment = _employment(db, EmploymentType.EXTERNAL_HOURLY)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 3, 22), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 4, 2), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 3, 22)),
+                _event(employment.id, datetime(2026, 8, 4, 2)),
             ]
         )
         db.flush()
@@ -486,7 +483,6 @@ def test_event_creation_validates_period_and_chronological_neighbors() -> None:
                 AttendanceEventIn(
                     employment_id=employment.id,
                     occurred_at=datetime(2026, 5, 31, 8, tzinfo=PRAGUE_TIMEZONE),
-                    event_type=AttendanceEventType.IN,
                 ),
                 db=db,
                 auth=auth,
@@ -495,76 +491,68 @@ def test_event_creation_validates_period_and_chronological_neighbors() -> None:
 
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 1, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 1, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 1, 8)),
+                _event(employment.id, datetime(2026, 8, 1, 16)),
             ]
         )
         db.flush()
         inserted_between = _event(
             employment.id,
             datetime(2026, 8, 1, 12),
-            AttendanceEventType.OUT,
         )
         add_event_with_breaks(db, employment=employment, event=inserted_between)
 
         same_timestamp = _event(
             employment.id,
             datetime(2026, 8, 1, 8),
-            AttendanceEventType.OUT,
         )
         add_event_with_breaks(db, employment=employment, event=same_timestamp)
 
 
-def test_event_creation_uses_chronological_slot_when_requested_type_is_stale() -> None:
+def test_event_creation_uses_only_the_chronological_day_slot() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 1, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 1, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 1, 8)),
+                _event(employment.id, datetime(2026, 8, 1, 16)),
             ]
         )
         db.flush()
         inserted = _event(
             employment.id,
             datetime(2026, 8, 2, 8),
-            AttendanceEventType.OUT,
         )
 
         add_event_with_breaks(db, employment=employment, event=inserted)
 
-        assert inserted.event_type == AttendanceEventType.OUT
+        assert inserted.occurred_at.hour == 8
 
 
-def test_event_endpoint_rejects_stale_event_type_without_persisting_it() -> None:
+def test_event_endpoint_closes_karel_day_without_direction_metadata() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 27, 5, 30), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 27, 9), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 10, 6)),
             ]
         )
         db.flush()
         db.commit()
         auth = PortalUserAuth(instance=None, user=employment.user)  # type: ignore[arg-type]
 
-        with pytest.raises(HTTPException) as error:
-            create_attendance_event(
-                AttendanceEventIn(
-                    employment_id=employment.id,
-                    occurred_at=datetime(2026, 8, 27, 9, 30, tzinfo=PRAGUE_TIMEZONE),
-                    event_type=AttendanceEventType.OUT,
-                ),
-                db=db,
-                auth=auth,
-            )
-
-        assert error.value.status_code == 409
+        create_attendance_event(
+            AttendanceEventIn(
+                employment_id=employment.id,
+                occurred_at=datetime(2026, 8, 10, 22, tzinfo=PRAGUE_TIMEZONE),
+            ),
+            db=db,
+            auth=auth,
+        )
         events = list(
             db.execute(
                 select(AttendanceEvent)
@@ -573,21 +561,25 @@ def test_event_endpoint_rejects_stale_event_type_without_persisting_it() -> None
             ).scalars()
         )
         assert [(event.occurred_at.hour, event.occurred_at.minute) for event in events] == [
-            (5, 30),
-            (9, 0),
+            (6, 0),
+            (22, 0),
         ]
+        month = _build_month(db, employment, 2026, 8)
+        assert month.days[9].worked is not None
+        assert month.days[9].worked["total"] is not None
+        assert month.days[9].worked["total"].minutes == 960
 
 
-def test_event_creation_rejects_any_addition_to_malformed_migrated_sequence() -> None:
+def test_event_creation_accepts_any_prior_chronological_history() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 7, 1, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 7, 2, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 7, 2, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 7, 1, 8)),
+                _event(employment.id, datetime(2026, 7, 2, 8)),
+                _event(employment.id, datetime(2026, 7, 2, 16)),
             ]
         )
         db.flush()
@@ -598,7 +590,6 @@ def test_event_creation_rejects_any_addition_to_malformed_migrated_sequence() ->
             event=_event(
                 employment.id,
                 datetime(2026, 7, 3, 8),
-                AttendanceEventType.IN,
             ),
         )
 
@@ -727,8 +718,8 @@ def test_admin_break_backfill_is_physical_and_idempotent() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 15), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 5, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 15)),
             ]
         )
         db.commit()
@@ -755,11 +746,11 @@ def test_admin_break_backfill_is_physical_and_idempotent() -> None:
         )
         assert first.inserted_pairs == 1 and first.inserted_events == 2
         assert second.inserted_pairs == 0 and second.inserted_events == 0
-        assert [event.event_type for event in events] == [
-            AttendanceEventType.IN,
-            AttendanceEventType.OUT,
-            AttendanceEventType.IN,
-            AttendanceEventType.OUT,
+        assert [event.occurred_at.strftime("%H:%M") for event in events] == [
+            "08:00",
+            "14:00",
+            "14:30",
+            "15:00",
         ]
 
 
@@ -770,9 +761,9 @@ def test_admin_break_backfill_anchors_malformed_history_per_day() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 4, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 4, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 16)),
             ]
         )
         db.commit()
@@ -807,10 +798,10 @@ def test_admin_break_backfill_credits_existing_short_manual_pause() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 12), AttendanceEventType.OUT),
-                _event(employment.id, datetime(2026, 8, 5, 12, 1), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 5, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 12)),
+                _event(employment.id, datetime(2026, 8, 5, 12, 1)),
+                _event(employment.id, datetime(2026, 8, 5, 16)),
             ]
         )
         db.commit()
@@ -844,10 +835,10 @@ def test_admin_break_backfill_avoids_existing_interval_boundaries() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 5, 0), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 6), AttendanceEventType.OUT),
-                _event(employment.id, datetime(2026, 8, 5, 6, 15), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 12), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 5, 0)),
+                _event(employment.id, datetime(2026, 8, 5, 6)),
+                _event(employment.id, datetime(2026, 8, 5, 6, 15)),
+                _event(employment.id, datetime(2026, 8, 5, 12)),
             ]
         )
         db.commit()
@@ -881,8 +872,8 @@ def test_admin_break_backfill_translates_historical_status_conflict() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 5, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 16)),
                 Attendance(
                     employment_id=employment.id,
                     date=date(2026, 8, 5),
@@ -1038,8 +1029,8 @@ def test_admin_mutations_respect_independent_month_locks() -> None:
             [
                 AttendanceLock(employment_id=employment.id, year=2026, month=8, locked_by="admin"),
                 ShiftPlanLock(employment_id=employment.id, year=2026, month=8, locked_by="admin"),
-                _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 15), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 5, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 15)),
             ]
         )
         db.commit()
@@ -1119,7 +1110,7 @@ def test_daily_metric_rebuild_cli_passes_apply_mode(monkeypatch: pytest.MonkeyPa
     assert calls == [True]
 
 
-def test_cross_month_event_mutation_is_rejected_before_lock_checks() -> None:
+def test_new_day_event_never_mutates_the_locked_previous_month() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -1128,7 +1119,6 @@ def test_cross_month_event_mutation_is_rejected_before_lock_checks() -> None:
             _event(
                 employment.id,
                 datetime(2026, 6, 30, 22),
-                AttendanceEventType.IN,
             )
         )
         db.add(
@@ -1141,24 +1131,22 @@ def test_cross_month_event_mutation_is_rejected_before_lock_checks() -> None:
         )
         db.commit()
 
-        with pytest.raises(HTTPException) as error:
-            create_attendance_event(
-                AttendanceEventIn(
-                    employment_id=employment.id,
-                    occurred_at=datetime(
-                        2026,
-                        7,
-                        1,
-                        2,
-                        tzinfo=PRAGUE_TIMEZONE,
-                    ),
-                    event_type=AttendanceEventType.OUT,
+        create_attendance_event(
+            AttendanceEventIn(
+                employment_id=employment.id,
+                occurred_at=datetime(
+                    2026,
+                    7,
+                    1,
+                    2,
+                    tzinfo=PRAGUE_TIMEZONE,
                 ),
-                db=db,
-                auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
-            )
+            ),
+            db=db,
+            auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
+        )
 
-        assert error.value.status_code == 409
+        assert db.query(AttendanceEvent).count() == 2
 
 
 def test_event_mutations_reject_day_status_and_inactive_employment() -> None:
@@ -1187,7 +1175,6 @@ def test_event_mutations_reject_day_status_and_inactive_employment() -> None:
                         8,
                         tzinfo=PRAGUE_TIMEZONE,
                     ),
-                    event_type=AttendanceEventType.IN,
                 ),
                 db=db,
                 auth=auth,
@@ -1197,7 +1184,6 @@ def test_event_mutations_reject_day_status_and_inactive_employment() -> None:
         event = _event(
             employment.id,
             datetime(2026, 7, 6, 8),
-            AttendanceEventType.IN,
         )
         db.add(event)
         db.commit()
@@ -1207,7 +1193,6 @@ def test_event_mutations_reject_day_status_and_inactive_employment() -> None:
         body = AttendanceEventIn(
             employment_id=employment.id,
             occurred_at=datetime(2026, 7, 6, 9, tzinfo=PRAGUE_TIMEZONE),
-            event_type=AttendanceEventType.IN,
         )
         with pytest.raises(HTTPException) as update_error:
             update_attendance_event(event.id, body, db=db, auth=auth)
@@ -1241,12 +1226,10 @@ def test_day_status_requires_period_and_both_conflicting_domains_unlocked() -> N
                 _event(
                     employment.id,
                     datetime(2026, 8, 7, 8),
-                    AttendanceEventType.IN,
                 ),
                 _event(
                     employment.id,
                     datetime(2026, 8, 7, 16),
-                    AttendanceEventType.OUT,
                 ),
                 AttendanceLock(
                     employment_id=employment.id,
@@ -1401,12 +1384,10 @@ def test_csv_keeps_days_inside_cross_month_interval() -> None:
                 _event(
                     employment.id,
                     datetime(2026, 6, 30, 22),
-                    AttendanceEventType.IN,
                 ),
                 _event(
                     employment.id,
                     datetime(2026, 7, 1, 2),
-                    AttendanceEventType.OUT,
                 ),
             ]
         )
@@ -1431,8 +1412,8 @@ def test_outputs_recompute_from_raw_facts_and_sync_rebuilds_persisted_rows() -> 
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 5, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 16)),
                 ShiftPlan(
                     employment_id=employment.id,
                     date=date(2026, 8, 5),
@@ -1510,7 +1491,6 @@ def test_event_write_rebuilds_only_affected_months() -> None:
             AttendanceEventIn(
                 employment_id=employment.id,
                 occurred_at=datetime(2026, 7, 10, 8, tzinfo=PRAGUE_TIMEZONE),
-                event_type=AttendanceEventType.IN,
             ),
             db=db,
             auth=PortalUserAuth(instance=SimpleNamespace(id=None), user=employment.user),  # type: ignore[arg-type]
@@ -1572,12 +1552,10 @@ def test_employment_period_change_rebuilds_metrics_after_confirmed_cleanup() -> 
                 _event(
                     employment.id,
                     datetime(2026, 8, 1, 8),
-                    AttendanceEventType.IN,
                 ),
                 _event(
                     employment.id,
                     datetime(2026, 8, 1, 9),
-                    AttendanceEventType.OUT,
                 ),
             ]
         )
@@ -1640,8 +1618,8 @@ def test_employment_delete_confirms_plan_locks_and_reports_event_rows() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 5, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 5, 8)),
+                _event(employment.id, datetime(2026, 8, 5, 16)),
                 ShiftPlanLock(
                     employment_id=employment.id,
                     year=2026,
@@ -1715,12 +1693,10 @@ def test_shift_plan_status_rejects_conflicting_attendance_for_admin_and_user() -
                 _event(
                     employment.id,
                     datetime(2026, 7, 10, 8),
-                    AttendanceEventType.IN,
                 ),
                 _event(
                     employment.id,
                     datetime(2026, 7, 10, 16),
-                    AttendanceEventType.OUT,
                 ),
             ]
         )
@@ -1806,6 +1782,12 @@ def test_shift_plan_dtos_contain_only_same_day_boundaries() -> None:
             auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
         )
         assert attendance.days[0].planned_arrival_time == "08:00"
+        assert set(AttendanceEventOut.model_fields) == {
+            "id",
+            "employment_id",
+            "occurred_at",
+            "deletion_partner_id",
+        }
         assert "planned_is_carryover" not in attendance.days[0].model_dump()
         assert "planned_carryover_departure_time" not in attendance.days[0].model_dump()
         assert admin.rows[0].days[0].arrival_time == "08:00"
@@ -1860,16 +1842,15 @@ def test_event_edit_cannot_move_first_in_after_out_for_admin_and_user() -> None:
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
-        first = _event(employment.id, datetime(2026, 7, 5, 8), AttendanceEventType.IN)
+        first = _event(employment.id, datetime(2026, 7, 5, 8))
         db.add_all(
-            [first, _event(employment.id, datetime(2026, 7, 5, 16), AttendanceEventType.OUT)]
+            [first, _event(employment.id, datetime(2026, 7, 5, 16))]
         )
         db.commit()
 
         body = AttendanceEventIn(
             employment_id=employment.id,
             occurred_at=datetime(2026, 7, 5, 17, tzinfo=PRAGUE_TIMEZONE),
-            event_type=AttendanceEventType.IN,
         )
         update_attendance_event(
             first.id,
@@ -1885,9 +1866,9 @@ def test_event_delete_allows_any_sequence_for_all_api_surfaces() -> None:
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
-        first = _event(employment.id, datetime(2026, 7, 5, 8), AttendanceEventType.IN)
+        first = _event(employment.id, datetime(2026, 7, 5, 8))
         db.add_all(
-            [first, _event(employment.id, datetime(2026, 7, 5, 16), AttendanceEventType.OUT)]
+            [first, _event(employment.id, datetime(2026, 7, 5, 16))]
         )
         db.commit()
         first_id = first.id
@@ -1911,10 +1892,10 @@ def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() 
         for employment in employments:
             db.add_all(
                 [
-                    _event(employment.id, datetime(2026, 6, 1, 8), AttendanceEventType.IN),
-                    _event(employment.id, datetime(2026, 6, 1, 16), AttendanceEventType.OUT),
-                    _event(employment.id, datetime(2026, 6, 3, 8), AttendanceEventType.IN),
-                    _event(employment.id, datetime(2026, 6, 3, 16), AttendanceEventType.OUT),
+                    _event(employment.id, datetime(2026, 6, 1, 8)),
+                    _event(employment.id, datetime(2026, 6, 1, 16)),
+                    _event(employment.id, datetime(2026, 6, 3, 8)),
+                    _event(employment.id, datetime(2026, 6, 3, 16)),
                 ]
             )
         client = IntegrationClient(
@@ -1937,7 +1918,6 @@ def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() 
                 employment_id=employments[0].id,
                 occurred_at=datetime(2026, 6, 2, 8, tzinfo=PRAGUE_TIMEZONE),
                 paired_occurred_at=datetime(2026, 6, 2, 16, tzinfo=PRAGUE_TIMEZONE),
-                event_type=AttendanceEventType.IN,
             ),
             db=db,
             auth=PortalUserAuth(instance=None, user=employments[0].user),  # type: ignore[arg-type]
@@ -1947,7 +1927,6 @@ def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() 
                 employment_id=employments[1].id,
                 occurred_at=datetime(2026, 6, 2, 8, tzinfo=PRAGUE_TIMEZONE),
                 paired_occurred_at=datetime(2026, 6, 2, 16, tzinfo=PRAGUE_TIMEZONE),
-                event_type=AttendanceEventType.IN,
             ),
             _admin={"username": "admin"},
             _=None,
@@ -1959,7 +1938,6 @@ def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() 
                 employment_id=employments[2].id,
                 occurred_at=datetime(2026, 6, 2, 8, tzinfo=PRAGUE_TIMEZONE),
                 paired_occurred_at=datetime(2026, 6, 2, 16, tzinfo=PRAGUE_TIMEZONE),
-                event_type=AttendanceEventType.IN,
             ),
             request=request,
             auth=IntegrationAuth(client=client, secret=secret),
@@ -1976,25 +1954,20 @@ def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() 
                     .order_by(AttendanceEvent.occurred_at)
                 ).scalars()
             )
-            assert has_strict_event_sequence(ordered)
             assert len(ordered) == 6
-            pair_out = next(
-                event
-                for event in ordered
-                if event.occurred_at.date() == date(2026, 6, 2)
-                and event.event_type == AttendanceEventType.OUT
-            )
+            day_pair = [event for event in ordered if event.occurred_at.date() == date(2026, 6, 2)]
+            pair_end = day_pair[-1]
             if employment.id == employments[0].id:
                 delete_attendance_event(
                     first_id,
-                    paired_event_id=pair_out.id,
+                    paired_event_id=pair_end.id,
                     db=db,
                     auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
                 )
             elif employment.id == employments[1].id:
                 admin_delete_event(
                     first_id,
-                    paired_event_id=pair_out.id,
+                    paired_event_id=pair_end.id,
                     _admin={"username": "admin"},
                     _=None,
                     db=db,
@@ -2005,7 +1978,7 @@ def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() 
                     request=Request(
                         {"type": "http", "method": "DELETE", "path": "/", "headers": []}
                     ),
-                    paired_event_id=pair_out.id,
+                    paired_event_id=pair_end.id,
                     auth=IntegrationAuth(client=client, secret=secret),
                     db=db,
                 )
@@ -2016,7 +1989,6 @@ def test_event_pair_can_be_inserted_and_removed_in_middle_on_all_api_surfaces() 
                     .order_by(AttendanceEvent.occurred_at)
                 ).scalars()
             )
-            assert has_strict_event_sequence(remaining)
             assert len(remaining) == 4
 
 
@@ -2026,7 +1998,7 @@ def test_integration_audit_counts_automatic_break_events() -> None:
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
         employment.automatic_breaks_enabled = True
-        db.add(_event(employment.id, datetime(2026, 6, 1, 8), AttendanceEventType.IN))
+        db.add(_event(employment.id, datetime(2026, 6, 1, 8)))
         client = IntegrationClient(
             name="Audit pauz",
             scopes=["attendance:create"],
@@ -2047,7 +2019,6 @@ def test_integration_audit_counts_automatic_break_events() -> None:
             IntegrationEventIn(
                 employment_id=employment.id,
                 occurred_at=datetime(2026, 6, 1, 15, tzinfo=PRAGUE_TIMEZONE),
-                event_type=AttendanceEventType.OUT,
             ),
             request=request,
             auth=IntegrationAuth(client=client, secret=secret),
@@ -2063,10 +2034,10 @@ def test_month_dto_never_pairs_deletion_partners_across_days() -> None:
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
-        overnight_in = _event(employment.id, datetime(2026, 7, 31, 22), AttendanceEventType.IN)
-        overnight_out = _event(employment.id, datetime(2026, 8, 1, 2), AttendanceEventType.OUT)
-        next_in = _event(employment.id, datetime(2026, 8, 3, 8), AttendanceEventType.IN)
-        next_out = _event(employment.id, datetime(2026, 8, 3, 16), AttendanceEventType.OUT)
+        overnight_in = _event(employment.id, datetime(2026, 7, 31, 22))
+        overnight_out = _event(employment.id, datetime(2026, 8, 1, 2))
+        next_in = _event(employment.id, datetime(2026, 8, 3, 8))
+        next_out = _event(employment.id, datetime(2026, 8, 3, 16))
         db.add_all([overnight_in, overnight_out, next_in, next_out])
         db.commit()
 
@@ -2088,11 +2059,11 @@ def test_month_dto_anchors_daily_totals_after_historical_orphan() -> None:
         employment = _employment(db, EmploymentType.DPP_DPC)
         db.add_all(
             [
-                _event(employment.id, datetime(2026, 7, 30, 12), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 1, 6), AttendanceEventType.OUT),
-                _event(employment.id, datetime(2026, 8, 1, 22), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 8, 2, 7), AttendanceEventType.OUT),
-                _event(employment.id, datetime(2026, 8, 2, 20), AttendanceEventType.IN),
+                _event(employment.id, datetime(2026, 7, 30, 12)),
+                _event(employment.id, datetime(2026, 8, 1, 6)),
+                _event(employment.id, datetime(2026, 8, 1, 22)),
+                _event(employment.id, datetime(2026, 8, 2, 7)),
+                _event(employment.id, datetime(2026, 8, 2, 20)),
             ]
         )
         db.commit()
@@ -2117,12 +2088,12 @@ def test_month_dto_leaves_migrated_orphan_in_available_for_single_delete() -> No
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
-        orphan = _event(employment.id, datetime(2026, 7, 1, 8), AttendanceEventType.IN)
+        orphan = _event(employment.id, datetime(2026, 7, 1, 8))
         db.add_all(
             [
                 orphan,
-                _event(employment.id, datetime(2026, 7, 2, 8), AttendanceEventType.IN),
-                _event(employment.id, datetime(2026, 7, 2, 16), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 7, 2, 8)),
+                _event(employment.id, datetime(2026, 7, 2, 16)),
             ]
         )
         db.commit()
@@ -2142,7 +2113,7 @@ def test_month_dto_leaves_migrated_orphan_in_available_for_single_delete() -> No
                 .order_by(AttendanceEvent.occurred_at)
             ).scalars()
         )
-        assert has_strict_event_sequence(remaining)
+        assert [event.occurred_at.hour for event in remaining] == [8, 16]
 
 
 def test_day_status_does_not_touch_previous_day_plan() -> None:
@@ -2290,8 +2261,8 @@ def test_month_sync_removes_zero_rows_after_last_source_fact() -> None:
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
         events = [
-            _event(employment.id, datetime(2026, 8, 5, 8), AttendanceEventType.IN),
-            _event(employment.id, datetime(2026, 8, 5, 16), AttendanceEventType.OUT),
+            _event(employment.id, datetime(2026, 8, 5, 8)),
+            _event(employment.id, datetime(2026, 8, 5, 16)),
         ]
         db.add_all(events)
         db.flush()

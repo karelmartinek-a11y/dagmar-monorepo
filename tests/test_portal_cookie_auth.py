@@ -138,7 +138,6 @@ def test_cookie_mutation_requires_portal_csrf_but_bearer_contract_does_not() -> 
     payload = {
         "employment_id": user.employments[0].id,
         "occurred_at": "2026-08-11T08:00:00+02:00",
-        "event_type": "IN",
     }
     rejected = client.post("/api/v1/attendance/events", json=payload)
     assert rejected.status_code == 403
@@ -156,7 +155,7 @@ def test_cookie_mutation_requires_portal_csrf_but_bearer_contract_does_not() -> 
     client.cookies.delete("dagmar_portal_session")
     bearer = client.post(
         "/api/v1/attendance/events",
-        json={**payload, "occurred_at": "2026-08-11T09:00:00+02:00", "event_type": "OUT"},
+        json={**payload, "occurred_at": "2026-08-11T09:00:00+02:00"},
         headers={"Authorization": f"Bearer {raw_token}"},
     )
     assert not (

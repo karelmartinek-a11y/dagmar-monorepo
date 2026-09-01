@@ -1,6 +1,6 @@
 # KájovoDagmar Integration API
 
-Aktivní strojové rozhraní je dostupné výhradně pod `https://dagmar.hcasc.cz/api/v1/integration`. Aktuální verze veřejného kontraktu je `2026-08-11`.
+Aktivní strojové rozhraní je dostupné výhradně pod `https://dagmar.hcasc.cz/api/v1/integration`. Aktuální verze veřejného kontraktu je `2026-09-01`.
 
 Každý požadavek používá samostatný bearer token s prefixem `dgi_`, explicitní scope a auditní záznam. Token zaměstnaneckého portálu ani administrátorská cookie nejsou pro integraci platné.
 

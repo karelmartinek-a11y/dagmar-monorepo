@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import AttendanceEvent, AttendanceEventType, Employment
+from app.db.models import AttendanceEvent, Employment
 from app.services.prague_time import prague_now
 from app.services.time_intervals import automatic_break_events
 
@@ -30,7 +30,6 @@ def add_closed_interval_with_breaks(
         AttendanceEvent(
             employment_id=employment.id,
             occurred_at=start,
-            event_type=AttendanceEventType.IN,
         )
     ]
     if employment.automatic_breaks_enabled:
@@ -38,15 +37,13 @@ def add_closed_interval_with_breaks(
             AttendanceEvent(
                 employment_id=employment.id,
                 occurred_at=occurred_at,
-                event_type=AttendanceEventType(event_type),
             )
-            for occurred_at, event_type in automatic_break_events(start, end)
+            for occurred_at in automatic_break_events(start, end)
         )
     additions.append(
         AttendanceEvent(
             employment_id=employment.id,
             occurred_at=end,
-            event_type=AttendanceEventType.OUT,
         )
     )
     db.add_all(additions)
@@ -64,25 +61,26 @@ def add_event_with_breaks(
         ).scalars()
     )
     event_time = prague_now(event.occurred_at)
-    previous = next(
-        (item for item in reversed(existing) if prague_now(item.occurred_at) < event_time),
-        None,
+    same_day = [
+        item for item in existing if prague_now(item.occurred_at).date() == event_time.date()
+    ]
+    ordered_day = sorted(
+        [*same_day, event], key=lambda item: (prague_now(item.occurred_at), item.id or 0)
     )
-    requested_type = event.event_type
+    event_index = ordered_day.index(event)
+    previous = ordered_day[event_index - 1] if event_index % 2 == 1 else None
     additions = [event]
     if (
-        requested_type == AttendanceEventType.OUT
-        and previous is not None
+        previous is not None
         and employment.automatic_breaks_enabled
     ):
-        for occurred_at, break_type in automatic_break_events(
+        for occurred_at in automatic_break_events(
             prague_now(previous.occurred_at), prague_now(event.occurred_at)
         ):
             additions.append(
                 AttendanceEvent(
                     employment_id=employment.id,
                     occurred_at=occurred_at,
-                    event_type=AttendanceEventType(break_type),
                 )
             )
     db.add_all(additions)

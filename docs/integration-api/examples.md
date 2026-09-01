@@ -26,6 +26,6 @@ Atomický uzavřený interval:
 curl --fail-with-body -X POST \
   --oauth2-bearer "$DAGMAR_INTEGRATION_TOKEN" \
   -H 'Content-Type: application/json' \
-  --data '{"employment_id":42,"occurred_at":"2026-08-11T08:00:00+02:00","event_type":"IN","paired_occurred_at":"2026-08-11T16:00:00+02:00"}' \
+  --data '{"employment_id":42,"occurred_at":"2026-08-11T08:00:00+02:00","paired_occurred_at":"2026-08-11T16:00:00+02:00"}' \
   https://dagmar.hcasc.cz/api/v1/integration/attendance-events
 ```

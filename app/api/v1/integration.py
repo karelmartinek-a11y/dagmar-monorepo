@@ -33,7 +33,6 @@ from app.services.attendance_events import add_closed_interval_with_breaks, add_
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
-    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -88,7 +87,6 @@ class IntegrationEventIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     employment_id: int = Field(..., ge=1)
     occurred_at: datetime
-    event_type: models.AttendanceEventType
     paired_occurred_at: datetime | None = None
 
     @field_validator("occurred_at", "paired_occurred_at")
@@ -268,7 +266,6 @@ def _event_payload(event: models.AttendanceEvent) -> dict[str, Any]:
         "id": event.id,
         "employment_id": event.employment_id,
         "occurred_at": prague_now(event.occurred_at).isoformat(),
-        "event_type": event.event_type.value,
         "timezone": TIMEZONE,
         "last_changed_at": utc_isoformat(event.updated_at),
     }
@@ -445,13 +442,11 @@ def create_attendance_event(
     )
     before_intervals = interval_signatures(existing_events)
     event = models.AttendanceEvent(
-        employment_id=employment.id, occurred_at=payload.occurred_at, event_type=payload.event_type
+        employment_id=employment.id, occurred_at=payload.occurred_at
     )
     inserted_count = 1
     try:
         if paired_local is not None:
-            if payload.event_type != models.AttendanceEventType.IN:
-                raise ValueError("Párové vložení musí začínat příchodem.")
             additions = add_closed_interval_with_breaks(
                 db,
                 employment=employment,
@@ -482,13 +477,6 @@ def create_attendance_event(
             )
         ).scalars()
     )
-    if not has_strict_event_sequence(after_events):
-        db.rollback()
-        raise_integration_error(
-            status.HTTP_409_CONFLICT,
-            "attendance_event_alternation_conflict",
-            "Průchody musí střídat příchod a odchod.",
-        )
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(after_events),

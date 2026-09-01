@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Attendance, AttendanceEvent, AttendanceEventType, ShiftPlan
+from app.db.models import Attendance, AttendanceEvent, ShiftPlan
 from app.services.prague_time import prague_now
 from app.services.time_intervals import WorkInterval, pair_events, split_by_day
 
@@ -16,21 +16,6 @@ IntervalSignature = tuple[datetime, datetime]
 
 def interval_signatures(events: list[AttendanceEvent]) -> set[IntervalSignature]:
     return {(interval.start, interval.end) for interval in pair_events(events)}
-
-
-def has_strict_event_sequence(events: list[AttendanceEvent]) -> bool:
-    """Validate alternating write types and same-day closed pairs."""
-    ordered = sorted(events, key=lambda item: (prague_now(item.occurred_at), item.id))
-    alternates = all(
-        event.event_type == (AttendanceEventType.IN if index % 2 == 0 else AttendanceEventType.OUT)
-        for index, event in enumerate(ordered)
-    )
-    same_day_pairs = all(
-        prague_now(ordered[index].occurred_at).date()
-        == prague_now(ordered[index + 1].occurred_at).date()
-        for index in range(0, len(ordered) - 1, 2)
-    )
-    return alternates and same_day_pairs
 
 
 def changed_event_days(

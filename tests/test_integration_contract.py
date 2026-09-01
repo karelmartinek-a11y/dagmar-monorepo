@@ -19,7 +19,6 @@ from app.api.v1.integration import INTEGRATION_SCOPE_ROUTES, router
 from app.config import Settings, get_settings
 from app.db.models import (
     AttendanceEvent,
-    AttendanceEventType,
     Base,
     Employment,
     EmploymentType,
@@ -143,7 +142,6 @@ def integration_fixture(monkeypatch: pytest.MonkeyPatch) -> IntegrationFixture:
             AttendanceEvent(
                 employment_id=employment.id,
                 occurred_at=occurred_at,
-                event_type=AttendanceEventType.IN,
             )
             for employment in employments.values()
         )
@@ -314,7 +312,6 @@ def test_scope_is_applied_to_events_locks_and_direct_write_ids(
         json={
             "employment_id": ids["other"],
             "occurred_at": "2026-08-11T10:00:00+02:00",
-            "event_type": "OUT",
         },
     )
     assert denied.status_code == 403
@@ -349,7 +346,6 @@ def test_scope_is_applied_to_events_locks_and_direct_write_ids(
         json={
             "employment_id": ids["inactive_employment"],
             "occurred_at": "2026-08-11T10:00:00+02:00",
-            "event_type": "OUT",
         },
     )
     assert inactive.status_code == 404
@@ -478,7 +474,6 @@ def test_each_active_route_enforces_its_declared_scope(
             {
                 "employment_id": fixture.employment_ids["active"],
                 "occurred_at": "2026-08-11T10:00:00+02:00",
-                "event_type": "OUT",
             }
             if method == "POST"
             else {"occurred_at": "2026-08-11T10:00:00+02:00"}
@@ -494,15 +489,15 @@ def test_protected_openapi_exposes_exact_active_contract(
     integration_fixture: IntegrationFixture,
 ) -> None:
     fixture = integration_fixture
-    fixture.settings.integration_contract_version = "2026-08-11"
+    fixture.settings.integration_contract_version = "2026-09-01"
     health = fixture.client.get("/api/v1/integration/health", headers=fixture.headers)
     assert health.status_code == 200
-    assert health.json()["contract_version"] == "2026-08-11"
+    assert health.json()["contract_version"] == "2026-09-01"
 
     response = fixture.client.get("/api/v1/integration/openapi.json", headers=fixture.headers)
     assert response.status_code == 200
     payload = response.json()
-    assert payload["info"]["version"] == "2026-08-11"
+    assert payload["info"]["version"] == "2026-09-01"
     expected_paths = {
         path for mappings in INTEGRATION_SCOPE_ROUTES.values() for _method, path in mappings
     }

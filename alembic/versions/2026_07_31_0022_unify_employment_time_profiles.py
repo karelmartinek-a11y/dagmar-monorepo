@@ -5,7 +5,7 @@ existing database.  The application schema after this revision has no legacy
 attendance columns or instance-level employment profile.
 """
 
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
@@ -33,7 +33,6 @@ def upgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
         sa.Enum("WORK_CONTRACT", "DPP_DPC", "TASK_SHIFT_BASED", "EXTERNAL_HOURLY", name="employment_type").create(bind, checkfirst=True)
-        sa.Enum("IN", "OUT", name="attendance_event_type").create(bind, checkfirst=True)
         sa.Enum("ATTENDANCE", "SHIFT_PLAN", name="daily_metric_source").create(bind, checkfirst=True)
 
     op.add_column("employments", sa.Column("workload_fraction", sa.Numeric(4, 3), nullable=True))
@@ -56,11 +55,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("employment_id", sa.Integer(), sa.ForeignKey("employments.id", ondelete="CASCADE"), nullable=False),
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("event_type", postgresql.ENUM("IN", "OUT", name="attendance_event_type", create_type=False) if bind.dialect.name == "postgresql" else sa.String(3), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint("employment_id", "occurred_at", name="uq_attendance_event_employment_timestamp"),
-        sa.CheckConstraint("event_type IN ('IN', 'OUT')", name="ck_attendance_event_type"),
     )
     op.create_index("ix_attendance_events_employment_occurred_id", "attendance_events", ["employment_id", "occurred_at", "id"])
     rows = bind.execute(sa.text("SELECT employment_id, date, arrival_time, departure_time, arrival_time_2, departure_time_2 FROM attendance WHERE arrival_time IS NOT NULL OR departure_time IS NOT NULL OR arrival_time_2 IS NOT NULL OR departure_time_2 IS NOT NULL")).mappings()
@@ -70,20 +67,26 @@ def upgrade() -> None:
             if start is None and end is None:
                 continue
             if start is None:
-                raise RuntimeError(f"Attendance {row['employment_id']}/{row['date']} has an OUT without an IN")
+                raise RuntimeError(
+                    f"Attendance {row['employment_id']}/{row['date']} has an end without a start"
+                )
             start_at = _at(row["date"], start)
-            while previous is not None and start_at <= previous:
-                start_at += timedelta(days=1)
+            if previous is not None and start_at <= previous:
+                raise RuntimeError(
+                    f"Attendance {row['employment_id']}/{row['date']} cannot be ordered in one day"
+                )
             if end is not None:
                 end_at = _at(row["date"], end)
-                while end_at <= start_at:
-                    end_at += timedelta(days=1)
+                if end_at <= start_at:
+                    raise RuntimeError(
+                        f"Attendance {row['employment_id']}/{row['date']} must end on the same day"
+                    )
                 if previous is not None and end_at <= previous:
                     raise RuntimeError(f"Attendance {row['employment_id']}/{row['date']} cannot be ordered")
-                bind.execute(sa.text("INSERT INTO attendance_events (employment_id, occurred_at, event_type) VALUES (:employment_id, :occurred_at, 'IN'), (:employment_id, :ended_at, 'OUT')"), {"employment_id": row["employment_id"], "occurred_at": start_at, "ended_at": end_at})
+                bind.execute(sa.text("INSERT INTO attendance_events (employment_id, occurred_at) VALUES (:employment_id, :occurred_at), (:employment_id, :ended_at)"), {"employment_id": row["employment_id"], "occurred_at": start_at, "ended_at": end_at})
                 previous = end_at
             else:
-                bind.execute(sa.text("INSERT INTO attendance_events (employment_id, occurred_at, event_type) VALUES (:employment_id, :occurred_at, 'IN')"), {"employment_id": row["employment_id"], "occurred_at": start_at})
+                bind.execute(sa.text("INSERT INTO attendance_events (employment_id, occurred_at) VALUES (:employment_id, :occurred_at)"), {"employment_id": row["employment_id"], "occurred_at": start_at})
                 previous = start_at
 
     op.drop_column("attendance", "arrival_time")

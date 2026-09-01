@@ -20,7 +20,7 @@ Tento jediný dokument je kanonický normativní zdroj pravdy pro úplný požad
 1. **Rekonstruovaný baseline** popisuje skutečně nalezené architektonické, datové, bezpečnostní a funkční chování na auditovaném commitu. Baseline je důkaz původu a ochrana proti ztrátě existujících funkcí.
 2. **Kanonický cílový stav** je výsledný program, který má být implementován. Obsahuje celý baseline, pokud jej tento dokument výslovně nenahrazuje, a současně obsahuje schválené změny tabulkového UI, přímé editace, označení `PRŮCHOD`, responzivity, tisků a design gate.
 
-Kde se baseline a cílový stav liší, cílový stav je normativní. Rozdíl se nesmí vyřešit zachováním paralelního starého řešení. Kde tento dokument změnu výslovně neurčuje, musí zůstat chování baseline zachováno. Interní doménové názvy `IN` a `OUT` zůstávají strojovým datovým kontraktem; jejich zobrazení člověku je zakázáno pravidly `PRŮCHOD`.
+Kde se baseline a cílový stav liší, cílový stav je normativní. Rozdíl se nesmí vyřešit zachováním paralelního starého řešení. Kde tento dokument změnu výslovně neurčuje, musí zůstat chování baseline zachováno. Docházkový event nemá směrový typ a ve všech vrstvách je neutrálním `PRŮCHOD` časem.
 
 Po přijetí tohoto dokumentu do repozitáře platí:
 
@@ -89,7 +89,7 @@ Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/`
 
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`;
 - existují pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; všechna časová nastavení patří konkrétnímu `Employment`;
-- docházka je neomezená posloupnost chronologických časů; intervaly pro metriky se párují po dvojicích od prvního času každého lokálního dne, nikdy přes půlnoc, zatímco interní směrový typ slouží pouze k validaci nových zápisů a round-tripu;
+- docházka je neomezená posloupnost chronologických časů bez směrového typu; intervaly pro metriky se párují po dvojicích od prvního času každého lokálního dne a nikdy přes půlnoc;
 - žádný nový UI layout, kompaktní matice, tisk ani export nesmí neomezenou posloupnost eventů redukovat, přepisovat na pevný počet databázových polí nebo zahazovat skryté eventy;
 - backend je jedinou autoritou časové matematiky; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíční součty vznikají součtem denních desetin;
 - backend synchronizuje `EmploymentDailyTimeMetric` po změně eventu, plánu nebo profilu jako provozní cache; všechny čtecí endpointy a reporty vždy přepočítají hodnoty z aktuálních denních zdrojových faktů, takže cache nesmí ovlivnit zobrazené součty;
@@ -234,7 +234,7 @@ Konfigurace se načítá z `/etc/dagmar/backend.env`; již nastavené procesní 
 | `DAGMAR_FORWARDED_ALLOW_IPS` | `127.0.0.1` | důvěryhodné proxy adresy pro Uvicorn |
 | `DAGMAR_LOG_LEVEL` | `INFO` v app configu, `info` v Gunicornu | logování |
 | `DAGMAR_DISABLE_DOCS` | `true` | FastAPI docs |
-| `DAGMAR_INTEGRATION_CONTRACT_VERSION` | `2026-08-11` | integrační kontrakt |
+| `DAGMAR_INTEGRATION_CONTRACT_VERSION` | `2026-09-01` | integrační kontrakt |
 | `DAGMAR_EXTERNAL_AUTH_TRANSACTION_TTL_SECONDS` | `600`, rozsah 120–1800 | OAuth transakce |
 | `DAGMAR_EXTERNAL_AUTH_RESULT_TTL_SECONDS` | `120`, rozsah 30–600 | jednorázový SPA výsledek |
 | `DAGMAR_EXTERNAL_AUTH_HTTP_TIMEOUT_SECONDS` | `10`, rozsah 2–30 | provider HTTP |
@@ -366,7 +366,7 @@ Následující seznam je uzavřený inventář aktivních SQLAlchemy entit audit
 | `integration_client_secrets` | integer | client FK CASCADE, hash, prefix, last4, fingerprint, issued/rotated/revoked | nejvýše jeden aktivně používaný secret; plaintext pouze jednorázově |
 | `integration_audit_log` | integer | client SET NULL, request ID/time, method/path/query hash/source/user agent, status/error/row count/duration/operation, optional employment/date/before/after | append-only audit každého integračního požadavku |
 
-Databázová schémata enumů mají stabilní názvy `instance_status`, `employment_type`, `attendance_event_type`, `daily_metric_source`, `client_type` a `portal_user_role`. Číselné minutové/metrické hodnoty se ukládají jako integer; velikost úvazku jako `NUMERIC(4,3)`. Všechny vlastnící FK na `employment_id` používají CASCADE, původní zařízení/instance se smí při odstranění odpojit přes SET NULL. Alembic je jediný produkční mechanismus změny této mapy.
+Databázová schémata enumů mají stabilní názvy `instance_status`, `employment_type`, `daily_metric_source`, `client_type` a `portal_user_role`. Číselné minutové/metrické hodnoty se ukládají jako integer; velikost úvazku jako `NUMERIC(4,3)`. Všechny vlastnící FK na `employment_id` používají CASCADE, původní zařízení/instance se smí při odstranění odpojit přes SET NULL. Alembic je jediný produkční mechanismus změny této mapy.
 
 ### Instance zařízení
 
@@ -428,16 +428,16 @@ Povinné kombinace:
 
 `Attendance` je denní nosič celodenního attendance statusu; skutečné časy jsou výhradně `AttendanceEvent`:
 
-- event obsahuje pouze `employment_id`, timezone-aware `occurred_at`, interní typ `IN` nebo `OUT` a timestamps; `AttendanceEvent` na auditovaném SHA nemá `instance_id` ani jinou přímou evidenci původního zařízení;
+- event obsahuje pouze `employment_id`, timezone-aware `occurred_at` a timestamps; `AttendanceEvent` nemá směrový typ, `instance_id` ani jinou přímou evidenci původního zařízení;
 - kombinace `(employment_id, occurred_at)` je unikátní;
 - neexistuje pevný maximální počet eventů za den;
-- nová historie musí začínat `IN`, dále se striktně střídat a smí končit jedním otevřeným `IN`;
-- stará importovaná historie smí obsahovat orphan, otevřený event nebo chybný interní směr; zůstává viditelná a metriky párují časy od prvního času každého lokálního dne bez použití směru, takže orphan neposune žádný další den;
+- každý den se vyhodnocuje samostatně čistě podle chronologického pořadí časů;
+- stará importovaná historie smí obsahovat lichý poslední čas; zůstává viditelný a neposune párování žádného dalšího dne;
 - lichý poslední čas dne zůstává viditelný jako neúplný a nezapočítá se; následující den vždy začíná nové párování;
 - uzavřený interval nesmí překročit půlnoc;
-- párové vytvoření přijímá začátek a konec, vždy začíná interním `IN` a může atomicky vložit fyzické pauzy;
-- měsíční payload vypočítá `deletion_partner_id` jako doporučený sousední pár: `IN` s následujícím `OUT`, případně vnitrodenní pauza `OUT` s následujícím `IN`. Delete endpoint však technicky přijme libovolné jiné ID stejného úvazku a bezpečnost vynucuje validací celé zbývající posloupnosti, nikoli rovností s tímto hintem; UI musí používat pouze serverem dodaný partner;
-- párové odstranění musí být atomické a znovu validovat zbývající celou posloupnost;
+- párové vytvoření přijímá začátek a pozdější konec stejného dne a může atomicky vložit fyzické pauzy;
+- měsíční payload vypočítá `deletion_partner_id` jako doporučený bezprostředně následující čas ve stejném dni; UI používá pouze serverem dodaný partner;
+- párové odstranění musí být atomické;
 - zaměstnanec nesmí vytvářet ani posouvat průchod do budoucnosti; admin a integrační API respektují vlastní kontrakt, ale vždy období, stavy, zámky a chronologii;
 - změna `employment_id` nebo interního typu existujícího eventu není dovolena běžnou update mutací.
 
@@ -542,7 +542,7 @@ Toto pořadí je závazné pro UI, tisk, CSV, ZIP, PDF i integrační payload, k
 
 - po nejvýše 360 minutách práce není povinná pauza;
 - delší hrubý interval se segmentuje na pracovní bloky nejvýše 360 minut a mezi ně se vkládají fyzické 30minutové pauzy;
-- pauza je dvojice interních eventů `OUT` a `IN`, nikoli odečet z metriky;
+- pauza je dvojice chronologických časových hranic, nikoli odečet z metriky;
 - při uzavření nového intervalu se vloží automaticky jen pokud to profil povoluje;
 - běžné profilové zapnutí není retroaktivní;
 - adminská potvrzená akce „Přidej pauzy“ analyzuje historické uzavřené sessions, započte už existující mezery/pauzy, doplní pouze chybějící minuty, je idempotentní a nemá hromadné undo;
@@ -557,8 +557,8 @@ Reminder worker:
 - v PostgreSQL používá advisory lock `248613`, aby více workerů neposílalo duplicity;
 - čte SMTP konfiguraci z `AppSettings`;
 - pro plánovaný příchod bez dnešního eventu začíná 5 minut po plánovaném čase a posílá maximálně 5 pokusů po 10 minutách;
-- pro dnešní den začne 2 hodiny po plánovaném konci posílat maximálně 5 pokusů po 10 minutách pouze tehdy, pokud existuje alespoň jeden dnešní interní `IN` a současně žádný dnešní `OUT`; nekontroluje poslední event jako obecnou otevřenou posloupnost;
-- pro včerejšek začne dnes v 08:00 posílat maximálně 5 pokusů po 10 minutách pouze tehdy, pokud včerejší kalendářní den obsahuje alespoň jeden `IN` a žádný `OUT`; eventy jsou seskupeny podle data vlastního timestampu, nikoli podle spárovaného intervalu;
+- pro dnešní den začne 2 hodiny po plánovaném konci posílat maximálně 5 pokusů po 10 minutách pouze tehdy, pokud dnešní den obsahuje lichý počet časů;
+- pro včerejšek začne dnes v 08:00 posílat maximálně 5 pokusů po 10 minutách pouze tehdy, pokud včerejší kalendářní den obsahuje lichý počet časů; eventy jsou seskupeny podle data vlastního timestampu;
 - každý pokus je unikátní podle `employment_id`, dne, typu reminderu a sequence number;
 - evidence obsahuje cílový e-mail a čas odeslání;
 - chyba workeru se zaloguje a nesmí shodit webový backend;
@@ -664,7 +664,7 @@ Migrace `2026_08_11_0025` zneplatní nedoložitelně doručené starší reset t
 
 ### Kanonické doménové DTO
 
-Tyto struktury definují minimální význam polí napříč backendem a frontendem. Interní `event_type` je nutný pro round-trip a chronologickou validaci, ale nesmí se převést na lidský label.
+Tyto struktury definují minimální význam polí napříč backendem a frontendem.
 
 ```text
 Metric = { minutes:int, tenths:int, hours:number, clock:string }
@@ -686,13 +686,12 @@ Employment = {
 Aktivní úvazek je definován výhradně překryvem svého `start_date`/`end_date` s aktuálním dnem nebo vybraným měsícem; samostatný ruční příznak aktivity ani jeho checkbox nejsou součástí aktivního kontraktu.
 AttendanceEvent = {
   id:int, employment_id:int, occurred_at:ISO-timestamp,
-  event_type:IN|OUT, deletion_partner_id?:int|null
+  deletion_partner_id?:int|null
 }
 AttendanceDay = {
   date, events:AttendanceEvent[],
   attendance_status?, effective_status?,
   planned_arrival_time?, planned_departure_time?, planned_status?,
-  next_event_type:IN|OUT,
   calendar_tone:holiday|weekend|work,
   public_holiday_label?, is_within_employment_period:bool,
   worked:TimeMetrics|null, planned:TimeMetrics|null,
@@ -729,11 +728,10 @@ Zaměstnanecké mutace:
 CreateAttendanceEvent = {
   employment_id:int,
   occurred_at:timestamp,
-  event_type:IN|OUT,
   paired_occurred_at?:timestamp|null
 }
 PortalOrAdminUpdateAttendanceEvent = {
-  employment_id:int, occurred_at:timestamp, event_type:IN|OUT,
+  employment_id:int, occurred_at:timestamp,
   paired_occurred_at:null
 }
 IntegrationPatchAttendanceEvent = { occurred_at:timezone-aware timestamp }
@@ -750,7 +748,7 @@ ShiftPlanUpsert = {
 }
 ```
 
-Portal a admin create/update přijímají stejný plný event payload. Při update musí `employment_id` a `event_type` přesně odpovídat existujícímu eventu a `paired_occurred_at` musí být `null`; mění se jen timestamp. Portal/admin naive timestamp interpretují jako `Europe/Prague`. Integration PATCH naproti tomu přijímá pouze timezone-aware `occurred_at`. Paired create může začít pouze interním `IN`, konec musí být později a po přidání včetně automatických pauz musí celá historie zůstat striktní.
+Portal a admin create/update přijímají stejný event payload. Při update musí `employment_id` přesně odpovídat existujícímu eventu a `paired_occurred_at` musí být `null`; mění se jen timestamp. Portal/admin naive timestamp interpretují jako `Europe/Prague`. Integration PATCH naproti tomu přijímá pouze timezone-aware `occurred_at`. Paired create vyžaduje pozdější konec ve stejném kalendářním dni.
 
 Skupinový plán:
 
@@ -891,12 +889,12 @@ Vše vyžaduje `dgi_` bearer a audit:
 | GET | `/api/v1/integration/openapi.json` | `openapi:read` | OpenAPI 3.1 subset aktivních rout |
 | GET | `/api/v1/integration/employments` | `employments:read` | scoped employments a time profile |
 | GET | `/api/v1/integration/attendance-events` | `attendance:read` | scoped, date-filtered chronological list |
-| POST | `/api/v1/integration/attendance-events` | `attendance:create` | single/paired, strict full validation |
+| POST | `/api/v1/integration/attendance-events` | `attendance:create` | jeden čas nebo atomický pár ve stejném dni |
 | PATCH | `/api/v1/integration/attendance-events/{event_id}` | `attendance:update` | timestamp only |
-| DELETE | `/api/v1/integration/attendance-events/{event_id}` | `attendance:delete` | strict post-delete sequence |
+| DELETE | `/api/v1/integration/attendance-events/{event_id}` | `attendance:delete` | odstranění jednoho času nebo sousedního páru |
 | GET | `/api/v1/integration/locks` | `locks:read` | attendance/plan locks pro povolené employment IDs |
 
-Seznamové odpovědi mají `{data, pagination}`; `limit` je 1–500, výchozí 100. Opaque cursor je verzovaný a vázaný na zdroj: úvazky a zámky pokračují podle `id`, eventy podle `(occurred_at,id)`. Poškozený nebo cizí cursor vrací `invalid_cursor`. Každý event payload obsahuje interní typ, timezone `Europe/Prague` a `last_changed_at`, protože integrační API je strojový round-trip a nepodléhá zákazu lidského směrového labelu.
+Seznamové odpovědi mají `{data, pagination}`; `limit` je 1–500, výchozí 100. Opaque cursor je verzovaný a vázaný na zdroj: úvazky a zámky pokračují podle `id`, eventy podle `(occurred_at,id)`. Poškozený nebo cizí cursor vrací `invalid_cursor`. Každý event payload obsahuje čas v `Europe/Prague` a `last_changed_at`.
 
 Jediná scope služba vynucuje datový rozsah na SQL dotazech i přímých ID operacích. `ALL_EMPLOYMENTS` povoluje všechny úvazky; `ALL_ACTIVE_EMPLOYMENTS` pouze úvazky platné k aktuálnímu dni a aktivní uživatele; `SELECTED_EMPLOYEES` vyžaduje neprázdné employee IDs a respektuje include-inactive; `SELECTED_EMPLOYMENTS` vyžaduje neprázdné employment IDs. Neznámý nebo prázdný selektivní režim nepovolí nic. Zápis navíc vždy vyžaduje úvazek platný k aktuálnímu dni i uživatele.
 
@@ -1177,7 +1175,7 @@ Baseline poskytuje výběr aktivních sheets, filtr, separátní sekci úvazku, 
 - filename je bezpečný slug lidského labelu a měsíc;
 - encoding UTF-8;
 - relevance: start před koncem měsíce, end není před začátkem měsíce, osoba i úvazek aktivní;
-- cílový human exportní formát `PRŮCHOD 1..N` je níže normativní a nahrazuje baseline `pruchody` s `IN/OUT:timestamp`;
+- cílový human exportní formát `PRŮCHOD 1..N` je normativní a obsahuje jednotlivé chronologické časy;
 - status a plánové časy zůstávají exportovány neutrálně a metriky pouze podle `display_metrics`.
 
 ### Admin tisky
@@ -1194,7 +1192,7 @@ Docházka:
 
 - browser print používá stejná data jako preview;
 - cílový detail je jeden `employment_id` × měsíc × jedna A4 v níže definované kapacitní obálce; data nad obálkou nesmějí být zkrácena;
-- baseline čtyřsloupcový výpis `IN/OUT čas +N` je nahrazen čistými časy `PRŮCHOD`.
+- docházkový výpis používá čisté chronologické časy `PRŮCHOD`.
 
 Plán:
 
@@ -1261,8 +1259,8 @@ Minimální stabilní sloupce každého CSV:
 8. aktivní metriky v pořadí `display_metrics`.
 
 - každá průchodová hodnota je jen `HH:mm` nebo prázdná;
-- žádné `IN`, `OUT`, příchod, odchod ani směrový ekvivalent;
-- CSV je UTF-8 human export: skutečné sloupce mají přesné hlavičky `PRŮCHOD N`, plánové sloupce `PLÁN – PRŮCHOD N`. Žádný časový název nesmí obsahovat příchod, odchod, `IN`, `OUT`, `PŘESAH` ani směrový ekvivalent;
+- žádný směrový popisek ani ekvivalent;
+- CSV je UTF-8 human export: skutečné sloupce mají přesné hlavičky `PRŮCHOD N`, plánové sloupce `PLÁN – PRŮCHOD N`. Žádný časový název nesmí obsahovat směr ani přesah;
 - počet sloupců je v rámci jednoho CSV stabilní;
 - dny bez faktů lze vynechat stejně jako baseline, ale den s nulovou aktivní metrikou a jiným faktem se zachová;
 - CSV používá UTF-8, čárkový delimiter a standardní quoting;
@@ -1358,7 +1356,7 @@ Tyto nesoulady byly nalezeny mezi aktivními vrstvami. Pro reprodukci platí vý
 | běžné API error envelope | všechna neintegrační API selhání používají `{error:{code,message,details?,request_id}}`; integrační API zachovává vlastní verzovaný envelope | frontend používá jediný parser neintegrační obálky a interní výjimky se klientovi nevracejí |
 | public instance activation | register vytváří `PENDING`, admin list/activate provede auditovaný přechod a claim vyžaduje `ACTIVE` | aktivační odpověď nikdy neobsahuje token ani hash; token vzniká až explicitním claim/rotate flow |
 | `last_login_at` v admin users | hodnota pochází z `Instance.last_seen_at` a je nastavena už při vytvoření | prezentovat jako poslední aktivitu instance, ne auditně přesný login |
-| reminder „otevřená směna“ | worker načítá poslední event každého úvazku SQL pořadím `(occurred_at DESC,id DESC)` | reminder vznikne pouze když je poslední event `IN`; testy pokrývají více uzavřených intervalů a hranici kalendářního dne bez přeshraničního výpočtu |
+| reminder neúplného dne | worker počítá eventy samostatně pro dnešek a včerejšek | reminder vznikne pouze při lichém počtu časů příslušného dne; testy pokrývají striktní hranici kalendářního dne |
 | portal/admin event update DTO | update přijímá plný create-like payload a kontroluje immutable employment/type; integration PATCH jen timestamp | klient nesmí zjednodušit portal/admin payload na `{occurred_at}` bez kompatibilní změny API |
 | bind settings vs production Gunicorn | app Settings načte host/port, `gunicorn.conf.py` binduje pevně loopback 8101 | produkční reprodukce používá Gunicorn fakt; změna bindu vyžaduje úpravu jeho konfigurace |
 | SMTP a integration admin UI vs API | backend CRUD existuje, auditované routes jsou informační | reprodukovat API i informační UI; nevymýšlet plný editor bez schváleného scope |
@@ -1376,7 +1374,7 @@ Tato tabulka zabraňuje tomu, aby generátor slepě reprodukoval části auditov
 | Admin attendance | jedna samostatná denní tabulka na úvazek | společná hromadná matice člověk × den; úplný detail zůstává dostupný |
 | Admin plan | jedna tabulka na úvazek | společná matice člověk × den |
 | Přidávání eventu | pomocný „nový průchod/pár“ blok | přímá prázdná buňka v kanonickém řádku |
-| Viditelné směry | některé labely/aria/tisk obsahují IN/OUT/Příchod/Odchod | všude pro člověka pouze `PRŮCHOD` a čas |
+| Viditelné směry | časové eventy byly směrově popsané | ve všech vrstvách pouze `PRŮCHOD` a čas |
 | Docházkový tisk | čtyři eventy, typ před časem, overflow `+N` | všechny časy bez typu, úplně auditovatelné, jeden člověk/měsíc/A4 landscape; osm průchodů v jednotné široké předloze |
 | CSV | jeden `pruchody` string s `TYPE:timestamp` | chronologické `PRŮCHOD 1..N`, hodnoty pouze `HH:mm` |
 | Mobile | část detailů se mění na cards | tabulka zůstává tabulkou, horizontální scroll/sticky |
@@ -1403,7 +1401,7 @@ Následující scénáře jsou minimální behaviorální fingerprint systému:
 13. **Login window:** účet bez eligible úvazku se nepřihlásí, i když je osoba aktivní.
 14. **External login:** nepropojený provider subject nevytvoří účet a vrátí bezpečnou chybu.
 15. **Integration scope:** klient bez scope nebo mimo allowed employment nedostane data ani nemutuje.
-16. **CSV target:** žádný human CSV cell/header neobsahuje směrový typ; všechny průchody jsou jednotlivé chronologické `HH:mm`.
+16. **CSV target:** všechny průchody jsou jednotlivé chronologické `HH:mm`.
 17. **A4 detail:** 31 dní, maximální metriky a nejvýše osm průchodů denně se vejdou na jednu čitelnou A4 landscape; data nad schválenou kapacitou vyvolají `print_capacity_exceeded`, nikoli ztrátu hodnot.
 18. **Inline edit:** blur/Tab/Shift+Tab/Enter commit; Escape cancel; Delete+Enter po vstupu smaže; po pohybu caret maže znak.
 19. **Server acknowledgment:** zelený flash až po úspěšné odpovědi; konflikt zachová draft a nezobrazí success.
@@ -1412,9 +1410,9 @@ Následující scénáře jsou minimální behaviorální fingerprint systému:
 22. **Integration data-scope baseline:** explicitní `allowed_employment_ids` omezuje data; samotný `SELECTED_EMPLOYEES` nebo `ALL_ACTIVE_EMPLOYMENTS` bez naplněného seznamu employment IDs aktivní router neomezí.
 23. **Error envelope:** frontend zpracuje jedinou neintegrační obálku `{error:{code,message,details?,request_id}}`; integrační envelope zůstává verzovaný odděleně.
 24. **Pagination truth:** každé `has_more=true` obsahuje neprázdný `next_cursor`; cizí nebo poškozený cursor vrací `invalid_cursor`.
-25. **Update DTO compatibility:** portal/admin update odmítne změněný `employment_id`, změněný `event_type` nebo nenulový `paired_occurred_at`; integration PATCH přijme pouze timestamp.
+25. **Update DTO compatibility:** portal/admin update odmítne změněný `employment_id` nebo nenulový `paired_occurred_at`; integration PATCH přijme pouze timestamp.
 26. **Instance lifecycle:** public register vytvoří pending instanci, admin ji s CSRF aktivuje a claim teprve poté vydá rotovaný token; admin create-user vytvoří active WEB instanci přímo.
-27. **Reminder chronology:** IN–OUT–IN zůstává otevřený podle posledního eventu a stabilní tie-breaker je `id`; metriky se přesto nikdy nepárují mezi dny.
+27. **Reminder chronology:** lichý počet časů daného dne spouští připomínku neúplného dne; časy z různých dnů se nikdy nespojují.
 28. **Human plan CSV:** plánové hranice stejného dne jsou očíslované `PLÁN – PRŮCHOD N`; žádná hlavička neobsahuje směrový ekvivalent.
 29. **Lockout:** třetí chybný portal login v hodinovém okně uzamkne účet na hodinu; pátý chybný admin login v 15minutovém okně uzamkne admin identitu na 15 minut bez prodlužování dalšími pokusy. Úspěšné přihlášení příslušný stav vyčistí.
 
@@ -1453,7 +1451,7 @@ Implementátor před zahájením změn a znovu před předáním provede:
 1. vygenerování current-state manifestu a diff proti endpointům/routám v tomto dokumentu; zvlášť se ověří bootstrap auth cesty `admin/login`, `admin/csrf`, `admin/me`, `admin/logout` a `admin/forgot-password`, protože auditovaný generovaný manifest jejich auth mode klasifikoval přísněji než skutečné router dependencies;
 2. inventuru všech SQLAlchemy modelů, tabulkových názvů, enumů, FK/unique/check omezení a Alembic headu proti datovým sekcím;
 3. inventuru všech React rout, navigačních položek, modalů a tiskových ploch proti obrazovkové specifikaci;
-4. hledání produkčních výskytů `IN`, `OUT`, `Příchod`, `Odchod` a lokalizovaných směrových ekvivalentů; interní strojové výskyty se whitelistují, human výskyty jsou blocker;
+4. hledání produkčních směrových polí, popisků a lokalizovaných ekvivalentů; jakýkoli výskyt je blocker;
 5. hledání všech časových inputů mimo sdílený `ClockInput`; každý je blocker nebo explicitně zdůvodněný ne-docházkový input;
 6. hledání cards/side/modal add editorů nahrazeného docházkového layoutu;
 7. mapování každého API write na lock, period, activity recheck, status conflict a metric sync;
@@ -1483,13 +1481,13 @@ Dialog nebo potvrzení je povolené pouze pro skutečně destruktivní, konflikt
 
 Tento kontrakt je blokující a platí bez výjimky pro všechna zaměstnanecká a administrátorská UI, mobilní, tabletové a desktopové varianty, skupinové a hromadné matice, tiskové náhledy, PDF a fyzické tisky a lidsky čitelné CSV/ZIP exporty:
 
-- žádný lidsky čitelný výstup nesmí zobrazit text, zkratku, ikonu, šipku, prefix, suffix ani jinou značku vyjadřující směr eventu; zakázané jsou zejména viditelné hodnoty nebo popisky `IN`, `OUT`, `Příchod`, `Odchod` a jejich jazykové ekvivalenty;
+- žádný výstup nesmí zobrazit text, zkratku, ikonu, šipku, prefix, suffix ani jinou značku vyjadřující směr eventu;
 - každý viditelný časový sloupec nebo pole má neutrální záhlaví `PRŮCHOD`; v ostatních jazycích se použije jediný lokalizovaný neutrální ekvivalent téhož pojmu, nikdy dvojice významově rozlišující vstup a výstup;
 - pokud médium vyžaduje rozlišení více sloupců, používá se pouze pořadí, například accessible name nebo CSV hlavička `PRŮCHOD 1`, `PRŮCHOD 2`, `PRŮCHOD 3`; viditelný UI a tiskový nadpis může opakovat samotné `PRŮCHOD`;
 - obsah časové buňky, tiskového pole a exportní hodnoty je pouze kanonický čas `HH:mm`, případně prázdná hodnota; nesmí obsahovat směr, typ eventu ani vysvětlující text;
 - význam a párování eventů určuje výhradně jejich chronologické pořadí a interní doménový kontrakt, nikoli lidsky zobrazená značka;
 - interní backendové a databázové typy eventů se tímto pravidlem neruší, ale nesmějí prosáknout do lidského UI, tisku, PDF ani CSV/ZIP exportu;
-- integrační API je strojový kontrakt, nikoli lidský export. Smí zachovat interní typ eventu nutný pro bezpečný round-trip, avšak nesmí být použito jako zdroj viditelných `IN`/`OUT` popisků v aplikaci nebo reportech.
+- integrační API přenáší stejné neutrální chronologické eventy jako ostatní aplikační API.
 
 Porušení kteréhokoli bodu je blocker pro merge i deploy.
 
@@ -1502,7 +1500,7 @@ V detailu docházky nebo plánu služeb jednoho `employment_id` platí na deskto
 - základní pořadí sloupců je `Datum`, `Den`, časové eventy nebo plánované časy, celodenní stav a denní metriky podle `display_metrics`;
 - standardní časová část rezervuje nejméně čtyři po sobě jdoucí sloupce s viditelným záhlavím `PRŮCHOD`; jejich chronologické pořadí je interně a pro přístupnost číslováno 1 až N;
 - počet časových sloupců je jednotný pro celou právě zobrazenou měsíční tabulku: `max(4, nejvyšší počet eventů v jediném dni načteného měsíce)`. Každý den používá stejné pozice; pátý a další event dostane další chronologický sloupec `PRŮCHOD`. Řádek zůstává jediný a tabulka používá horizontální posun;
-- obsazená buňka je vždy svázána se stabilním event ID. Z prázdných chronologických pozic je pro vytvoření aktivní pouze první pozice bezprostředně za posledním eventem; pozdější mezery jsou disabled, aby nevznikala nejednoznačná posloupnost. Backendové `next_event_type` určuje interní typ nového eventu, ale UI jej člověku nezobrazuje;
+- obsazená buňka je vždy svázána se stabilním event ID. Z prázdných chronologických pozic je pro vytvoření aktivní pouze první pozice bezprostředně za posledním eventem; pozdější mezery jsou disabled, aby nevznikala nejednoznačná posloupnost;
 - v plánovém detailu se stejná čtyřsloupcová geometrie zachová, ale model perzistuje nejvýše jeden interval uvnitř daného dne. Jeho dvě hranice obsadí první dvě pozice a zbývající buňky jsou prázdné a read-only;
 - editace stávající buňky mění pouze timestamp příslušného event ID. Vytvoření nebo smazání se nesmí simulovat přepsáním jiného eventu;
 - celodenní stav je zobrazen kompaktně v témže řádku a nesmí rozbít jeho jednotnou výšku;
@@ -1721,7 +1719,7 @@ Následující matice je normativní inventář. Implementátor nesmí rozhodova
 | Administrátor – hromadný plán | plán | jeden `employment_id` = jeden řádek, jeden den = jeden sloupec, dvě časové buňky nad sebou | přímo v buňkách | podle admin oprávnění a plánového zámku | beze ztráty plánů a metrik |
 | Tiskový náhled docházky | docházka | jeden den = jeden řádek | bez editace | zobrazuje potvrzená data | jeden `employment_id` + jeden měsíc = jedna A4 v definované kapacitní obálce; mimo ni explicitní `print_capacity_exceeded` |
 | Tiskový náhled plánu | plán | jeden den = jeden řádek | bez editace | zobrazuje potvrzená data | jeden `employment_id` + jeden měsíc = jedna A4 v definované kapacitní obálce; mimo ni explicitní `print_capacity_exceeded` |
-| CSV/ZIP lidský export | docházka / plán | chronologické sloupce `PRŮCHOD 1..N`; hodnoty pouze `HH:mm`, bez směru nebo typu | bez UI editace | stávající scope a filtry | nesmí být datově redukován a nesmí obsahovat `IN`/`OUT`, příchod/odchod ani jejich ekvivalenty |
+| CSV/ZIP lidský export | docházka / plán | chronologické sloupce `PRŮCHOD 1..N`; hodnoty pouze `HH:mm`, bez směru nebo typu | bez UI editace | stávající scope a filtry | nesmí být datově redukován ani obsahovat směrový ekvivalent |
 | Integrační API | docházka / plán | strojový kontrakt, nikoli lidské zobrazení | bez UI editace | stávající scope a filtry | zachovává interní typy nutné pro round-trip; nesmí určovat viditelné popisky UI, tisku nebo lidského exportu |
 
 Pro každou řádku matice musí existovat konkrétní implementace a odpovídající ověření. Neexistence testu nebo screenshotu pro některou řádku znamená neuzavřenou změnu.
@@ -1730,16 +1728,16 @@ Pro každou řádku matice musí existovat konkrétní implementace a odpovídaj
 
 Aby implementátor nemusel dělat produktová rozhodnutí, platí:
 
-1. Datový model zůstává neomezenou chronologickou posloupností interních `IN`/`OUT`; prezentační vrstva nikdy den nepřepisuje na čtyři databázová pole.
+1. Datový model zůstává neomezenou chronologickou posloupností časů bez směrového typu; prezentační vrstva nikdy den nepřepisuje na čtyři databázová pole.
 2. Měsíční detail vypočte jediný table-wide počet průchodových sloupců `max(4, max(event_count_per_day))`. Všechny denní řádky mají stejné sloupce a obsazené hodnoty jsou chronologicky zleva doprava.
-3. Každá obsazená buňka drží stabilní event ID. Pro append je editovatelná pouze první prázdná pozice za posledním eventem; další prázdné pozice jsou disabled. Interní typ nového eventu dodá backendové `next_event_type`, ale nesmí se zobrazit člověku.
-4. Editace existující buňky mění pouze timestamp jejího event ID. Pokud změna poruší chronologii, alternaci, období, status nebo zámek, server ji atomicky odmítne a UI zachová draft.
+3. Každá obsazená buňka drží stabilní event ID. Pro append je editovatelná pouze první prázdná pozice za posledním eventem; další prázdné pozice jsou disabled.
+4. Editace existující buňky mění pouze timestamp jejího event ID. Pokud změna poruší unikátnost času, období, status nebo zámek, server ji atomicky odmítne a UI zachová draft.
 5. Hromadná a skupinová matice má dvě buňky: nahoře první a dole poslední chronologický event dne. Při jediném eventu je čas pouze nahoře; při nule jsou obě prázdné. Indikátor mezilehlých eventů je `+max(0,count-2)` a není směrovou značkou.
 6. Editace horní/dolní matice mění jen příslušný krajní event ID. Mezilehlé eventy se nesmějí posunout, přepsat ani smazat. Úplná editace je dostupná navigací do kanonického detailu, nikoli alternativním editorem.
 7. Plán má dvě chronologické hranice stejného dne bez směrových labelů a mapuje je po pořadí do `PRŮCHOD` pozic.
 8. Lidské CSV/ZIP exporty jsou úplnou bezeztrátovou reprezentací: počet sloupců `PRŮCHOD 1..N` odpovídá maximu eventů v exportované množině a hodnoty jsou pouze `HH:mm` nebo prázdné.
 9. Detailní tisk je úplný v definované A4 kapacitní obálce. Nad ní nesmí dojít k tichému zkrácení; aktivuje se explicitní `print_capacity_exceeded` a úplný CSV/ZIP výstup.
-10. Interní typy zůstávají zachované v databázi, aplikačních DTO a integračním API pro round-trip a validaci, ale jsou zakázaným lidským prezentačním údajem.
+10. Databáze, aplikační DTO i integrační API přenášejí pouze chronologický čas průchodu a jeho stabilní ID.
 
 ## Implementační pracovní balíky v závazném pořadí
 
@@ -1780,7 +1778,7 @@ Implementátor postupuje v následujícím pořadí. Přeskakování balíku je 
 
 - sjednotit tiskový a lidský exportní datový kontrakt s interaktivním detailem;
 - vytvořit deterministické šířky sloupců, tiskové CSS a jednoznačné chronologické CSV/ZIP hlavičky `PRŮCHOD 1..N`;
-- odstranit ze všech UI, tisků, PDF a lidských exportů viditelné `IN`, `OUT`, příchod, odchod, směrové ikony, šipky a jiné směrové kódy;
+- odstranit ze všech vrstev směrové typy, popisky, ikony, šipky a jiné směrové kódy;
 - ověřit docházku i plán pro 28, 29, 30 a 31 dní, maximální aktivní metriky, dlouhá jména, dlouhý název úvazku, všechny relevantní jazyky a nula až osm průchodů denně;
 - v této kapacitní obálce musí být jeden úvazek / jeden měsíc přesně jedna A4 landscape bez druhé stránky; zvláštní fixture s devíti eventy musí prokázat deterministický `print_capacity_exceeded` bez ztráty dat;
 - CSV/ZIP vzorky musí prokázat, že všechny časové hlavičky jsou `PRŮCHOD 1..N` a všechny neprázdné hodnoty jsou pouze `HH:mm`.
@@ -1809,7 +1807,7 @@ Implementátor nesmí bez změny tohoto SSOT:
 - uložit změnu pouze lokálně a synchronizovat ji později bez viditelného chybového stavu;
 - zobrazit zelený úspěch před potvrzením backendu;
 - skrýt další eventy bez možnosti jejich úplného zobrazení a editace v detailu nebo vytvořit lossy/nečitelný tisk místo explicitního překročení kapacity;
-- zobrazit v jakémkoli lidském UI, tiskovém výstupu, PDF nebo CSV/ZIP exportu `IN`, `OUT`, `Příchod`, `Odchod`, jejich překlady, směrové ikony, šipky, barvy nebo jiné kódy určující směr eventu;
+- zobrazit v jakémkoli UI, tiskovém výstupu, PDF nebo CSV/ZIP exportu směrový popisek, překlad, ikonu, šipku, barvu nebo jiný kód určující směr eventu;
 - použít pro časové pole nebo sloupec jiné viditelné označení než neutrální `PRŮCHOD` nebo jeho jediný lokalizovaný neutrální ekvivalent;
 - měnit mezilehlé eventy při editaci první nebo poslední buňky v matici;
 - dopočítávat metriky ve frontendu, tisku nebo exportu;
@@ -1845,7 +1843,7 @@ Změna tabulkového a tiskového modelu není pouze frontendový restyling. Mus�
 - odstraní se všechny produkční boční nebo pomocné editory času a jejich nepoužité komponenty, styly, testy, překlady a dokumentace;
 - aktualizují se backendové a frontendové kontrakty, typy, Zod schémata, testy, E2E selektory, vizuální snapshoty, tiskové styly, překlady, manifest, README a AGENTS;
 - změna nesmí zavést nový pracovní fond, bilanční porovnávání ani frontendový přepočet hodin;
-- před commitem se forenzně ověří podpora interní neomezené posloupnosti `IN`/`OUT` eventů, automatických přestávek, striktního denního oddělení intervalů, celodenních stavů, zámků, skupin úvazků, exportů a integračního API; současně se ověří, že interní typy nikde neprosákly do lidského UI, tisku, PDF nebo CSV/ZIP exportu.
+- před commitem se forenzně ověří podpora neomezené posloupnosti chronologických časů, automatických přestávek, striktního denního oddělení intervalů, celodenních stavů, zámků, skupin úvazků, exportů a integračního API; současně se ověří nepřítomnost směrových typů ve všech vrstvách.
 
 ## Povinné testy a akceptační kritéria
 
@@ -1884,7 +1882,7 @@ Musí existovat automatizované nebo auditovatelně opakovatelné kontroly alesp
 - skutečný tiskový náhled a vyrenderované PDF docházky i plánu;
 - jeden úvazek, 31denní měsíc, nejvýše osm průchodů denně a všechny aktivní metriky přesně na jedné A4 landscape; data nad osmi průchody musí vrátit `print_capacity_exceeded` bez zkráceného výstupu;
 - vizuální regresi všech výše uvedených kanonických viewportů;
-- textovou kontrolu DOM, tiskového náhledu a vyrenderovaného PDF, že se v časových polích nevyskytují `IN`, `OUT`, `Příchod`, `Odchod` ani jejich lokalizované směrové ekvivalenty;
+- textovou kontrolu DOM, tiskového náhledu a vyrenderovaného PDF, že se v časových polích nevyskytují směrové popisky ani jejich lokalizované ekvivalenty;
 - kontrolu CSV/ZIP exportu, že hlavičky časů jsou pouze `PRŮCHOD 1..N` a hodnoty pouze prázdné nebo `HH:mm`.
 
 ## Povinné kontroly
@@ -1959,7 +1957,7 @@ Tato tabulka uzavírá význam požadavků a určuje jejich normativní umístě
 | respektování oddělených zámků docházky a plánu | Scope dat; matice ploch |
 | tisk detailu: jeden člověk, jeden měsíc, jedna A4 landscape v osmi-průchodové kapacitní obálce; nad ní bez ztráty dat | Tiskové výstupy |
 | název úvazku, denní i měsíční součty v tisku | Tiskové výstupy |
-| ve všech UI, tiscích, PDF a lidských CSV/ZIP exportech pouze neutrální záhlaví `PRŮCHOD` a čas `HH:mm`, nikdy `IN`/`OUT`, příchod/odchod ani směrový ekvivalent | Povinný prezentační kontrakt PRŮCHOD; Tiskové výstupy; Deterministická reprezentace eventů; Povinné testy |
+| ve všech API, UI, tiscích, PDF a CSV/ZIP exportech pouze neutrální `PRŮCHOD` event a čas `HH:mm`, nikdy směrový ekvivalent | Povinný kontrakt PRŮCHOD; Tiskové výstupy; Deterministická reprezentace eventů; Povinné testy |
 | povinné iterace s designerem nad skutečnými rendery | Povinná iterativní design gate |
 | opakování design smyčky až do spokojenosti designera | Povinný průběh iterací |
 | bez znalosti konverzace a bez produktového rozhodování implementátora | Implementační pracovní balíky; Zakázaná rozhodnutí; Povinný předávací balík |

@@ -45,7 +45,6 @@ export const attendanceEventSchema = z.object({
   id: z.number(),
   employment_id: z.number(),
   occurred_at: z.string(),
-  event_type: z.enum(["IN", "OUT"]),
   deletion_partner_id: z.number().nullable().optional(),
 });
 export const metricKeySchema = z.enum([
@@ -63,7 +62,6 @@ export const attendanceDaySchema = z.object({
   planned_arrival_time: z.string().nullable().optional(),
   planned_departure_time: z.string().nullable().optional(),
   planned_status: z.string().nullable().optional(),
-  next_event_type: z.enum(["IN", "OUT"]),
   calendar_tone: z.enum(["holiday", "weekend", "work"]),
   public_holiday_label: z.string().nullable(),
   is_within_employment_period: z.boolean(),

@@ -68,7 +68,6 @@ def ordered_events(events: list[AttendanceEvent]) -> list[AttendanceEvent]:
 def pair_event_rows(events: list[AttendanceEvent]) -> list[tuple[AttendanceEvent, AttendanceEvent]]:
     """Pair stored times independently inside each local calendar day.
 
-    Direction is an internal write-time invariant and never a metric input.
     Each local day starts its own pairing at the first stored time, so an old
     orphan cannot shift every later interval. An odd final time is incomplete
     and never pairs with another day.
@@ -142,18 +141,18 @@ def break_segments(duration_minutes: int) -> tuple[list[int], int]:
     return segments, breaks
 
 
-def automatic_break_events(start: datetime, end: datetime) -> list[tuple[datetime, str]]:
-    """Return inserted OUT/IN pairs for a newly closed interval."""
+def automatic_break_events(start: datetime, end: datetime) -> list[datetime]:
+    """Return the two chronological boundary times for every inserted pause."""
     segments, breaks = break_segments(int((end - start).total_seconds() // 60))
     if breaks == 0:
         return []
-    result: list[tuple[datetime, str]] = []
+    result: list[datetime] = []
     cursor = start
     for segment in segments[:-1]:
         cursor += timedelta(minutes=segment)
-        result.append((cursor, "OUT"))
+        result.append(cursor)
         cursor += timedelta(minutes=30)
-        result.append((cursor, "IN"))
+        result.append(cursor)
     return result
 
 
@@ -162,8 +161,8 @@ def missing_break_event_groups(
     *,
     range_start: datetime,
     range_end: datetime,
-) -> list[list[tuple[datetime, str]]]:
-    """Return missing OUT/IN pauses while crediting already recorded pause time."""
+) -> list[list[datetime]]:
+    """Return missing pause boundaries while crediting already recorded pause time."""
     ordered = sorted(intervals, key=lambda item: (item.start, item.end))
     sessions: list[list[WorkInterval]] = []
     for interval in ordered:
@@ -172,7 +171,7 @@ def missing_break_event_groups(
         else:
             sessions[-1].append(interval)
 
-    additions: list[list[tuple[datetime, str]]] = []
+    additions: list[list[datetime]] = []
     for session in sessions:
         session_start = session[0].start
         session_end = session[-1].end
@@ -188,7 +187,7 @@ def missing_break_event_groups(
         if missing_minutes == 0:
             continue
 
-        session_additions: list[tuple[datetime, str]] = []
+        session_additions: list[datetime] = []
         remaining = missing_minutes
         for break_index in range(required_breaks):
             duration = min(30, remaining)
@@ -205,9 +204,7 @@ def missing_break_event_groups(
                         break
             if placement is None:
                 break
-            session_additions.extend(
-                [(placement, "OUT"), (placement + timedelta(minutes=duration), "IN")]
-            )
+            session_additions.extend([placement, placement + timedelta(minutes=duration)])
             remaining -= duration
         if remaining == 0:
             additions.append(session_additions)

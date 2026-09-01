@@ -63,25 +63,21 @@ describe("attendance print layout", () => {
                           id: 1,
                           employment_id: 22,
                           occurred_at: "2026-07-05T08:00:00+02:00",
-                          event_type: "IN",
                         },
                         {
                           id: 2,
                           employment_id: 22,
                           occurred_at: "2026-07-05T12:00:00+02:00",
-                          event_type: "OUT",
                         },
                         {
                           id: 3,
                           employment_id: 22,
                           occurred_at: "2026-07-05T12:30:00+02:00",
-                          event_type: "IN",
                         },
                         {
                           id: 4,
                           employment_id: 22,
                           occurred_at: "2026-07-05T19:00:00+02:00",
-                          event_type: "OUT",
                         },
                       ],
                       worked: {

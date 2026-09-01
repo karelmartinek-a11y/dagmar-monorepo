@@ -71,12 +71,12 @@ def test_revision_0021_data_survives_event_migration_to_head(
             )
             connection.execute(
                 sa.text(
-                    "INSERT INTO attendance (employment_id, date, arrival_time, departure_time, arrival_time_2, departure_time_2, status) VALUES (10, '2026-06-08', '08:00', '12:00', '12:30', '16:00', NULL), (10, '2026-07-31', '22:00', '02:00', NULL, NULL, NULL), (11, '2026-07-15', '08:00', NULL, NULL, NULL, NULL), (11, '2026-07-16', NULL, NULL, NULL, NULL, 'SICKNESS')"
+                    "INSERT INTO attendance (employment_id, date, arrival_time, departure_time, arrival_time_2, departure_time_2, status) VALUES (10, '2026-06-08', '08:00', '12:00', '12:30', '16:00', NULL), (10, '2026-07-31', '14:00', '22:00', NULL, NULL, NULL), (11, '2026-07-15', '08:00', NULL, NULL, NULL, NULL), (11, '2026-07-16', NULL, NULL, NULL, NULL, 'SICKNESS')"
                 )
             )
             connection.execute(
                 sa.text(
-                    "INSERT INTO shift_plan (employment_id, date, arrival_time, departure_time, status) VALUES (10, '2026-07-31', '22:00', '02:00', NULL), (11, '2026-07-16', NULL, NULL, 'HOLIDAY')"
+                    "INSERT INTO shift_plan (employment_id, date, arrival_time, departure_time, status) VALUES (10, '2026-07-31', '14:00', '22:00', NULL), (11, '2026-07-16', NULL, NULL, 'HOLIDAY')"
                 )
             )
             connection.execute(
@@ -219,9 +219,12 @@ def test_revision_0021_data_survives_event_migration_to_head(
             ).all()
             events = connection.execute(
                 sa.text(
-                    "SELECT employment_id, occurred_at, event_type::text FROM attendance_events ORDER BY employment_id, occurred_at"
+                    "SELECT employment_id, occurred_at FROM attendance_events ORDER BY employment_id, occurred_at"
                 )
             ).all()
+            attendance_event_columns = {
+                column["name"] for column in sa.inspect(connection).get_columns("attendance_events")
+            }
             status = connection.execute(
                 sa.text(
                     "SELECT status FROM attendance WHERE employment_id = 11 AND date = '2026-07-16'"
@@ -293,23 +296,22 @@ def test_revision_0021_data_survives_event_migration_to_head(
 
         assert employments == [(10, "WORK_CONTRACT", True, True), (11, "DPP_DPC", True, True)]
         assert compatibility_profiles == [(12, False)]
-        assert [(row[0], row[2]) for row in events] == [
-            (10, "IN"),
-            (10, "OUT"),
-            (10, "IN"),
-            (10, "OUT"),
-            (10, "IN"),
-            (10, "OUT"),
-            (11, "IN"),
-        ]
-        assert events[5][1].date().isoformat() == "2026-08-01"
+        assert [row[0] for row in events] == [10, 10, 10, 10, 10, 10, 11]
+        assert attendance_event_columns == {
+            "id",
+            "employment_id",
+            "occurred_at",
+            "created_at",
+            "updated_at",
+        }
+        assert events[5][1].date().isoformat() == "2026-07-31"
         local_times = [row[1].astimezone(ZoneInfo("Europe/Prague")) for row in events]
         assert (local_times[0].hour, local_times[0].minute) == (8, 0)
         assert (local_times[1].hour, local_times[1].minute) == (12, 0)
-        assert (local_times[4].hour, local_times[4].minute) == (22, 0)
-        assert (local_times[5].hour, local_times[5].minute) == (2, 0)
+        assert (local_times[4].hour, local_times[4].minute) == (14, 0)
+        assert (local_times[5].hour, local_times[5].minute) == (22, 0)
         assert status == "SICKNESS"
-        assert plan == ("22:00", "02:00")
+        assert plan == ("14:00", "22:00")
         assert group_members == [10, 11]
         assert attendance_lock == plan_lock == 1
         assert selections == [10, 11]

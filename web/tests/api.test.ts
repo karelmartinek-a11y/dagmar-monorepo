@@ -12,7 +12,7 @@ describe("API auth boundaries", () => {
 
   it("normalizes backend errors and request IDs", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ detail: "Konflikt dat" }), { status: 409, headers: { "content-type": "application/json", "x-request-id": "req-1" } }));
-    await expect(api.createAttendanceEvent({ employment_id: 41, occurred_at: "2026-07-01T08:00:00+02:00", event_type: "IN" })).rejects.toMatchObject({ status: 409, requestId: "req-1", conflict: true });
+    await expect(api.createAttendanceEvent({ employment_id: 41, occurred_at: "2026-07-01T08:00:00+02:00" })).rejects.toMatchObject({ status: 409, requestId: "req-1", conflict: true });
   });
 
   it("marks network failures as offline", async () => {

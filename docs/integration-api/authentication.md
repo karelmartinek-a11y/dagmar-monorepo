@@ -21,7 +21,7 @@ Server ukládá pouze hash tajné části tokenu. Chybějící, neplatný, expir
 | `attendance:delete` | `DELETE /attendance-events/{event_id}` |
 | `locks:read` | `GET /locks` |
 
-Scopes `shift_plan:read`, `punches:read` a `changes:read` nejsou v kontraktu `2026-08-11` dostupné, nelze je uložit do nového klienta a migrace `0026` je odstraňuje z existujících klientů.
+Scopes `shift_plan:read`, `punches:read` a `changes:read` nejsou v kontraktu `2026-09-01` dostupné, nelze je uložit do nového klienta a migrace `0026` je odstraňuje z existujících klientů.
 
 ## Datový rozsah
 

@@ -148,7 +148,7 @@ class Settings(BaseModel):
     # --- Logging ---
     log_level: str = Field(default="INFO")
     disable_docs: bool = Field(default=True)
-    integration_contract_version: str = Field(default="2026-08-11")
+    integration_contract_version: str = Field(default="2026-09-01")
 
     # --- Optional external sign-in (OIDC) ---
     external_auth_transaction_ttl_seconds: int = Field(default=600, ge=120, le=1800)
@@ -372,7 +372,7 @@ def get_settings(env_file: str = "/etc/dagmar/backend.env") -> Settings:
         integration_token_length=int(os.getenv("DAGMAR_INTEGRATION_TOKEN_LENGTH", "48")),
         log_level=os.getenv("DAGMAR_LOG_LEVEL", "INFO"),
         disable_docs=os.getenv("DAGMAR_DISABLE_DOCS", "true").lower() == "true",
-        integration_contract_version=os.getenv("DAGMAR_INTEGRATION_CONTRACT_VERSION", "2026-08-11"),
+        integration_contract_version=os.getenv("DAGMAR_INTEGRATION_CONTRACT_VERSION", "2026-09-01"),
         external_auth_transaction_ttl_seconds=int(
             os.getenv("DAGMAR_EXTERNAL_AUTH_TRANSACTION_TTL_SECONDS", "600")
         ),

@@ -1,20 +1,26 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
     AttendanceEvent,
-    AttendanceEventType,
+    AttendanceReminderEvent,
     Base,
     Employment,
     EmploymentType,
     PortalUser,
     PortalUserRole,
+    ShiftPlan,
 )
-from app.services.attendance_reminders import _last_events_by_employment
+from app.services.attendance_reminders import (
+    PREVIOUS_DAY_DEPARTURE_REMINDER,
+    SAME_DAY_DEPARTURE_REMINDER,
+    process_attendance_reminders,
+)
+from app.services.prague_time import PRAGUE_TIMEZONE
 
 
 def _db_with_employment() -> tuple[Session, Employment]:
@@ -34,50 +40,60 @@ def _db_with_employment() -> tuple[Session, Employment]:
     return db, employment
 
 
-def _event(db: Session, employment: Employment, value: datetime, kind: AttendanceEventType) -> None:
-    db.add(AttendanceEvent(employment_id=employment.id, occurred_at=value, event_type=kind))
+def test_reminder_uses_odd_same_day_time_count() -> None:
+    db, employment = _db_with_employment()
+    db.add_all(
+        [
+            ShiftPlan(
+                employment_id=employment.id,
+                date=date(2026, 8, 10),
+                arrival_time="08:00",
+                departure_time="18:00",
+            ),
+            AttendanceEvent(
+                employment_id=employment.id,
+                occurred_at=datetime(2026, 8, 10, 6, tzinfo=PRAGUE_TIMEZONE),
+            ),
+        ]
+    )
+    db.commit()
+    sent: list[str] = []
+
+    process_attendance_reminders(
+        db,
+        object(),  # type: ignore[arg-type]
+        now=datetime(2026, 8, 10, 20, 30, tzinfo=PRAGUE_TIMEZONE),
+        send_email=lambda _email, subject, _body: sent.append(subject),
+    )
+
+    assert sent
+    reminder_types = db.execute(select(AttendanceReminderEvent.reminder_type)).scalars().all()
+    assert reminder_types
+    assert set(reminder_types) == {SAME_DAY_DEPARTURE_REMINDER}
+
+
+def test_reminder_keeps_each_calendar_day_independent() -> None:
+    db, employment = _db_with_employment()
+    db.add_all(
+        [
+            AttendanceEvent(
+                employment_id=employment.id,
+                occurred_at=datetime(2026, 8, 9, 6, tzinfo=PRAGUE_TIMEZONE),
+            ),
+            AttendanceEvent(
+                employment_id=employment.id,
+                occurred_at=datetime(2026, 8, 10, 7, tzinfo=PRAGUE_TIMEZONE),
+            ),
+        ]
+    )
     db.commit()
 
+    process_attendance_reminders(
+        db,
+        object(),  # type: ignore[arg-type]
+        now=datetime(2026, 8, 10, 8, 30, tzinfo=PRAGUE_TIMEZONE),
+        send_email=lambda _email, _subject, _body: None,
+    )
 
-def test_latest_event_uses_full_in_out_in_chronology() -> None:
-    db, employment = _db_with_employment()
-    _event(db, employment, datetime(2026, 8, 10, 8, tzinfo=UTC), AttendanceEventType.IN)
-    _event(db, employment, datetime(2026, 8, 10, 12, tzinfo=UTC), AttendanceEventType.OUT)
-    _event(db, employment, datetime(2026, 8, 10, 13, tzinfo=UTC), AttendanceEventType.IN)
-
-    latest = _last_events_by_employment(db, [employment.id])[employment.id]
-    assert latest.event_type == AttendanceEventType.IN
-    assert latest.occurred_at.hour == 13
-
-
-def test_cross_midnight_out_closes_previous_day_shift() -> None:
-    db, employment = _db_with_employment()
-    _event(db, employment, datetime(2026, 8, 10, 21, tzinfo=UTC), AttendanceEventType.IN)
-    _event(db, employment, datetime(2026, 8, 11, 2, tzinfo=UTC), AttendanceEventType.OUT)
-
-    latest = _last_events_by_employment(db, [employment.id])[employment.id]
-    assert latest.event_type == AttendanceEventType.OUT
-
-
-def test_multiple_closed_intervals_remain_closed() -> None:
-    db, employment = _db_with_employment()
-    for hour, kind in (
-        (8, AttendanceEventType.IN),
-        (10, AttendanceEventType.OUT),
-        (11, AttendanceEventType.IN),
-        (15, AttendanceEventType.OUT),
-    ):
-        _event(db, employment, datetime(2026, 8, 10, hour, tzinfo=UTC), kind)
-
-    latest = _last_events_by_employment(db, [employment.id])[employment.id]
-    assert latest.event_type == AttendanceEventType.OUT
-
-
-def test_latest_event_query_has_stable_id_tiebreaker() -> None:
-    db, employment = _db_with_employment()
-    db.bind.echo = False
-    _event(db, employment, datetime(2026, 8, 10, 8, tzinfo=UTC), AttendanceEventType.IN)
-    latest = _last_events_by_employment(db, [employment.id])[employment.id]
-    assert latest.id > 0
-    source = __import__("inspect").getsource(_last_events_by_employment)
-    assert "occurred_at.desc(), AttendanceEvent.id.desc()" in source
+    reminder_types = db.execute(select(AttendanceReminderEvent.reminder_type)).scalars().all()
+    assert PREVIOUS_DAY_DEPARTURE_REMINDER in reminder_types

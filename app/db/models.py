@@ -42,11 +42,6 @@ class EmploymentType(StrEnum):
     EXTERNAL_HOURLY = "EXTERNAL_HOURLY"
 
 
-class AttendanceEventType(StrEnum):
-    IN = "IN"
-    OUT = "OUT"
-
-
 class DailyMetricSource(StrEnum):
     ATTENDANCE = "ATTENDANCE"
     SHIFT_PLAN = "SHIFT_PLAN"
@@ -318,9 +313,6 @@ class AttendanceEvent(Base):
         Integer, ForeignKey("employments.id", ondelete="CASCADE"), nullable=False
     )
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    event_type: Mapped[AttendanceEventType] = mapped_column(
-        Enum(AttendanceEventType, name="attendance_event_type", create_type=False), nullable=False
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -334,7 +326,6 @@ class AttendanceEvent(Base):
             "employment_id", "occurred_at", name="uq_attendance_event_employment_timestamp"
         ),
         Index("ix_attendance_events_employment_occurred_id", "employment_id", "occurred_at", "id"),
-        CheckConstraint("event_type IN ('IN', 'OUT')", name="ck_attendance_event_type"),
     )
 
 

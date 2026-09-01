@@ -24,7 +24,7 @@ Scope `attendance:read`. Parametry:
 - volitelné ISO datum `date_from` a `date_to` včetně;
 - `limit` a `cursor`.
 
-Filtry i datový rozsah se aplikují před stránkováním. Pořadí je stabilní podle `(occurred_at, id)`. Event obsahuje interní `event_type` `IN`/`OUT`, protože jde o strojový kontrakt.
+Filtry i datový rozsah se aplikují před stránkováním. Pořadí je stabilní podle `(occurred_at, id)`. Event obsahuje pouze stabilní ID, úvazek, čas, timezone a čas poslední změny.
 
 ## `POST /attendance-events`
 
@@ -34,12 +34,11 @@ Scope `attendance:create`. JSON:
 {
   "employment_id": 42,
   "occurred_at": "2026-08-11T08:00:00+02:00",
-  "event_type": "IN",
   "paired_occurred_at": "2026-08-11T16:00:00+02:00"
 }
 ```
 
-`paired_occurred_at` je volitelné atomické vložení uzavřeného intervalu a je platné pouze pro počáteční `IN`. Endpoint zachovává chronologii, zámky měsíců, celodenní stavy a přepočet dotčených metrik.
+`paired_occurred_at` je volitelné atomické vložení uzavřeného intervalu s pozdějším koncem ve stejném dni. Endpoint zachovává chronologii, zámky měsíců, celodenní stavy a přepočet dotčených metrik.
 
 ## `PATCH /attendance-events/{event_id}`
 

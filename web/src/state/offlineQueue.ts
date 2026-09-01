@@ -36,7 +36,7 @@ export async function flushOperations(allowedEmploymentIds?: ReadonlySet<number>
     }
     try {
       if (operation.kind === "attendance") {
-        await api.createAttendanceEvent(operation.payload as { employment_id: number; occurred_at: string; event_type: "IN" | "OUT" });
+        await api.createAttendanceEvent(operation.payload as { employment_id: number; occurred_at: string });
       }
       else if (operation.kind === "day-status") {
         if (operation.payload.status_scope === "attendance") await api.savePortalAttendanceStatus(operation.payload);

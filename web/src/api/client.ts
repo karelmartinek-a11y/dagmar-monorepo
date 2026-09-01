@@ -169,10 +169,10 @@ export const api = {
   attendanceEmployments: (year: number, month: number): Promise<Employment[]> => request(
     `/api/v1/attendance/employments?year=${year}&month=${month}`, {}, "portal", employmentSchema.array(),
   ),
-  createAttendanceEvent: (payload: { employment_id: number; occurred_at: string; event_type: "IN" | "OUT"; paired_occurred_at?: string }) => request<{ id: number; employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }>(
+  createAttendanceEvent: (payload: { employment_id: number; occurred_at: string; paired_occurred_at?: string }) => request<{ id: number; employment_id: number; occurred_at: string }>(
     "/api/v1/attendance/events", { method: "POST", body: JSON.stringify(payload) }, "portal",
   ),
-  updateAttendanceEvent: (eventId: number, payload: { employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }) => request<{ id: number; employment_id: number; occurred_at: string; event_type: "IN" | "OUT" }>(
+  updateAttendanceEvent: (eventId: number, payload: { employment_id: number; occurred_at: string }) => request<{ id: number; employment_id: number; occurred_at: string }>(
     `/api/v1/attendance/events/${eventId}`, { method: "PUT", body: JSON.stringify(payload) }, "portal",
   ),
   deleteAttendanceEvent: (eventId: number, pairedEventId?: number) => request<{ ok: boolean }>(

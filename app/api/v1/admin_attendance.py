@@ -12,14 +12,13 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import require_admin
 from app.api.errors import raise_api_error
 from app.api.v1.attendance import AttendanceMonthOut, _build_month
-from app.db.models import AttendanceEvent, AttendanceEventType, Employment
+from app.db.models import AttendanceEvent, Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.attendance_events import add_closed_interval_with_breaks, add_event_with_breaks
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
-    has_strict_event_sequence,
     interval_signatures,
     months_for_days,
 )
@@ -47,7 +46,6 @@ def _require_locked_active_employment(db: Session, employment: Employment) -> No
 class AdminAttendanceEventIn(BaseModel):
     employment_id: int
     occurred_at: datetime
-    event_type: AttendanceEventType
     paired_occurred_at: datetime | None = None
 
     @field_validator("occurred_at", "paired_occurred_at")
@@ -65,7 +63,6 @@ class AdminAttendanceEventOut(BaseModel):
     employment_id: int
     employment_label: str
     occurred_at: str
-    event_type: AttendanceEventType
 
 
 class AdminAttendanceEventListOut(BaseModel):
@@ -106,7 +103,6 @@ def _out(event: AttendanceEvent) -> AdminAttendanceEventOut:
         employment_id=event.employment_id,
         employment_label=f"{event.employment.user.name} — {event.employment.title}",
         occurred_at=prague_now(event.occurred_at).isoformat(),
-        event_type=event.event_type,
     )
 
 
@@ -217,14 +213,14 @@ def add_missing_breaks(
         pairs = [
             pair
             for pair in pairs
-            if all(occurred_at not in existing_times for occurred_at, _event_type in pair)
+            if all(occurred_at not in existing_times for occurred_at in pair)
         ]
         if not pairs:
             continue
         affected_intervals += 1
         inserted_pairs += len(pairs)
         for pair in pairs:
-            for occurred_at, event_type in pair:
+            for occurred_at in pair:
                 ensure_month_unlocked(
                     db,
                     lock_type=LockType.ATTENDANCE,
@@ -236,7 +232,6 @@ def add_missing_breaks(
                     AttendanceEvent(
                         employment_id=employment.id,
                         occurred_at=occurred_at,
-                        event_type=AttendanceEventType(event_type),
                     )
                 )
                 existing_times.add(occurred_at)
@@ -305,12 +300,10 @@ def create_event(
     )
     before_intervals = interval_signatures(existing_events)
     event = AttendanceEvent(
-        employment_id=employment.id, occurred_at=body.occurred_at, event_type=body.event_type
+        employment_id=employment.id, occurred_at=body.occurred_at
     )
     try:
         if paired_occurred_at is not None:
-            if body.event_type != AttendanceEventType.IN:
-                raise ValueError("Párové vložení musí začínat příchodem.")
             additions = add_closed_interval_with_breaks(
                 db,
                 employment=employment,
@@ -334,13 +327,6 @@ def create_event(
             select(AttendanceEvent).where(AttendanceEvent.employment_id == employment.id)
         ).scalars()
     )
-    if not has_strict_event_sequence(after_events):
-        db.rollback()
-        raise_api_error(
-            409,
-            "attendance_event_alternation_conflict",
-            "Průchody musí střídat příchod a odchod.",
-        )
     changed_days = changed_event_days(
         before_intervals,
         interval_signatures(after_events),
@@ -406,12 +392,6 @@ def update_event(
     event = db.get(AttendanceEvent, event_id)
     if event is None:
         raise_api_error(404, "attendance_event_not_found", "Průchod nebyl nalezen.")
-    if body.event_type != event.event_type:
-        raise_api_error(
-            400,
-            "attendance_event_type_immutable",
-            "Typ průchodu se mění smazáním a novým vytvořením.",
-        )
     if body.employment_id != event.employment_id:
         raise_api_error(
             400, "attendance_event_employment_immutable", "Průchod nelze přesunout na jiný úvazek."

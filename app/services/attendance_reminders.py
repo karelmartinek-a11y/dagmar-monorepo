@@ -6,14 +6,13 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from email.message import EmailMessage
 
-from sqlalchemy import func, select, text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import Settings
 from app.db.models import (
     AppSettings,
     AttendanceEvent,
-    AttendanceEventType,
     AttendanceReminderEvent,
     Employment,
     PortalUser,
@@ -155,34 +154,6 @@ def _release_advisory_lock(db: Session) -> None:
     db.commit()
 
 
-def _last_events_by_employment(
-    db: Session, employment_ids: list[int]
-) -> dict[int, AttendanceEvent]:
-    ranked = (
-        select(
-            AttendanceEvent.id.label("event_id"),
-            func.row_number()
-            .over(
-                partition_by=AttendanceEvent.employment_id,
-                order_by=(AttendanceEvent.occurred_at.desc(), AttendanceEvent.id.desc()),
-            )
-            .label("event_rank"),
-        )
-        .where(AttendanceEvent.employment_id.in_(employment_ids))
-        .subquery()
-    )
-    events = (
-        db.execute(
-            select(AttendanceEvent)
-            .join(ranked, ranked.c.event_id == AttendanceEvent.id)
-            .where(ranked.c.event_rank == 1)
-        )
-        .scalars()
-        .all()
-    )
-    return {event.employment_id: event for event in events}
-
-
 def process_attendance_reminders(
     db: Session,
     settings: Settings,
@@ -231,23 +202,25 @@ def process_attendance_reminders(
         .scalars()
         .all()
     )
+    yesterday_start = combine_prague(yesterday, 0, 0)
     today_start = combine_prague(today, 0, 0)
     tomorrow_start = today_start + timedelta(days=1)
-    today_events = (
+    recent_events = (
         db.execute(
             select(AttendanceEvent).where(
                 AttendanceEvent.employment_id.in_(employment_ids),
-                AttendanceEvent.occurred_at >= today_start,
+                AttendanceEvent.occurred_at >= yesterday_start,
                 AttendanceEvent.occurred_at < tomorrow_start,
             )
         )
         .scalars()
         .all()
     )
-    last_event_by_employment = _last_events_by_employment(db, employment_ids)
-
     plan_by_key = {(plan.employment_id, plan.date): plan for plan in plans}
-    today_event_ids = {event.employment_id for event in today_events}
+    event_counts: dict[tuple[int, date], int] = {}
+    for event in recent_events:
+        count_key = (event.employment_id, prague_now(event.occurred_at).date())
+        event_counts[count_key] = event_counts.get(count_key, 0) + 1
     already_sent = _already_sent_keys(db, today) | _already_sent_keys(db, yesterday)
     sent_count = 0
 
@@ -255,9 +228,9 @@ def process_attendance_reminders(
         user = employment.user
         plan = plan_by_key.get((employment.id, today))
 
-        last_event = last_event_by_employment.get(employment.id)
-        last_event_date = prague_now(last_event.occurred_at).date() if last_event else None
-        if plan and plan.arrival_time and employment.id not in today_event_ids:
+        today_count = event_counts.get((employment.id, today), 0)
+        yesterday_count = event_counts.get((employment.id, yesterday), 0)
+        if plan and plan.arrival_time and today_count == 0:
             first_at = combine_prague_hhmm(today, plan.arrival_time) + timedelta(minutes=5)
             due_attempts = _scheduled_attempt_count(
                 current, first_at, interval_minutes=10, max_attempts=5
@@ -278,9 +251,7 @@ def process_attendance_reminders(
         if (
             plan
             and plan.departure_time
-            and last_event is not None
-            and last_event.event_type == AttendanceEventType.IN
-            and last_event_date == today
+            and today_count % 2 == 1
         ):
             first_at = combine_prague_hhmm(today, plan.departure_time) + timedelta(hours=2)
             due_attempts = _scheduled_attempt_count(
@@ -303,10 +274,7 @@ def process_attendance_reminders(
                 sent_count += 1
 
         if (
-            last_event is not None
-            and last_event.event_type == AttendanceEventType.IN
-            and last_event_date is not None
-            and last_event_date <= yesterday
+            yesterday_count % 2 == 1
         ):
             first_at = combine_prague(today, 8, 0)
             due_attempts = _scheduled_attempt_count(

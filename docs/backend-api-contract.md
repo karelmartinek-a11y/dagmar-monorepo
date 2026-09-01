@@ -21,21 +21,20 @@ Profil patří konkrétnímu `Employment` a jeho změna se retroaktivně projev�
 
 ## Docházkové eventy
 
-Zaměstnanecké endpointy jsou `POST /api/v1/attendance/events` a `PUT`/`DELETE /api/v1/attendance/events/{event_id}`. Administrace používá `GET /api/v1/admin/attendance/month` pro měsíční docházkové listy a `POST`, `PUT` a `DELETE /api/v1/admin/attendance/events...` pro správu průchodů. Typ existujícího průchodu a jeho `employment_id` jsou neměnné; backend ověřuje vlastnictví, chronologii, budoucí čas, období a zámek. Volitelné `paired_occurred_at` atomicky vloží uzavřený pár `IN`/`OUT`; volitelný query parametr `paired_event_id` u `DELETE` atomicky odstraní prostřední pracovní interval nebo fyzickou pauzu. Stejný kontrakt používají adminské a integrační eventové endpointy.
+Zaměstnanecké endpointy jsou `POST /api/v1/attendance/events` a `PUT`/`DELETE /api/v1/attendance/events/{event_id}`. Administrace používá `GET /api/v1/admin/attendance/month` pro měsíční docházkové listy a `POST`, `PUT` a `DELETE /api/v1/admin/attendance/events...` pro správu průchodů. `employment_id` existujícího průchodu je neměnné; backend ověřuje vlastnictví, unikátní chronologický čas, budoucí čas, období a zámek. Volitelné `paired_occurred_at` atomicky vloží dvě hranice uzavřeného intervalu; volitelný query parametr `paired_event_id` u `DELETE` atomicky odstraní sousední pracovní interval nebo fyzickou pauzu. Stejný kontrakt používají adminské a integrační eventové endpointy.
 
 ```json
 {
   "employment_id": 123,
-  "occurred_at": "2026-07-31T18:00:00+02:00",
-  "event_type": "IN"
+  "occurred_at": "2026-07-31T18:00:00+02:00"
 }
 ```
 
-Eventy jsou chronologické a nové zápisy střídají `IN` a `OUT`. Výpočet je vždy omezený na jeden lokální kalendářní den; poslední lichý čas se nezapočítá a následující den začne nové párování. Mutace odmítne uzavřený pár přes půlnoc a průchod překrývající den s celodenní nepřítomností.
+Eventy jsou neutrální chronologické časy bez směrového typu. Výpočet je vždy omezený na jeden lokální kalendářní den; poslední lichý čas se nezapočítá a následující den začne nové párování. Mutace odmítne uzavřený pár přes půlnoc a průchod překrývající den s celodenní nepřítomností.
 
-Den měsíční odpovědi obsahuje také `planned_arrival_time`, `planned_departure_time`, `planned_status`, backendem odvozený `next_event_type`, denní stavy a kompletní denní metriky. Oba měsíční zámky jsou na kořeni odpovědi jako `attendance_locked` a `shift_plan_locked`. Celodenní stavy `HOLIDAY`, `SICKNESS`, `OFF` a `PARAGRAPH` zapisuje sjednocený `PUT /api/v1/attendance/day-status`; potvrzená změna fyzicky odstraní konfliktní docházku nebo plán.
+Den měsíční odpovědi obsahuje také `planned_arrival_time`, `planned_departure_time`, `planned_status`, denní stavy a kompletní denní metriky. Oba měsíční zámky jsou na kořeni odpovědi jako `attendance_locked` a `shift_plan_locked`. Celodenní stavy `HOLIDAY`, `SICKNESS`, `OFF` a `PARAGRAPH` zapisuje sjednocený `PUT /api/v1/attendance/day-status`; potvrzená změna fyzicky odstraní konfliktní docházku nebo plán.
 
-Potvrzený `POST /api/v1/admin/attendance/breaks` přijímá jeden `employment_id`, rok a měsíc. Idempotentně doplní chybějící fyzické páry `OUT`/`IN` do uzavřených intervalů překrývajících měsíc, respektuje existující ruční pauzy a neimplementuje hromadné undo.
+Potvrzený `POST /api/v1/admin/attendance/breaks` přijímá jeden `employment_id`, rok a měsíc. Idempotentně doplní chybějící dvojice časových hranic fyzických pauz do uzavřených intervalů, respektuje existující ruční pauzy a neimplementuje hromadné undo.
 
 ## Časové metriky
 
@@ -47,7 +46,7 @@ Denní a měsíční odpovědi používají sady `worked` a `planned` s klíči 
 
 Neaktivní metrika je `null`. `clock` je backendem formátovaný údaj pro zobrazení v `H:mm`, zatímco `minutes`, `tenths` a `hours` zůstávají strojově čitelné hodnoty. Aktivní hodinová metrika v měsíci bez zdrojových faktů má backendovou nulovou hodnotu, aby prázdný měsíc zachoval stejný vizuální kontrakt jako před eventovou migrací. `display_metrics` je seřazený backendový seznam jedině viditelných intervalových sloupců pro aktuální profil konkrétního úvazku. Denní desetiny používají matematické half-up zaokrouhlení `floor((minuty + 3) / 6)`; měsíční hodnoty jsou součtem denních desetin. Celodenní `HOLIDAY`, `SICKNESS` a `PARAGRAPH` navíc dodávají samostatný `status_metrics` kredit 480 minut (8:00) na hodinovém úvazku; `OFF` a `TASK_SHIFT_BASED` kredit nemají. `status_metrics` je součástí denního i měsíčního attendance/shift-plan DTO a nesmí se směšovat s `worked` nebo `planned`. `EmploymentDailyTimeMetric` je provozní cache synchronizovaná po změnách, ale čtecí endpointy a reporty vždy počítají z aktuálních zdrojových faktů, aby stale cache nemohla změnit součty. Frontend, tisk, CSV, ZIP a PDF čísla ani kategorie neodvozují a hodnoty pouze lokalizují.
 
-Nové zápisy docházky začínají `IN` a dále striktně střídají `OUT`/`IN`; editace ani mazání nesmí toto pořadí porušit. Výpočet metrik používá aktuální chronologicky seřazené časy bez směrových typů a páruje je od prvního času každého lokálního dne. Lichý poslední čas zůstane neúplný a nikdy se nepáruje s jiným dnem; historický orphan proto neposune žádný další den. Plán směny musí mít konec později než začátek ve stejném dni, jinak jej backend odmítne. DTO, frontend, reporty ani exporty nemají přeshraniční nebo carryover pole. Všechny mutace eventů, plánů a stavů jednoho úvazku se serializují řádkovým databázovým zámkem; po jeho získání se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele.
+Výpočet metrik používá aktuální chronologicky seřazené časy a páruje je od prvního času každého lokálního dne. Lichý poslední čas zůstane neúplný a nikdy se nepáruje s jiným dnem. Plán směny musí mít konec později než začátek ve stejném dni, jinak jej backend odmítne. DTO, frontend, reporty ani exporty nemají přeshraniční pole. Všechny mutace eventů, plánů a stavů jednoho úvazku se serializují řádkovým databázovým zámkem; po jeho získání se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele.
 
 ## Adminský tisk docházky
 
