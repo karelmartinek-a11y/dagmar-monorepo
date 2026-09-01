@@ -18,7 +18,7 @@ class WorkInterval:
 
 
 def shift_plan_interval(plan: ShiftPlan) -> WorkInterval | None:
-    """Convert one stored shift into its canonical possibly overnight interval."""
+    """Convert one stored same-day shift into its canonical interval."""
     if not plan.arrival_time or not plan.departure_time:
         return None
     start_hour, start_minute = (int(value) for value in plan.arrival_time.split(":"))
@@ -30,7 +30,7 @@ def shift_plan_interval(plan: ShiftPlan) -> WorkInterval | None:
         hours=end_hour, minutes=end_minute
     )
     if end <= start:
-        end += timedelta(days=1)
+        return None
     return WorkInterval(start, end)
 
 
@@ -41,20 +41,13 @@ def shift_plan_intervals(plans: list[ShiftPlan]) -> list[WorkInterval]:
 def shift_plan_months(plan: ShiftPlan | None) -> set[tuple[int, int]]:
     if plan is None:
         return set()
-    months = {(plan.date.year, plan.date.month)}
-    interval = shift_plan_interval(plan)
-    if interval is not None:
-        months.update((day.year, day.month) for day, _part in split_by_day(interval))
-    return months
+    return {(plan.date.year, plan.date.month)}
 
 
 def shift_plan_days(plan: ShiftPlan | None) -> set[date]:
     if plan is None:
         return set()
-    interval = shift_plan_interval(plan)
-    if interval is None:
-        return {plan.date}
-    return {day for day, _part in split_by_day(interval)}
+    return {plan.date}
 
 
 def shift_plans_overlap(left: ShiftPlan | None, right: ShiftPlan | None) -> bool:
@@ -68,40 +61,32 @@ def shift_plans_overlap(left: ShiftPlan | None, right: ShiftPlan | None) -> bool
     )
 
 
-def shift_plan_carryover(plans: list[ShiftPlan], day: date) -> ShiftPlan | None:
-    """Return a prior-day plan whose interval continues into ``day``."""
-    day_start = datetime.combine(day, datetime.min.time(), tzinfo=PRAGUE_TIMEZONE)
-    day_end = day_start + timedelta(days=1)
-    for plan in plans:
-        if plan.date >= day:
-            continue
-        interval = shift_plan_interval(plan)
-        if interval is not None and interval.start < day_end and interval.end > day_start:
-            return plan
-    return None
-
-
 def ordered_events(events: list[AttendanceEvent]) -> list[AttendanceEvent]:
     return sorted(events, key=lambda event: (prague_now(event.occurred_at), event.id))
 
 
 def pair_event_rows(events: list[AttendanceEvent]) -> list[tuple[AttendanceEvent, AttendanceEvent]]:
-    """Pair chronologically ordered stored times into consecutive intervals.
+    """Pair stored times independently inside each local calendar day.
 
-    The event direction is an internal write-time invariant, not a source for
-    calculating historical time. This keeps already stored daily times useful
-    when an old or externally imported row has an inconsistent direction.
+    Direction is an internal write-time invariant and never a metric input.
+    Each local day starts its own pairing at the first stored time, so an old
+    orphan cannot shift every later interval. An odd final time is incomplete
+    and never pairs with another day.
     """
     ordered = ordered_events(events)
     pairs: list[tuple[AttendanceEvent, AttendanceEvent]] = []
-    index = 0
-    while index < len(ordered) - 1:
-        start, end = ordered[index : index + 2]
-        start_at = prague_now(start.occurred_at)
-        end_at = prague_now(end.occurred_at)
-        if timedelta(0) < end_at - start_at < timedelta(days=1):
-            pairs.append((start, end))
-        index += 2
+    by_day: dict[date, list[AttendanceEvent]] = {}
+    for event in ordered:
+        by_day.setdefault(prague_now(event.occurred_at).date(), []).append(event)
+
+    for day_events in by_day.values():
+        closed_count = len(day_events) - (len(day_events) % 2)
+        for index in range(0, closed_count, 2):
+            start, end = day_events[index : index + 2]
+            start_at = prague_now(start.occurred_at)
+            end_at = prague_now(end.occurred_at)
+            if timedelta(0) < end_at - start_at < timedelta(days=1):
+                pairs.append((start, end))
     return pairs
 
 

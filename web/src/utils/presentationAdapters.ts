@@ -43,15 +43,12 @@ export function edgeEvents<T>(events: readonly T[]): {
 }
 
 export function chronologicalPlanBoundaries(day: {
-  planned_carryover_departure_time?: string | null;
   planned_arrival_time?: string | null;
   planned_departure_time?: string | null;
-  carryover_departure_time?: string | null;
   arrival_time?: string | null;
   departure_time?: string | null;
 }): string[] {
   return [
-    day.planned_carryover_departure_time ?? day.carryover_departure_time,
     day.planned_arrival_time ?? day.arrival_time,
     day.planned_departure_time ?? day.departure_time,
   ].filter((value): value is string => Boolean(value));

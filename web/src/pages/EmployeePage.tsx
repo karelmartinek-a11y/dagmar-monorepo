@@ -219,9 +219,6 @@ function EmployeeGroupPlanTable({
                         <strong className="day-absence-label">{absenceLabel(status)}{day.status_metrics[statusMetricKeyForStatus(status) ?? "holiday"] ? ` · ${formatHours(day.status_metrics[statusMetricKeyForStatus(status) ?? "holiday"]!.hours, "cs-CZ")}` : ""}</strong>
                       ) : (
                         <div className={`group-plan-cell ${editable ? "" : "group-plan-cell--readonly"}`}>
-                          {day.carryover_departure_time ? (
-                            <small className="group-plan-cell__carryover">Přesah {day.carryover_departure_time}</small>
-                          ) : null}
                           <ClockInput
                             aria-label={`PLÁN – PRŮCHOD 1 ${row.employment_id} ${day.date}`}
                             value={day.arrival_time ?? ""}
@@ -423,22 +420,21 @@ function EmployeePlanTable({
 }) {
   const { t, i18n } = useTranslation();
   const [context, setContext] = useState<{ day: AttendanceDay; x: number; y: number } | null>(null);
-  const passColumns = Math.max(4, ...month.days.map((day) => chronologicalPlanBoundaries({ planned_carryover_departure_time: day.planned_carryover_departure_time, planned_arrival_time: day.planned_arrival_time, planned_departure_time: day.planned_departure_time }).length));
+  const passColumns = Math.max(4, ...month.days.map((day) => chronologicalPlanBoundaries({ planned_arrival_time: day.planned_arrival_time, planned_departure_time: day.planned_departure_time }).length));
   return (
     <div className="data-table-wrap employee-table-wrap">
       <table className="data-table employee-month-table">
         <thead><tr><th>{t("employee.page.table.date")}</th><th>{t("employee.page.table.day")}</th>{Array.from({ length: passColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass")} {index + 1}</th>)}{month.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead>
         <tbody>
           {month.days.map((day) => {
-            const disabled = month.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status) || day.planned_is_carryover;
-            const planTimes = chronologicalPlanBoundaries({ planned_carryover_departure_time: day.planned_carryover_departure_time, planned_arrival_time: day.planned_arrival_time, planned_departure_time: day.planned_departure_time });
-            const carryover = Boolean(day.planned_carryover_departure_time);
+            const disabled = month.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status);
+            const planTimes = chronologicalPlanBoundaries({ planned_arrival_time: day.planned_arrival_time, planned_departure_time: day.planned_departure_time });
             const save = (arrival: string | null, departure: string | null) => onSave({ employment_id: month.employment_id, date: day.date, arrival_time: arrival, departure_time: departure, status: day.planned_status ?? null });
             return (
               <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ day, x: event.clientX, y: event.clientY }); }}>
                 <th>{formatCalendarDate(day.date, i18n.language as "cs" | "de" | "en" | "hi")}</th>
                 <td>{weekdayLabel(day.date, i18n.language)}</td>
-                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status || day.planned_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || (carryover && index === 0) || (carryover && index > 2) || index > (carryover ? 2 : 1)} onCommit={async (value) => { const arrivalIndex = carryover ? 1 : 0; const departureIndex = carryover ? 2 : 1; await save(index === arrivalIndex ? value || null : day.planned_arrival_time ?? null, index === departureIndex ? value || null : day.planned_departure_time ?? null); }} />}</td>)}
+                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status || day.planned_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || index > 1} onCommit={async (value) => { await save(index === 0 ? value || null : day.planned_arrival_time ?? null, index === 1 ? value || null : day.planned_departure_time ?? null); }} />}</td>)}
                 {month.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}
               </tr>
             );

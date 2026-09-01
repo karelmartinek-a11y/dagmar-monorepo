@@ -43,9 +43,6 @@ from app.services.employment_access import (
 from app.services.locks import LockType, ensure_month_unlocked, is_month_locked
 from app.services.month_summary import build_month_summary
 from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
-from app.services.time_intervals import (
-    shift_plan_carryover,
-)
 from app.services.time_metrics import DailyMetrics, MetricValue
 
 router = APIRouter(tags=["attendance"])
@@ -101,8 +98,6 @@ class AttendanceDayOut(BaseModel):
     planned_arrival_time: str | None = None
     planned_departure_time: str | None = None
     planned_status: str | None = None
-    planned_is_carryover: bool = False
-    planned_carryover_departure_time: str | None = None
     next_event_type: AttendanceEventType
     calendar_tone: str
     public_holiday_label: str | None = None
@@ -235,7 +230,7 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
         db.execute(
             select(ShiftPlan).where(
                 ShiftPlan.employment_id == employment.id,
-                ShiftPlan.date >= start - timedelta(days=1),
+                ShiftPlan.date >= start,
                 ShiftPlan.date < end,
             )
         ).scalars()
@@ -249,15 +244,17 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
     deletion_partners: dict[int, int] = {}
     for index, event in enumerate(ordered_events[:-1]):
         following = ordered_events[index + 1]
+        same_day = prague_now(event.occurred_at).date() == prague_now(following.occurred_at).date()
         if (
-            event.event_type == AttendanceEventType.IN
+            same_day
+            and event.event_type == AttendanceEventType.IN
             and following.event_type == AttendanceEventType.OUT
         ):
             deletion_partners[event.id] = following.id
         elif (
             event.event_type == AttendanceEventType.OUT
             and following.event_type == AttendanceEventType.IN
-            and prague_now(event.occurred_at).date() == prague_now(following.occurred_at).date()
+            and same_day
         ):
             # OUT+IN is removable as one physical pause only inside the same local day.
             deletion_partners[event.id] = following.id
@@ -277,7 +274,6 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
         planned_metrics = day_summary.planned
         status_value = attendance.status if attendance else None
         plan_for_day = plans.get(day)
-        carryover_plan = shift_plan_carryover(plan_rows, day)
         holiday_label = czech_public_holiday_label(day)
         calendar_tone = "holiday" if holiday_label else "weekend" if day.weekday() >= 5 else "work"
         effective_status = status_value or (
@@ -299,16 +295,8 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
                 attendance_status=status_value,
                 effective_status=effective_status,
                 planned_arrival_time=plan_for_day.arrival_time if plan_for_day else None,
-                planned_departure_time=plan_for_day.departure_time
-                if plan_for_day
-                else carryover_plan.departure_time
-                if carryover_plan
-                else None,
+                planned_departure_time=plan_for_day.departure_time if plan_for_day else None,
                 planned_status=plan_for_day.status if plan_for_day else None,
-                planned_is_carryover=plan_for_day is None and carryover_plan is not None,
-                planned_carryover_departure_time=(
-                    carryover_plan.departure_time if carryover_plan else None
-                ),
                 next_event_type=next_event_type,
                 calendar_tone=calendar_tone,
                 public_holiday_label=holiday_label,

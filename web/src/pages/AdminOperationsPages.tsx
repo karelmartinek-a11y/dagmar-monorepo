@@ -55,8 +55,6 @@ type ShiftPlanDay = {
   arrival_time: string | null;
   departure_time: string | null;
   status: string | null;
-  is_carryover: boolean;
-  carryover_departure_time: string | null;
   is_within_employment_period: boolean;
   planned_hours: number;
   planned_state: string;
@@ -907,7 +905,6 @@ type ShiftPlanReport = {
         date_iso: string;
         arrival_time: string | null;
         departure_time: string | null;
-        carryover_departure_time: string | null;
         planned_metrics: Partial<
           Record<MetricKey, { minutes: number; tenths: number; hours: number }>
         >;
@@ -929,19 +926,19 @@ function ShiftPlanPreview({ report }: { report: ShiftPlanReport }) {
   return (
     <div className="print-report-pages">
       {employments.map((employment) => {
-        const planColumns = Math.max(2, ...employment.cells.map((cell) => chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length));
+        const planColumns = Math.max(2, ...employment.cells.map((cell) => chronologicalPlanBoundaries({ planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length));
         return <article className="print-sheet print-sheet--shift-plan" key={employment.employment_id}>
           <header>
             <h2>{employment.display_label}</h2>
             <small>Plán služeb · {report.month_label} · {report.generated_at_label}</small>
           </header>
-          {isPrintCapacityExceeded(employment.cells.length, Math.max(0, ...employment.cells.map((cell) => [cell.carryover_departure_time, cell.arrival_time, cell.departure_time].filter(Boolean).length)), employment.display_metrics) ? <StatusMessage kind="error" title={t("adminOps.prints.capacityExceeded")} /> : <table className="print-shift-plan-detail-table">
+          {isPrintCapacityExceeded(employment.cells.length, Math.max(0, ...employment.cells.map((cell) => [cell.arrival_time, cell.departure_time].filter(Boolean).length)), employment.display_metrics) ? <StatusMessage kind="error" title={t("adminOps.prints.capacityExceeded")} /> : <table className="print-shift-plan-detail-table">
             <thead><tr><th>{t("employee.page.table.date", "Datum")}</th>{Array.from({ length: planColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass", "PRŮCHOD")} {index + 1}</th>)}<th>{t("employee.page.table.status", "Stav")}</th>{employment.display_metrics.map((key) => <th key={key}>{translatedMetricLabel(t, key)} (h)</th>)}<th>Celodenní stavy (h)</th></tr></thead>
             <tbody>
               {employment.cells.map((cell) => <tr key={cell.date_iso}>
                 <td>{formatCalendarDate(cell.date_iso)}</td>
-                {chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).map((time, index) => <td key={index}>{time}</td>)}
-                {Array.from({ length: planColumns - chronologicalPlanBoundaries({ planned_carryover_departure_time: cell.carryover_departure_time, planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length }, (_, index) => <td key={`empty-${index}`} />)}
+                {chronologicalPlanBoundaries({ planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).map((time, index) => <td key={index}>{time}</td>)}
+                {Array.from({ length: planColumns - chronologicalPlanBoundaries({ planned_arrival_time: cell.arrival_time, planned_departure_time: cell.departure_time }).length }, (_, index) => <td key={`empty-${index}`} />)}
                 <td>{cell.status_label ?? ""}</td>
                 {employment.display_metrics.map((key) => <td key={key}>{cell.planned_metrics[key] ? formatHoursValue(cell.planned_metrics[key]!.hours, "cs-CZ") : ""}</td>)}
                 <td>{statusMetricKeys.map((key) => cell.status_metrics[key] ? `${printStatusMetricLabel(t, key)} ${formatHoursValue(cell.status_metrics[key]!.hours, "cs-CZ")}` : "").filter(Boolean).join(" · ")}</td>

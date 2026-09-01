@@ -17,7 +17,6 @@ from ...services.day_status import (
     conflicting_shift_plan_months,
     day_status_label,
     get_day_status,
-    has_shift_plan_carryover,
     normalize_day_status,
     replace_day_status,
     set_shift_plan_status,
@@ -31,12 +30,7 @@ from ...services.employment_access import (
 )
 from ...services.locks import LockType, ensure_month_unlocked, is_month_locked
 from ...services.month_summary import build_month_summaries
-from ...services.time_intervals import (
-    shift_plan_carryover,
-    shift_plan_days,
-    shift_plan_months,
-    shift_plans_overlap,
-)
+from ...services.time_intervals import shift_plan_days, shift_plan_months, shift_plans_overlap
 from ...utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 from ..deps import PortalUserAuth, require_portal_user_auth
 from .attendance import (
@@ -95,8 +89,6 @@ class GroupShiftPlanDayOut(BaseModel):
     departure_time: str | None = None
     status: str | None = None
     effective_status: str | None = None
-    is_carryover: bool = False
-    carryover_departure_time: str | None = None
     is_within_employment_period: bool
     planned_minutes: int
     planned_hours: float
@@ -245,7 +237,7 @@ def portal_get_group_shift_plan_month(
         db.execute(
             select(ShiftPlan).where(
                 ShiftPlan.employment_id.in_(employment_ids),
-                ShiftPlan.date >= start - dt.timedelta(days=1),
+                ShiftPlan.date >= start,
                 ShiftPlan.date < end,
             )
         )
@@ -273,27 +265,13 @@ def portal_get_group_shift_plan_month(
             current_day_summaries=day_summaries,
         ) -> GroupShiftPlanDayOut:
             direct_plan = by_key.get((current_employment.id, day))
-            employment_plans = [
-                plan
-                for (employment_id, _date), plan in by_key.items()
-                if employment_id == current_employment.id
-            ]
-            carryover = shift_plan_carryover(employment_plans, day)
             day_summary = current_day_summaries[day]
             return GroupShiftPlanDayOut(
                 date=day.isoformat(),
                 arrival_time=direct_plan.arrival_time if direct_plan else None,
-                departure_time=(
-                    direct_plan.departure_time
-                    if direct_plan
-                    else carryover.departure_time
-                    if carryover
-                    else None
-                ),
+                departure_time=direct_plan.departure_time if direct_plan else None,
                 status=direct_plan.status if direct_plan else None,
                 effective_status=day_summary.effective_status,
-                is_carryover=direct_plan is None and carryover is not None,
-                carryover_departure_time=carryover.departure_time if carryover else None,
                 is_within_employment_period=day >= current_employment.start_date
                 and (current_employment.end_date is None or day <= current_employment.end_date),
                 planned_minutes=day_summary.planned_minutes,
@@ -361,6 +339,12 @@ def portal_upsert_shift_plan(
         departure = parse_hhmm_or_none(body.departure_time)
     except ValueError:
         raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_time_format", "Neplatný formát času.")
+    if arrival is not None and departure is not None and departure <= arrival:
+        raise_api_error(
+            status.HTTP_409_CONFLICT,
+            "shift_plan_must_end_same_day",
+            "Konec plánu musí být později než začátek ve stejném dni.",
+        )
     try:
         status_value = normalize_day_status(body.status)
     except ValueError:
@@ -385,12 +369,6 @@ def portal_upsert_shift_plan(
                 status.HTTP_409_CONFLICT,
                 "shift_plan_status_conflicts_with_attendance",
                 "Celodenní stav plánu nelze nastavit přes existující docházku.",
-            )
-        if has_shift_plan_carryover(db, employment_id=employment.id, day=day):
-            raise_api_error(
-                status.HTTP_409_CONFLICT,
-                "shift_plan_status_conflicts_with_carryover",
-                "Stav dne nastavte přes potvrzovaný editor nepřítomnosti.",
             )
         if conflicts.shift_plan_exists and not body.confirm_delete_conflicts:
             raise_api_error(
@@ -431,15 +409,6 @@ def portal_upsert_shift_plan(
         )
     for candidate_day in shift_plan_days(candidate):
         _ensure_day_in_employment_period(employment, candidate_day)
-        if (
-            candidate_day != day
-            and get_day_status(db, employment_id=employment.id, day=candidate_day) is not None
-        ):
-            raise_api_error(
-                status.HTTP_409_CONFLICT,
-                "shift_plan_blocked_by_day_status",
-                "Přeshraniční směna zasahuje do dne s celodenním stavem.",
-            )
     affected_months = shift_plan_months(existing) | shift_plan_months(candidate)
     for year, month in affected_months:
         ensure_month_unlocked(

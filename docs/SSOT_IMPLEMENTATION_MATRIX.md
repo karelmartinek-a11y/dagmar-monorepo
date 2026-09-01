@@ -23,7 +23,7 @@ nebo chybějící důkaz je blocker, nikoli částečné splnění.
 | DAG-P1-006 | Nejvýše jeden aktivní reset token | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: souběžný issuance test | — |
 | DAG-P1-007 | Auditovaná admin aktivace instance | splněno | karelmartinek-a11y | E — backend | `tests/test_admin_instances.py`; lokální PostgreSQL suite 211 passed | — |
 | DAG-P1-008 | Delete uživatele uklidí jeho WEB instanci | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: lifecycle + migrace 0025 | — |
-| DAG-P1-009 | Reminder správně páruje eventy přes půlnoc | splněno | karelmartinek-a11y | E — backend | `tests/test_attendance_reminders.py`; lokální PostgreSQL suite 211 passed | — |
+| DAG-P1-009 | Reminder sleduje poslední event bez vytváření přeshraničních metrik | splněno | karelmartinek-a11y | E — backend | `tests/test_attendance_reminders.py`; backendová regresní sada | — |
 | DAG-P1-010 | Oddělené integrační rate-limit buckety | splněno | karelmartinek-a11y | C — integration API | 429 parametrické testy | PR #43, CI `31534619320`, `test_health_data_and_openapi_have_separate_configured_rate_buckets` |
 | DAG-P1-011 | Časově omezený admin account lockout | splněno | karelmartinek-a11y | B — auth lifecycle | CI `31530934021`: admin lockout testy | — |
 | DAG-P1-012 | Veřejný build bez sourcemap | splněno | karelmartinek-a11y | D — production | artifact sourcemap gate | PR #44, CI `31537398225`, `check_web_artifact.py` |

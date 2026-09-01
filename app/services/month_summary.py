@@ -144,7 +144,7 @@ def build_month_summaries(
             db.execute(
                 select(ShiftPlan).where(
                     ShiftPlan.employment_id == employment.id,
-                    ShiftPlan.date >= start - timedelta(days=1),
+                    ShiftPlan.date >= start,
                     ShiftPlan.date < end,
                 )
             ).scalars()

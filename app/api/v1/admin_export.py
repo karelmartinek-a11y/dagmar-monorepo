@@ -83,13 +83,12 @@ def _csv_for_employment(
     }
     event_column_count = max(4, max((len(day.events) for day in month_data.days), default=0))
     plan_column_count = max(
-        3,
+        2,
         max(
             (
                 sum(
                     value is not None
                     for value in (
-                        day.planned_carryover_departure_time,
                         day.planned_arrival_time,
                         day.planned_departure_time,
                     )
@@ -143,7 +142,6 @@ def _csv_for_employment(
             and not day.effective_status
             and not day.planned_arrival_time
             and not day.planned_departure_time
-            and not day.planned_carryover_departure_time
             and not has_displayed_work
             and not has_status_hours
         ):
@@ -167,12 +165,11 @@ def _csv_for_employment(
                 *[
                     value
                     for value in (
-                        day.planned_carryover_departure_time,
                         day.planned_arrival_time,
                         day.planned_departure_time,
                     )
                 ],
-                *["" for _ in range(plan_column_count - 3)],
+                *["" for _ in range(plan_column_count - 2)],
                 *[displayed_hours(day, key) for key in month_data.display_metrics],
             ]
         )

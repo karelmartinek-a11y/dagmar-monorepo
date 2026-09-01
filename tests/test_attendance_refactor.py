@@ -183,23 +183,23 @@ def test_three_month_event_contract_and_retroactive_metric_visibility() -> None:
         assert june.worked["total"].hours == 8.1
         assert august.days[3].worked_state == "incomplete"
         assert july.days[30].worked is not None and july.days[30].worked["total"] is not None
-        assert july.days[30].worked["total"].hours == 2.0
+        assert july.days[30].worked["total"].hours == 0.0
         assert august.days[0].worked is not None and august.days[0].worked["total"] is not None
-        assert august.days[0].worked["total"].hours == 2.0
-        assert july.days[30].worked_state == "complete"
-        assert august.days[0].worked_state == "complete"
+        assert august.days[0].worked["total"].hours == 0.0
+        assert july.days[30].worked_state == "incomplete"
+        assert august.days[0].worked_state == "incomplete"
         assert august.days[2].planned_arrival_time == "09:00"
         assert august.days[2].planned_departure_time == "17:00"
         assert august.days[2].planned is not None and august.days[2].planned["total"] is not None
         assert august.days[2].planned["total"].hours == 8.0
         assert august.days[0].next_event_type == AttendanceEventType.IN
         assert july.days[30].planned is not None and july.days[30].planned["total"] is not None
-        assert july.days[30].planned["total"].hours == 2.0
+        assert july.days[30].planned["total"].hours == 0.0
         assert august.days[0].planned is not None and august.days[0].planned["total"] is not None
-        assert august.days[0].planned["total"].hours == 2.0
-        assert august.days[0].planned_departure_time == "02:00"
+        assert august.days[0].planned["total"].hours == 0.0
+        assert august.days[0].planned_departure_time is None
         assert august.planned is not None and august.planned["total"] is not None
-        assert august.planned["total"].hours == 10.0
+        assert august.planned["total"].hours == 8.0
         assert july.days[4].calendar_tone == "holiday"
         assert july.days[4].public_holiday_label == "Den slovanských věrozvěstů Cyrila a Metoděje"
         assert june.display_metrics == ["total", "night"]
@@ -376,7 +376,7 @@ def test_optional_total_and_confirmed_all_day_absence() -> None:
         assert month.days[3].planned_arrival_time is None
 
 
-def test_metric_sync_covers_month_with_cross_boundary_interval() -> None:
+def test_metric_sync_does_not_count_cross_boundary_times() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -404,10 +404,10 @@ def test_metric_sync_covers_month_with_cross_boundary_interval() -> None:
             .all()
         )
         assert len(july_rows) == 31
-        assert sum(row.total_tenths for row in july_rows) == 20
+        assert sum(row.total_tenths for row in july_rows) == 0
 
 
-def test_all_day_absence_removes_confirmed_interval_spanning_the_day() -> None:
+def test_all_day_absence_removes_only_times_from_the_selected_day() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -438,7 +438,8 @@ def test_all_day_absence_removes_confirmed_interval_spanning_the_day() -> None:
             .all()
         )
         assert conflicts.attendance_exists
-        assert remaining == []
+        assert len(remaining) == 1
+        assert remaining[0].occurred_at.date() == date(2026, 8, 3)
 
 
 def test_month_employment_options_require_active_overlap() -> None:
@@ -702,7 +703,7 @@ def test_admin_plan_uses_backend_display_metrics_and_planned_values() -> None:
                 employment_id=employment.id,
                 date="2026-07-31",
                 arrival_time="22:00",
-                departure_time="02:00",
+                departure_time="23:00",
             ),
         )
 
@@ -713,10 +714,10 @@ def test_admin_plan_uses_backend_display_metrics_and_planned_values() -> None:
         assert row.display_metrics == ["night"]
         assert row.days[30].planned is not None
         assert row.days[30].planned["night"] is not None
-        assert row.days[30].planned["night"].hours == 2.0
+        assert row.days[30].planned["night"].hours == 1.0
         assert row.summary.planned is not None
         assert row.summary.planned["night"] is not None
-        assert row.summary.planned["night"].hours == 2.0
+        assert row.summary.planned["night"].hours == 1.0
 
 
 def test_admin_break_backfill_is_physical_and_idempotent() -> None:
@@ -762,7 +763,7 @@ def test_admin_break_backfill_is_physical_and_idempotent() -> None:
         ]
 
 
-def test_admin_break_backfill_accepts_malformed_migrated_sequence() -> None:
+def test_admin_break_backfill_anchors_malformed_history_per_day() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -795,7 +796,7 @@ def test_admin_break_backfill_accepts_malformed_migrated_sequence() -> None:
                 .scalars()
                 .all()
             )
-            == 3
+            == 5
         )
 
 
@@ -996,20 +997,22 @@ def test_task_employment_database_constraint_rejects_total_metric() -> None:
             db.commit()
 
 
-def test_plan_mutation_syncs_both_months_of_overnight_shift() -> None:
+def test_plan_mutation_rejects_overnight_shift() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
-        _admin_upsert_shift_plan_impl(
-            db,
-            ShiftPlanUpsertIn(
-                employment_id=employment.id,
-                date="2026-07-31",
-                arrival_time="22:00",
-                departure_time="02:00",
-            ),
-        )
+        with pytest.raises(HTTPException) as error:
+            _admin_upsert_shift_plan_impl(
+                db,
+                ShiftPlanUpsertIn(
+                    employment_id=employment.id,
+                    date="2026-07-31",
+                    arrival_time="22:00",
+                    departure_time="02:00",
+                ),
+            )
+        assert error.value.status_code == 409
 
         rows = (
             db.execute(
@@ -1023,10 +1026,7 @@ def test_plan_mutation_syncs_both_months_of_overnight_shift() -> None:
             .scalars()
             .all()
         )
-        assert [(row.metric_date, row.total_tenths) for row in rows if row.total_tenths > 0] == [
-            (date(2026, 7, 31), 20),
-            (date(2026, 8, 1), 20),
-        ]
+        assert rows == []
 
 
 def test_admin_mutations_respect_independent_month_locks() -> None:
@@ -1119,7 +1119,7 @@ def test_daily_metric_rebuild_cli_passes_apply_mode(monkeypatch: pytest.MonkeyPa
     assert calls == [True]
 
 
-def test_cross_month_event_mutation_respects_every_affected_lock() -> None:
+def test_cross_month_event_mutation_is_rejected_before_lock_checks() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -1158,7 +1158,7 @@ def test_cross_month_event_mutation_respects_every_affected_lock() -> None:
                 auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
             )
 
-        assert error.value.status_code == 423
+        assert error.value.status_code == 409
 
 
 def test_event_mutations_reject_day_status_and_inactive_employment() -> None:
@@ -1341,7 +1341,7 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
                     employment_id=employment.id,
                     date=date(2026, 8, 3),
                     arrival_time="22:00",
-                    departure_time="02:00",
+                    departure_time="23:00",
                 ),
                 ShiftPlan(
                     employment_id=employment.id,
@@ -1369,12 +1369,12 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
         )
         report_employment = payload["pages"][0]["employments"][0]  # type: ignore[index]
         assert report_employment["display_metrics"] == ["night"]
-        assert report_employment["planned_metrics"]["night"]["hours"] == 4.0
+        assert report_employment["planned_metrics"]["night"]["hours"] == 1.0
         assert "planned_hours" not in report_employment
-        assert report_employment["cells"][2]["planned_metrics"]["night"]["hours"] == 2.0
-        assert report_employment["cells"][3]["interval_label"] == "02:00; 08:00; 16:00"
-        assert report_employment["cells"][3]["carryover_departure_time"] == "02:00"
-        assert report_employment["cells"][3]["planned_metrics"]["night"]["hours"] == 2.0
+        assert report_employment["cells"][2]["planned_metrics"]["night"]["hours"] == 1.0
+        assert report_employment["cells"][3]["interval_label"] == "08:00; 16:00"
+        assert "carryover_departure_time" not in report_employment["cells"][3]
+        assert report_employment["cells"][3]["planned_metrics"]["night"]["hours"] == 0.0
         assert report_employment["cells"][4]["status"] == "SICKNESS"
         assert report_employment["cells"][4]["status_label"] == "Nemoc"
         assert report_employment["status_metrics"]["sickness"]["hours"] == 8.0
@@ -1388,7 +1388,7 @@ def test_shift_plan_report_exports_only_enabled_backend_metrics() -> None:
         ).decode("utf-8")
         assert "PLÁN – PRŮCHOD 1" in csv_text
         assert "nemoc_h" in csv_text and "8.0" in csv_text
-        assert "2026-08-04" in csv_text and "02:00" in csv_text
+        assert "2026-08-04" in csv_text and "08:00" in csv_text
 
 
 def test_csv_keeps_days_inside_cross_month_interval() -> None:
@@ -1627,10 +1627,10 @@ def test_employment_period_change_rebuilds_metrics_after_confirmed_cleanup() -> 
             ).first()
             is None
         )
-        assert (
-            db.execute(select(ShiftPlan).where(ShiftPlan.employment_id == employment.id)).first()
-            is None
-        )
+        remaining_plan = db.execute(
+            select(ShiftPlan).where(ShiftPlan.employment_id == employment.id)
+        ).scalar_one()
+        assert remaining_plan.date == date(2026, 7, 31)
 
 
 def test_employment_delete_confirms_plan_locks_and_reports_event_rows() -> None:
@@ -1749,51 +1749,11 @@ def test_shift_plan_status_rejects_conflicting_attendance_for_admin_and_user() -
         assert portal_error.value.status_code == 409
 
 
-def test_overnight_plan_checks_next_month_lock() -> None:
+def test_shift_plan_rejects_overnight_times_for_admin_and_user() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         employment = _employment(db, EmploymentType.DPP_DPC)
-        db.add(
-            ShiftPlanLock(
-                employment_id=employment.id,
-                year=2026,
-                month=8,
-                locked_by="admin",
-            )
-        )
-        db.commit()
-
-        body = ShiftPlanUpsertIn(
-            employment_id=employment.id,
-            date="2026-07-31",
-            arrival_time="22:00",
-            departure_time="02:00",
-        )
-        with pytest.raises(HTTPException) as admin_error:
-            _admin_upsert_shift_plan_impl(db, body)
-        with pytest.raises(HTTPException) as portal_error:
-            portal_upsert_shift_plan(
-                PortalShiftPlanUpsertIn(**body.model_dump()),
-                db=db,
-                auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
-            )
-        assert admin_error.value.status_code == 423
-        assert portal_error.value.status_code == 423
-
-
-@pytest.mark.parametrize("blocked_by", ["period", "status"])
-def test_overnight_plan_validates_carryover_day(blocked_by: str) -> None:
-    engine = create_engine("sqlite+pysqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    with Session(engine) as db:
-        employment = _employment(db, EmploymentType.DPP_DPC)
-        if blocked_by == "period":
-            employment.end_date = date(2026, 7, 31)
-        else:
-            db.add(
-                Attendance(employment_id=employment.id, date=date(2026, 8, 1), status="SICKNESS")
-            )
         db.commit()
         body = ShiftPlanUpsertIn(
             employment_id=employment.id,
@@ -1812,42 +1772,10 @@ def test_overnight_plan_validates_carryover_day(blocked_by: str) -> None:
             )
         assert admin_error.value.status_code == 409
         assert portal_error.value.status_code == 409
+        assert db.execute(select(ShiftPlan)).scalars().all() == []
 
 
-def test_shift_plan_rejects_overlap_with_carryover_for_admin_and_user() -> None:
-    engine = create_engine("sqlite+pysqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    with Session(engine) as db:
-        employment = _employment(db, EmploymentType.DPP_DPC)
-        db.add(
-            ShiftPlan(
-                employment_id=employment.id,
-                date=date(2026, 7, 31),
-                arrival_time="22:00",
-                departure_time="02:00",
-            )
-        )
-        db.commit()
-        body = ShiftPlanUpsertIn(
-            employment_id=employment.id,
-            date="2026-08-01",
-            arrival_time="01:00",
-            departure_time="08:00",
-        )
-
-        with pytest.raises(HTTPException) as admin_error:
-            _admin_upsert_shift_plan_impl(db, body)
-        with pytest.raises(HTTPException) as portal_error:
-            portal_upsert_shift_plan(
-                PortalShiftPlanUpsertIn(**body.model_dump()),
-                db=db,
-                auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
-            )
-        assert admin_error.value.status_code == 409
-        assert portal_error.value.status_code == 409
-
-
-def test_carryover_plan_is_explicit_in_attendance_admin_and_group_dtos() -> None:
+def test_shift_plan_dtos_contain_only_same_day_boundaries() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -1858,12 +1786,6 @@ def test_carryover_plan_is_explicit_in_attendance_admin_and_group_dtos() -> None
         db.add_all(
             [
                 EmploymentGroupMember(group_id=group.id, employment_id=employment.id),
-                ShiftPlan(
-                    employment_id=employment.id,
-                    date=date(2026, 7, 31),
-                    arrival_time="22:00",
-                    departure_time="02:00",
-                ),
                 ShiftPlan(
                     employment_id=employment.id,
                     date=date(2026, 8, 1),
@@ -1883,19 +1805,19 @@ def test_carryover_plan_is_explicit_in_attendance_admin_and_group_dtos() -> None
             db=db,
             auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
         )
-        assert attendance.days[0].planned_is_carryover is False
         assert attendance.days[0].planned_arrival_time == "08:00"
-        assert attendance.days[0].planned_carryover_departure_time == "02:00"
-        assert admin.rows[0].days[0].is_carryover is False
+        assert "planned_is_carryover" not in attendance.days[0].model_dump()
+        assert "planned_carryover_departure_time" not in attendance.days[0].model_dump()
         assert admin.rows[0].days[0].arrival_time == "08:00"
-        assert admin.rows[0].days[0].carryover_departure_time == "02:00"
+        assert "is_carryover" not in admin.rows[0].days[0].model_dump()
+        assert "carryover_departure_time" not in admin.rows[0].days[0].model_dump()
         assert admin.rows[0].summary.scheduled_days == 1
-        assert grouped.rows[0].days[0].is_carryover is False
         assert grouped.rows[0].days[0].arrival_time == "08:00"
-        assert grouped.rows[0].days[0].carryover_departure_time == "02:00"
+        assert "is_carryover" not in grouped.rows[0].days[0].model_dump()
+        assert "carryover_departure_time" not in grouped.rows[0].days[0].model_dump()
 
 
-def test_direct_plan_status_rejects_carryover_and_requires_confirmation() -> None:
+def test_direct_plan_status_requires_confirmation() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -1903,31 +1825,11 @@ def test_direct_plan_status_rejects_carryover_and_requires_confirmation() -> Non
         db.add(
             ShiftPlan(
                 employment_id=employment.id,
-                date=date(2026, 7, 31),
-                arrival_time="22:00",
-                departure_time="02:00",
+                date=date(2026, 8, 2),
+                arrival_time="08:00",
+                departure_time="16:00",
             )
         )
-        db.commit()
-        with pytest.raises(HTTPException) as carryover_error:
-            _admin_upsert_shift_plan_impl(
-                db,
-                ShiftPlanUpsertIn(
-                    employment_id=employment.id,
-                    date="2026-08-01",
-                    status="HOLIDAY",
-                    confirm_delete_conflicts=True,
-                ),
-            )
-        assert carryover_error.value.status_code == 409
-
-        db.rollback()
-        direct = db.execute(
-            select(ShiftPlan).where(ShiftPlan.employment_id == employment.id)
-        ).scalar_one()
-        direct.date = date(2026, 8, 2)
-        direct.arrival_time = "08:00"
-        direct.departure_time = "16:00"
         db.commit()
         with pytest.raises(HTTPException) as confirmation_error:
             _admin_upsert_shift_plan_impl(
@@ -2156,7 +2058,7 @@ def test_integration_audit_counts_automatic_break_events() -> None:
         assert get_audit_context(request).row_count == 3
 
 
-def test_month_dto_pairs_overnight_interval_but_not_multiday_gap_as_pause() -> None:
+def test_month_dto_never_pairs_deletion_partners_across_days() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -2174,9 +2076,40 @@ def test_month_dto_pairs_overnight_interval_but_not_multiday_gap_as_pause() -> N
         july_event = july.days[30].events[0]
         august_out = august.days[0].events[0]
         august_in = august.days[2].events[0]
-        assert july_event.deletion_partner_id == overnight_out.id
+        assert july_event.deletion_partner_id is None
         assert august_out.deletion_partner_id is None
         assert august_in.deletion_partner_id == next_out.id
+
+
+def test_month_dto_anchors_daily_totals_after_historical_orphan() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db, EmploymentType.DPP_DPC)
+        db.add_all(
+            [
+                _event(employment.id, datetime(2026, 7, 30, 12), AttendanceEventType.IN),
+                _event(employment.id, datetime(2026, 8, 1, 6), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 1, 22), AttendanceEventType.IN),
+                _event(employment.id, datetime(2026, 8, 2, 7), AttendanceEventType.OUT),
+                _event(employment.id, datetime(2026, 8, 2, 20), AttendanceEventType.IN),
+            ]
+        )
+        db.commit()
+
+        august = _build_month(db, employment, 2026, 8)
+
+        assert august.days[0].worked is not None
+        assert august.days[0].worked["total"] is not None
+        assert august.days[0].worked["total"].hours == 16.0
+        assert august.days[0].worked_state == "complete"
+        assert august.days[1].worked is not None
+        assert august.days[1].worked["total"] is not None
+        assert august.days[1].worked["total"].hours == 13.0
+        assert august.days[1].worked_state == "complete"
+        assert august.worked is not None
+        assert august.worked["total"] is not None
+        assert august.worked["total"].hours == 29.0
 
 
 def test_month_dto_leaves_migrated_orphan_in_available_for_single_delete() -> None:
@@ -2212,7 +2145,7 @@ def test_month_dto_leaves_migrated_orphan_in_available_for_single_delete() -> No
         assert has_strict_event_sequence(remaining)
 
 
-def test_day_status_removes_confirmed_previous_overnight_plan() -> None:
+def test_day_status_does_not_touch_previous_day_plan() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -2246,12 +2179,9 @@ def test_day_status_removes_confirmed_previous_overnight_plan() -> None:
             auth=PortalUserAuth(instance=None, user=employment.user),  # type: ignore[arg-type]
         )
 
-        assert (
-            db.execute(
-                select(ShiftPlan).where(ShiftPlan.employment_id == employment.id)
-            ).scalar_one_or_none()
-            is None
-        )
+        assert db.execute(
+            select(ShiftPlan).where(ShiftPlan.employment_id == employment.id)
+        ).scalar_one_or_none() is not None
         august = _build_month(db, employment, 2026, 8)
         assert august.days[0].attendance_status == "SICKNESS"
         assert august.days[0].planned is not None

@@ -54,7 +54,7 @@ def test_break_distribution_is_minimal_and_deterministic() -> None:
     assert break_segments(1440) == ([360, 360, 360, 270], 3)
 
 
-def test_pair_events_uses_consecutive_chronological_times() -> None:
+def test_pair_events_does_not_let_an_orphan_shift_the_next_day() -> None:
     events = [
         SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 1, 8, tzinfo=UTC), event_type="IN"),
         SimpleNamespace(id=2, occurred_at=datetime(2026, 7, 2, 8, tzinfo=UTC), event_type="IN"),
@@ -63,7 +63,7 @@ def test_pair_events_uses_consecutive_chronological_times() -> None:
 
     intervals = pair_events(events)
 
-    assert intervals == []
+    assert [item.minutes for item in intervals] == [480]
 
 
 def test_pair_events_sums_two_work_intervals_separated_by_a_pause() -> None:
@@ -91,6 +91,33 @@ def test_pair_events_keeps_historical_times_even_when_direction_is_wrong() -> No
     intervals = pair_events(events)
 
     assert [item.minutes for item in intervals] == [210, 180]
+
+
+def test_pair_events_anchors_karel_case_to_the_current_day() -> None:
+    events = [
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 30, 12), event_type="IN"),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 1, 6), event_type="OUT"),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 1, 22), event_type="IN"),
+        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 2, 7), event_type="OUT"),
+        SimpleNamespace(id=5, occurred_at=datetime(2026, 8, 2, 20), event_type="IN"),
+    ]
+
+    intervals = pair_events(events)
+
+    assert [(item.start.day, item.minutes) for item in intervals] == [(1, 960), (2, 780)]
+
+
+def test_pair_events_never_pairs_times_across_midnight() -> None:
+    events = [
+        SimpleNamespace(id=1, occurred_at=datetime(2026, 7, 31, 22), event_type="OUT"),
+        SimpleNamespace(id=2, occurred_at=datetime(2026, 8, 1, 2), event_type="IN"),
+        SimpleNamespace(id=3, occurred_at=datetime(2026, 8, 2, 8), event_type="OUT"),
+        SimpleNamespace(id=4, occurred_at=datetime(2026, 8, 2, 16), event_type="IN"),
+    ]
+
+    intervals = pair_events(events)
+
+    assert [item.minutes for item in intervals] == [480]
 
 
 def test_czech_holidays_include_easter_and_fixed_days() -> None:

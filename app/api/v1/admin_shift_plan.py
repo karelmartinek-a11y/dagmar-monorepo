@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import datetime as dt
 from types import SimpleNamespace
-from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -37,7 +36,6 @@ from app.services.day_status import (
     conflicting_shift_plan_months,
     day_status_label,
     get_day_status,
-    has_shift_plan_carryover,
     normalize_day_status,
     replace_day_status,
 )
@@ -54,12 +52,7 @@ from app.services.locks import (
     load_locked_employment_ids,
 )
 from app.services.month_summary import build_month_summaries
-from app.services.time_intervals import (
-    shift_plan_carryover,
-    shift_plan_days,
-    shift_plan_months,
-    shift_plans_overlap,
-)
+from app.services.time_intervals import shift_plan_days, shift_plan_months, shift_plans_overlap
 from app.utils.timeparse import parse_hhmm_or_none, parse_yyyy_mm_dd
 
 router = APIRouter(tags=["admin"])
@@ -85,8 +78,6 @@ class ShiftPlanDayOut(BaseModel):
     departure_time: str | None = None
     status: str | None = None
     effective_status: str | None = None
-    is_carryover: bool = False
-    carryover_departure_time: str | None = None
     is_within_employment_period: bool
     planned_minutes: int
     planned_hours: float
@@ -308,7 +299,7 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 shift_plan_table.c.status,
             )
             .where(shift_plan_table.c.employment_id.in_(selected_ids))
-            .where(shift_plan_table.c.date >= start - dt.timedelta(days=1))
+            .where(shift_plan_table.c.date >= start)
             .where(shift_plan_table.c.date < end)
             .order_by(shift_plan_table.c.date.asc())
         )
@@ -356,12 +347,6 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
         off_days = 0
         while cur < end:
             direct_row = plan_map.get((employment_id, cur))
-            employment_plans = [
-                row
-                for (row_employment_id, _date), row in plan_map.items()
-                if row_employment_id == employment_id
-            ]
-            carryover = shift_plan_carryover(cast(list[ShiftPlan], employment_plans), cur)
             day_summary = day_summaries[cur]
             day_planned_minutes = day_summary.planned_minutes
             planned_minutes += day_planned_minutes
@@ -376,17 +361,9 @@ def _admin_get_shift_plan_month_impl(db: Session, *, year: int, month: int) -> S
                 ShiftPlanDayOut(
                     date=cur.isoformat(),
                     arrival_time=direct_row.arrival_time if direct_row else None,
-                    departure_time=(
-                        direct_row.departure_time
-                        if direct_row
-                        else carryover.departure_time
-                        if carryover
-                        else None
-                    ),
+                    departure_time=direct_row.departure_time if direct_row else None,
                     status=direct_row.status if direct_row else None,
                     effective_status=day_summary.effective_status,
-                    is_carryover=direct_row is None and carryover is not None,
-                    carryover_departure_time=carryover.departure_time if carryover else None,
                     is_within_employment_period=employment.start_date <= cur
                     and (employment.end_date is None or cur <= employment.end_date),
                     planned_minutes=day_planned_minutes,
@@ -465,7 +442,6 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
         day = parse_yyyy_mm_dd(body.date)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
     if day < employment.start_date or (
         employment.end_date is not None and day > employment.end_date
     ):
@@ -485,6 +461,12 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
         departure = parse_hhmm_or_none(body.departure_time)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if arrival is not None and departure is not None and departure <= arrival:
+        raise_api_error(
+            409,
+            "shift_plan_must_end_same_day",
+            "Konec plánu musí být později než začátek ve stejném dni.",
+        )
     if body.status not in (None, DAY_STATUS_HOLIDAY, DAY_STATUS_OFF):
         raise_api_error(
             400, "invalid_day_status", "Invalid status, expected HOLIDAY or OFF or null"
@@ -508,12 +490,6 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
                 409,
                 "shift_plan_status_conflicts_with_attendance",
                 "Celodenní stav plánu nelze nastavit přes existující docházku.",
-            )
-        if has_shift_plan_carryover(db, employment_id=employment.id, day=day):
-            raise_api_error(
-                409,
-                "shift_plan_status_conflicts_with_carryover",
-                "Stav dne nastavte přes potvrzovaný editor nepřítomnosti.",
             )
         if conflicts.shift_plan_exists and not body.confirm_delete_conflicts:
             raise_api_error(
@@ -560,16 +536,7 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
             raise_api_error(
                 409,
                 "employment_period_mismatch",
-                "Přeshraniční směna zasahuje mimo období platnosti úvazku.",
-            )
-        if (
-            candidate_day != day
-            and get_day_status(db, employment_id=employment.id, day=candidate_day) is not None
-        ):
-            raise_api_error(
-                409,
-                "shift_plan_blocked_by_day_status",
-                "Přeshraniční směna zasahuje do dne s celodenním stavem.",
+                "Plán směny leží mimo období platnosti úvazku.",
             )
     affected_months = shift_plan_months(existing) | shift_plan_months(candidate)
     for year, month in affected_months:

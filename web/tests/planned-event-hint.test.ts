@@ -12,17 +12,15 @@ function event(id: number, eventType: "IN" | "OUT"): AttendanceEvent {
 }
 
 describe("planned event hints", () => {
-  it("keeps carryover and direct-shift departures distinct", () => {
+  it("maps hints by chronological position without using direction", () => {
     const day = {
-      events: [event(1, "OUT"), event(2, "IN"), event(3, "OUT")],
+      events: [event(1, "OUT"), event(2, "IN")],
       planned_arrival_time: "08:00",
       planned_departure_time: "16:00",
-      planned_carryover_departure_time: "02:00",
     };
 
-    expect(plannedHintForEvent(day, 0)).toBe("02:00");
-    expect(plannedHintForEvent(day, 1)).toBe("08:00");
-    expect(plannedHintForEvent(day, 2)).toBe("16:00");
+    expect(plannedHintForEvent(day, 0)).toBe("08:00");
+    expect(plannedHintForEvent(day, 1)).toBe("16:00");
   });
 
   it("uses the direct departure when attendance starts inside the day", () => {
@@ -30,7 +28,6 @@ describe("planned event hints", () => {
       events: [event(1, "IN"), event(2, "OUT")],
       planned_arrival_time: "08:00",
       planned_departure_time: "16:00",
-      planned_carryover_departure_time: "02:00",
     };
 
     expect(plannedHintForEvent(day, 1)).toBe("16:00");

@@ -22,14 +22,13 @@ describe("presentation adapters", () => {
     expect(humanEventHeaders(3)).toEqual(["PRŮCHOD 1", "PRŮCHOD 2", "PRŮCHOD 3"]);
   });
 
-  it("orders carryover before same-day plan boundaries", () => {
+  it("returns only same-day plan boundaries", () => {
     expect(
       chronologicalPlanBoundaries({
-        planned_carryover_departure_time: "01:00",
         planned_arrival_time: "22:00",
         planned_departure_time: "23:00",
       }),
-    ).toEqual(["01:00", "22:00", "23:00"]);
+    ).toEqual(["22:00", "23:00"]);
   });
 
   it("rejects print data outside the approved capacity envelope", () => {

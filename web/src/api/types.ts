@@ -63,8 +63,6 @@ export const attendanceDaySchema = z.object({
   planned_arrival_time: z.string().nullable().optional(),
   planned_departure_time: z.string().nullable().optional(),
   planned_status: z.string().nullable().optional(),
-  planned_is_carryover: z.boolean(),
-  planned_carryover_departure_time: z.string().nullable().optional(),
   next_event_type: z.enum(["IN", "OUT"]),
   calendar_tone: z.enum(["holiday", "weekend", "work"]),
   public_holiday_label: z.string().nullable(),
@@ -134,8 +132,6 @@ export interface GroupShiftPlanMonth {
       departure_time: string | null;
       status: string | null;
       effective_status: string | null;
-      is_carryover: boolean;
-      carryover_departure_time: string | null;
       is_within_employment_period: boolean;
       planned_minutes: number;
       planned_hours: number;
@@ -219,8 +215,6 @@ export interface ShiftPlanRow {
     arrival_time: string | null;
     departure_time: string | null;
     status: string | null;
-    is_carryover: boolean;
-    carryover_departure_time: string | null;
     is_within_employment_period: boolean;
   }>;
 }

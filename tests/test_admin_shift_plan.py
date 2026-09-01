@@ -4,7 +4,7 @@ from app.db.models import ShiftPlan
 from app.services.time_intervals import shift_plan_interval
 
 
-def test_planned_minutes_supports_overnight_shift() -> None:
+def test_planned_minutes_rejects_overnight_shift() -> None:
     row = ShiftPlan(
         employment_id=1,
         date=date(2026, 7, 31),
@@ -13,7 +13,7 @@ def test_planned_minutes_supports_overnight_shift() -> None:
     )
 
     interval = shift_plan_interval(row)
-    assert interval is not None and interval.minutes == 8 * 60
+    assert interval is None
 
 
 def test_status_only_plan_has_no_time_interval() -> None:

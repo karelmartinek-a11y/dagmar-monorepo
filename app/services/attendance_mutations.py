@@ -19,12 +19,18 @@ def interval_signatures(events: list[AttendanceEvent]) -> set[IntervalSignature]
 
 
 def has_strict_event_sequence(events: list[AttendanceEvent]) -> bool:
-    """Return whether events form an IN/OUT sequence, allowing one trailing IN."""
+    """Validate alternating write types and same-day closed pairs."""
     ordered = sorted(events, key=lambda item: (prague_now(item.occurred_at), item.id))
-    return all(
+    alternates = all(
         event.event_type == (AttendanceEventType.IN if index % 2 == 0 else AttendanceEventType.OUT)
         for index, event in enumerate(ordered)
     )
+    same_day_pairs = all(
+        prague_now(ordered[index].occurred_at).date()
+        == prague_now(ordered[index + 1].occurred_at).date()
+        for index in range(0, len(ordered) - 1, 2)
+    )
+    return alternates and same_day_pairs
 
 
 def changed_event_days(

@@ -52,8 +52,8 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - produkční public URL a CORS jsou přesně `https://dagmar.hcasc.cz`; chybné prostředí, SameSite nebo URL konfigurační hodnoty selžou při startu, externí OAuth síťové cíle jsou omezené na přesné oficiální HTTPS hosty a cesty
 - `/api/v1/health` a `/api/health` jsou DB-independent liveness; `/api/v1/readiness` ověřuje databázové spojení a přesnou shodu jediné DB Alembic revision s jediným zabaleným headem
 - úvazky mají pouze typy `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; profilová nastavení patří konkrétnímu `Employment`
-- docházka používá neomezené chronologické `IN`/`OUT` eventy, včetně intervalů přes půlnoc a hranice měsíců
-- backend je jediná autorita časových intervalů, kategorií a výpočtů; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíc je součet denních desetin
+- docházka používá neomezené chronologické `IN`/`OUT` eventy, ale výpočet nikdy nepáruje časy mezi dvěma kalendářními dny
+- backend je jediná autorita časových intervalů, kategorií a výpočtů; docházkové časy páruje od prvního času každého lokálního dne bez použití interního směru, lichý konec zůstává nezapočítaný a následující den vždy začíná nové párování, takže historický orphan neposune další dny; denní hodnoty se matematicky zaokrouhlují na desetiny a měsíc je součet denních desetin
 - automatické přestávky jsou fyzicky vložené, neretroaktivní průchody bez vlastní souhrnné metriky
 - změny profilu retroaktivně přepočítávají odvozené metriky bez ohledu na zámky
 - běžná změna eventu, plánu nebo stavu synchronizuje pouze skutečně dotčené měsíce; úplný historický přepočet je vyhrazen změně profilu a provoznímu backfillu
@@ -62,7 +62,7 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - zaměstnanecké a adminské měsíční výběry obsahují pouze aktivního uživatele a úvazek platný podle `start_date`/`end_date`, jehož období se překrývá se zvoleným měsícem; úvazek nemá samostatný ruční přepínač aktivity
 - adminské „Přidej pauzy“ je potvrzovaný idempotentní historický backfill fyzických `OUT`/`IN` eventů bez hromadného undo; započítává délku existujících ručních pauz a doplní pouze chybějící zákonnou délku
 - všechny mutace eventů, plánů a celodenních stavů stejného úvazku se serializují databázovým `SELECT FOR UPDATE`; po získání zámku se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele. Mutace eventu zachovává posloupnost začínající `IN`, ověřuje zámek každého měsíce, jehož interval nebo metriky by změnila, a průchod nesmí překrýt den s celodenní nepřítomností. Historický uzavřený interval se vkládá atomicky pomocí `paired_occurred_at` a prostřední interval nebo fyzická pauza se odstraňuje atomicky pomocí `paired_event_id`; databáze nikdy nepersistuje přechodně neplatnou posloupnost
-- přeshraniční plán se validuje a zamyká ve všech dotčených dnech a měsících, nesmí se překrývat s jiným plánem stejného úvazku; carryover v následujícím dni je v DTO explicitní a časová pole samotného carryover jsou v UI pouze ke čtení. Pokud ve stejném dni začíná další nepřekrývající se směna, DTO, UI i report zobrazí oba intervaly
+- plán směny smí obsahovat pouze interval se začátkem a pozdějším koncem ve stejném kalendářním dni; přeshraniční plán, carryover ani přeshraniční výpočet nejsou součástí kontraktu
 - pracovní fond a bilanční porovnávání s fondem nebo plánem nejsou aktivní kontrakt
 - lidské UI, screen-reader texty, tisky, PDF a CSV/ZIP používají pouze neutrální lokalizovaný pojem `PRŮCHOD`; interní `IN`/`OUT` zůstávají pouze strojovým kontraktem
 - docházkové a plánové detaily zachovávají jeden den v jednom řádku; hromadné pohledy zachovávají jeden `employment_id` v jednom řádku a den v jednom sloupci

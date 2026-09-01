@@ -17,7 +17,6 @@ from app.services.employment_access import (
 )
 from app.services.month_summary import build_month_summaries, is_czech_holiday
 from app.services.prague_time import prague_now
-from app.services.time_intervals import shift_plan_carryover
 from app.services.time_metrics import STATUS_METRIC_KEYS, DailyMetrics, MetricValue
 
 EMPLOYMENTS_PER_PAGE = 5
@@ -79,7 +78,6 @@ class ShiftPlanReportCell:
     is_within_employment_period: bool
     arrival_time: str | None
     departure_time: str | None
-    carryover_departure_time: str | None
     status: str | None
     status_label: str | None
     interval_label: str
@@ -320,7 +318,7 @@ def build_shift_plan_report(
         db.execute(
             select(ShiftPlan)
             .where(ShiftPlan.employment_id.in_(selected_ids))
-            .where(ShiftPlan.date >= start - timedelta(days=1))
+            .where(ShiftPlan.date >= start)
             .where(ShiftPlan.date < end)
             .order_by(ShiftPlan.employment_id.asc(), ShiftPlan.date.asc())
         )
@@ -358,15 +356,11 @@ def build_shift_plan_report(
         scheduled_days = 0
         holiday_days = 0
         off_days = 0
-        employment_plans = [row for row in plan_rows if row.employment_id == employment.id]
         while current < end:
             plan = plan_map.get((employment.id, current))
-            carryover_plan = shift_plan_carryover(employment_plans, current)
             day_summary = day_summary_by_date[current]
             effective_status = day_summary.effective_status
             interval_parts: list[str] = []
-            if carryover_plan is not None and carryover_plan.departure_time:
-                interval_parts.append(carryover_plan.departure_time)
             if plan and plan.arrival_time and plan.departure_time:
                 interval_parts.extend([plan.arrival_time, plan.departure_time])
             duration_minutes = day_summary.planned_minutes
@@ -388,14 +382,7 @@ def build_shift_plan_report(
                     tone=_tone_for_day(current),
                     is_within_employment_period=is_within_employment_period,
                     arrival_time=plan.arrival_time if plan else None,
-                    departure_time=plan.departure_time
-                    if plan
-                    else carryover_plan.departure_time
-                    if carryover_plan
-                    else None,
-                    carryover_departure_time=(
-                        carryover_plan.departure_time if carryover_plan else None
-                    ),
+                    departure_time=plan.departure_time if plan else None,
                     status=effective_status,
                     status_label=STATUS_LABELS.get(effective_status) if effective_status else None,
                     interval_label="; ".join(interval_parts),
@@ -501,7 +488,6 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
                                 "is_within_employment_period": cell.is_within_employment_period,
                                 "arrival_time": cell.arrival_time,
                                 "departure_time": cell.departure_time,
-                                "carryover_departure_time": cell.carryover_departure_time,
                                 "status": cell.status,
                                 "status_label": cell.status_label,
                                 "interval_label": cell.interval_label,

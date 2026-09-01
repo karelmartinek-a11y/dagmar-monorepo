@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Attendance, AttendanceEvent, Employment, ShiftPlan
 from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
-from app.services.time_intervals import pair_event_rows, shift_plan_interval, shift_plan_months
+from app.services.time_intervals import pair_event_rows, shift_plan_months
 
 DAY_STATUS_HOLIDAY = "HOLIDAY"
 DAY_STATUS_OFF = "OFF"
@@ -110,26 +110,14 @@ def collect_day_status_conflicts(
 
 
 def _conflicting_shift_plans(db: Session, *, employment_id: int, day: date) -> list[ShiftPlan]:
-    day_start = datetime.combine(day, time.min, tzinfo=PRAGUE_TIMEZONE)
-    day_end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=PRAGUE_TIMEZONE)
-    rows = list(
+    return list(
         db.execute(
             select(ShiftPlan).where(
                 ShiftPlan.employment_id == employment_id,
-                ShiftPlan.date >= day - timedelta(days=1),
-                ShiftPlan.date <= day,
+                ShiftPlan.date == day,
             )
         ).scalars()
     )
-    result: list[ShiftPlan] = []
-    for row in rows:
-        if row.date == day and (row.arrival_time or row.departure_time or row.status):
-            result.append(row)
-            continue
-        interval = shift_plan_interval(row)
-        if interval is not None and interval.start < day_end and interval.end > day_start:
-            result.append(row)
-    return result
 
 
 def conflicting_shift_plan_months(
@@ -139,13 +127,6 @@ def conflicting_shift_plan_months(
     for plan in _conflicting_shift_plans(db, employment_id=employment_id, day=day):
         months.update(shift_plan_months(plan))
     return months
-
-
-def has_shift_plan_carryover(db: Session, *, employment_id: int, day: date) -> bool:
-    return any(
-        plan.date < day
-        for plan in _conflicting_shift_plans(db, employment_id=employment_id, day=day)
-    )
 
 
 def _conflicting_attendance_events(

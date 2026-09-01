@@ -120,7 +120,6 @@ a { color: inherit; }
 .group-plan-row-label small { display:flex;align-items:center;gap:.25rem;color:var(--warning);font-size:.6rem;text-transform:none;letter-spacing:0; }
 .group-plan-day { min-width:126px!important;height:1px;padding:.35rem!important;vertical-align:top; }
 .group-plan-cell { display:grid;grid-template-columns:1fr;gap:.28rem;min-width:112px; }
-.group-plan-cell__carryover { grid-column:1/-1;color:var(--warning);font-size:.58rem;font-weight:800;line-height:1.2;text-align:center;white-space:nowrap; }
 .group-plan-day--outside { background:rgba(255,255,255,.025); }
 .group-plan-summary { display:grid;gap:.2rem;white-space:normal; }
 .group-plan-summary strong { color:var(--text);font-size:.82rem; }

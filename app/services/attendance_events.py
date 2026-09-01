@@ -22,6 +22,8 @@ def add_closed_interval_with_breaks(
     """Atomically add a closed interval and any configured physical break events."""
     start = prague_now(started_at)
     end = prague_now(ended_at)
+    if end.date() != start.date():
+        raise ValueError("Uzavřený pár průchodů musí zůstat ve stejném dni.")
     if end <= start:
         raise ValueError("Odchod musí následovat po příchodu.")
     additions = [
