@@ -519,7 +519,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
 .print-form__identity div:last-child { border-right:0; }
 .print-form__identity strong { font-weight:700; }
 .print-validity-open-ended { display:inline-block; white-space:nowrap; }
-.print-attendance-table { position:absolute; left:var(--content-x); top:31.12mm; width:var(--content-w); margin:0; table-layout:fixed; border:1pt solid #484848; border-collapse:collapse; font-family:"Liberation Sans Narrow","Arial Narrow",Arial,sans-serif; font-variant-numeric:tabular-nums; }
+.print-attendance-table { position:absolute; left:var(--content-x); top:31.12mm; width:var(--content-w); min-width:0; max-width:var(--content-w); margin:0; table-layout:fixed; border:1pt solid #484848; border-collapse:collapse; font-family:"Liberation Sans Narrow","Arial Narrow",Arial,sans-serif; font-variant-numeric:tabular-nums; }
 .print-attendance-table col { width:8.333333%; }
 .print-attendance-table th,.print-attendance-table td { box-sizing:border-box; width:8.333333%; height:5.52mm; padding:0 .7mm; border:.5pt solid #9a9a9a; font-size:6.5pt; line-height:1; text-align:center; vertical-align:middle; white-space:nowrap; }
 .print-attendance-table th { height:10.85mm; padding:0 .5mm; background:#d9d9d9; font-size:6pt; font-weight:700; line-height:.95; white-space:normal; }

@@ -649,7 +649,7 @@ export const resources = {
               externalHourly: "Externí hodinová fakturace",
               unknown: "Neurčený typ",
             },
-            footer: "Tento přehled pro Vás vytiskla KájovoDagmar - Vaše virtuální asistentka • čas: {{generatedAt}}",
+            footer: "Tento přehled vytiskla KájovoDagmar - Vaše virtuální asistentka | Vzorový dokument | {{generatedAt}}",
           },
           preview: {
             afternoonShifts: "Odpolední",

@@ -170,7 +170,7 @@ describe("attendance print layout", () => {
     expect(screen.queryByText(/datum a podpis/)).not.toBeInTheDocument();
     expect(screen.getByText("Plán z kalendáře")).toBeInTheDocument();
     expect(
-      screen.getByText(/Tento přehled pro Vás vytiskla KájovoDagmar/),
+      screen.getByText(/Tento přehled vytiskla KájovoDagmar - Vaše virtuální asistentka \| Vzorový dokument \|/),
     ).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Odpoledne" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Celkem" })).toBeInTheDocument();

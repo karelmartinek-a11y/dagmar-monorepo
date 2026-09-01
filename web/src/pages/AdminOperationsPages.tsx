@@ -401,7 +401,7 @@ function AttendancePrint({
             </section>
           )}
           <footer className="print-form__footer">
-            <small>{t("adminOps.prints.template.footer", { generatedAt: new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date()) })}</small>
+            <small>{t("adminOps.prints.template.footer", { generatedAt: formatPrintTimestamp() })}</small>
           </footer>
         </article>
         );
@@ -419,6 +419,20 @@ function formatPrintPeriod(dateValue: string, locale: string) {
   })
     .format(date)
     .toLocaleUpperCase(locale);
+}
+
+function formatPrintTimestamp(dateValue = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Prague",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(dateValue);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.day}.${values.month}.${values.year} ${values.hour}:${values.minute}`;
 }
 
 function formatEmploymentValidityStart(startDate: string) {
