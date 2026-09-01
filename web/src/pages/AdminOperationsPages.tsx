@@ -352,7 +352,7 @@ function AttendancePrint({
                       );
                     })}
                     <td className="print-code-cell">
-                      <strong>{printDayCode(t, day)}</strong>
+                      <em>{printDayCode(t, day)}</em>
                     </td>
                   </tr>
                 );

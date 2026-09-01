@@ -176,6 +176,8 @@ describe("attendance print layout", () => {
     expect(screen.getByRole("columnheader", { name: "Odpoledne" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Celkem" })).toBeInTheDocument();
     expect(sheet.querySelectorAll(".print-attendance-total-value")).toHaveLength(5);
+    expect(sheet.querySelector(".print-code-cell em")).toBeInTheDocument();
+    expect(sheet.querySelector(".print-code-cell strong")).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Noční práce" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Práce o víkendu" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Práce ve svátku" })).toBeInTheDocument();
