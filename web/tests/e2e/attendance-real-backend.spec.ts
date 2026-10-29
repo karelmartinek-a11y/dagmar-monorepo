@@ -139,6 +139,18 @@ test.describe("real event backend", () => {
       expect(overflow.groupPlanHorizontalOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(true);
       expect(overflow.groupPlanVerticalOverflow, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(false);
       expect(overflow.verticalScrollContainers, `${viewport.width}x${viewport.height}: ${JSON.stringify(overflow)}`).toBe(0);
+      const labelsFit = await groupPlanTable.locator(".group-plan-row-label strong").evaluateAll((labels) => labels.every((label) => {
+        const range = document.createRange();
+        range.selectNodeContents(label);
+        const text = range.getBoundingClientRect();
+        const cell = label.closest("th")!.getBoundingClientRect();
+        return text.left >= cell.left - 1 && text.right <= cell.right + 1;
+      }));
+      expect(labelsFit).toBe(true);
+      const middleDay = ownGroupRow.getByLabel(/PRŮCHOD 1 .*2026-06-17/);
+      await middleDay.scrollIntoViewIfNeeded();
+      await middleDay.click();
+      await expect(middleDay).toBeFocused();
     }
     await page.getByRole("button", { name: "›" }).click();
     await page.getByRole("button", { name: "›" }).click();
@@ -264,4 +276,69 @@ test.describe("real event backend", () => {
       await expect(firstPass).toHaveValue("");
     });
   }
+  for (const role of ["employee", "admin"] as const) {
+    test(`${role} preserves adjacent plan edits while canonical read-back is delayed`, async ({ page }) => {
+      if (role === "employee") {
+        await loginEmployee(page);
+        await goToMonth(page, "srpen 2026");
+        await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
+      } else {
+        await loginAdmin(page, "/admin/plan-sluzeb");
+        await page.getByLabel("Měsíc").fill("8");
+      }
+      const table = role === "employee" ? page.locator(".employee-table-wrap") : page.getByTestId(/admin-shift-plan-/).filter({ hasText: "E2E provozní úvazek" });
+      const first = table.getByLabel("PLÁN – PRŮCHOD 1 2026-08-12", { exact: true });
+      const second = table.getByLabel("PLÁN – PRŮCHOD 2 2026-08-12", { exact: true });
+      await expect(first).toHaveValue("");
+      let releaseRead: () => void = () => undefined;
+      let readStarted = false;
+      let hold = true;
+      await page.route(role === "employee" ? "**/api/v1/attendance?**" : "**/api/v1/admin/shift-plan?**", async (route) => {
+        if (hold) {
+          hold = false;
+          readStarted = true;
+          await new Promise<void>((resolve) => { releaseRead = resolve; });
+        }
+        await route.continue();
+      });
+      await first.fill("08:00");
+      await first.press("Enter");
+      await expect.poll(() => readStarted).toBe(true);
+      await expect(first).toHaveAttribute("readonly", "");
+      await expect(second).toHaveAttribute("readonly", "");
+      await expect(first).toBeFocused();
+      await expect(table.getByLabel("PLÁN – PRŮCHOD 1 2026-08-13", { exact: true })).toBeEditable();
+      releaseRead();
+      await expect(second).toBeEditable();
+      await expect(second).toBeFocused();
+      await expect(first).toHaveValue("08:00");
+      const writePath = role === "employee" ? "/api/v1/shift-plan" : "/api/v1/admin/shift-plan";
+      const secondWrite = page.waitForResponse((response) => response.url().endsWith(writePath) && response.request().method() === "PUT");
+      await page.keyboard.type("16:03");
+      await page.keyboard.press("Enter");
+      expect((await secondWrite).ok()).toBe(true);
+      await expect(second).toBeEditable();
+      await expect(first).toHaveValue("08:00");
+      await expect(second).toHaveValue("16:03");
+      await page.unrouteAll({ behavior: "wait" });
+      await page.reload();
+      if (role === "employee") {
+        await goToMonth(page, "srpen 2026");
+        await page.getByRole("tab", { name: "Plán služeb", exact: true }).click();
+      } else await page.getByLabel("Měsíc").fill("8");
+      await expect(first).toHaveValue("08:00");
+      await expect(second).toHaveValue("16:03");
+      await first.fill("");
+      await first.press("Enter");
+      await expect(first).toHaveValue("16:03");
+      await expect(first).toBeEditable();
+      const finalDelete = page.waitForResponse((response) => response.url().endsWith(writePath) && response.request().method() === "PUT");
+      await first.fill("");
+      await first.press("Enter");
+      expect((await finalDelete).ok()).toBe(true);
+      await expect(first).toBeEditable();
+      await expect(first).toHaveValue("");
+    });
+  }
+
 });

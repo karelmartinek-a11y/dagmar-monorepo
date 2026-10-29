@@ -94,3 +94,49 @@ describe("ClockInput", () => {
     expect(onCommit).not.toHaveBeenCalled();
   });
 });
+
+describe("ClockInput pending read-back", () => {
+  it("retains the canonical value delivered while its commit is pending", async () => {
+    let finish!: () => void;
+    const onCommit = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const { rerender } = render(<ClockInput aria-label="Čas" value="" onCommit={onCommit} />);
+    const input = screen.getByLabelText("Čas");
+    fireEvent.change(input, { target: { value: "08:00" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    rerender(<ClockInput aria-label="Čas" value="08:00" readOnly onCommit={onCommit} />);
+    finish();
+    await waitFor(() => expect(input).toHaveClass("clock-input--saved"));
+    expect(input).toHaveValue("08:00");
+  });
+
+  it("does not delete or commit a read-only boundary", () => {
+    const onCommit = vi.fn();
+    render(<ClockInput aria-label="Čas" value="08:00" readOnly onCommit={onCommit} />);
+    const input = screen.getByLabelText("Čas");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "Delete" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.blur(input);
+    expect(input).toHaveValue("08:00");
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
+
+it("does not steal focus after a pending edit when the user moves to another day", async () => {
+  let finish!: () => void;
+  render(<>
+    <ClockInput aria-label="První den" value="08:00" onCommit={() => new Promise<void>((resolve) => { finish = resolve; })} />
+    <ClockInput aria-label="Druhý den" value="" onCommit={vi.fn()} />
+    <ClockInput aria-label="Třetí den" value="" onCommit={vi.fn()} />
+  </>);
+  const first = screen.getByLabelText("První den");
+  const second = screen.getByLabelText("Druhý den");
+  first.focus();
+  fireEvent.change(first, { target: { value: "09:00" } });
+  fireEvent.keyDown(first, { key: "Enter" });
+  second.focus();
+  finish();
+  await waitFor(() => expect(first).toHaveClass("clock-input--saved"));
+  expect(second).toHaveFocus();
+});

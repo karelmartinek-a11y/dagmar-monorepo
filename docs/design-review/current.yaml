@@ -2,6 +2,7 @@ status: SCHVÁLENO
 verdict: SCHVÁLENO
 reviewer: design-agent
 scope:
+  - "Kanonické potvrzení zápisu plánu před další editací stejného dne, readonly obou polí a zachování fokusu při opožděném potvrzení."
   - "Revalidace skutečného API po Zod 4.6.7 a nativního PDF rendereru po Pillow 13.0.0."
   - "Přímá editace a mazání osamoceného času v zaměstnaneckém a administrátorském plánu."
   - "Měsíční součet plánovaných hodin v obou detailech, také při skryté celkové metrice a u úkolového úvazku."
@@ -9,7 +10,8 @@ scope:
 evidence:
   backend: complete
   frontend: complete
-  directory: /tmp/dagmar-plan-review-20261030-deps
+  directory: /tmp/dagmar-plan-review-20261030-race
+  inherited_pdf_directory: /tmp/dagmar-plan-review-20261030-deps
   runtime: "Izolovaná PostgreSQL 16 databáze dagmar_e2e_plan_review_20261030, skutečný FastAPI na 127.0.0.1:8101 a Vite/React na 127.0.0.1:5173."
   viewports:
     - 1440x900
@@ -23,6 +25,8 @@ evidence:
     - de
     - hi
   coverage:
+    - "42 pending/readOnly variant: employee a group cs/en/sk/de/hi, admin cs/en/sk/de, každá ve třech šířkách. Obě pole stejného dne readonly do skutečného kanonického GET; ostatní dny zůstávají editovatelné."
+    - "Delayed reálný API read-back: employee/group/admin zachovaly08:00 po prvním potvrzení, focusnext, následné16:03, uložený celý8,1h interval a persistence po reloadu. Opožděné potvrzení nepřevzalo fokus ani draft09:00 z jiného dne ve všech třech pohledech."
     - "Zod 4.6.7: reálný login, validace API odpovědí, součty a persistence po smazání. Pillow 13.0.0: nativní PDF přes autentizované API, plných pět úvazků a 31 dní na jediné A4 landscape bez překryvů, včetně dlouhé identity a všech pěti metrik."
     - "Zaměstnanecký plán, skupinový plán a sdílený docházkový detail: cs/en/sk/de/hi ve všech třech šířkách a print media."
     - "Administrátorský plán a samostatný tiskový náhled: všechny čtyři podporované administrátorské jazyky cs/en/sk/de ve všech třech šířkách a print/PDF."
@@ -31,17 +35,25 @@ evidence:
     - "Postupné smazání obou časů kompletní směny bez reloadu v zaměstnaneckém UI."
     - "Dlouhé jméno a název úvazku, maximum pěti metrik, zamčený červenec, reálný stav ukládání/uloženo a backendová validační chyba."
   checks:
-    - /tmp/dagmar-plan-review-20261030-deps/checks.json
-    - /tmp/dagmar-plan-review-20261030-deps/supplemental-checks.json
+    - /tmp/dagmar-plan-review-20261030-race/race-checks.json
+    - /tmp/dagmar-plan-review-20261030-race/canonical-pair-hours.json
+    - /tmp/dagmar-plan-review-20261030-race/focus-guard-checks.json
+    - /tmp/dagmar-plan-review-20261030-race/checks.json
+    - /tmp/dagmar-plan-review-20261030-race/supplemental-checks.json
   reproduction:
+    - "node /tmp/dagmar-plan-review-20261030-race/race.mjs"
+    - "node /tmp/dagmar-plan-review-20261030-race/saving-variants.mjs"
+    - "node /tmp/dagmar-plan-review-20261030-race/focus-guard.mjs"
     - "node /tmp/dagmar-plan-review-20261030-deps/pdf-review.mjs"
     - "node /tmp/dagmar-plan-review-20261030-deps/pdf-five.mjs"
-    - "node /tmp/dagmar-plan-review-20261030-deps/review.mjs"
-    - "node /tmp/dagmar-plan-review-20261030-deps/supplemental.mjs"
-    - "node /tmp/dagmar-plan-review-20261030-deps/sequential.mjs"
+    - "node /tmp/dagmar-plan-review-20261030-race/review.mjs"
+    - "node /tmp/dagmar-plan-review-20261030-race/supplemental.mjs"
+    - "node /tmp/dagmar-plan-review-20261030-race/sequential.mjs"
 resolved_findings:
+  - "P1 skupinového sticky sloupce vyřešen: TH/TD zachovávají tabulkovou geometrii a mají vnitřní grid wrappery, dlouhá identita se zalamuje uvnitř vlastní buňky a neprůhledné sticky pozadí zakrývá odscrollovaný obsah. Ověřeno při horizontálním scrollu na17.den ve všech šířkách a jazycích včetně pending stavu."
+  - "Časový race plánu vyřešen potvrzeným kanonickým read-backem a readonly obou polí stejného dne do dokončení. ClockInput zachovává novou kanonickou hodnotu i případný fokus a draft jiného dne při opožděném potvrzení."
   - "P1 nativního PDF vyřešen: identita a součty se měřeně zalamují uvnitř buněk, neutrální časy jsou svisle v jednom denním sloupci, společná hlavička a legenda nepřetékají. Samostatný plánový součet je viditelný i pro hidden-total a TASK. Ověřeno skutečným API s Pillow 13: pillow13-fixed-native-api-page1.png a pillow13-fixed-five-employments-page1.png."
   - "Absolutní sr-only stav ClockInput unikal zaměstnaneckým scroll wrapperům. position:relative na obou wrapperech zachovává scroll tabulky a odstranilo page overflow; ověřeno všemi šířkami a jazyky."
 limitations:
   - "P2 mimo tento rozsah: nezměněný samostatný tisk plánu s extrémně dlouhým jménem/názvem a pěti metrikami může pokračovat na další A4 stránce. Data zůstávají dostupná; tento záznam nepotvrzuje jedno-stránkový fit takového tisku."
-notes: "SCHVÁLENO po revalidaci aktualizovaných dependencies a opravě nativního PDF rendereru. UI část prošla skutečnými lokálními rendery a reálným API: 72 hlavních kontrol a 21 doplňkových záznamů, orphan persistence employee/admin, postupné smazání celé směny, všechny šířky a relevantní jazyky bez neočekávaného interaktivního page overflow. Opravený nativní PDF export byl stažen přes skutečné API a zkontrolován po rasterizaci; pět úvazků s31dny se vejde na jednu A4 landscape bez původních překryvů a chybějících součtů. Žádný otevřený P0/P1 v rozsahu změny. Produkce nebyla použita ani změněna."
+notes: "SCHVÁLENO po finální interakční a vizuální revalidaci. Skutečný lokální PostgreSQL/FastAPI/Vite runtime ověřil72hlavních a21doplňkových kontrol,42pending viewport/jazyk variant, delayed read-back ve všech třech plánových plochách, standardní focusnext i zachování fokusu a draftu jiného dne při opožděném potvrzení. Souběžné zápisy různých dnů zachovaly oba zámky do kanonického načtení. Finální horizontálně posunuté rendery skupinového plánu po opravě table-cell geometrie neobsahují překryv identity a inputů. Dřívější pětimístná31denní A4 evidence nativního PDF v inherited_pdf_directory zůstává platná, renderer se v této interakční změně nezměnil a nativní API PDF bylo znovu úspěšně vytvořeno. Žádný otevřený P0/P1 v rozsahu změny; produkce nebyla použita ani změněna."

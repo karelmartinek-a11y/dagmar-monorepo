@@ -113,15 +113,17 @@ a { color: inherit; }
 .group-plan-table .group-plan-day-head { min-width:126px; }
 .group-plan-table tbody tr.group-plan-row--own td,.group-plan-table tbody tr.group-plan-row--own th { background:rgba(39,215,166,.075); }
 .group-plan-table tbody tr.group-plan-row--own th { box-shadow:inset 3px 0 0 var(--accent); }
-.group-plan-table tbody tr.group-plan-row--other { opacity:.82; }
-.group-plan-row-label { display:grid;gap:.28rem;white-space:normal;line-height:1.25; }
+.group-plan-table .group-plan-row-label { white-space:normal;line-height:1.25; }
+.group-plan-row-label__content { display:grid;gap:.28rem;max-width:220px;white-space:normal;overflow-wrap:anywhere; }
+.group-plan-table tbody tr.group-plan-row--own th.group-plan-row-label { background:#0d2b23; }
 .group-plan-row-label strong { max-width:220px; }
 .group-plan-row-label em { width:max-content;padding:.16rem .32rem;border-radius:4px;background:var(--accent);color:var(--accent-ink);font-size:.52rem;font-style:normal;font-weight:900;letter-spacing:.08em; }
 .group-plan-row-label small { display:flex;align-items:center;gap:.25rem;color:var(--warning);font-size:.6rem;text-transform:none;letter-spacing:0; }
 .group-plan-day { min-width:126px!important;height:1px;padding:.35rem!important;vertical-align:top; }
 .group-plan-cell { display:grid;grid-template-columns:1fr;gap:.28rem;min-width:112px; }
 .group-plan-day--outside { background:rgba(255,255,255,.025); }
-.group-plan-summary { display:grid;gap:.2rem;white-space:normal; }
+.group-plan-table .group-plan-summary { white-space:normal; }
+.group-plan-summary__content { display:grid;gap:.2rem;min-width:150px;max-width:220px;white-space:normal;overflow-wrap:anywhere; }
 .group-plan-summary strong { color:var(--text);font-size:.82rem; }
 .group-plan-summary span { color:var(--muted);font-size:.62rem; }
 .group-plan-cell select { grid-column:1/-1;min-height:27px;border:1px solid var(--line-strong);border-radius:6px;background:#071713;color:var(--muted);padding:.2rem .3rem;font-size:.6rem;font-weight:700; }
@@ -331,6 +333,7 @@ html { scroll-padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)); }
   .group-plan-table-wrap { margin-inline:-.35rem;border-inline:0;border-radius:0; }
   .group-plan-table .matrix__sticky-left { min-width:172px;max-width:172px; }
   .group-plan-day { min-width:118px!important; }
+  .group-plan-row-label__content { max-width:150px; }
   .group-plan-row-label strong { max-width:150px;font-size:.68rem; }
 }
 @media (max-width:340px) {

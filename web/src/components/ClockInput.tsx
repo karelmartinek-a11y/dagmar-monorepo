@@ -24,7 +24,10 @@ export function ClockInput({
   onNavigate?: (direction: "next" | "previous") => void;
 }) {
   const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value);
+  const latestValue = useRef(value);
+  latestValue.current = value;
   const [invalid, setInvalid] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -43,7 +46,7 @@ export function ClockInput({
     [],
   );
   const commit = async (direction?: "next" | "previous") => {
-    if (commitInFlight.current) return;
+    if (props.readOnly || commitInFlight.current) return;
     if (draft === value) {
       if (direction) navigate(direction);
       return;
@@ -61,7 +64,8 @@ export function ClockInput({
       setError(null);
       try {
         await onCommit(normalized);
-        setDraft(value === "" && normalized !== "" ? "" : normalized);
+        // Refetch may compact or replace the cell while acknowledgement is pending.
+        setDraft(latestValue.current !== value ? latestValue.current : value === "" && normalized !== "" ? "" : normalized);
         setSaved(true);
         if (savedTimer.current) clearTimeout(savedTimer.current);
         savedTimer.current = setTimeout(() => setSaved(false), 650);
@@ -86,6 +90,8 @@ export function ClockInput({
     void commit();
   };
   const navigate = (direction: "next" | "previous") => {
+    // A late acknowledgement must not move focus away from another edited day.
+    if (document.activeElement !== inputRef.current) return;
     if (onNavigate) {
       onNavigate(direction);
       return;
@@ -95,6 +101,7 @@ export function ClockInput({
     inputs[index + (direction === "next" ? 1 : -1)]?.focus();
   };
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (props.readOnly) return;
     if (event.key === "Escape") {
       event.preventDefault();
       cancelBlur.current = true;
@@ -129,6 +136,7 @@ export function ClockInput({
     <>
       <input
         {...props}
+        ref={inputRef}
         className={`${props.className ?? ""} clock-input${saving ? " clock-input--saving" : ""}${saved ? " clock-input--saved" : ""}${error ? " clock-input--error" : ""}`.trim()}
         type="text"
         inputMode="numeric"

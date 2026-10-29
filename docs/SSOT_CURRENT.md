@@ -446,7 +446,9 @@ Povinné kombinace:
 `ShiftPlan` je nejvýše jeden primární záznam pro `(employment_id, date)`:
 
 - obsahuje úplný interval, rozpracovaný jediný čas nebo celodenní plan status; rozpracovaný čas lze doplnit, upravit i smazat;
+- skupinový plán ponechává identity a souhrny jako skutečné tabulkové buňky; případný grid je v jejich vnitřních obalech. Dlouhé identity se zalamují uvnitř neprůhledného sticky sloupce a při horizontálním posunu nepřekrývají ovladatelná časová pole;
 - tabulka plánu udržuje horizontální posun uvnitř vlastního obalu i bez hodinových sloupců; absolutní přístupnostní statusy časových polí jsou ukotvené uvnitř obalu;
+- potvrzení časového zápisu a přesun klávesnice do další buňky čekají na kanonické načtení po zápisu. Obě pole stejného dne zůstávají do té doby `readOnly` bez ztráty focusu; jiné dny zůstávají editovatelné. Souběžné zápisy se sledují samostatně podle `(employment_id,date)` a časový editor po potvrzení zachová aktuální serverovou hodnotu i při zkompaktování buněk;
 - editor zachovává identitu uloženého pole i po zobrazení osamoceného času v prvním sloupci; vymazání obou časů bez statusu odstraní celý záznam;
 - zaměstnanecký i adminský plán vždy zobrazují měsíční součet `planned_hours` za úvazek nezávisle na `display_metrics`, včetně `TASK_SHIFT_BASED`; jde o součet backendem zaokrouhlených denních desetin z úplných intervalů, bez neúplných časů a celodenních stavů;
 - časy jsou `HH:mm`; konec musí být později než začátek ve stejném dni;

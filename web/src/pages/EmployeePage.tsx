@@ -21,6 +21,7 @@ import { Brand } from "../components/Brand";
 import { ExternalLoginButtons } from "../components/ExternalLoginButtons";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Button, Field, StatusMessage } from "../components/Primitives";
+import { usePendingPlanWrites } from "../state/usePendingPlanWrites";
 import { ClockInput } from "../components/ClockInput";
 import {
   clearPortalSession,
@@ -158,11 +159,13 @@ function GroupPlanContextMenu({
 
 function EmployeeGroupPlanTable({
   plan,
+  isSaving,
   language,
   onSave,
   onContextMenu,
 }: {
   plan: GroupShiftPlanMonth;
+  isSaving: (employmentId: number, date: string) => boolean;
   language: string;
   onSave: (body: {
     employment_id: number;
@@ -200,9 +203,11 @@ function EmployeeGroupPlanTable({
                 key={row.employment_id}
               >
                 <th className="matrix__sticky-left group-plan-row-label">
+                  <div className="group-plan-row-label__content">
                   <strong>{row.display_label}</strong>
                   {row.is_own_employment ? <em>Moje</em> : null}
                   {row.shift_plan_locked ? <small>Plán zamčen</small> : null}
+                  </div>
                 </th>
                 {days.map((headerDay) => {
                   const day = rowDays.get(headerDay.date);
@@ -223,6 +228,7 @@ function EmployeeGroupPlanTable({
                             aria-label={`PLÁN – PRŮCHOD 1 ${row.employment_id} ${day.date}`}
                             value={day.arrival_time ?? ""}
                             disabled={!editable}
+                            readOnly={isSaving(row.employment_id, day.date)}
                             onCommit={async (value) => { await onSave({
                               employment_id: row.employment_id,
                               date: day.date,
@@ -235,6 +241,7 @@ function EmployeeGroupPlanTable({
                             aria-label={`PLÁN – PRŮCHOD 2 ${row.employment_id} ${day.date}`}
                             value={day.departure_time ?? ""}
                             disabled={!editable}
+                            readOnly={isSaving(row.employment_id, day.date)}
                             onCommit={async (value) => { await onSave({
                               employment_id: row.employment_id,
                               date: day.date,
@@ -249,11 +256,13 @@ function EmployeeGroupPlanTable({
                   );
                 })}
                 <td className="matrix__summary group-plan-summary">
+                  <div className="group-plan-summary__content">
                   <strong>{formatHours(row.planned_hours, "cs-CZ")}</strong>
                   {row.display_metrics.map((key) => (
                     <span key={key}>{plannedMetricLabels[key]}: {row.planned?.[key] ? formatHours(row.planned[key]!.hours, "cs-CZ") : "—"}</span>
                   ))}
                   {statusMetricKeys.map((key) => row.status_metrics[key] ? <span key={key}>{statusMetricLabels[key]}: {formatHours(row.status_metrics[key]!.hours, "cs-CZ")}</span> : null)}
+                  </div>
                 </td>
               </tr>
             );
@@ -411,8 +420,10 @@ function EmployeePlanTable({
   month,
   onRefresh,
   onSave,
+  isSaving,
 }: {
   month: AttendanceMonth;
+  isSaving: (employmentId: number, date: string) => boolean;
   onRefresh: () => void;
   onSave: (body: Record<string, unknown>) => Promise<unknown>;
 }) {
@@ -432,7 +443,7 @@ function EmployeePlanTable({
               <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ day, x: event.clientX, y: event.clientY }); }}>
                 <th>{formatCalendarDate(day.date, i18n.language as "cs" | "de" | "en" | "hi")}</th>
                 <td>{weekdayLabel(day.date, i18n.language)}</td>
-                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status || day.planned_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || index > 1} onCommit={async (value) => { await onSave({ employment_id: month.employment_id, date: day.date, ...updatePlanBoundary({ arrival_time: day.planned_arrival_time ?? null, departure_time: day.planned_departure_time ?? null }, index, value), status: day.planned_status ?? null }); }} />}</td>)}
+                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status || day.planned_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || index > 1} readOnly={isSaving(month.employment_id, day.date)} onCommit={async (value) => { await onSave({ employment_id: month.employment_id, date: day.date, ...updatePlanBoundary({ arrival_time: day.planned_arrival_time ?? null, departure_time: day.planned_departure_time ?? null }, index, value), status: day.planned_status ?? null }); }} />}</td>)}
                 {month.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}
               </tr>
             );
@@ -455,6 +466,7 @@ export function EmployeePage() {
   const [groupContext, setGroupContext] = useState<{ row: GroupPlanRow; day: GroupPlanDay; x: number; y: number } | null>(null);
   const employmentId = session?.selected_employment_id ?? null;
   const queryClient = useQueryClient();
+  const pendingWrites = usePendingPlanWrites();
   const year = month.getFullYear();
   const monthNumber = month.getMonth() + 1;
   useEffect(() => {
@@ -521,13 +533,17 @@ export function EmployeePage() {
     const next = reconcileSelectedGroup(selectedGroup, groups.data);
     if (next !== selectedGroup) setSelectedGroup(next);
   }, [groups.data, selectedGroup]);
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ["attendance"] });
-    void queryClient.invalidateQueries({ queryKey: ["group-plan"] });
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["attendance"] }),
+      queryClient.invalidateQueries({ queryKey: ["group-plan"] }),
+    ]);
   };
   const planMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.saveShiftPlan(body),
+    onMutate: (body) => pendingWrites.begin(body.employment_id, body.date),
     onSuccess: refresh,
+    onSettled: (_data, _error, body) => pendingWrites.finish(body.employment_id, body.date),
     onError: (reason) =>
       setNotice(
         reason instanceof Error ? reason.message : "Plán se nepodařilo uložit.",
@@ -700,7 +716,7 @@ export function EmployeePage() {
               {view === "attendance" ? (
                 <EmployeeAttendanceTable month={query.data} onRefresh={refresh} />
               ) : (
-                <EmployeePlanTable month={query.data} onRefresh={refresh} onSave={(body) => planMutation.mutateAsync(body)} />
+                <EmployeePlanTable isSaving={pendingWrites.isPending} month={query.data} onRefresh={refresh} onSave={(body) => planMutation.mutateAsync(body)} />
               )}
             </>
           ) : null}
@@ -753,6 +769,7 @@ export function EmployeePage() {
                 {groupPlan.data ? (
                   <>
                     <EmployeeGroupPlanTable
+                      isSaving={pendingWrites.isPending}
                       plan={groupPlan.data}
                       language={i18n.language}
                       onSave={(body) => planMutation.mutateAsync(body)}

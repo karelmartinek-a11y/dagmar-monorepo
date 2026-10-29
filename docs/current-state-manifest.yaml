@@ -992,10 +992,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2009,
+    "line_count": 2011,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "5a778bb2fa83dc0cc194e14ed5d3bd8c53a00520214eab694820925131d61906"
+    "sha256": "45ecdb09832c1a2217995b9f12bd9aa120decc2e0acf633895a1c27951051b3d"
   },
   "production": {
     "api_base_path": "/api/v1/",

@@ -19,6 +19,7 @@ import type {
   TimeMetrics,
 } from "../api/types";
 import { Button, Panel, StatusMessage } from "../components/Primitives";
+import { usePendingPlanWrites } from "../state/usePendingPlanWrites";
 import { ClockInput } from "../components/ClockInput";
 import { formatHours } from "../utils/hoursFormat";
 import { formatCalendarDate } from "../utils/format";
@@ -341,6 +342,7 @@ type PlanMonth = {
 export function AdminShiftPlanPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const pendingWrites = usePendingPlanWrites();
   const initial = monthParts();
   const [year, setYear] = useState(initial.year);
   const [month, setMonth] = useState(initial.month);
@@ -355,7 +357,7 @@ export function AdminShiftPlanPage() {
       ),
   });
   const refresh = () =>
-    void queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: ["admin-shift-plan", year, month],
     });
   const save = useMutation({
@@ -364,7 +366,9 @@ export function AdminShiftPlanPage() {
         method: "PUT",
         body: JSON.stringify(body),
       }),
+    onMutate: (body) => pendingWrites.begin(body.employment_id, body.date),
     onSuccess: refresh,
+    onSettled: (_data, _error, body) => pendingWrites.finish(body.employment_id, body.date),
     onError: (reason) =>
       setNotice(
         reason instanceof Error ? reason.message : "Plán se nepodařilo uložit.",
@@ -464,7 +468,7 @@ export function AdminShiftPlanPage() {
               <div className="admin-day-tables admin-shift-plan-matrix-wrap">
                 {rows.map((row) => <section className="admin-employment-table" key={row.employment_id} data-testid={`admin-shift-plan-${row.employment_id}`}>
                   <header className="admin-employment-table__header"><strong>{row.display_label}</strong><p data-testid="admin-planned-hours"><strong>{t("common.monthlyPlannedHours")}: {formatHours(row.summary.planned_hours, "cs-CZ")}</strong></p><div className="matrix-user__actions"><Button variant="quiet" onClick={() => lock.mutate({ row, locked: !row.shift_plan_locked })}>{row.shift_plan_locked ? <UnlockKeyhole /> : <LockKeyhole />}{row.shift_plan_locked ? "Odemknout plán" : "Zamknout plán"}</Button></div></header>
-                  <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: Math.max(4, ...row.days.map((day) => chronologicalPlanBoundaries({ arrival_time: day.arrival_time, departure_time: day.departure_time }).length)) }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{row.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead><tbody>{row.days.map((day) => { const disabled = row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status); const planTimes = chronologicalPlanBoundaries({ arrival_time: day.arrival_time, departure_time: day.departure_time }); const statusKey = statusMetricKeyForStatus(day.effective_status || day.status); const statusMetric = statusKey ? day.status_metrics[statusKey] : null; return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ row, day, x: event.clientX, y: event.clientY }); }}><th>{formatCalendarDate(day.date)}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: Math.max(4, ...row.days.map((item) => chronologicalPlanBoundaries({ arrival_time: item.arrival_time, departure_time: item.departure_time }).length)) }, (_, index) => <td key={index}>{day.effective_status || day.status ? <strong className="day-absence-label">{index === 0 ? `${day.effective_status || day.status}${statusMetric ? ` · ${formatHours(statusMetric.hours, "cs-CZ")}` : ""}` : day.effective_status || day.status}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || index > 1} onCommit={async (value) => { await save.mutateAsync({ employment_id: row.employment_id, date: day.date, ...updatePlanBoundary({ arrival_time: day.arrival_time, departure_time: day.departure_time }, index, value), status: day.status }); }} />}</td>)}{row.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
+                  <div className="data-table-wrap"><table className="data-table employee-month-table"><thead><tr><th>Datum</th><th>Den</th>{Array.from({ length: Math.max(4, ...row.days.map((day) => chronologicalPlanBoundaries({ arrival_time: day.arrival_time, departure_time: day.departure_time }).length)) }, (_, index) => <th key={index}>PRŮCHOD {index + 1}</th>)}{row.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead><tbody>{row.days.map((day) => { const disabled = row.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status); const planTimes = chronologicalPlanBoundaries({ arrival_time: day.arrival_time, departure_time: day.departure_time }); const statusKey = statusMetricKeyForStatus(day.effective_status || day.status); const statusMetric = statusKey ? day.status_metrics[statusKey] : null; return <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ row, day, x: event.clientX, y: event.clientY }); }}><th>{formatCalendarDate(day.date)}</th><td>{new Intl.DateTimeFormat("cs-CZ", { weekday: "long" }).format(new Date(`${day.date}T12:00:00`))}</td>{Array.from({ length: Math.max(4, ...row.days.map((item) => chronologicalPlanBoundaries({ arrival_time: item.arrival_time, departure_time: item.departure_time }).length)) }, (_, index) => <td key={index}>{day.effective_status || day.status ? <strong className="day-absence-label">{index === 0 ? `${day.effective_status || day.status}${statusMetric ? ` · ${formatHours(statusMetric.hours, "cs-CZ")}` : ""}` : day.effective_status || day.status}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || index > 1} readOnly={pendingWrites.isPending(row.employment_id, day.date)} onCommit={async (value) => { await save.mutateAsync({ employment_id: row.employment_id, date: day.date, ...updatePlanBoundary({ arrival_time: day.arrival_time, departure_time: day.departure_time }, index, value), status: day.status }); }} />}</td>)}{row.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}</tr>; })}</tbody></table></div>
                   {statusMetricText(row.summary.status_metrics) ? <p className="status-metrics-summary">Celodenní stavy: {statusMetricText(row.summary.status_metrics)}</p> : null}
                 </section>)}
                 {context ? <div className="row-context-menu" role="menu" style={{ left: context.x, top: context.y }} onMouseLeave={() => setContext(null)}><strong>Celodenní nepřítomnost</strong>{["HOLIDAY", "OFF"].map((status) => <button type="button" role="menuitem" key={status} onClick={() => { if (window.confirm(`Nastavit ${status} pro ${context.day.date}?`)) void save.mutateAsync({ employment_id: context.row.employment_id, date: context.day.date, arrival_time: null, departure_time: null, status }).then(() => setContext(null)); }}>{status === "HOLIDAY" ? "Dovolená" : "Volno"}</button>)}<button type="button" role="menuitem" disabled={!context.day.status} onClick={() => void save.mutateAsync({ employment_id: context.row.employment_id, date: context.day.date, arrival_time: null, departure_time: null, status: null }).then(() => setContext(null))}>Pracovní den</button></div> : null}
