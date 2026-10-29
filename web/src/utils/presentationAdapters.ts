@@ -54,6 +54,19 @@ export function chronologicalPlanBoundaries(day: {
   ].filter((value): value is string => Boolean(value));
 }
 
+export function updatePlanBoundary(
+  day: { arrival_time: string | null; departure_time: string | null },
+  index: number,
+  value: string,
+): { arrival_time: string | null; departure_time: string | null } {
+  // Compacted display columns must retain the identity of their stored field.
+  const fields = ["arrival_time", "departure_time"] as const;
+  const ordered = [...fields.filter((field) => day[field]), ...fields.filter((field) => !day[field])];
+  const field = ordered[index];
+  if (!field) throw new RangeError("Invalid plan boundary column");
+  return { ...day, [field]: value || null };
+}
+
 export function formatPragueTime(value: string | Date): string {
   return new Intl.DateTimeFormat("cs-CZ", {
     timeZone: "Europe/Prague",

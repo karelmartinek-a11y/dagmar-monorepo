@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chronologicalPlanBoundaries,
+  updatePlanBoundary,
   edgeEvents,
   humanEventHeaders,
   isPrintCapacityExceeded,
@@ -34,5 +35,26 @@ describe("presentation adapters", () => {
   it("rejects print data outside the approved capacity envelope", () => {
     expect(isPrintCapacityExceeded(31, 4, ["total", "afternoon", "night", "weekend", "public_holiday"])).toBe(false);
     expect(isPrintCapacityExceeded(31, 5, ["total"])).toBe(true);
+  });
+});
+
+describe("plan boundary edits retain their stored identity", () => {
+  it.each([
+    [null, "22:00", 0, "", { arrival_time: null, departure_time: null }],
+    [null, "22:00", 0, "21:00", { arrival_time: null, departure_time: "21:00" }],
+    [null, "22:00", 1, "08:00", { arrival_time: "08:00", departure_time: "22:00" }],
+    ["08:00", null, 0, "", { arrival_time: null, departure_time: null }],
+    ["08:00", null, 1, "22:00", { arrival_time: "08:00", departure_time: "22:00" }],
+    ["08:00", "22:00", 0, "", { arrival_time: null, departure_time: "22:00" }],
+    ["08:00", "22:00", 1, "", { arrival_time: "08:00", departure_time: null }],
+    [null, null, 0, "08:00", { arrival_time: "08:00", departure_time: null }],
+  ] as const)("edits %s/%s at column %s", (arrival, departure, index, value, expected) => {
+    expect(updatePlanBoundary({ arrival_time: arrival, departure_time: departure }, index, value)).toEqual(expected);
+  });
+
+  it("can clear both boundaries through successive compacted edits", () => {
+    const partial = updatePlanBoundary({ arrival_time: "08:00", departure_time: "22:00" }, 0, "");
+    expect(chronologicalPlanBoundaries(partial)).toEqual(["22:00"]);
+    expect(updatePlanBoundary(partial, 0, "")).toEqual({ arrival_time: null, departure_time: null });
   });
 });

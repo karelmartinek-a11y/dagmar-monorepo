@@ -18,7 +18,12 @@ from app.db.models import (
 )
 from app.services.czech_holidays import is_czech_public_holiday
 from app.services.prague_time import prague_now
-from app.services.time_intervals import pair_events, paired_event_ids, shift_plan_intervals
+from app.services.time_intervals import (
+    pair_events,
+    paired_event_ids,
+    shift_plan_interval,
+    shift_plan_intervals,
+)
 from app.services.time_metrics import (
     STATUS_METRIC_KEYS,
     DailyMetrics,
@@ -27,6 +32,7 @@ from app.services.time_metrics import (
     calculate_daily_metrics,
     calculate_day_status_metrics,
     empty_daily_metrics,
+    metric_value,
 )
 
 
@@ -44,11 +50,13 @@ class DaySummary:
 
     @property
     def planned_minutes(self) -> int:
-        return self.planned.total.minutes if self.planned else 0
+        # Scheduling duration is visible even when the profile hides hourly metrics.
+        interval = shift_plan_interval(self.plan) if self.plan is not None else None
+        return interval.minutes if interval is not None else 0
 
     @property
     def planned_hours(self) -> float:
-        return self.planned.total.hours if self.planned else 0.0
+        return metric_value(self.planned_minutes).hours
 
 
 @dataclass(frozen=True)
@@ -60,13 +68,11 @@ class MonthSummary:
 
     @property
     def planned_minutes(self) -> int:
-        value = self.planned.get("total") if self.planned else None
-        return value.minutes if value else 0
+        return sum(day.planned_minutes for day in self.day_summaries)
 
     @property
     def planned_hours(self) -> float:
-        value = self.planned.get("total") if self.planned else None
-        return value.hours if value else 0.0
+        return sum(metric_value(day.planned_minutes).tenths for day in self.day_summaries) / 10
 
 
 def _month_range(year: int, month: int) -> tuple[date, date]:

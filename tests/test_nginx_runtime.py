@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import shutil
 import socket
 import ssl
 import subprocess
@@ -21,19 +22,22 @@ def _free_port() -> int:
         return int(listener.getsockname()[1])
 
 
-def _docker_args(tls: Path) -> list[str]:
-    return [
-        "-v",
-        f"{ROOT / 'tests/fixtures/nginx/nginx.conf'}:/etc/nginx/nginx.conf:ro",
-        "-v",
-        f"{ROOT / 'ops/nginx/dagmar-location.conf'}:/etc/nginx/conf.d/dagmar-location.conf:ro",
-        "-v",
-        f"{ROOT / 'ops/nginx/dagmar-security-headers.conf'}:/etc/nginx/snippets/dagmar-security-headers.conf:ro",
-        "-v",
-        f"{ROOT / 'web'}:/var/www/dagmar/frontend:ro",
-        "-v",
-        f"{tls}:/etc/nginx/tls:ro",
-    ]
+def _copy_nginx_fixtures(name: str, tls: Path) -> None:
+    # Copy fixtures through Docker's API so external-disk checkouts work in VM runtimes.
+    rootfs = tls / "rootfs"
+    files = {
+        ROOT / "tests/fixtures/nginx/nginx.conf": "etc/nginx/nginx.conf",
+        ROOT / "ops/nginx/dagmar-location.conf": "etc/nginx/conf.d/dagmar-location.conf",
+        ROOT / "ops/nginx/dagmar-security-headers.conf": "etc/nginx/snippets/dagmar-security-headers.conf",
+        ROOT / "web/index.html": "var/www/dagmar/frontend/index.html",
+        tls / "key.pem": "etc/nginx/tls/key.pem",
+        tls / "cert.pem": "etc/nginx/tls/cert.pem",
+    }
+    for source, target in files.items():
+        destination = rootfs / target
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+    subprocess.run(["docker", "cp", f"{rootfs}/.", f"{name}:/"], check=True)
 
 
 def _generate_certificate(tls: Path) -> None:
@@ -69,34 +73,32 @@ def _response(url: str) -> urllib.response.addinfourl | urllib.error.HTTPError:
 
 
 def test_real_nginx_configuration_and_headers() -> None:
-    with tempfile.TemporaryDirectory(prefix="dagmar-nginx-", dir=ROOT.parent) as temporary:
+    with tempfile.TemporaryDirectory(prefix="dagmar-nginx-") as temporary:
         _run_nginx_assertions(Path(temporary))
 
 
 def _run_nginx_assertions(tls: Path) -> None:
     _generate_certificate(tls)
-    mounts = _docker_args(tls)
-    subprocess.run(["docker", "run", "--rm", *mounts, NGINX_IMAGE, "nginx", "-T"], check=True)
 
     port = _free_port()
     name = f"dagmar-nginx-test-{uuid.uuid4().hex}"
     subprocess.run(
         [
             "docker",
-            "run",
-            "--detach",
-            "--rm",
+            "create",
             "--name",
             name,
             "-p",
             f"127.0.0.1:{port}:8443",
-            *mounts,
             NGINX_IMAGE,
         ],
         check=True,
         stdout=subprocess.DEVNULL,
     )
     try:
+        _copy_nginx_fixtures(name, tls)
+        subprocess.run(["docker", "start", name], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(["docker", "exec", name, "nginx", "-T"], check=True)
         for _ in range(30):
             with contextlib.suppress(OSError):
                 if _response(f"https://127.0.0.1:{port}/").status == 200:

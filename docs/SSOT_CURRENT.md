@@ -146,7 +146,7 @@ KájovoDagmar je produkční docházkový a směnový systém pro jednu organiza
 - přímé `argon2-cffi` pro nové password/token hashe a přímé `bcrypt` pouze pro ověření a následný rehash historických hesel; `itsdangerous` a HMAC pro podepsané hodnoty, PyJWT a `cryptography` pro OIDC a tajemství;
 - `slowapi` a vlastní integrační rate limiting;
 - `httpx` pro externí HTTP;
-- Pillow pro serverové PDF plánu služeb;
+- Pillow 13 nebo novější kompatibilní verze pro serverové PDF plánu služeb; OIDC používá PyJWT nejméně 2.15.1 a frontendový parser API Zod nejméně 4.6.7;
 - pytest, Ruff a mypy jako povinné validační nástroje;
 - package metadata: `kajovodagmar`, verze `1.0.0`, proprietary license.
 
@@ -445,7 +445,10 @@ Povinné kombinace:
 
 `ShiftPlan` je nejvýše jeden primární záznam pro `(employment_id, date)`:
 
-- buď obsahuje oba časy, nebo celodenní plan status;
+- obsahuje úplný interval, rozpracovaný jediný čas nebo celodenní plan status; rozpracovaný čas lze doplnit, upravit i smazat;
+- tabulka plánu udržuje horizontální posun uvnitř vlastního obalu i bez hodinových sloupců; absolutní přístupnostní statusy časových polí jsou ukotvené uvnitř obalu;
+- editor zachovává identitu uloženého pole i po zobrazení osamoceného času v prvním sloupci; vymazání obou časů bez statusu odstraní celý záznam;
+- zaměstnanecký i adminský plán vždy zobrazují měsíční součet `planned_hours` za úvazek nezávisle na `display_metrics`, včetně `TASK_SHIFT_BASED`; jde o součet backendem zaokrouhlených denních desetin z úplných intervalů, bez neúplných časů a celodenních stavů;
 - časy jsou `HH:mm`; konec musí být později než začátek ve stejném dni;
 - směna nesmí překrýt jinou směnu stejného úvazku;
 - validuje se kalendářní den a měsíc záznamu;
@@ -701,6 +704,7 @@ AttendanceDay = {
 AttendanceMonth = {
   employment_id, employment_label, display_metrics:MetricKey[],
   days:AttendanceDay[], worked:TimeMetrics|null, planned:TimeMetrics|null,
+  planned_hours:number,
   status_metrics:StatusMetrics,
   attendance_locked:bool, shift_plan_locked:bool
 }
@@ -1295,7 +1299,7 @@ Na PostgreSQL 17 a Pythonu 3.12:
 12. build aplikačního wheelu, kompletního Linux wheelhouse a offline instalační smoke stejného artefaktu.
 
 Python 3.12 locky generuje výhradně `scripts/update_python_locks.py` pomocí
-`pip-tools==7.6.0`; `scripts/check_python_lock.py` ověřuje jejich vazbu na `pyproject.toml`,
+`pip-tools==7.6.0`; lokální `scripts/test.sh` instaluje stejný pip a hashovaný dev lock jako CI. Nginx runtime regrese kopíruje konfigurace Docker API místo bind mountů a migrační regrese ověřuje fail-closed odmítnutí nevratného downgradu včetně zachování revision a eventů. `scripts/check_python_lock.py` ověřuje jejich vazbu na `pyproject.toml`,
 úplné připnutí a SHA-256 hashe. Produkční dependency kontrakt je
 `requirements-prod.lock`, vývojový a CI kontrakt `requirements-dev.lock`.
 
@@ -1618,7 +1622,7 @@ Pro tisk docházky platí:
 - tisk respektuje všechny podporované jazyky a delší překlady;
 - tiskový náhled a skutečný browser tisk/PDF používají stejný datový kontrakt a shodnou kompozici;
 - podpisový prostor se netiskne; zápatí obsahuje lokalizovaný text `Tento přehled pro Vás vytiskla KájovoDagmar - Vaše virtuální asistentka` (resp. překlad) a timestamp generování;
-- serverový souhrnný PDF plánu může zůstat samostatným víceosobovým reportem, ale nenahrazuje tento detailní A4 kontrakt.
+- serverový souhrnný PDF plánu zůstává samostatným víceosobovým reportem, ale nenahrazuje tento detailní A4 kontrakt. Stránkuje po nejvýše pěti úvazcích na A4 landscape; den je jediný sloupec a chronologické časy pod společným neutrálním záhlavím `PRŮCHOD 1, PRŮCHOD 2` jsou uvnitř buňky svisle. Jméno, název úvazku, součty a legenda se zalamují podle skutečně naměřené šířky a výšky bez ztráty textu. Nečitelný obsah vrací HTTP 409 `print_capacity_exceeded`; měsíční plánový součet se uvádí i bez celkové hodinové metriky.
 
 ### Souhrnné a hromadné tisky
 

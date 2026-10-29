@@ -2348,3 +2348,67 @@ def test_deploy_stops_backend_before_migration_and_metric_backfill() -> None:
     rollback_stop = workflow.index("systemctl stop dagmar-backend", rollback_switch)
     assert rollback_guard < rollback_switch < rollback_stop
     assert "else systemctl stop dagmar-backend" in workflow
+
+
+@pytest.mark.parametrize("employment_type", list(EmploymentType))
+def test_monthly_plan_total_is_independent_of_profile_and_rounds_each_day(employment_type) -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db, employment_type)
+        if employment_type != EmploymentType.WORK_CONTRACT:
+            employment.total_hours_enabled = False
+        db.add_all([
+            ShiftPlan(employment_id=employment.id, date=date(2026, 10, 1),
+                      arrival_time="08:00", departure_time="09:03"),
+            ShiftPlan(employment_id=employment.id, date=date(2026, 10, 2),
+                      arrival_time="08:00", departure_time="09:03"),
+            ShiftPlan(employment_id=employment.id, date=date(2026, 10, 8),
+                      departure_time="22:00"),
+            ShiftPlan(employment_id=employment.id, date=date(2026, 10, 9), status="HOLIDAY"),
+            ShiftPlan(employment_id=employment.id, date=date(2026, 9, 30),
+                      arrival_time="08:00", departure_time="16:00"),
+        ])
+        db.commit()
+        portal = _build_month(db, employment, 2026, 10)
+        admin = _admin_get_shift_plan_month_impl(db=db, year=2026, month=10).rows[0]
+        assert portal.planned_hours == admin.summary.planned_hours == 2.2
+        assert admin.summary.planned_minutes == 126
+        assert admin.summary.scheduled_days == 2
+        report = build_shift_plan_report(db, year=2026, month=10, employment_ids=[employment.id])
+        assert report.pages[0].employments[0].planned_hours == 2.2
+        assert report.pages[0].employments[0].planned_minutes_total == 126
+        assert admin.days[7].planned_hours == admin.days[8].planned_hours == 0
+        if employment_type == EmploymentType.TASK_SHIFT_BASED:
+            assert portal.display_metrics == []
+            assert portal.planned is None
+        assert _build_month(db, employment, 2026, 11).planned_hours == 0
+
+
+@pytest.mark.parametrize("portal", [True, False])
+@pytest.mark.parametrize("field", ["arrival_time", "departure_time"])
+def test_single_plan_boundary_can_be_deleted_without_affecting_other_days(portal, field) -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db)
+        orphan = ShiftPlan(employment_id=employment.id, date=date(2026, 10, 8), **{field: "22:00"})
+        untouched = ShiftPlan(employment_id=employment.id, date=date(2026, 10, 9),
+                              arrival_time="08:00", departure_time="16:00")
+        db.add_all([orphan, untouched])
+        db.commit()
+        payload = dict(employment_id=employment.id, date="2026-10-08", arrival_time=None,
+                       departure_time=None, status=None)
+        if portal:
+            portal_upsert_shift_plan(
+                PortalShiftPlanUpsertIn(**payload), db=db,
+                auth=PortalUserAuth(instance=SimpleNamespace(id=None), user=employment.user),
+            )
+        else:
+            _admin_upsert_shift_plan_impl(db, ShiftPlanUpsertIn(**payload))
+        db.expire_all()
+        rows = list(db.scalars(select(ShiftPlan)))
+        assert len(rows) == 1
+        assert rows[0].date == date(2026, 10, 9)
+        assert (rows[0].arrival_time, rows[0].departure_time) == ("08:00", "16:00")
+        assert _build_month(db, employment, 2026, 10).planned_hours == 8

@@ -32,7 +32,7 @@ import { formatHours } from "../utils/hoursFormat";
 import { formatCalendarDate } from "../utils/format";
 import { reconcileSelectedGroup } from "../utils/groupSelection";
 import { plannedHintForEvent } from "../utils/plannedEventHint";
-import { chronologicalPlanBoundaries, formatPragueTime } from "../utils/presentationAdapters";
+import { chronologicalPlanBoundaries, updatePlanBoundary, formatPragueTime } from "../utils/presentationAdapters";
 import { statusMetricKeyForStatus, statusMetricKeys } from "../utils/statusMetrics";
 
 type View = "attendance" | "plan" | "group-plan";
@@ -421,18 +421,18 @@ function EmployeePlanTable({
   const passColumns = Math.max(4, ...month.days.map((day) => chronologicalPlanBoundaries({ planned_arrival_time: day.planned_arrival_time, planned_departure_time: day.planned_departure_time }).length));
   return (
     <div className="data-table-wrap employee-table-wrap">
+      <p data-testid="employee-planned-hours"><strong>{t("common.monthlyPlannedHours")}: {formatHours(month.planned_hours, "cs-CZ")}</strong></p>
       <table className="data-table employee-month-table">
         <thead><tr><th>{t("employee.page.table.date")}</th><th>{t("employee.page.table.day")}</th>{Array.from({ length: passColumns }, (_, index) => <th key={index}>{t("employee.page.table.pass")} {index + 1}</th>)}{month.display_metrics.map((key) => <th key={key}>{plannedMetricLabels[key]} (h)</th>)}</tr></thead>
         <tbody>
           {month.days.map((day) => {
             const disabled = month.shift_plan_locked || !day.is_within_employment_period || Boolean(day.effective_status);
             const planTimes = chronologicalPlanBoundaries({ planned_arrival_time: day.planned_arrival_time, planned_departure_time: day.planned_departure_time });
-            const save = (arrival: string | null, departure: string | null) => onSave({ employment_id: month.employment_id, date: day.date, arrival_time: arrival, departure_time: departure, status: day.planned_status ?? null });
             return (
               <tr key={day.date} onContextMenu={(event) => { event.preventDefault(); setContext({ day, x: event.clientX, y: event.clientY }); }}>
                 <th>{formatCalendarDate(day.date, i18n.language as "cs" | "de" | "en" | "hi")}</th>
                 <td>{weekdayLabel(day.date, i18n.language)}</td>
-                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status || day.planned_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || index > 1} onCommit={async (value) => { await save(index === 0 ? value || null : day.planned_arrival_time ?? null, index === 1 ? value || null : day.planned_departure_time ?? null); }} />}</td>)}
+                {Array.from({ length: passColumns }, (_, index) => <td key={index}>{day.effective_status || day.planned_status ? <strong className="day-absence-label">{index === 0 ? `${absenceLabel(day.effective_status || day.planned_status)}${statusHoursLabel(day)}` : absenceLabel(day.effective_status || day.planned_status)}</strong> : <ClockInput aria-label={`${t("adminMatrix.common.plannedPass", "PLÁN – PRŮCHOD")} ${index + 1} ${day.date}`} value={planTimes[index] ?? ""} disabled={disabled || index > 1} onCommit={async (value) => { await onSave({ employment_id: month.employment_id, date: day.date, ...updatePlanBoundary({ arrival_time: day.planned_arrival_time ?? null, departure_time: day.planned_departure_time ?? null }, index, value), status: day.planned_status ?? null }); }} />}</td>)}
                 {month.display_metrics.map((key) => <td key={key}>{day.planned?.[key] ? formatHours(day.planned[key]!.hours, "cs-CZ") : "—"}</td>)}
               </tr>
             );

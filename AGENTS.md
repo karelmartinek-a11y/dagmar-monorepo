@@ -62,9 +62,12 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - zaměstnanecké a adminské měsíční výběry obsahují pouze aktivního uživatele a úvazek platný podle `start_date`/`end_date`, jehož období se překrývá se zvoleným měsícem; úvazek nemá samostatný ruční přepínač aktivity
 - adminské „Přidej pauzy“ je potvrzovaný idempotentní historický backfill dvojic časových hranic fyzických pauz bez hromadného undo; započítává délku existujících ručních pauz a doplní pouze chybějící zákonnou délku
 - všechny mutace eventů, plánů a celodenních stavů stejného úvazku se serializují databázovým `SELECT FOR UPDATE`; po získání zámku se pod zámkem vlastníka znovu ověří aktivita úvazku i uživatele. Mutace eventu ověřuje unikátní chronologický čas, zámek každého měsíce, jehož interval nebo metriky by změnila, a průchod nesmí překrýt den s celodenní nepřítomností. Historický uzavřený interval se vkládá atomicky pomocí `paired_occurred_at` a prostřední interval nebo fyzická pauza se odstraňuje atomicky pomocí `paired_event_id`
-- plán směny smí obsahovat pouze interval se začátkem a pozdějším koncem ve stejném kalendářním dni; přeshraniční plán, carryover ani přeshraniční výpočet nejsou součástí kontraktu
+- editor plánu zachovává identitu uloženého časového pole i při zobrazení jediného času; osamocený čas lze upravit a smazat. Zaměstnanecký i adminský plán vždy zobrazují backendový měsíční součet `planned_hours` za každý úvazek, včetně `TASK_SHIFT_BASED` a vypnuté metriky `total`; neúplný plán ani celodenní stav do součtu nevstupují
+- úplný časový plán směny smí obsahovat pouze interval se začátkem a pozdějším koncem ve stejném kalendářním dni; přeshraniční plán, carryover ani přeshraniční výpočet nejsou součástí kontraktu
 - pracovní fond a bilanční porovnávání s fondem nebo plánem nejsou aktivní kontrakt
 - databáze, API, lidské UI, screen-reader texty, tisky, PDF a CSV/ZIP vedou docházku výhradně jako neutrální chronologické `PRŮCHOD` časy bez směrového typu
+- scrollovací obal zaměstnaneckých tabulek i skupinového plánu ukotvuje absolutní přístupnostní statusy časových polí (`position:relative`), aby ani plán bez hodinových sloupců neroztahoval celou mobilní stránku
+- nativní souhrnné PDF plánu má nejvýše pět úvazků na A4 landscape; den zůstává jediným sloupcem a jeho neutrální průchody jsou uvnitř buňky svisle. Plné identity, metriky a legenda se zalamují podle měřené šířky i výšky bez ořezu; nečitelný obsah vrací `409 print_capacity_exceeded`. Měsíční plánový součet je uveden i bez celkové hodinové metriky.
 - docházkové a plánové detaily zachovávají jeden den v jednom řádku; hromadné pohledy zachovávají jeden `employment_id` v jednom řádku a den v jednom sloupci
 - `ClockInput` je jediný editor ručně zadávaných časů a `timeInput.ts` jediný parser; běžné zadávání času nesmí používat boční editor, formulář, kartu ani modal
 - přímé nastavení i self-service reset hesla používají jednu transakční credential operaci, která revokuje všechny reset/unlock tokeny i credential instance a vyčistí lockout; reset delivery má stav `PENDING/SENT/FAILED` a nejvýše jeden aktivní `SENT` token na uživatele
@@ -76,6 +79,8 @@ Pokud se baseline kódu a cílový stav SSOT rozcházejí, jde o implementační
 - Nezjednodušuj scope, nenahrazuj produkční logiku mocky, placeholdery, demo daty ani dočasnými zkratkami.
 - Široké přepisy souborů prováděj jen s konkrétním důvodem a následnou regresní validací.
 - Buildy, generátory a skripty nesmí zanechat neočekávané změny ve verzovaných souborech.
+- Bezpečnostní minimum pro OIDC/PDF je `PyJWT>=2.15.1` a `Pillow>=13.0.0`; frontendový schema parser používá `Zod>=4.6.7`. Závislosti se aktualizují spolu s oběma hashovanými Python locky a npm lockem a oba audity musí projít bez potlačení nálezů.
+- Nginx runtime test kopíruje skutečné konfigurace přes Docker API do izolovaného kontejneru; nespoléhá na bind mount hostitelských cest. Migrační regrese ověřuje odmítnutí nevratného downgradu z headu a zachování revision i eventů.
 - Python dependency kontrakt tvoří hashované `requirements-prod.lock` a `requirements-dev.lock`; CI i deploy používají `pip==26.0` a nesmějí řešit široké rozsahy za běhu.
 - Produkční backend se nasazuje pouze z CI vytvořeného wheelu a lokálního wheelhouse po ověření SHA-256 manifestu; produkční server nesmí stahovat balíčky ani sestavovat runtime z Git checkoutu.
 - Všechny GitHub Actions jsou připnuté na plný commit SHA a dependency audit, Bandit, CodeQL a secret scan jsou povinné gate bez `continue-on-error`.

@@ -26,7 +26,7 @@ PAGE_HEIGHT = 1654
 PAGE_MARGIN_X = 72
 PAGE_MARGIN_Y = 56
 HEADER_HEIGHT = 170
-LEGEND_HEIGHT = 120
+LEGEND_HEIGHT = 160
 FOOTER_HEIGHT = 44
 LABEL_COLUMN_WIDTH = 420
 SUMMARY_COLUMN_WIDTH = 118
@@ -215,8 +215,7 @@ def _metric_cell_label(metrics: dict[str, dict[str, int | float]]) -> str:
 def _status_metric_summary_label(metrics: dict[str, dict[str, int | float]]) -> str:
     labels = {"holiday": "Dovolená", "sickness": "Nemoc", "paragraph": "Paragraf"}
     return "\n".join(
-        f"{labels[key]} {_format_hours(float(value['hours']))}"
-        for key, value in metrics.items()
+        f"{labels[key]} {_format_hours(float(value['hours']))}" for key, value in metrics.items()
     )
 
 
@@ -392,10 +391,12 @@ def build_shift_plan_report(
                     planned_minutes=duration_minutes,
                     planned_hours=day_summary.planned_hours,
                     planned_metrics=_daily_metric_payload(day_summary.planned, display_metrics),
-                    status_metrics=_status_metric_payload({
-                        key: getattr(day_summary.status_metrics, key)
-                        for key in STATUS_METRIC_KEYS
-                    }),
+                    status_metrics=_status_metric_payload(
+                        {
+                            key: getattr(day_summary.status_metrics, key)
+                            for key in STATUS_METRIC_KEYS
+                        }
+                    ),
                 )
             )
             current += timedelta(days=1)
@@ -506,293 +507,225 @@ def report_to_payload(report: ShiftPlanReport) -> dict[str, object]:
     }
 
 
-def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
-    regular = _load_font(18)
-    small = _load_font(15)
-    tiny = _load_font(13)
-    title_font = _load_font(28)
-    strong_font = _load_font(18)
+def _fit_text_box(
+    draw: ImageDraw.ImageDraw, text: str, width: int, height: int, size: int
+) -> tuple[str, ImageFont.FreeTypeFont | ImageFont.ImageFont]:
+    """Wrap complete text using measured glyph widths, then fit its cell height."""
+    for font_size in range(size, 9, -1):
+        font = _load_font(font_size)
+        lines: list[str] = []
+        for paragraph in text.split("\n"):
+            line = ""
+            for word in paragraph.split():
+                candidate = f"{line} {word}" if line else word
+                if draw.textlength(candidate, font=font) <= width:
+                    line = candidate
+                    continue
+                if line:
+                    lines.append(line)
+                    line = ""
+                for character in word:
+                    if line and draw.textlength(line + character, font=font) > width:
+                        lines.append(line)
+                        line = ""
+                    line += character
+            lines.append(line)
+        wrapped = "\n".join(lines)
+        left, top, right, bottom = draw.multiline_textbbox((0, 0), wrapped, font=font, spacing=3)
+        if right - left <= width and bottom - top <= height:
+            return wrapped, font
+    raise ValueError("print_capacity_exceeded")
 
+
+def _draw_text_box(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    text: str,
+    *,
+    size: int = 15,
+    fill: str = "#111111",
+) -> None:
+    if not text:
+        return
+    x, y, right, bottom = box
+    wrapped, font = _fit_text_box(draw, text, right - x, bottom - y, size)
+    left_offset, top_offset, _, _ = draw.multiline_textbbox((0, 0), wrapped, font=font, spacing=3)
+    draw.multiline_text((x - left_offset, y - top_offset), wrapped, font=font, fill=fill, spacing=3)
+
+
+def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
     images: list[Image.Image] = []
     page_count = max(1, len(report.pages))
     days_count = max(1, len(report.day_headers))
-    max_plan_passes = max(
-        1,
-        min(
-            4,
-            max(
-                len([value for value in cell.interval_label.split("; ") if value])
-                for page in report.pages
-                for employment in page.employments
-                for cell in employment.cells
-            ),
-        ),
-    )
-    usable_width = PAGE_WIDTH - (2 * PAGE_MARGIN_X)
+    usable_width = PAGE_WIDTH - 2 * PAGE_MARGIN_X
     table_top = PAGE_MARGIN_Y + HEADER_HEIGHT
     table_height = PAGE_HEIGHT - table_top - LEGEND_HEIGHT - FOOTER_HEIGHT - PAGE_MARGIN_Y
-    row_count = EMPLOYMENTS_PER_PAGE + 1
-    row_height = table_height // row_count
-    day_column_width = max(
-        36,
-        (usable_width - LABEL_COLUMN_WIDTH - SUMMARY_COLUMN_WIDTH) // days_count,
-    )
-    table_width = LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + (day_column_width * days_count)
+    row_height = table_height // (EMPLOYMENTS_PER_PAGE + 1)
+    day_width = (usable_width - LABEL_COLUMN_WIDTH - SUMMARY_COLUMN_WIDTH) // days_count
+    table_width = LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + day_width * days_count
+    x0 = PAGE_MARGIN_X
+    summary_x = x0 + LABEL_COLUMN_WIDTH
+    days_x = summary_x + SUMMARY_COLUMN_WIDTH
+    right = x0 + table_width
 
     for page in report.pages:
         image = Image.new("RGB", (PAGE_WIDTH, PAGE_HEIGHT), "white")
         draw = ImageDraw.Draw(image)
-
         draw.rounded_rectangle(
-            (
-                PAGE_MARGIN_X,
-                PAGE_MARGIN_Y,
-                PAGE_MARGIN_X + table_width,
-                PAGE_MARGIN_Y + HEADER_HEIGHT - 24,
-            ),
+            (x0, PAGE_MARGIN_Y, right, table_top - 24),
             radius=20,
             outline="#111111",
             width=3,
             fill="#fbf9f4",
         )
-        draw.text(
-            (PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 22), "Plán směn", font=title_font, fill="#111111"
+        _draw_text_box(
+            draw,
+            (x0 + 24, PAGE_MARGIN_Y + 20, right - 340, table_top - 36),
+            f"Plán směn\nMěsíc: {report.month_label}\nVygenerováno: {report.generated_at_label}",
+            size=24,
         )
-        draw.text(
-            (PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 62),
-            f"Měsíc: {report.month_label}",
-            font=regular,
-            fill="#111111",
+        _draw_text_box(
+            draw,
+            (right - 325, PAGE_MARGIN_Y + 28, right - 20, table_top - 36),
+            f"Strana {page.page_number}/{page_count}\nKájovoDagmar · dagmar.hcasc.cz",
+            size=16,
         )
-        draw.text(
-            (PAGE_MARGIN_X + 24, PAGE_MARGIN_Y + 92),
-            f"Vygenerováno: {report.generated_at_label}",
-            font=small,
-            fill="#333333",
+        draw.rectangle((x0, table_top, right, table_top + row_height), fill="#efebe2")
+        _draw_text_box(
+            draw,
+            (x0 + 12, table_top + 12, summary_x - 12, table_top + row_height - 12),
+            "Úvazek / osoba\nČasy PRŮCHOD 1, PRŮCHOD 2\nv každé buňce shora dolů",
+            size=18,
         )
-        draw.text(
-            (PAGE_MARGIN_X + table_width - 210, PAGE_MARGIN_Y + 28),
-            f"Strana {page.page_number}/{page_count}",
-            font=regular,
-            fill="#111111",
+        _draw_text_box(
+            draw,
+            (summary_x + 8, table_top + 12, days_x - 8, table_top + row_height - 12),
+            "Měsíční součet (h)",
+            size=16,
         )
-        draw.text(
-            (PAGE_MARGIN_X + table_width - 310, PAGE_MARGIN_Y + 72),
-            "KájovoDagmar · dagmar.hcasc.cz",
-            font=small,
-            fill="#333333",
-        )
-
-        x0 = PAGE_MARGIN_X
-        y0 = table_top
-        draw.rectangle((x0, y0, x0 + table_width, y0 + table_height), outline="#111111", width=2)
-        draw.rectangle(
-            (x0, y0, x0 + LABEL_COLUMN_WIDTH, y0 + row_height),
-            fill="#efebe2",
-            outline="#111111",
-            width=2,
-        )
-        draw.text((x0 + 14, y0 + 14), "Úvazek / osoba", font=strong_font, fill="#111111")
-        draw.rectangle(
-            (
-                x0 + LABEL_COLUMN_WIDTH,
-                y0,
-                x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH,
-                y0 + row_height,
-            ),
-            fill="#efebe2",
-            outline="#111111",
-            width=2,
-        )
-        draw.text(
-            (x0 + LABEL_COLUMN_WIDTH + 12, y0 + 14), "Součet", font=strong_font, fill="#111111"
-        )
-
         for day_index, header in enumerate(report.day_headers):
-            x = x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + (day_index * day_column_width)
-            tone = header["tone"]
-            fill = "#f7f3ea"
-            if tone == "holiday":
-                fill = "#fff1de"
-            elif tone == "weekend":
-                fill = "#f2f2f2"
-            draw.rectangle(
-                (x, y0, x + day_column_width, y0 + row_height),
-                fill=fill,
-                outline="#111111",
+            x = days_x + day_index * day_width
+            fill = (
+                "#fff1de"
+                if header["tone"] == "holiday"
+                else "#f2f2f2"
+                if header["tone"] == "weekend"
+                else "#f7f3ea"
+            )
+            draw.rectangle((x, table_top, x + day_width, table_top + row_height), fill=fill)
+            _draw_text_box(
+                draw,
+                (x + 5, table_top + 10, x + day_width - 5, table_top + 65),
+                f"{header['day_number']}\n{header['weekday_short']}",
+                size=18,
+            )
+            _draw_text_box(
+                draw,
+                (x + 4, table_top + 80, x + day_width - 4, table_top + row_height - 10),
+                str(header["holiday_label"] or ""),
+                size=12,
+                fill="#8a4b08",
+            )
+        for row_index, employment in enumerate(page.employments):
+            top = table_top + (row_index + 1) * row_height
+            bottom = top + row_height
+            _draw_text_box(
+                draw,
+                (x0 + 12, top + 12, summary_x - 12, bottom - 12),
+                f"{employment.user_name}\n{employment.title}\n{employment.employment_type}",
+                size=16,
+            )
+            other_metrics = {
+                key: value for key, value in employment.planned_metrics.items() if key != "total"
+            }
+            summary = "\n".join(
+                value
+                for value in (
+                    f"Plán {_format_hours(employment.planned_hours)}",
+                    _metric_summary_label(other_metrics),
+                    _status_metric_summary_label(employment.status_metrics),
+                    f"{employment.scheduled_days} směn",
+                    f"D {employment.holiday_days} · V {employment.off_days}",
+                )
+                if value
+            )
+            _draw_text_box(
+                draw, (summary_x + 8, top + 10, days_x - 8, bottom - 10), summary, size=14
+            )
+            for day_index, cell in enumerate(employment.cells):
+                left = days_x + day_index * day_width
+                cell_right = left + day_width
+                fill = (
+                    "#f4f4f4"
+                    if not cell.is_within_employment_period
+                    else "#fff7ea"
+                    if cell.tone == "holiday"
+                    else "#f7f7f7"
+                    if cell.tone == "weekend"
+                    else "white"
+                )
+                draw.rectangle((left, top, cell_right, bottom), fill=fill)
+                # A day stays in one column: stack complete neutral times instead of
+                # squeezing two subcolumns into an unreadable fraction of an A4 page.
+                times = "\n".join(
+                    value for value in (cell.arrival_time, cell.departure_time) if value
+                )
+                _draw_text_box(draw, (left + 4, top + 10, cell_right - 4, top + 54), times, size=14)
+                status = "\n".join(
+                    value
+                    for value in (cell.status_label, _status_metric_cell_label(cell.status_metrics))
+                    if value
+                )
+                _draw_text_box(
+                    draw,
+                    (left + 4, top + 60, cell_right - 4, bottom - 10),
+                    status,
+                    size=12,
+                    fill="#8a4b08",
+                )
+                _draw_text_box(
+                    draw,
+                    (left + 4, top + 65, cell_right - 4, bottom - 10),
+                    "" if cell.status_label else _metric_cell_label(cell.planned_metrics),
+                    size=12,
+                    fill="#555555",
+                )
+        for index in range(EMPLOYMENTS_PER_PAGE + 2):
+            y = table_top + index * row_height
+            draw.line((x0, y, right, y), fill="#111111", width=1)
+        for x in [x0, summary_x, *[days_x + index * day_width for index in range(days_count + 1)]]:
+            draw.line(
+                (x, table_top, x, table_top + (EMPLOYMENTS_PER_PAGE + 1) * row_height),
+                fill="#111111",
                 width=1,
             )
-            draw.text((x + 7, y0 + 8), str(header["day_number"]), font=strong_font, fill="#111111")
-            draw.text((x + 7, y0 + 32), str(header["weekday_short"]), font=small, fill="#333333")
-            pass_width = day_column_width / max_plan_passes
-            for pass_index in range(max_plan_passes):
-                draw.text(
-                    (x + (pass_index * pass_width) + 2, y0 + 48),
-                    f"PRŮCHOD {pass_index + 1}",
-                    font=tiny,
-                    fill="#333333",
-                )
-            holiday_label = header["holiday_label"]
-            if isinstance(holiday_label, str) and holiday_label:
-                short_label = holiday_label[: max(4, min(14, (day_column_width // 8)))]
-                draw.text((x + 5, y0 + row_height - 22), short_label, font=tiny, fill="#8a4b08")
-
-        for row_index in range(EMPLOYMENTS_PER_PAGE):
-            y = y0 + ((row_index + 1) * row_height)
-            draw.line((x0, y, x0 + table_width, y), fill="#111111", width=1)
-
-        for column_x in [x0 + LABEL_COLUMN_WIDTH, x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH]:
-            draw.line((column_x, y0, column_x, y0 + table_height), fill="#111111", width=1)
-        for day_index in range(days_count + 1):
-            x = x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + (day_index * day_column_width)
-            draw.line((x, y0, x, y0 + table_height), fill="#111111", width=1)
-
-        for row_index, employment in enumerate(page.employments):
-            row_top = y0 + ((row_index + 1) * row_height)
-            row_bottom = row_top + row_height
-            draw.multiline_text(
-                (x0 + 12, row_top + 12),
-                f"{employment.user_name}\n{employment.display_label}",
-                font=small,
-                fill="#111111",
-                spacing=5,
-            )
-            draw.text(
-                (x0 + 12, row_bottom - 34),
-                f"{employment.employment_type} · {employment.title}",
-                font=tiny,
-                fill="#555555",
-            )
-            draw.multiline_text(
-                (x0 + LABEL_COLUMN_WIDTH + 10, row_top + 12),
-                "\n".join(
-                    value
-                    for value in (
-                        _metric_summary_label(employment.planned_metrics),
-                        _status_metric_summary_label(employment.status_metrics),
-                        f"{employment.scheduled_days} směn",
-                    )
-                    if value
-                ),
-                font=small,
-                fill="#111111",
-                spacing=5,
-            )
-            draw.text(
-                (x0 + LABEL_COLUMN_WIDTH + 10, row_bottom - 34),
-                f"D {employment.holiday_days} · V {employment.off_days}",
-                font=tiny,
-                fill="#555555",
-            )
-
-            for day_index, cell in enumerate(employment.cells):
-                cell_left = (
-                    x0 + LABEL_COLUMN_WIDTH + SUMMARY_COLUMN_WIDTH + (day_index * day_column_width)
-                )
-                cell_top = row_top
-                cell_right = cell_left + day_column_width
-                cell_bottom = row_bottom
-                if not cell.is_within_employment_period:
-                    fill = "#f4f4f4"
-                elif cell.tone == "holiday":
-                    fill = "#fff7ea"
-                elif cell.tone == "weekend":
-                    fill = "#f7f7f7"
-                else:
-                    fill = "white"
-                draw.rectangle(
-                    (cell_left + 1, cell_top + 1, cell_right - 1, cell_bottom - 1), fill=fill
-                )
-                pass_times = [value for value in cell.interval_label.split("; ") if value]
-                pass_width = day_column_width / max_plan_passes
-                for pass_index in range(1, max_plan_passes):
-                    draw.line(
-                        (
-                            cell_left + (pass_index * pass_width),
-                            cell_top,
-                            cell_left + (pass_index * pass_width),
-                            cell_bottom,
-                        ),
-                        fill="#dddddd",
-                        width=1,
-                    )
-                for pass_index in range(max_plan_passes):
-                    if pass_index < len(pass_times):
-                        draw.text(
-                            (cell_left + (pass_index * pass_width) + 2, cell_top + 10),
-                            pass_times[pass_index],
-                            font=tiny,
-                            fill="#111111" if cell.is_within_employment_period else "#777777",
-                        )
-                if cell.status_label:
-                    draw.text(
-                        (cell_left + 5, cell_top + 30),
-                        cell.status_label,
-                        font=tiny,
-                        fill="#8a4b08",
-                    )
-                status_metric_label = _status_metric_cell_label(cell.status_metrics)
-                if status_metric_label:
-                    draw.multiline_text(
-                        (cell_left + 5, cell_top + 48),
-                        status_metric_label,
-                        font=tiny,
-                        fill="#8a4b08",
-                        spacing=1,
-                    )
-                metric_label = _metric_cell_label(cell.planned_metrics)
-                if metric_label:
-                    metric_lines = metric_label.count("\n") + 1
-                    metric_y = max(cell_top + 58, cell_bottom - 8 - metric_lines * 13)
-                    draw.multiline_text(
-                        (cell_left + 5, metric_y),
-                        metric_label,
-                        font=tiny,
-                        fill="#555555",
-                        spacing=2,
-                    )
-
         legend_top = PAGE_HEIGHT - LEGEND_HEIGHT - FOOTER_HEIGHT
         draw.rounded_rectangle(
-            (
-                PAGE_MARGIN_X,
-                legend_top,
-                PAGE_MARGIN_X + table_width,
-                legend_top + LEGEND_HEIGHT - 18,
-            ),
+            (x0, legend_top, right, PAGE_HEIGHT - FOOTER_HEIGHT - 12),
             radius=16,
             outline="#111111",
             width=2,
             fill="#fafafa",
         )
-        draw.text(
-            (PAGE_MARGIN_X + 18, legend_top + 14), "Legenda", font=strong_font, fill="#111111"
+        _draw_text_box(
+            draw,
+            (x0 + 18, legend_top + 12, right - 18, PAGE_HEIGHT - FOOTER_HEIGHT - 24),
+            "Legenda\n" + "\n".join(f"• {item}" for item in report.legend),
+            size=15,
         )
-        legend_y = legend_top + 44
-        for item in report.legend:
-            draw.text((PAGE_MARGIN_X + 24, legend_y), f"• {item}", font=small, fill="#333333")
-            legend_y += 20
-        draw.text(
-            (PAGE_MARGIN_X, PAGE_HEIGHT - FOOTER_HEIGHT),
+        _draw_text_box(
+            draw,
+            (x0, PAGE_HEIGHT - FOOTER_HEIGHT, right, PAGE_HEIGHT - 8),
             "Výstup je optimalizovaný pro A4 na šířku a stránkuje po nejvýše pěti úvazcích.",
-            font=tiny,
+            size=13,
             fill="#555555",
         )
-
         images.append(image)
-
     if not images:
         raise RuntimeError("Nepodařilo se vytvořit žádnou stránku PDF exportu plánu směn.")
-
     buffer = io.BytesIO()
     first, rest = images[0], images[1:]
-    first.save(
-        buffer,
-        format="PDF",
-        save_all=True,
-        append_images=rest,
-        resolution=PDF_DPI,
-    )
+    first.save(buffer, format="PDF", save_all=True, append_images=rest, resolution=PDF_DPI)
     return buffer.getvalue()
 
 

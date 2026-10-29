@@ -34,6 +34,7 @@ export const resources = {
   cs: {
     translation: {
       common: {
+        monthlyPlannedHours: "Měsíční součet plánovaných hodin",
         appName: "KájovoDagmar",
         appSubtitle: "DOCHÁZKOVÝ SYSTÉM",
         actions: {
@@ -907,6 +908,7 @@ export const resources = {
   en: {
     translation: {
       common: {
+        monthlyPlannedHours: "Monthly planned hours",
         appName: "KájovoDagmar",
         appSubtitle: "ATTENDANCE SYSTEM",
         actions: {
@@ -1765,6 +1767,7 @@ export const resources = {
   sk: {
     translation: {
       common: {
+        monthlyPlannedHours: "Mesačný súčet plánovaných hodín",
         appName: "KájovoDagmar",
         appSubtitle: "DOCHÁDZKOVÝ SYSTÉM",
         actions: {
@@ -2615,6 +2618,7 @@ export const resources = {
   de: {
     translation: {
       common: {
+        monthlyPlannedHours: "Geplante Stunden im Monat",
         appName: "KájovoDagmar",
         appSubtitle: "ZEITERFASSUNGSSYSTEM",
         actions: {
@@ -3494,6 +3498,7 @@ export const resources = {
   hi: {
     translation: {
       common: {
+        monthlyPlannedHours: "मासिक नियोजित घंटे",
         appName: "KájovoDagmar",
         appSubtitle: "उपस्थिति प्रणाली",
         actions: {

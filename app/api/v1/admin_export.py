@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from ...api.errors import raise_api_error
 from ...api.v1.attendance import _build_month
 from ...db.models import Employment
 from ...db.session import get_db
@@ -311,10 +312,16 @@ def export_shift_plan_pdf(
             month=body.month,
             employment_ids=body.employment_ids,
         )
+        pdf_bytes = render_shift_plan_report_pdf(report)
     except ValueError as exc:
+        if str(exc) == "print_capacity_exceeded":
+            raise_api_error(
+                409,
+                "print_capacity_exceeded",
+                "Obsah plánu přesahuje čitelnou kapacitu tiskové stránky.",
+            )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    pdf_bytes = render_shift_plan_report_pdf(report)
     filename = shift_plan_pdf_filename(year=body.year, month=body.month)
     return StreamingResponse(
         _iter_bytes(pdf_bytes),

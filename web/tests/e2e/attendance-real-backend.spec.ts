@@ -187,7 +187,7 @@ test.describe("real event backend", () => {
             ),
             0,
           );
-          return Math.max(topLevelOverflow, tableWrapperOverflow);
+          return Math.max(topLevelOverflow, tableWrapperOverflow, document.documentElement.scrollWidth - viewport);
         });
         expect(overflow).toBeLessThanOrEqual(1);
       }

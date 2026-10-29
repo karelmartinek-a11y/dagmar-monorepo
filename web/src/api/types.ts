@@ -72,6 +72,7 @@ export const attendanceDaySchema = z.object({
   planned_state: z.string(),
 });
 export const attendanceMonthSchema = z.object({
+  planned_hours: z.number(),
   employment_id: z.number(),
   employment_label: z.string(),
   display_metrics: z.array(metricKeySchema),

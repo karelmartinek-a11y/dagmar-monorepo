@@ -335,26 +335,23 @@ def test_revision_0021_data_survives_event_migration_to_head(
         assert integration_scope_audit[0]["data_scope_mode"] == "ALL_EMPLOYMENTS"
         assert integration_scope_audit[1]["data_scope_mode"] == "SELECTED_EMPLOYEES"
 
-        engine = sa.create_engine(temp_url)
-        with engine.begin() as connection:
-            connection.execute(
-                sa.text(
-                    "UPDATE employments SET weekend_hours_enabled = false, "
-                    "public_holiday_hours_enabled = false WHERE id = 10"
-                )
-            )
-        engine.dispose()
-        command.downgrade(cfg, "2026_07_31_0022")
+        # Head deliberately removes direction metadata irreversibly; a rejected
+        # downgrade must leave both the revision and existing events intact.
         engine = sa.create_engine(temp_url)
         with engine.connect() as connection:
-            restored_profile = connection.execute(
-                sa.text(
-                    "SELECT weekend_hours_enabled, public_holiday_hours_enabled "
-                    "FROM employments WHERE id = 10"
-                )
-            ).one()
+            events_before = connection.execute(
+                sa.text("SELECT id, employment_id, occurred_at FROM attendance_events ORDER BY id")
+            ).all()
         engine.dispose()
-        assert restored_profile == (True, True)
+        with pytest.raises(RuntimeError, match="Downgrade is intentionally unsupported"):
+            command.downgrade(cfg, "2026_07_31_0022")
+        engine = sa.create_engine(temp_url)
+        with engine.connect() as connection:
+            assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == "2026_09_01_0028"
+            assert connection.execute(
+                sa.text("SELECT id, employment_id, occurred_at FROM attendance_events ORDER BY id")
+            ).all() == events_before
+        engine.dispose()
     finally:
         with admin_engine.connect() as connection:
             connection.execute(

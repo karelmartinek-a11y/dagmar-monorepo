@@ -106,6 +106,7 @@ class AttendanceDayOut(BaseModel):
 
 
 class AttendanceMonthOut(BaseModel):
+    planned_hours: float
     employment_id: int
     employment_label: str
     display_metrics: list[str]
@@ -291,6 +292,7 @@ def _build_month(db: Session, employment: Employment, year: int, month: int) -> 
             )
         )
     return AttendanceMonthOut(
+        planned_hours=summary.planned_hours,
         employment_id=employment.id,
         employment_label=employment_label(employment),
         display_metrics=display_metrics_for_employment(employment),
