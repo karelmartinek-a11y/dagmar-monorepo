@@ -194,3 +194,14 @@ def test_key_docs_reference_current_layout_and_invariants() -> None:
         assert "`frontend/`" not in text
         for snippet in snippets:
             assert snippet in text, f"{snippet!r} missing in {path.relative_to(ROOT)}"
+
+
+def test_manifest_cli_uses_its_own_checkout_before_foreign_pythonpath(tmp_path) -> None:
+    import os
+    import subprocess
+    import sys
+    foreign = tmp_path/'app'
+    foreign.mkdir()
+    (foreign/'__init__.py').write_text("raise RuntimeError('foreign checkout must not be imported')\n")
+    result = subprocess.run([sys.executable,str(ROOT/'scripts/generate_current_state_manifest.py'),'--check'],cwd=tmp_path,env={**os.environ,'PYTHONPATH':str(tmp_path)},capture_output=True,text=True,check=False)
+    assert result.returncode == 0, result.stderr

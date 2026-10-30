@@ -780,7 +780,7 @@ def update_employment(
     )
     next_end_date = (
         _parse_date(payload.end_date, "end_date")
-        if payload.end_date is not None
+        if "end_date" in payload.model_fields_set
         else employment.end_date
     )
     if next_start_date is None:

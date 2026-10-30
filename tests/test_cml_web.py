@@ -94,3 +94,34 @@ def test_boundary_replay_is_durable_and_cannot_create_local_login(tmp_path, monk
     assert second.get('/cml-web/').status_code==401
     second.close()
     engine.dispose()
+
+
+@pytest.mark.parametrize("audience,route", [("hotel","api/v1/users/1"),("dochazka","api/v1/admin/users/1")])
+def test_central_account_routes_require_owner_fresh_reauth_and_keep_credentials_central(tmp_path, monkeypatch, audience, route):
+    key, jwks = fixture_key()
+    path = tmp_path/'public.json'
+    path.write_text(json.dumps(jwks))
+    monkeypatch.setenv('CML_WEB_JWKS_PATH',str(path))
+    engine=create_engine('sqlite://',connect_args={'check_same_thread':False},poolclass=StaticPool)
+    factory=sessionmaker(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(text('CREATE TABLE cml_web_nonce(jti text PRIMARY KEY,expires_at bigint NOT NULL)'))
+    app=FastAPI()
+    calls=[]
+    @app.api_route('/'+route,methods=['GET','PATCH'])
+    async def central(request:Request):
+        calls.append(request.method)
+        return {'accepted':True}
+    boundary=CmlWebBoundary(app,audience=audience,session_factory=factory,resolve_identity=lambda *_:{'state':{},'public':{'admin':True}},ui_root=tmp_path)
+    with TestClient(boundary) as client:
+        def call(method='PATCH',body=b'{}',**patch):
+            signed=assertion(key,audience,path='/cml-web/'+route,method=method,body=body,**patch)
+            return client.request(method,'/cml-web/'+route,headers={'Origin':'https://kajovocml.hcasc.cz','X-CML-Web-Prefix':'/sections/'+audience+'/','X-CML-Web-Assertion':signed,'X-CSRF-Token':'a'*43,'Content-Type':'application/json'},content=body)
+        assert call('GET',body=b'').status_code==200
+        assert call().status_code==403
+        assert call(reauthUntil=int(time.time())-1).status_code==403
+        assert call(reauthUntil=int(time.time())+120).status_code==200
+        assert call(body=b'{"password":"synthetic-local-only"}',reauthUntil=int(time.time())+120).status_code==401
+        assert call('GET',body=b'',sub='user:'+str(uuid.uuid4()),nativeId='1').status_code==401
+        assert calls==['GET','PATCH']
+    engine.dispose()

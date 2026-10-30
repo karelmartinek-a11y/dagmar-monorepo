@@ -14,9 +14,11 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.v1.admin_attendance import router as admin_attendance
 from app.api.v1.admin_employment_groups import router as groups
+from app.api.v1.admin_employments import router as admin_employments
 from app.api.v1.admin_export import router as exports
 from app.api.v1.admin_locks import router as locks
 from app.api.v1.admin_shift_plan import router as admin_plan
+from app.api.v1.admin_users import router as admin_users
 from app.api.v1.attendance import router as attendance
 from app.api.v1.shift_plan import router as plan
 from app.db import models
@@ -46,7 +48,7 @@ with factory() as db:
     sync_employment_metric_months(db,employment=employment,months={(2026,10)})
     db.commit()
 app=FastAPI()
-for router in [admin_attendance,admin_plan,attendance,plan,groups,exports,locks]:
+for router in [admin_attendance,admin_plan,attendance,plan,groups,exports,locks,admin_users,admin_employments]:
     app.include_router(router)
 
 def dependency():

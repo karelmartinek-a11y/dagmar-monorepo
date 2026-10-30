@@ -145,14 +145,6 @@
       "path": "/api/v1/admin/employment-groups/{group_id}/members"
     },
     {
-      "auth_mode": "admin_session",
-      "handler": "app.api.v1.admin_shift_plan.admin_get_available_employments",
-      "methods": [
-        "GET"
-      ],
-      "path": "/api/v1/admin/employments"
-    },
-    {
       "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.admin_employments.update_employment",
       "methods": [

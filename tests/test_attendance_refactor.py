@@ -2412,3 +2412,19 @@ def test_single_plan_boundary_can_be_deleted_without_affecting_other_days(portal
         assert rows[0].date == date(2026, 10, 9)
         assert (rows[0].arrival_time, rows[0].departure_time) == ("08:00", "16:00")
         assert _build_month(db, employment, 2026, 10).planned_hours == 8
+
+
+def test_employment_end_date_can_be_cleared_without_changing_other_profile() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db, EmploymentType.DPP_DPC)
+        employment.end_date = date(2026, 12, 31)
+        db.commit()
+        original_start = employment.start_date
+        update_employment(employment.id, EmploymentUpdateIn(end_date=None), _admin={"username":"admin"}, _=None, db=db)
+        db.refresh(employment)
+        assert employment.end_date is None
+        assert employment.start_date == original_start
+        assert employment.employment_type == EmploymentType.DPP_DPC
+    engine.dispose()

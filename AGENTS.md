@@ -221,3 +221,4 @@ Závěrečný report musí obsahovat:
 - `/cml-web/` vyžaduje podepsanou CML žádost s audience `dochazka`; nativní identita a přístup k úvazku se ověřují v tomto backendu. Jednorázovost podpisu patří do sdílené DB, nikoli do paměti workeru.
 - Kvalifikační host `tests/cml_local_server.py` používá skutečné backendové routy a syntetickou místní DB; vyžaduje explicitní `CML_LOCAL_QUALIFICATION=1` a nikdy není součástí produkčního UI artefaktu.
 - Stav nedokončeného přechodu popisuje `docs/CML_WEB_CANDIDATE.md`. Nezaměňovat místní funkční průchod za úplné grafické schválení nebo nasazení.
+- Centrální správa účtů a úvazků přes CML vyžaduje hlavní účet a pro zápis čerstvé podepsané ověření. Nativní credentials tímto tokem neměnit. `end_date: null` znamená úvazek bez konce; vynechané datum ponechává stávající hodnotu. Generátor manifestu musí importovat vlastní checkout i při cizím editable prostředí/PYTHONPATH.

@@ -9,3 +9,7 @@ Podepsaný stav se vkládá výhradně do ASGI state po úspěšném ověření 
 Společné logo, font a piktogramy načítá vložené UI z veřejných brand assets CML. Žádná původní frontendová komponenta nebyla převzata. `tests/cml_local_server.py` je výslovně zapínaný loopback kvalifikační host s izolovanou syntetickou DB a skutečnými backendovými routami; není produkční aplikace ani doklad živých produkčních účinků.
 
 Neuzavřeno zůstává úplné pokrytí předloh a jazyků, část provozní administrace, centrální správa úvazků, převod identit a jejich hesel, uzavření přímých browserových vstupů, design gate, publikace na main a produkční nasazení. Není přípustné tyto části vydávat za dokončené na základě testu několika nových obrazovek.
+
+Centrální CML detail účtu spravuje úvazky přes původní `/api/v1/admin/users/{id}/employments` a `/api/v1/admin/employments/{id}`. Podepsané routy účtů a úvazků připouštějí jen hlavního správce; zápisy vyžadují aktuální `reauthUntil`. Lokální heslové a resetovací toky jsou pro tuto cestu odmítnuté. Explicitní `end_date: null` ruší konec platnosti, vynechané pole jej zachovává. Nejasná odpověď nesmí sama vyvolat nový zápis. Při zúžení období zůstává původní kontrola a samostatné potvrzení navázaných dat.
+
+Generátor manifestu vždy preferuje vlastní checkout před jinou editable instalací nebo cizím PYTHONPATH. CLI kontrola to ověřuje ze samostatného pracovního adresáře. Kvalifikační host zahrnuje skutečné administrační routy; nevytváří náhradní výpočty.

@@ -4,11 +4,15 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 
 from fastapi.routing import APIRoute
 
 ROOT = Path(__file__).resolve().parents[1]
+# A direct CLI invocation must inspect this checkout, even when another Dagmar
+# checkout is installed editable in the interpreter environment.
+sys.path.insert(0, str(ROOT))
 MANIFEST_PATH = ROOT / "docs/current-state-manifest.yaml"
 SSOT_PATH = ROOT / "docs/SSOT_CURRENT.md"
 

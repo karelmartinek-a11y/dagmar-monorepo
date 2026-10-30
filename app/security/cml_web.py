@@ -6,6 +6,7 @@ import hmac
 import json
 import mimetypes
 import os
+import time
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -87,6 +88,24 @@ class CmlWebBoundary:
                 else:
                     await JSONResponse({'error': 'not_found'}, status_code=404)(scope, receive, send)
                 return
+            # Account and employment administration is owned by the central CML screen.
+            central = ((self.audience == 'hotel' and (suffix == 'api/v1/users' or suffix.startswith('api/v1/users/')))
+                       or (self.audience == 'dochazka' and (suffix == 'api/v1/admin/users' or suffix.startswith(('api/v1/admin/users/', 'api/v1/admin/employments/')))))
+            if central:
+                if claims['sub'] != 'KRMAR78':
+                    raise AssertionDenied('central_owner_required')
+                if any(part in suffix.split('/') for part in ('set-password', 'send-reset', 'password', 'reset-link')):
+                    raise AssertionDenied('central_credentials_only')
+                if body and headers.get('content-type', '').split(';')[0] == 'application/json':
+                    try:
+                        payload = json.loads(body)
+                    except (ValueError, UnicodeError) as exc:
+                        raise AssertionDenied('invalid_json') from exc
+                    if isinstance(payload, dict) and payload.get('password') is not None:
+                        raise AssertionDenied('central_credentials_only')
+                if scope['method'] not in {'GET', 'HEAD'} and (type(claims.get('reauthUntil')) is not int or claims['reauthUntil'] <= int(time.time())):
+                    await JSONResponse({'error': {'code': 'cml_reauth_required', 'message': 'Nejprve čerstvě ověřte identitu v KájovoCML.'}}, status_code=403, headers={'Cache-Control': 'no-store'})(scope, receive, send)
+                    return
             # A signed request cannot start a local login or invoke a different public protocol.
             if not suffix.startswith(('api/v1/', 'api/auth/')) or suffix.endswith(('/login', '/logout', '/reset-password', '/request-password-reset')):
                 raise AssertionDenied('route_denied')
