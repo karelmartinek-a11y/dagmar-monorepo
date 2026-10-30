@@ -110,6 +110,12 @@ def require_portal_user_auth(
     authorization: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
 ) -> PortalUserAuth:
+    cml_user_id = getattr(request.state, 'cml_user_id', None)
+    if getattr(request.state, 'cml_web_claims', None) and cml_user_id is not None:
+        user = db.get(models.PortalUser, cml_user_id)
+        if user is None or not user.is_active or user.is_blocked or user.instance is None or user.instance.status != models.InstanceStatus.ACTIVE:
+            raise HTTPException(status_code=403, detail='CML local account unavailable')
+        return PortalUserAuth(instance=user.instance, user=user)
     bearer = _bearer_from_auth_header(authorization)
     instance: models.Instance | None
     if bearer:

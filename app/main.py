@@ -402,6 +402,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         raise exc
 
+    from app.security.cml_web import CmlWebBoundary
+    from app.services.cml_identity import resolve_identity, session_factory
+    app.add_middleware(CmlWebBoundary, audience='dochazka', session_factory=session_factory, resolve_identity=resolve_identity, ui_root=Path(__file__).parent / 'web_ui')
     return app
 
 

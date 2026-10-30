@@ -153,6 +153,8 @@ def extract_csrf_token(
 def require_csrf_header(request: Request) -> None:
     """Validate the SPA CSRF header without consuming a request body."""
 
+    if getattr(request.state, 'cml_web_claims', None):
+        return
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return
     session = _get_request_session(request)
@@ -184,6 +186,8 @@ async def require_csrf(
       - For non-JSON form submits, token can be provided as form field 'csrf_token'.
     """
 
+    if getattr(request.state, 'cml_web_claims', None):
+        return
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return
 

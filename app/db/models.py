@@ -6,6 +6,7 @@ from enum import StrEnum
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -881,3 +882,12 @@ class IntegrationAuditLog(Base):
         Index("ix_integration_audit_log_requested_at", "requested_at"),
         Index("ix_integration_audit_log_path", "path"),
     )
+
+
+class CmlWebNonce(Base):
+    """Single-use signed requests, shared by every process of this application."""
+
+    __tablename__ = "cml_web_nonce"
+    jti: Mapped[str] = mapped_column(String(36), primary_key=True)
+    expires_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    __table_args__ = (Index("ix_cml_web_nonce_expiry", "expires_at"),)

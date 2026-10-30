@@ -1,0 +1,61 @@
+{
+  "contract": "kajovo-web-ui/1",
+  "views": [
+    {
+      "id": "dochazka.employee.attendance",
+      "title": "Moje docházka",
+      "path": "/sections/dochazka/?view=attendance",
+      "icon": "attendance",
+      "admin": false,
+      "audienceRole": "member"
+    },
+    {
+      "id": "dochazka.employee.plan",
+      "title": "Můj plán služeb",
+      "path": "/sections/dochazka/?view=plan",
+      "icon": "calendar",
+      "admin": false,
+      "audienceRole": "member"
+    },
+    {
+      "id": "dochazka.employee.group-plan",
+      "title": "Skupinový plán služeb",
+      "path": "/sections/dochazka/?view=group-plan",
+      "icon": "group-plan",
+      "admin": false,
+      "audienceRole": "member"
+    },
+    {
+      "id": "dochazka.admin.attendance",
+      "title": "Docházkové listy",
+      "path": "/sections/dochazka/?view=attendance",
+      "icon": "attendance",
+      "admin": true,
+      "audienceRole": "admin"
+    },
+    {
+      "id": "dochazka.admin.plan",
+      "title": "Plán služeb",
+      "path": "/sections/dochazka/?view=plan",
+      "icon": "calendar",
+      "admin": true,
+      "audienceRole": "admin"
+    },
+    {
+      "id": "dochazka.admin.groups",
+      "title": "Skupiny úvazků",
+      "path": "/sections/dochazka/?view=groups",
+      "icon": "users",
+      "admin": true,
+      "audienceRole": "admin"
+    },
+    {
+      "id": "dochazka.admin.prints",
+      "title": "Tiskové sestavy",
+      "path": "/sections/dochazka/?view=prints",
+      "icon": "print",
+      "admin": true,
+      "audienceRole": "admin"
+    }
+  ]
+}

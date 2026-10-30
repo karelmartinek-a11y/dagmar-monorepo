@@ -121,6 +121,9 @@ def get_admin_session(
 ) -> AdminSession:
     """Validate the stateless admin cookie and return its authentication state."""
 
+    verified = getattr(request.state, 'cml_admin', None)
+    if getattr(request.state, 'cml_web_claims', None) and isinstance(verified, AdminSession):
+        return verified
     settings = settings or get_settings()
     cfg = _cookie_cfg_from_settings(settings)
     raw = request.cookies.get(cfg.name)
