@@ -745,6 +745,28 @@
       "path": "/api/version"
     }
   ],
+  "cml_web_candidate": {
+    "audience": "dochazka",
+    "automatic_employment": false,
+    "central_binding": "immutable central UUID and operation ID; email conflict never adopts a profile",
+    "middleware_endpoints": [
+      {
+        "method": "POST",
+        "owner_reauth": true,
+        "path": "/cml-web/api/profiles"
+      },
+      {
+        "method": "GET",
+        "owner_only": true,
+        "path": "/cml-web/api/profiles/{operation_id}"
+      }
+    ],
+    "native_password_issued": false,
+    "profile_contract": "kajovo-profile-provision/1",
+    "profile_migration": "2026_10_31_0030",
+    "state": "not_deployed",
+    "ui": "app/web_ui/"
+  },
   "critical_invariants": [
     {
       "id": "canonical_domain",
@@ -992,10 +1014,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2011,
+    "line_count": 2025,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "45ecdb09832c1a2217995b9f12bd9aa120decc2e0acf633895a1c27951051b3d"
+    "sha256": "c051630fa1b9bd786d6b37a0d5cf1bc2402c1ff527c89318e0090c4fa2d788ff"
   },
   "production": {
     "api_base_path": "/api/v1/",

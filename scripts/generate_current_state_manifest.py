@@ -304,6 +304,20 @@ def build_manifest() -> dict[str, object]:
                 ],
             },
         ],
+        "cml_web_candidate": {
+            "state": "not_deployed",
+            "ui": "app/web_ui/",
+            "audience": "dochazka",
+            "profile_contract": "kajovo-profile-provision/1",
+            "middleware_endpoints": [
+                {"method": "POST", "path": "/cml-web/api/profiles", "owner_reauth": True},
+                {"method": "GET", "path": "/cml-web/api/profiles/{operation_id}", "owner_only": True},
+            ],
+            "profile_migration": "2026_10_31_0030",
+            "automatic_employment": False,
+            "native_password_issued": False,
+            "central_binding": "immutable central UUID and operation ID; email conflict never adopts a profile",
+        },
         "main_components": [
             "app/main.py",
             "app/config.py",

@@ -2009,3 +2009,17 @@ Závěr úplnosti je omezen poctivou hranicí auditu: zdrojový kód byl statick
 - zdroj: auditovaný commit `39db1556f035139bd680676509d49d6e2d89a6aa` a vstupní kanonický SSOT;
 - stav ověření: statické forenzní čtení přes GitHub konektor a strukturální kontrola tohoto Markdownu; lokální checkout, runtime a testy nebyly v auditním prostředí spuštěny;
 - žádný nalezený rozpor nebyl skrytě vyřešen domněnkou: je opraven jako přesný baseline fakt, vymezen jako samostatná změna, nebo formalizován jako blocker/kapacitní stav.
+
+## Jednotný kandidát KájovoCML – nový profil Docházky
+
+Aktuální přímé zadání rozšiřuje kandidáta o samostatně napsané webové UI
+KájovoDocházka v CML. Původní backend vlastní údaje a výpočty; společné CML
+vlastní účet, přihlášení a neměnnou vazbu. Vytvoření přes `kajovo-profile-provision/1`
+vyžaduje hlavního vlastníka, čerstvé reauth, podepsanou metodu/cestu/tělo a nonce.
+Jediná transakce vytvoří uživatele, jeho WEB Instance a nezaměnitelnou účtenku.
+Konfliktní existující e-mail se nepřebírá. Heslo ani úvazek se při tom nevytvoří.
+Nativní jméno musí vejít do Instance (128 znaků); žádné tiché zkrácení. GET
+původní operace čte aktuální profil, neprovádí jeho nové založení. Účtenka
+přežije odstranění profilu i návrat kódu. Aditivní head je `2026_10_31_0030`.
+Nativní Android/integrační API, uložené credentials a ostatní výpočty se nemění.
+Plný webový cutover, design gate a produkční nasazení kandidáta nejsou uzavřené.

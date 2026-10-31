@@ -72,6 +72,30 @@ class CmlWebBoundary:
             suffix = scope['path'][len('/cml-web/'):]
             if any(v in raw_path.lower() for v in ('%2e', '%2f', '%5c', '%25')) or '..' in suffix.split('/') or '\\' in suffix:
                 raise AssertionDenied('path_denied')
+            if suffix == 'api/profiles' or suffix.startswith('api/profiles/'):
+                from app.services.cml_profiles import ProfileFault, ProfileProvisioner
+                if claims['sub'] != 'KRMAR78' or query:
+                    raise AssertionDenied('central_owner_required')
+                if scope['method'] == 'POST' and suffix == 'api/profiles':
+                    if type(claims.get('reauthUntil')) is not int or claims['reauthUntil'] <= int(time.time()):
+                        await JSONResponse({'error': {'code': 'cml_reauth_required'}}, status_code=403)(scope, receive, send)
+                        return
+                    if headers.get('content-type', '').split(';')[0] != 'application/json' or len(body) > 16384:
+                        await JSONResponse({'error': {'code': 'PROFILE_INPUT_INVALID'}}, status_code=422)(scope, receive, send)
+                        return
+                    operation, argument = ProfileProvisioner(self.session_factory).create, bytes(body)
+                elif scope['method'] == 'GET' and suffix.startswith('api/profiles/'):
+                    operation, argument = ProfileProvisioner(self.session_factory).read, suffix[len('api/profiles/'):]
+                else:
+                    await JSONResponse({'error': {'code': 'METHOD_DENIED'}}, status_code=405)(scope, receive, send)
+                    return
+                try:
+                    result = await asyncio.to_thread(operation, argument)
+                    profile_response = JSONResponse(result, headers={'Cache-Control': 'no-store'})
+                except ProfileFault as exc:
+                    profile_response = JSONResponse({'error': {'code': exc.code}}, status_code=exc.status, headers={'Cache-Control': 'no-store'})
+                await profile_response(scope, receive, send)
+                return
             if suffix == 'identity':
                 await JSONResponse(identity['public'], headers={'Cache-Control': 'no-store'})(scope, receive, send)
                 return
@@ -94,6 +118,8 @@ class CmlWebBoundary:
             if central:
                 if claims['sub'] != 'KRMAR78':
                     raise AssertionDenied('central_owner_required')
+                if scope['method'] == 'POST' and suffix in {'api/v1/users', 'api/v1/admin/users'}:
+                    raise AssertionDenied('central_profile_contract_required')
                 if any(part in suffix.split('/') for part in ('set-password', 'send-reset', 'password', 'reset-link')):
                     raise AssertionDenied('central_credentials_only')
                 if body and headers.get('content-type', '').split(';')[0] == 'application/json':

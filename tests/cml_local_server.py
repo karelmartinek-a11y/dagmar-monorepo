@@ -51,6 +51,16 @@ app=FastAPI()
 for router in [admin_attendance,admin_plan,attendance,plan,groups,exports,locks,admin_users,admin_employments]:
     app.include_router(router)
 
+@app.get("/__fixture/profiles")
+def profile_snapshot():
+    from sqlalchemy import select
+    with factory() as db:
+        return {"users": [{"id": user.id, "email": user.email, "instance_id": user.instance_id,
+                           "has_password": bool(user.password_hash), "employments": len(user.employments)}
+                          for user in db.scalars(select(models.PortalUser))],
+                "instances": db.query(models.Instance).count(),
+                "receipts": db.query(models.CmlProfileProvision).count()}
+
 def dependency():
     with factory() as db:
         yield db

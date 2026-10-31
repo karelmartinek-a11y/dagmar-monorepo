@@ -347,7 +347,7 @@ def test_revision_0021_data_survives_event_migration_to_head(
             command.downgrade(cfg, "2026_07_31_0022")
         engine = sa.create_engine(temp_url)
         with engine.connect() as connection:
-            assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == "2026_10_30_0029"
+            assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == "2026_10_31_0030"
             assert connection.execute(
                 sa.text("SELECT id, employment_id, occurred_at FROM attendance_events ORDER BY id")
             ).all() == events_before

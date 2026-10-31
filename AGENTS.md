@@ -222,3 +222,22 @@ Závěrečný report musí obsahovat:
 - Kvalifikační host `tests/cml_local_server.py` používá skutečné backendové routy a syntetickou místní DB; vyžaduje explicitní `CML_LOCAL_QUALIFICATION=1` a nikdy není součástí produkčního UI artefaktu.
 - Stav nedokončeného přechodu popisuje `docs/CML_WEB_CANDIDATE.md`. Nezaměňovat místní funkční průchod za úplné grafické schválení nebo nasazení.
 - Centrální správa účtů a úvazků přes CML vyžaduje hlavní účet a pro zápis čerstvé podepsané ověření. Nativní credentials tímto tokem neměnit. `end_date: null` znamená úvazek bez konce; vynechané datum ponechává stávající hodnotu. Generátor manifestu musí importovat vlastní checkout i při cizím editable prostředí/PYTHONPATH.
+
+- Nové pracovní profily zakládá jen hlavní účet přes podepsaný CML kontrakt
+  `kajovo-profile-provision/1`, s čerstvým reauth a neměnnými UUID operace/účtu.
+  Migrace `2026_10_31_0030` přidává trvalou účtenku. Uživatel, aktivní WEB
+  Instance a účtenka jsou jedna transakce; heslo ani úvazek se nevytváří.
+  Profil omezuje jméno na skutečných 128 znaků Instance bez zkracování; dlouhý
+  e-mail má fingerprint s digestem místo překročení jejího 128znakového sloupce.
+  E-mailový konflikt neznamená sloučení. Běžné centrální vytvoření přes
+  `/api/v1/admin/users` je odmítnuté, původní nativní API zůstává kompatibilní.
+  Čtecí účtenka nikdy znovu nevytváří odstraněný profil; účtenka přežije rollback.
+  PostgreSQL souběh vyžaduje `CML_PROFILE_TEST_DATABASE_URL` s místní `_test` DB
+  a používá pouze vlastní izolované schéma, nikoli existující zaměstnance.
+
+- Frontendový lint má záměrný přesný override `minimatch: 11.0.1` pro
+  GHSA-g3hv-75wg-m249; nevracet zranitelné vnořené verze. Změna tohoto
+  override vyžaduje npm audit, skutečný lint, typy, unit testy a build.
+  Python lock se audituje na CI Pythonu 3.12; jeho připnuté závislosti mají
+  vlastní minimální verzi Pythonu. Neřešit chybně zvolený auditní interpreter
+  snížením bezpečnostních verzí závislostí.

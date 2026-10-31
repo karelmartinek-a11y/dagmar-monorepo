@@ -891,3 +891,13 @@ class CmlWebNonce(Base):
     jti: Mapped[str] = mapped_column(String(36), primary_key=True)
     expires_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
     __table_args__ = (Index("ix_cml_web_nonce_expiry", "expires_at"),)
+
+
+class CmlProfileProvision(Base):
+    """Immutable receipt, intentionally no FK: deleting a profile cannot erase history."""
+    __tablename__ = "cml_profile_provision"
+    operation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    central_user_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    native_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
