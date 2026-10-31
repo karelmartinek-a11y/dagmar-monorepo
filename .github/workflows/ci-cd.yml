@@ -224,10 +224,10 @@ jobs:
         run: |
           git diff --exit-code
           test -z "$(git status --short)"
-      - name: Package exact web artifact
+      - name: Package the CML entry marker without the retired SPA
         run: |
-          printf '{"frontend_commit":"%s"}\n' "${GITHUB_SHA:0:7}" > web/dist/frontend-version.json
-          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -C web/dist -cf - . | gzip -n > web-release.tgz
+          node --check web/scripts/cml-production-smoke.mjs
+          python scripts/package_cml_entry.py --commit "$GITHUB_SHA" --output web-release.tgz
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: web-release
@@ -375,7 +375,7 @@ jobs:
             printf '%s\n' "$SCHEMA_AFTER" >> "$UPLOAD/deploy-state"
             BACKEND_STOPPED=false
             trap - EXIT
-      - name: Public HTTPS readiness, headers, version and browser smoke
+      - name: Public HTTPS, backend version and exclusive CML entry smoke
         working-directory: web
         env:
           DAGMAR_PRODUCTION_URL: https://dagmar.hcasc.cz
@@ -391,7 +391,7 @@ jobs:
           test "$(grep -ic '^cross-origin-resource-policy: same-origin' "$RUNNER_TEMP/dagmar-headers")" -eq 1
           npm ci
           npx playwright install --with-deps chromium
-          DAGMAR_EXPECTED_COMMIT="$SHORT_SHA" node scripts/production-smoke.mjs
+          DAGMAR_EXPECTED_COMMIT="$SHORT_SHA" node scripts/cml-production-smoke.mjs
       - name: Roll back a failed public validation safely
         if: failure()
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0

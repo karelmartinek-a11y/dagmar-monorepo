@@ -20,6 +20,9 @@ def test_security_headers_are_included_once_per_web_and_api_location() -> None:
     assert "try_files" not in cml
     assert 'add_header Cache-Control "no-store" always;' in cml
     assert web.count(include) == 1
+    assert "try_files" not in web
+    assert 'return 302 "https://kajovocml.hcasc.cz/#dochazka";' in web
+    assert 'add_header Cache-Control "no-store" always;' in web
 
 
 def test_hsts_is_one_year_without_parent_domain_assertions() -> None:

@@ -28,7 +28,8 @@ def _copy_nginx_fixtures(name: str, tls: Path) -> None:
     files = {
         ROOT / "tests/fixtures/nginx/nginx.conf": "etc/nginx/nginx.conf",
         ROOT / "ops/nginx/dagmar-location.conf": "etc/nginx/conf.d/dagmar-location.conf",
-        ROOT / "ops/nginx/dagmar-security-headers.conf": "etc/nginx/snippets/dagmar-security-headers.conf",
+        ROOT
+        / "ops/nginx/dagmar-security-headers.conf": "etc/nginx/snippets/dagmar-security-headers.conf",
         ROOT / "web/index.html": "var/www/dagmar/frontend/index.html",
         tls / "key.pem": "etc/nginx/tls/key.pem",
         tls / "cert.pem": "etc/nginx/tls/cert.pem",
@@ -66,8 +67,22 @@ def _generate_certificate(tls: Path) -> None:
 
 def _response(url: str) -> urllib.response.addinfourl | urllib.error.HTTPError:
     context = ssl._create_unverified_context()  # noqa: S323 - local one-day fixture certificate
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(
+            self,
+            req: urllib.request.Request,
+            fp: object,
+            code: int,
+            msg: str,
+            headers: object,
+            newurl: str,
+        ) -> None:
+            return None
+
+    opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=context))
     try:
-        return urllib.request.urlopen(url, context=context, timeout=3)
+        return opener.open(url, timeout=3)
     except urllib.error.HTTPError as exc:
         return exc
 
@@ -101,14 +116,18 @@ def _run_nginx_assertions(tls: Path) -> None:
         subprocess.run(["docker", "exec", name, "nginx", "-T"], check=True)
         for _ in range(30):
             with contextlib.suppress(OSError):
-                if _response(f"https://127.0.0.1:{port}/").status == 200:
+                if _response(f"https://127.0.0.1:{port}/").status == 302:
                     break
             time.sleep(0.1)
         else:
             raise AssertionError("Local Nginx did not become ready.")
 
         for path, expected_status in (
-            ("/", 200),
+            ("/", 302),
+            ("/login", 302),
+            ("/reset?token=synthetic-legacy-token", 302),
+            ("/assets/old.js", 302),
+            ("/index.html", 302),
             ("/api/v1/health", 502),
             ("/cml-web/identity", 502),
             ("/cml-web/api/profiles/00000000-0000-4000-8000-000000000001", 502),
@@ -116,6 +135,11 @@ def _run_nginx_assertions(tls: Path) -> None:
         ):
             response = _response(f"https://127.0.0.1:{port}{path}")
             assert response.status == expected_status
+            if expected_status == 302:
+                assert response.headers.get_all("Location") == [
+                    "https://kajovocml.hcasc.cz/#dochazka"
+                ]
+                assert response.headers.get_all("Cache-Control") == ["no-store"]
             assert response.headers.get_all("Strict-Transport-Security") == ["max-age=31536000"]
             assert len(response.headers.get_all("Content-Security-Policy") or []) == 1
             assert response.headers.get_all("Cross-Origin-Opener-Policy") == [

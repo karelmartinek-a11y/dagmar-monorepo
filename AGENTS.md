@@ -246,3 +246,13 @@ Závěrečný report musí obsahovat:
   vrátit SPA index nebo veřejná data místo ověření. Samotná proxy nepřihlašuje.
   Cesta má vlastní jedinou sadu bezpečnostních hlaviček, no-store a 8m limit;
   statický i skutečný Docker Nginx test ověřují její směrování.
+
+- Kandidát přesouvá všechny browserové vstupy na pevné HTTPS CML
+  `/#dochazka`; tato výslovně zadaná integrace je oprávněné použití domény
+  `kajovocml.hcasc.cz`. Vlastní API doména zůstává `dagmar.hcasc.cz`.
+  `/api/` a podepsané `/cml-web/` se nevracejí do SPA a zachovávají nativní
+  kontrakty. CI distribuuje pouze zdrojově vázaný CML entry marker podle
+  `scripts/package_cml_entry.py`; nové UI se dodává v backend wheelu.
+  Nepřidávat původní frontend bundle jako fallback. Veřejný smoke je
+  `web/scripts/cml-production-smoke.mjs`, autentizovaná přejímka a design
+  gate zůstávají samostatné.

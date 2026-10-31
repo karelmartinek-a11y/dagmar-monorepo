@@ -56,3 +56,36 @@ bez přepisu cesty, s no-store a samostatnou sadou bezpečnostních hlaviček.
 Nesmí se vracet původní SPA index. Samotná proxy nepřijímá uživatele: podpis
 a nativní stav nadále ověřuje backend. Produkční konfigurace se tímto místním
 krokem nezměnila; přímé staré browserové vstupy čekají na úplný cutover.
+
+## Výhradní CML vstup – místní kandidát 31. 10. 2026
+
+Nginx již nepoužívá původní `try_files` nebo SPA index. Každý browserový
+dokument/asset mimo vyhrazené `/api/` a podepsané `/cml-web/` vrací pevné
+302 do `https://kajovocml.hcasc.cz/#dochazka`, s no-store a jedinou sadou
+bezpečnostních hlaviček. Původní query nebo resetový token se do CML
+nepřenáší. Nativní API, callbacky a výpočty se touto routovací změnou nemění.
+
+CI dále kvalifikuje historický frontend pro regresi, do nového web release
+ale balí pouze nový deterministický `cml-entry.json` s přesným Git SHA.
+Původní JS/CSS/HTML se nedistribuuje; nové vlastní UI `app/web_ui/` je
+v backend wheelu za podepsanou gateway. Symlink web release zůstává
+kompatibilním technickým krokem pro rollback, nikoli veřejným SPA hostem.
+Nový veřejný smoke kontroluje pevný CML vstup, skutečný backend SHA/readiness,
+401 bez podpisu a skutečnou anonymní login stránku CML. Přihlášená funkční
+přejímka má samostatný společný gate; veřejné 302/200 ji nenahrazuje.
+
+Sedm místních kontrol prošlo: skutečný Docker Nginx/HTTPS bez vnějšího
+následování redirectů, zachování obou API cest, odstranění starého
+browserového vstupu a přesný reprodukovatelný balíček bez původního UI.
+Produkční smoke zatím nebyl spuštěný. Úplné designové/jazykové/tiskové
+řady, nezávislý designový verdikt, GitHub a koordinované nasazení zůstávají
+otevřené. Produkční Nginx, účty, úvazky a relace se tímto krokem nezměnily.
+
+Po portu publikačních kontrol prošla úplná backendová suite: 251 PASS,
+bez skipů. Ruff nad app/tests/scripts, mypy (69 souborů), compileall,
+repo invarianty, generovaný current-state manifest a frontend lint prošly.
+Plný pytest vyžaduje obě proměnné `DAGMAR_DATABASE_URL` a
+`CML_PROFILE_TEST_DATABASE_URL` na vlastním local-only PostgreSQL prostředí
+s ovladačem `postgresql+psycopg`; migrační regrese není volitelný skip.
+Nový produkční smoke se zatím kvalifikoval syntaxí a odpovídajícími lokálními
+Nginx/CML průchody, nikoli spuštěním na produkci.

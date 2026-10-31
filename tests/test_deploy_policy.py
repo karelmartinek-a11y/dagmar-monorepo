@@ -9,8 +9,8 @@ DEPLOY = WORKFLOW.split("\n  deploy:\n", 1)[1]
 def test_deploy_uses_readiness_and_public_https_browser_smoke() -> None:
     activation = DEPLOY.index("Install and atomically activate release")
     local_readiness = DEPLOY.index("/api/v1/readiness", activation)
-    public_smoke = DEPLOY.index("Public HTTPS readiness, headers, version and browser smoke")
-    browser_smoke = DEPLOY.index("production-smoke.mjs", public_smoke)
+    public_smoke = DEPLOY.index("Public HTTPS, backend version and exclusive CML entry smoke")
+    browser_smoke = DEPLOY.index("scripts/cml-production-smoke.mjs", public_smoke)
     finalize = DEPLOY.index("Mark success and retain five safe releases", browser_smoke)
     assert activation < local_readiness < public_smoke < browser_smoke < finalize
     assert "DAGMAR_PRODUCTION_URL" in DEPLOY[public_smoke:finalize]
@@ -39,11 +39,15 @@ def test_deploy_has_no_git_remote_credential_contract() -> None:
     assert "github.com/" not in DEPLOY
 
 
-def test_web_artifact_is_checked_before_packaging() -> None:
+def test_legacy_web_is_checked_but_only_the_cml_marker_is_packaged() -> None:
     build = WORKFLOW.index("npm run build")
     map_check = WORKFLOW.index("check_web_artifact.py", build)
-    package = WORKFLOW.index("Package exact web artifact", map_check)
+    package = WORKFLOW.index("Package the CML entry marker without the retired SPA", map_check)
     assert build < map_check < package
+    packaging = WORKFLOW[package : WORKFLOW.index("name: web-release", package)]
+    assert 'package_cml_entry.py --commit "$GITHUB_SHA" --output web-release.tgz' in packaging
+    assert "node --check web/scripts/cml-production-smoke.mjs" in packaging
+    assert "-C web/dist" not in packaging
 
 
 def test_deploy_recreates_backend_app_link_idempotently() -> None:
