@@ -50,3 +50,9 @@ Povinný npm audit zachytil GHSA-g3hv-75wg-m249. Připnutý override
 ESLint a jeho pravidla zůstávají; skutečný lint ověřil kompatibilní rozhraní
 použitých konzumentů. Neproběhlo potlačení advisory nebo oslabení gate.
 Zdroj: https://github.com/advisories/GHSA-g3hv-75wg-m249 .
+
+Kandidátní Nginx snippet směruje `/cml-web/` na tentýž vlastní backend 8101
+bez přepisu cesty, s no-store a samostatnou sadou bezpečnostních hlaviček.
+Nesmí se vracet původní SPA index. Samotná proxy nepřijímá uživatele: podpis
+a nativní stav nadále ověřuje backend. Produkční konfigurace se tímto místním
+krokem nezměnila; přímé staré browserové vstupy čekají na úplný cutover.

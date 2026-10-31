@@ -241,3 +241,8 @@ Závěrečný report musí obsahovat:
   Python lock se audituje na CI Pythonu 3.12; jeho připnuté závislosti mají
   vlastní minimální verzi Pythonu. Neřešit chybně zvolený auditní interpreter
   snížením bezpečnostních verzí závislostí.
+
+- Nginx `/cml-web/` musí předat plnou cestu a podpis původnímu backendu; nesmí
+  vrátit SPA index nebo veřejná data místo ověření. Samotná proxy nepřihlašuje.
+  Cesta má vlastní jedinou sadu bezpečnostních hlaviček, no-store a 8m limit;
+  statický i skutečný Docker Nginx test ověřují její směrování.

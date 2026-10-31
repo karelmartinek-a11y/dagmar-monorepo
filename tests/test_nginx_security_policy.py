@@ -9,11 +9,16 @@ HEADERS = (ROOT / "ops/nginx/dagmar-security-headers.conf").read_text(encoding="
 
 def test_security_headers_are_included_once_per_web_and_api_location() -> None:
     include = "include /etc/nginx/snippets/dagmar-security-headers.conf;"
-    assert LOCATION.count(include) == 2
+    assert LOCATION.count(include) == 3
     prefix, remainder = LOCATION.split("location ^~ /api/", 1)
-    api, web = remainder.split("location /", 1)
+    api, remainder = remainder.split("location ^~ /cml-web/", 1)
+    cml, web = remainder.split("location /", 1)
     assert include not in prefix
     assert api.count(include) == 1
+    assert cml.count(include) == 1
+    assert "proxy_pass http://127.0.0.1:8101;" in cml
+    assert "try_files" not in cml
+    assert 'add_header Cache-Control "no-store" always;' in cml
     assert web.count(include) == 1
 
 

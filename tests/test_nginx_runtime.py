@@ -110,6 +110,8 @@ def _run_nginx_assertions(tls: Path) -> None:
         for path, expected_status in (
             ("/", 200),
             ("/api/v1/health", 502),
+            ("/cml-web/identity", 502),
+            ("/cml-web/api/profiles/00000000-0000-4000-8000-000000000001", 502),
             ("/api/v1/auth/google/callback", 502),
         ):
             response = _response(f"https://127.0.0.1:{port}{path}")
