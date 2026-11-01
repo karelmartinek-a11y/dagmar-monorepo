@@ -314,6 +314,7 @@ def build_manifest() -> dict[str, object]:
             "period_regression": "web/scripts/cml-periods.browser.mjs",
             "download_regression": "web/scripts/cml-downloads.browser.mjs",
             "export_transport": "declared CML PDF/ZIP bytes with live gesture; memory-only retry without another export request",
+            "attendance_monthly_metrics": "canonical values wrap inside the visible panel, including 390/320 px",
             "plan_response_scope": "current generation, frozen period, available group",
             "clock_confirmation": "read back every completed save in the same view and period, including concurrent days",
             "plan_layout": "admin and own monthly day rows; group employment-day matrix",

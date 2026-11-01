@@ -261,6 +261,22 @@ async function inheritedStatus(browser,width){
  }finally{await f.close();}
 }
 
+async function visibleMonthlyMetrics(browser,width){
+ const metrics=['total','afternoon','night','weekend','public_holiday'];
+ const values=Object.fromEntries(metrics.map(key=>[key,{hours:12345.6}]));
+ const f=await fixture(browser,width,'attendance',({path,url,request})=>{
+  assert.equal(request.method(),'GET','Metric visibility must not write data');
+  if(path==='api/v1/admin/attendance/month')return {data:[{employment_id:1,employment_label:'Syntetický úvazek',attendance_locked:true,display_metrics:metrics,worked:values,days:[{date:dateOf(url),events:[],worked:values,is_within_employment_period:true}]}]};
+ },true);
+ try{
+  await expect(f.page.locator('.monthly-total > span')).toHaveCount(metrics.length);
+  for(const targetWidth of width===390?[390,320]:[width]){
+   await f.page.setViewportSize({width:targetWidth,height:900});
+   assert(await f.page.locator('.monthly-total > span').evaluateAll(nodes=>nodes.every(node=>{const box=node.getBoundingClientRect(),panel=node.closest('.panel').getBoundingClientRect();return box.left>=panel.left&&box.right<=panel.right;})),'Every canonical monthly metric must fit inside the visible panel');
+  }
+ }finally{await f.close();}
+}
+
 for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
  assert.ok(['chromium','webkit'].includes(engine));
  const browser=await ({chromium,webkit}[engine]).launch();
@@ -287,7 +303,8 @@ for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
   ['plan-clear-disabled-without-status',b=>planStatus(b,width,{admin:true,clear:true})],
   ['plan-status-cancel-no-write',b=>planStatus(b,width,{admin:true,cancel:true})],
   ['plan-status-conflict-not-retried',b=>planStatus(b,width,{admin:true,rejected:true})],
-  ['empty-selection',b=>emptySelection(b,width)]]){
+  ['empty-selection',b=>emptySelection(b,width)],
+  ['canonical-monthly-metrics-visible',b=>visibleMonthlyMetrics(b,width)]]){
   try{await test(browser);console.log(`PASS ${engine} ${width} ${name}`);}
   catch(error){failures.push(`${engine} ${width} ${name}: ${error.message}`);console.error(`FAIL ${engine} ${width} ${name}: ${error.message}`);}
  }}finally{await browser.close();}

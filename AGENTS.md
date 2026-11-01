@@ -300,6 +300,10 @@ opožděná data předchozího výběru. Denní plánové metriky řídí backen
 hodinových sloupců. Součty se ve frontendu nevypočítávají. Efektivní stav
 z vlastní docházky nesmí plánový editor nabídnout jako prázdné časové buňky.
 
+Měsíční souhrn skutečné docházky zalamuje všechny backendové metriky
+uvnitř panelu i na 390/320 px. Zarovnání nesmí vytlačit první hodnoty
+mimo viditelnou plochu; lokální browserový runner ověřuje také dlouhá čísla.
+
 PDF plánu a hromadný CSV/ZIP používají ve vloženém UI stávající typované
 stahování CML, nikoli navigaci na blob URL neprůhledného rámce. Manifest
 deklaruje pouze PDF do 50 000 000 B a ZIP do 16 MiB; autoritu dat stále

@@ -746,6 +746,7 @@
     }
   ],
   "cml_web_candidate": {
+    "attendance_monthly_metrics": "canonical values wrap inside the visible panel, including 390/320 px",
     "audience": "dochazka",
     "automatic_employment": false,
     "central_binding": "immutable central UUID and operation ID; email conflict never adopts a profile",

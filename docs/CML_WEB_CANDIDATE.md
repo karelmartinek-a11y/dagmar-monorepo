@@ -117,3 +117,8 @@ nikoli produkční data či zápisy.
 Úplná přejímka tisku zůstává **ODLOŽENO PO PRVNÍM NASAZENÍ**. Původní
 backendové PDF je rastrové a zachovává starší značku KájovoDagmar; toto
 není nový vizuálně převzatý frontend ani potvrzení plné přístupnosti PDF.
+
+Měsíční souhrn skutečné docházky používá zalamování metrik, aby dlouhé
+hodnoty nezmizely za levým okrajem mobilního panelu. `test:cml-periods`
+kontroluje obdélníky všech metrik také na 390/320 px; čísla a součty nadále
+pocházejí výhradně z backendu.
