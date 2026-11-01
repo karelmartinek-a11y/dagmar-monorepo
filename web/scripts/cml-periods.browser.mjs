@@ -36,7 +36,7 @@ async function fixture(browser,width,view,handler,admin=false){
   const url=new URL(route.request().url());
   assert.equal(url.origin,origin,'No external or production network access');
   const path=url.pathname.slice(prefix.length);
-  if(['','app.js','api.js','ui.js','ui.css','printing.js','admin-info.js'].includes(path)){
+  if(['','app.js','clock-editor.js','api.js','ui.js','ui.css','printing.js','admin-info.js'].includes(path)){
    const file=path||'index.html';
    await route.fulfill({body:await readFile(new URL(file,root)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});return;
   }
@@ -138,8 +138,8 @@ async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=fal
   await expect(arrival(1)).not.toHaveAttribute('readonly','');
   if(navigate){
    const oldDate=dates[0];await f.page.getByRole('button',{name:'›',exact:true}).click();
-   await expect(f.page.locator('input.clock')).toHaveCount(4);assert.notEqual(dates[0],oldDate);
-   const currentDate=dates[0];releases[0].resolve();
+   await expect(f.page.locator('input.clock')).toHaveCount(4);assert.equal(dates[0],oldDate,'Navigation waits for save and canonical read');
+   releases[0].resolve();await expect.poll(()=>dates[0]).not.toBe(oldDate);const currentDate=dates[0];
    await f.page.waitForFunction(url=>globalThis.cmlSettled.includes(url),origin+prefix+'api/v1/shift-plan');
    await expect(f.page.getByRole('textbox',{name:oldDate+' arrival_time úvazek 1',exact:true})).toHaveCount(0);
    await expect(f.page.getByRole('textbox',{name:currentDate+' arrival_time úvazek 1',exact:true})).toHaveValue('08:00');
@@ -188,9 +188,10 @@ async function planStatus(browser,width,{admin=false,group=false,clear=false,can
  }finally{await f.close();}
 }
 
-async function adminLock(browser,width,{rejected=false}={}){
+async function adminLock(browser,width,{rejected=false,readFailure=false}={}){
  let locked=false;const writes=[];
  const f=await fixture(browser,width,'plan',({path,url,request})=>{
+  if(path==='api/v1/admin/shift-plan'&&readFailure&&writes.length)return {httpStatus:503,message:'Readback unavailable'};
   if(path==='api/v1/admin/shift-plan')return {rows:[{...row('Recepce',dateOf(url)),shift_plan_locked:locked}],available_employments:[],selected_employment_ids:[1]};
   if(path==='api/v1/admin/locks'){
    const body=request.postDataJSON();writes.push(body);if(rejected)return {httpStatus:409,message:'Plán nelze uzamknout'};locked=body.locked;return {ok:true};
@@ -198,6 +199,7 @@ async function adminLock(browser,width,{rejected=false}={}){
  },true);
  try{
   await f.page.getByRole('button',{name:'Zamknout plán',exact:true}).click();
+  if(readFailure){await expect(f.page.getByRole('alert')).toContainText('Změna zámku byla přijata');await expect(f.page.locator('input.clock').first()).toHaveAttribute('readonly','');await expect(f.page.getByRole('button',{name:'Zamknout plán',exact:true})).toBeDisabled();assert.equal(writes.length,1);return;}
   if(rejected){await expect(f.page.getByRole('alert')).toContainText('Plán nelze uzamknout');await expect(f.page.getByRole('button',{name:'Zamknout plán',exact:true})).toBeEnabled();assert.equal(writes.length,1);return;}
   await expect(f.page.getByRole('button',{name:'Odemknout plán',exact:true})).toBeVisible();
   await expect(f.page.locator('input.clock').first()).toHaveAttribute('readonly','');
@@ -297,6 +299,7 @@ for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
   ['group-plan-status-route',b=>planStatus(b,width,{group:true})],
   ['admin-plan-lock',b=>adminLock(b,width)],
   ['admin-plan-lock-error',b=>adminLock(b,width,{rejected:true})],
+  ['admin-plan-lock-readback-error',b=>adminLock(b,width,{readFailure:true})],
   ['backend-plan-metrics',b=>planMetrics(b,width)],
   ['task-plan-monthly-hours',b=>planMetrics(b,width,{task:true})],
   ['inherited-attendance-status',b=>inheritedStatus(b,width)],

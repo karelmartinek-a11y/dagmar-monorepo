@@ -1,3 +1,4 @@
+import {clockEditor} from './clock-editor.js';
 import {el,field,select,button,table,panel,notice,modal,formData,showError} from './ui.js';
 import {api,view} from './api.js';
 import {printing} from './printing.js';
@@ -11,30 +12,14 @@ const monthQuery=()=>new URLSearchParams({year:state.year,month:state.month});
 const adminBase=()=>state.identity.admin?'api/v1/admin/':'api/v1/';
 const hours=v=>v===null||v===undefined?'—':Number(v).toLocaleString('cs-CZ',{minimumFractionDigits:1,maximumFractionDigits:1})+' h';
 function dayName(date){return new Date(date+'T12:00:00').toLocaleDateString('cs',{weekday:'long'});}
-function monthBar(extra=[]){const label=el('strong',{},new Date(state.year,state.month-1,15).toLocaleDateString('cs',{month:'long',year:'numeric'}));return el('div',{class:'toolbar'},button('‹',()=>changeMonth(-1)),label,button('›',()=>changeMonth(1)),...extra,button('Obnovit',render));}
+function monthBar(extra=[]){const label=el('strong',{},new Date(state.year,state.month-1,15).toLocaleDateString('cs',{month:'long',year:'numeric'}));return el('div',{class:'toolbar'},button('‹',()=>changeMonth(-1)),label,button('›',()=>changeMonth(1)),...extra,button('Obnovit',refreshView));}
+async function refreshView(){const uncertain=new Set(state.uncertain);state.uncertain.clear();try{await render({propagate:true});}catch(e){for(const key of uncertain)state.uncertain.add(key);error(e);}}
 function changeMonth(delta){const next=new Date(state.year,state.month-1+delta,15);state.year=next.getFullYear();state.month=next.getMonth()+1;state.employment=null;state.uncertain.clear();render();}
 function heading(id,title,desc){const main=view(id,title,desc);main.append(el('div',{id:'operation-status','aria-live':'polite'}));return main;}
 function error(e){showError(document.querySelector('#operation-status')??document.querySelector('#content'),e);}
 function metricBadges(sheet,kind){return el('div',{class:'metrics'},[...sheet.display_metrics,'holiday','sickness','paragraph'].map(key=>el('span',{class:'badge'},metricNames[key]+' '+hours((sheet[kind]?.[key]??sheet.status_metrics?.[key])?.hours))));}
-function clock(value,{key,disabled,label,save}){
- const input=el('input',{class:'clock',type:'text',inputmode:'numeric',placeholder:'',value:value??'','aria-label':label,readOnly:disabled||state.pending.has(key)||state.uncertain.has(key),maxlength:5});
- let attempted=null;
- const normalized=v=>{if(!v.trim())return '';const m=v.trim().match(/^(\d{1,2})[:.,]?(\d{2})$/);if(!m||+m[1]>23||+m[2]>59)return null;return m[1].padStart(2,'0')+':'+m[2];};
- async function commit(next){const v=normalized(input.value);if(v===null){input.setAttribute('aria-invalid','true');return;}input.removeAttribute('aria-invalid');if(v===(value??'')||attempted===v||state.pending.has(key)||state.uncertain.has(key))return;attempted=v;state.pending.add(key);const peers=[...document.querySelectorAll('input[data-day-key]')].filter(n=>n.dataset.dayKey===key);peers.forEach(n=>n.readOnly=true);
- const selected={view:state.view,year:state.year,month:state.month,employment:state.employment,group:state.group};
- const stillCurrent=()=>Object.entries(selected).every(([k,value])=>state[k]===value);
- try{
-  await save(v||null);if(!stillCurrent())return;
-  const focus=document.activeElement===input?(next??label):document.activeElement?.dataset.clock;
-  state.pending.delete(key);await render();
-  if(focus&&stillCurrent())document.querySelector('[data-clock="'+CSS.escape(focus)+'"]')?.focus();
- }
- catch(e){if(e.uncertain)state.uncertain.add(key);input.setAttribute('aria-invalid','true');error(e);}
- finally{state.pending.delete(key);peers.forEach(n=>n.readOnly=disabled||state.uncertain.has(key));}
- }
- input.dataset.dayKey=key;input.dataset.clock=label;
- input.addEventListener('blur',()=>commit());input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();commit();}if(e.key==='Tab'){const v=normalized(input.value);if(v!==null&&v!==(value??'')&&attempted!==v){const all=[...document.querySelectorAll('input.clock')],next=all[all.indexOf(input)+(e.shiftKey?-1:1)]?.dataset.clock;e.preventDefault();commit(next);}}});return input;
-}
+function clock(value,options){return clockEditor(value,{...options,state,render,error,el});}
+
 async function attendance(){
  const generation=state.generation,isAdmin=state.identity.admin,id=isAdmin?'dochazka.admin.attendance':'dochazka.employee.attendance',main=heading(id,isAdmin?'Docházkové listy':'Moje docházka','Zkontrolujte skutečné průchody, hodinové metriky a zámek vybraného měsíce.');
  let sheets,employments;
@@ -78,10 +63,11 @@ function dayMenu(sheet,day,kind){modal('Nabídka dne '+day.date,close=>{
  })));
  });}
 async function lock(sheet,type,control){
- if(control?.disabled)return;if(control)control.disabled=true;
- try{await api('api/v1/admin/locks',{method:'PUT',body:{lock_type:type.toLowerCase(),year:state.year,month:state.month,locked:!(type==='ATTENDANCE'?sheet.attendance_locked:sheet.shift_plan_locked),employment_ids:[sheet.employment_id]}});await render();}
- catch(e){error(e);}finally{if(control)control.disabled=false;}
+ if(control?.disabled)return;if(control)control.disabled=true;let accepted=false;
+ try{await api('api/v1/admin/locks',{method:'PUT',body:{lock_type:type.toLowerCase(),year:state.year,month:state.month,locked:!(type==='ATTENDANCE'?sheet.attendance_locked:sheet.shift_plan_locked),employment_ids:[sheet.employment_id]}});accepted=true;await render({propagate:true});}
+ catch(e){if(accepted){document.querySelectorAll('input.clock').forEach(n=>n.readOnly=true);error(Error('Změna zámku byla přijata, ale stav se nepodařilo načíst. Obnovte přehled před další úpravou.'));}else error(e);}finally{if(control&&!accepted)control.disabled=false;}
 }
+
 async function plan(){
  const generation=state.generation,period=monthQuery(),isAdmin=state.identity.admin,groupView=state.view==='group-plan',main=heading(groupView?'dochazka.employee.group-plan':isAdmin?'dochazka.admin.plan':'dochazka.employee.plan',groupView?'Skupinový plán služeb':'Plán služeb','Upravujte plán přímo v časových buňkách. Uložení je potvrzeno až po načtení skutečného stavu.');
  let rows=[];
@@ -138,5 +124,5 @@ async function groups(){
  const editor=async group=>{const {available_employments}=await api('api/v1/admin/shift-plan?'+monthQuery());modal(group?'Upravit skupinu':'Nová skupina',close=>{const form=el('form',{},field('Název','name','text',group?.name??'',{required:true}),available_employments.map(e=>el('label',{class:'check-field'},el('input',{name:'employment',type:'checkbox',value:e.id,checked:!!group?.members.some(m=>m.employment_id===e.id)}),e.display_label)),el('button',{type:'submit',class:'primary'},'Uložit'));form.addEventListener('submit',async e=>{e.preventDefault();try{const name=formData(form).name,ids=[...form.querySelectorAll('[name=employment]:checked')].map(n=>+n.value);if(group){await api('api/v1/admin/employment-groups/'+group.id,{method:'PUT',body:{name}});await api('api/v1/admin/employment-groups/'+group.id+'/members',{method:'PUT',body:{employment_ids:ids}});}else await api('api/v1/admin/employment-groups',{method:'POST',body:{name,employment_ids:ids}});close();await render();}catch(err){showError(form,err);}});return form;});};
  main.append(button('Nová skupina',()=>editor()),panel('Skupiny',table(['Název','Členové','Akce'],groups.map(g=>[g.name,g.members.map(m=>el('p',{},m.display_label)),el('div',{class:'actions'},button('Upravit',()=>editor(g)),button('Odstranit',()=>confirm('Odstranit skupinu','Úvazky ani jejich data nebudou odstraněny.',async()=>{await api('api/v1/admin/employment-groups/'+g.id,{method:'DELETE'});await render();})))]))));
 }
-async function render(){const generation=++state.generation;try{let task;if(state.view==='attendance')task=attendance;else if(['plan','group-plan'].includes(state.view))task=plan;else if(state.view==='groups')task=groups;else if(['overview','integrations','public-docs'].includes(state.view))task=()=>adminInfo({state,heading,render});else if(['prints','export','print-plan','print-summary'].includes(state.view))task=()=>printing({state,heading,error,render});else throw Error('Požadovaný pohled neexistuje.');const pending=task();document.querySelector('#content').dataset.generation=String(generation);await pending;}catch(e){if(generation===state.generation)error(e);}}
+async function render({propagate=false}={}){const root=document.querySelector('#content'),previous=propagate?[...root.childNodes]:null;const generation=++state.generation;try{let task;if(state.view==='attendance')task=attendance;else if(['plan','group-plan'].includes(state.view))task=plan;else if(state.view==='groups')task=groups;else if(['overview','integrations','public-docs'].includes(state.view))task=()=>adminInfo({state,heading,render});else if(['prints','export','print-plan','print-summary'].includes(state.view))task=()=>printing({state,heading,error,render});else throw Error('Požadovaný pohled neexistuje.');const pending=task();document.querySelector('#content').dataset.generation=String(generation);await pending;}catch(e){if(propagate){if(generation===state.generation)root.replaceChildren(...previous);throw e;}if(generation===state.generation)error(e);}}
 try{state.identity=await api('identity');await render();}catch(e){document.querySelector('#content').replaceChildren(notice(e.message,'error'));}

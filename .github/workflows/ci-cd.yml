@@ -222,6 +222,7 @@ jobs:
         run: |
           npm run test:e2e
           npm run test:cml-periods
+          npm run test:cml-clock
           npm run test:cml-downloads
           npm run test:cml-prints
           npm run test:cml-admin-info

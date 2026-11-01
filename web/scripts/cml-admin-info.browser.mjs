@@ -12,7 +12,7 @@ for(const name of engines){
   await page.addInitScript(()=>{globalThis.infoSettled=[];const original=globalThis.fetch;globalThis.fetch=async(...args)=>{const response=await original(...args),json=response.json.bind(response);response.json=async()=>{const value=await json();setTimeout(()=>globalThis.infoSettled.push(String(args[0])),0);return value;};return response;};});
   await context.route('**/*',async route=>{
    const req=route.request(),url=new URL(req.url());assert.equal(url.origin,origin);const path=url.pathname.slice(prefix.length);requests.push(path);assert.equal(req.method(),'GET');
-   if(['','app.js','admin-info.js','printing.js','api.js','ui.js','ui.css'].includes(path)){const file=path||'index.html';await route.fulfill({body:await readFile(new URL(file,root)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});return;}
+   if(['','app.js','clock-editor.js','admin-info.js','printing.js','api.js','ui.js','ui.css'].includes(path)){const file=path||'index.html';await route.fulfill({body:await readFile(new URL(file,root)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});return;}
    if(url.pathname.startsWith('/assets/')){await route.fulfill({status:204});return;}
    if(path==='identity'){await route.fulfill({json:{admin}});return;}
    if(path==='api/v1/admin/users'){const failed=partial;if(holdUser)await userGate;await route.fulfill(failed?{status:403,json:{detail:'Přehled účtů není povolen.'}}:{json:{users:[{is_active:true},{is_active:false}]}});return;}

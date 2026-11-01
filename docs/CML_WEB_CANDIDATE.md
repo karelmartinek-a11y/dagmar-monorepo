@@ -185,3 +185,24 @@ používá původní users a integrations routery; jeho verze a liveness výslov
 popisují izolovaný testovací host. Původ produkční verze se ověřuje zvlášť.
 Úplná matice stavů, jazyků a design gate zůstává
 **ODLOŽENO PO PRVNÍM NASAZENÍ**.
+
+## Časové buňky a potvrzení změn
+
+Nové zadávání sdílí plán, skupinový plán i skutečná docházka. Podporuje
+`8 → 08:00`, `1120 → 11:20`, `800 → 08:00`, `16 → 16:00`. Enter a
+opuštění buňky ukládají; Tab přejde na následující čas až po potvrzení.
+Delete maže celý údaj, Escape ruší rozepsanou změnu. Neplatná hodnota
+ani chyba uložení nesmí přesunout fokus. Zelený lem následuje až po
+kanonickém čtení; červený značí chybu. Ztracené potvrzení se neopakuje
+zápisem a lze opustit pomocí Escape a obnovit čtením.
+
+Zámky zachovávají původní API a rozsah úvazku. Při neověřeném výsledku
+se buňky zablokují do čerstvého načtení. Tisky nadále přebírají metriky
+z backendu. Regrese `test:cml-clock`, `test:cml-periods`, `test:cml-prints`.
+
+Místní kvalifikace: nový editor v Chromiu/WebKitu ověřuje převody, Enter,
+Tab, Delete, Escape, blokování přesunu fokusu a ztrátu následného čtení
+bez druhého zápisu. Plánové regrese pokrývají souběh, období, zámky
+a chybu read-backu; tisky a exporty zachovávají původní backendová data.
+Lint, typecheck, unit testy a build prošly. Produkční přijímací kontrola
+neprovádí testovací zápisy do skutečné docházky.
