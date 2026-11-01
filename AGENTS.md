@@ -299,3 +299,13 @@ opožděná data předchozího výběru. Denní plánové metriky řídí backen
 `display_metrics`; měsíční plánované hodiny jsou viditelné i bez denních
 hodinových sloupců. Součty se ve frontendu nevypočítávají. Efektivní stav
 z vlastní docházky nesmí plánový editor nabídnout jako prázdné časové buňky.
+
+PDF plánu a hromadný CSV/ZIP používají ve vloženém UI stávající typované
+stahování CML, nikoli navigaci na blob URL neprůhledného rámce. Manifest
+deklaruje pouze PDF do 50 000 000 B a ZIP do 16 MiB; autoritu dat stále
+ověřují původní exportní routy. CML přijme soubor jen po aktuálním gestu.
+Po jeho vypršení zůstává jediný připravený soubor pouze v paměti rámce;
+další kliknutí znovu neposílá exportní požadavek. ACK musí pocházet z parent,
+správného originu, prefixu a UUID. `npm run test:cml-downloads` z `web/`
+ověřuje binární přenos, odmítnuté předání a poškozený soubor; integrace
+s původními routami a skutečným stažením běží v CML checkoutu.

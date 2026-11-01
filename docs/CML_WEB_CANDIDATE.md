@@ -97,3 +97,23 @@ hashovaný offline wheelhouse, ověřuje se SHA a veřejné HTTPS. UI oprava
 bez databázové změny nevyžaduje migraci ani přepočet skutečných metrik.
 Návrat kódu neobnovuje živou DB ze zálohy. Ostatní commity zachovávají
 standardní automatizační pravidla.
+
+## Stažení tiskových exportů
+
+Nové UI předává PDF plánu a hromadný CSV/ZIP přes stávající typovaný CML
+transport. Přímé blob stažení z opaque rámce ve WebKitu nevyvolalo download,
+přestože původní backend vracel platné PDF 200. Exportní backend, jeho
+oprávnění, výpočty a původní souborové bajty se nemění. Deklarace formátu,
+limit a aktuální uživatelské gesto nadále ověřuje CML.
+
+Při odmítnutém předání se zobrazí pokyn k dalšímu kliknutí na stejné tlačítko;
+připravený soubor je pouze v paměti rámce a druhé gesto neopakuje POST.
+Změna parametrů exportu předchozí paměťový soubor nahradí. Není to nová
+strojová identita, úložiště ani oprávnění. Kvalifikace transportu je
+`npm run test:cml-downloads` (místně také `CML_BROWSER_ENGINES=chromium,webkit`).
+Reálné UI/gateway průchody v CML používají původní routery a syntetickou DB,
+nikoli produkční data či zápisy.
+
+Úplná přejímka tisku zůstává **ODLOŽENO PO PRVNÍM NASAZENÍ**. Původní
+backendové PDF je rastrové a zachovává starší značku KájovoDagmar; toto
+není nový vizuálně převzatý frontend ani potvrzení plné přístupnosti PDF.

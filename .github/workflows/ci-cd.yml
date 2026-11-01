@@ -222,6 +222,7 @@ jobs:
         run: |
           npm run test:e2e
           npm run test:cml-periods
+          npm run test:cml-downloads
       - name: Verify clean tree after web checks
         run: |
           git diff --exit-code

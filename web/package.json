@@ -17,7 +17,8 @@
     "test:e2e": "playwright test",
     "test:a11y": "playwright test tests/e2e/accessibility.spec.ts",
     "test:visual": "playwright test tests/e2e/visual.spec.ts",
-    "test:cml-periods": "node scripts/cml-periods.browser.mjs"
+    "test:cml-periods": "node scripts/cml-periods.browser.mjs",
+    "test:cml-downloads": "node scripts/cml-downloads.browser.mjs"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.2.6",

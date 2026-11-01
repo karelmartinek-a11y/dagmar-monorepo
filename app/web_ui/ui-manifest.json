@@ -57,5 +57,19 @@
       "admin": true,
       "audienceRole": "admin"
     }
+  ],
+  "exports": [
+    {
+      "id": "attendance-plan-pdf",
+      "format": "pdf",
+      "filename": "plan.pdf",
+      "max_bytes": 50000000
+    },
+    {
+      "id": "attendance-csv-zip",
+      "format": "zip",
+      "filename": "dochazka.zip",
+      "max_bytes": 16777216
+    }
   ]
 }

@@ -750,7 +750,9 @@
     "automatic_employment": false,
     "central_binding": "immutable central UUID and operation ID; email conflict never adopts a profile",
     "clock_confirmation": "read back every completed save in the same view and period, including concurrent days",
+    "download_regression": "web/scripts/cml-downloads.browser.mjs",
     "entry_package": "scripts/package_cml_entry.py",
+    "export_transport": "declared CML PDF/ZIP bytes with live gesture; memory-only retry without another export request",
     "middleware_endpoints": [
       {
         "method": "POST",
