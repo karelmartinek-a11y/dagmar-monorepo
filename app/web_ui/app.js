@@ -18,8 +18,15 @@ function clock(value,{key,disabled,label,save}){
  const input=el('input',{class:'clock',type:'text',inputmode:'numeric',placeholder:'',value:value??'','aria-label':label,readOnly:disabled||state.pending.has(key)||state.uncertain.has(key),maxlength:5});
  let attempted=null;
  const normalized=v=>{if(!v.trim())return '';const m=v.trim().match(/^(\d{1,2})[:.,]?(\d{2})$/);if(!m||+m[1]>23||+m[2]>59)return null;return m[1].padStart(2,'0')+':'+m[2];};
- async function commit(next){const v=normalized(input.value);if(v===null){input.setAttribute('aria-invalid','true');return;}input.removeAttribute('aria-invalid');if(v===(value??'')||attempted===v||state.pending.has(key)||state.uncertain.has(key))return;attempted=v;state.pending.add(key);const peers=[...document.querySelectorAll('input[data-day-key]')].filter(n=>n.dataset.dayKey===key);peers.forEach(n=>n.readOnly=true);const selected=state.generation;
- try{await save(v||null);if(selected!==state.generation)return;state.pending.delete(key);await render();if(next)document.querySelector('[data-clock="'+CSS.escape(next)+'"]')?.focus();}
+ async function commit(next){const v=normalized(input.value);if(v===null){input.setAttribute('aria-invalid','true');return;}input.removeAttribute('aria-invalid');if(v===(value??'')||attempted===v||state.pending.has(key)||state.uncertain.has(key))return;attempted=v;state.pending.add(key);const peers=[...document.querySelectorAll('input[data-day-key]')].filter(n=>n.dataset.dayKey===key);peers.forEach(n=>n.readOnly=true);
+ const selected={view:state.view,year:state.year,month:state.month,employment:state.employment,group:state.group};
+ const stillCurrent=()=>Object.entries(selected).every(([k,value])=>state[k]===value);
+ try{
+  await save(v||null);if(!stillCurrent())return;
+  const focus=document.activeElement===input?(next??label):document.activeElement?.dataset.clock;
+  state.pending.delete(key);await render();
+  if(focus&&stillCurrent())document.querySelector('[data-clock="'+CSS.escape(focus)+'"]')?.focus();
+ }
  catch(e){if(e.uncertain)state.uncertain.add(key);input.setAttribute('aria-invalid','true');error(e);}
  finally{state.pending.delete(key);peers.forEach(n=>n.readOnly=disabled||state.uncertain.has(key));}
  }

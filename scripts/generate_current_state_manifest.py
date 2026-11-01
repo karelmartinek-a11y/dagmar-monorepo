@@ -313,6 +313,7 @@ def build_manifest() -> dict[str, object]:
             "public_smoke": "web/scripts/cml-production-smoke.mjs",
             "period_regression": "web/scripts/cml-periods.browser.mjs",
             "plan_response_scope": "current generation, frozen period, available group",
+            "clock_confirmation": "read back every completed save in the same view and period, including concurrent days",
             "audience": "dochazka",
             "profile_contract": "kajovo-profile-provision/1",
             "middleware_endpoints": [

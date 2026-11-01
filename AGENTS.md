@@ -281,3 +281,8 @@ pohledu. Skupina musí patřit do právě načteného seznamu; prázdný adminsk
 výběr úvazků zůstává prázdný. Izolované browserové regrese spouští
 `npm run test:cml-periods` z `web/` (CI Chromium; lokálně také
 `CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-periods`).
+
+Dokončení souběžných zápisů různých dnů v novém CML editoru musí každý
+výsledek kanonicky znovu načíst v aktuálním období. Obnova jiným zápisem
+není navigace a nesmí druhé potvrzení zahodit. Po skutečné změně období
+se starý pohled neobnovuje. Enter zachovává focus; Tab čeká na read-back.

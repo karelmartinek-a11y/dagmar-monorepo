@@ -116,6 +116,50 @@ async function emptySelection(browser,width){
  }finally{await f.close();}
 }
 
+async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=false}={}){
+ const releases=[deferred(),deferred()],started=[deferred(),deferred()],saved=new Map();let dates;
+ const f=await fixture(browser,width,'plan',async({path,url,request})=>{
+  if(path==='api/v1/attendance/employments')return [{id:1,label:'Recepce'}];
+  if(path==='api/v1/attendance'){
+   dates=[dateOf(url),dateOf(url).replace(/01$/,'02')];
+   const data=row('Recepce',dates[0]);data.days=dates.map(date=>({...row('',date).days[0],planned_arrival_time:saved.get(date)??'08:00'}));return data;
+  }
+  if(path==='api/v1/shift-plan'){
+   assert.equal(request.method(),'PUT');const data=request.postDataJSON(),index=dates.indexOf(data.date);assert.ok(index>=0);
+   started[index].resolve();await releases[index].promise;saved.set(data.date,data.arrival_time);return {};
+  }
+ });
+ try{
+  await expect(f.page.locator('input.clock')).toHaveCount(4);
+  const arrival=index=>f.page.getByRole('textbox',{name:dates[index]+' arrival_time úvazek 1',exact:true});
+  await arrival(0).fill('08:10');await arrival(0).press(tab?'Tab':'Enter');await started[0].promise;
+  await expect(arrival(0)).toHaveAttribute('readonly','');
+  await expect(arrival(1)).not.toHaveAttribute('readonly','');
+  if(navigate){
+   const oldDate=dates[0];await f.page.getByRole('button',{name:'›',exact:true}).click();
+   await expect(f.page.locator('input.clock')).toHaveCount(4);assert.notEqual(dates[0],oldDate);
+   const currentDate=dates[0];releases[0].resolve();
+   await f.page.waitForFunction(url=>globalThis.cmlSettled.includes(url),origin+prefix+'api/v1/shift-plan');
+   await expect(f.page.getByRole('textbox',{name:oldDate+' arrival_time úvazek 1',exact:true})).toHaveCount(0);
+   await expect(f.page.getByRole('textbox',{name:currentDate+' arrival_time úvazek 1',exact:true})).toHaveValue('08:00');
+   await expect(f.page.locator('input.clock')).toHaveCount(4);assert.equal(saved.size,1);return;
+  }
+  if(concurrent){await arrival(1).fill('08:20');await arrival(1).press('Enter');await started[1].promise;}
+  releases[0].resolve();await expect(arrival(0)).toHaveValue('08:10');
+  if(concurrent){
+   // The first canonical read finishes while the second day's save is pending.
+   await expect(arrival(1)).toHaveValue('08:00');
+   await expect(arrival(1)).toHaveAttribute('readonly','');
+   releases[1].resolve();await expect(arrival(1)).toHaveValue('08:20');
+   await expect(arrival(1)).not.toHaveAttribute('readonly','');
+  }else{
+   await expect(arrival(0)).not.toHaveAttribute('readonly','');
+   await expect(tab?f.page.getByRole('textbox',{name:dates[0]+' departure_time úvazek 1',exact:true}):arrival(0)).toBeFocused();
+  }
+  assert.equal(saved.size,concurrent?2:1);
+ }finally{releases.forEach(r=>r.resolve());await f.close();}
+}
+
 for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
  assert.ok(['chromium','webkit'].includes(engine));
  const browser=await ({chromium,webkit}[engine]).launch();
@@ -125,6 +169,10 @@ for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
   ['group-selection-race',b=>stalePeriod(b,width,'group-plan',{switchGroup:true})],
   ['stale-error',b=>stalePeriod(b,width,'group-plan',{lateError:true})],
   ['available-group',b=>groupFallback(b,width)],
+  ['concurrent-day-saves',b=>clockSaves(b,width,{concurrent:true})],
+  ['save-keeps-focus',b=>clockSaves(b,width)],
+  ['save-tab-after-readback',b=>clockSaves(b,width,{tab:true})],
+  ['save-after-month-navigation',b=>clockSaves(b,width,{navigate:true})],
   ['empty-selection',b=>emptySelection(b,width)]]){
   try{await test(browser);console.log(`PASS ${engine} ${width} ${name}`);}
   catch(error){failures.push(`${engine} ${width} ${name}: ${error.message}`);console.error(`FAIL ${engine} ${width} ${name}: ${error.message}`);}

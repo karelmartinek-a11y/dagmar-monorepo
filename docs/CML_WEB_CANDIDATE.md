@@ -64,8 +64,11 @@ Následná oprava plánu odmítá opožděné odpovědi i chyby po změně obdob
 nebo skupiny. Dotaz používá zachycené období a skupinu dostupnou v novém
 seznamu. Prázdný adminský výběr zůstává prázdný při uložení i načtení.
 `CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-periods` z `web/`
-ověřuje šest scénářů na desktopu a telefonu v obou enginech (24 případů).
-Veškeré odpovědi a jediný testovací zápis jsou izolované adaptéry bez
+ověřuje deset scénářů na desktopu a telefonu v obou enginech (40 případů).
+Po souběžných zápisech různých dnů se každý výsledek znovu načte, i když
+jiný zápis již obnovil stejný pohled. Dokončení starého zápisu nevrací UI
+do opuštěného měsíce. Enter zachová focus buňky; Tab přejde až po potvrzeném
+read-backu. Veškeré odpovědi a testovací zápisy jsou izolované adaptéry bez
 přístupu na produkční backend. CI spouští stejný runner v Chromium.
 
 `tests/cml_local_server.py` je oddělený loopback host se skutečnými
