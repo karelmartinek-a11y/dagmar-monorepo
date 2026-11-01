@@ -125,3 +125,45 @@ def test_central_account_routes_require_owner_fresh_reauth_and_keep_credentials_
         assert call('GET',body=b'',sub='user:'+str(uuid.uuid4()),nativeId='1').status_code==401
         assert calls==['GET','PATCH']
     engine.dispose()
+
+
+@pytest.mark.parametrize('audience,expected', [('dochazka', 200), ('section', 401)])
+def test_version_metadata_is_exact_signed_read_only_attendance_route(tmp_path, monkeypatch, audience, expected):
+    key, jwks = fixture_key()
+    public = tmp_path / 'public.json'
+    public.write_text(json.dumps(jwks))
+    monkeypatch.setenv('CML_WEB_JWKS_PATH', str(public))
+    engine = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
+    factory = sessionmaker(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(text('CREATE TABLE cml_web_nonce(jti text PRIMARY KEY,expires_at bigint NOT NULL)'))
+    app = FastAPI()
+    calls = []
+
+    @app.api_route('/api/{suffix:path}', methods=['GET', 'POST', 'HEAD'])
+    async def metadata(request: Request, suffix: str):
+        calls.append((request.method, suffix))
+        return {'backend_deploy_tag': 'isolated-version', 'environment': 'isolated'}
+
+    boundary = CmlWebBoundary(app, audience=audience, session_factory=factory,
+                              resolve_identity=lambda *_: {'state': {}, 'public': {'admin': True}}, ui_root=tmp_path)
+    with TestClient(boundary) as client:
+        def signed(suffix='api/version', method='GET'):
+            path = '/cml-web/' + suffix
+            token = assertion(key, audience, path=path, method=method, body=b'')
+            return client.request(method, path, headers={
+                'Origin': 'https://kajovocml.hcasc.cz', 'X-CML-Web-Prefix': '/sections/' + audience + '/',
+                'X-CML-Web-Assertion': token, 'X-CSRF-Token': 'a' * 43,
+            })
+
+        assert client.get('/cml-web/api/version').status_code == 401
+        result = signed()
+        assert result.status_code == expected
+        if expected == 200:
+            assert result.json()['backend_deploy_tag'] == 'isolated-version'
+        for method in ['POST', 'HEAD']:
+            assert signed(method=method).status_code == 401
+        for suffix in ['api/health', 'api/version/extra', 'api/foreign', 'api/v1/auth/login']:
+            assert signed(suffix).status_code == 401
+        assert calls == ([('GET', 'version')] if expected == 200 else [])
+    engine.dispose()

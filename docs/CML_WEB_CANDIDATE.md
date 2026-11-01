@@ -154,3 +154,34 @@ Samostatný renderer používá izolované odpovědi. Test v CML repozitáři na
 syntetické DB. Nejde o hotelové produkční zápisy ani úplnou přejímku tisku.
 Úplná vizuální, tisková a přístupnostní matice zůstává
 **ODLOŽENO PO PRVNÍM NASAZENÍ**.
+
+
+## Přehled a informace o integraci
+
+Přehled správce čte původní seznam uživatelů a integračních klientů, počítá
+položky a jejich původní `is_active` / `status=ACTIVE`; neoznačuje je za
+přihlášené uživatele. Nepovolený nebo nedostupný seznam zůstává N/A a ostatní
+karty se mohou načíst samostatně. Systém odpovídá pouze po úspěšném skutečném
+liveness GET. Provozní odkazy otevřou existující docházku, plán a export.
+
+Podepsaná CML hranice dovoluje vedle původního namespace přesně GET
+`/api/version` pro zobrazení skutečné verze a prostředí. Zachovává ověření
+identity, audience, originu, metody, cesty, podpisu a jednorázovosti. Není to
+obecná výjimka pro `/api/*`, nové přihlášení ani přístup k integracím.
+
+Integrace a doprovodná dokumentace zobrazují skutečné cesty a vymezení
+samostatného tokenu. Chráněné `GET /api/v1/integration/openapi.json` zůstává
+pod původním ověřením tokenu a jeho scope. Odchylka od ilustračního tlačítka
+v předloze: web nesbírá token a nestahuje schema pomocí cizího přístupu;
+zobrazuje přesný požadovaný endpoint a důvod omezení. Nejsou zde vymyšlené
+formuláře pro správu tokenů. Uživatelská dokumentace je uvnitř CML dostupná
+i běžnému uživateli; administrativní přehled a integrace zůstávají správcům.
+
+`CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-admin-info` ověřuje
+počty, skutečný/odmítnutý liveness, N/A, obnovení, provozní odkaz, dokumentaci
+a běžného uživatele na 1440/768/390 px. Test hranice samostatně odmítá jiné
+metody i sousední cesty technického metadata endpointu. Kvalifikační server
+používá původní users a integrations routery; jeho verze a liveness výslovně
+popisují izolovaný testovací host. Původ produkční verze se ověřuje zvlášť.
+Úplná matice stavů, jazyků a design gate zůstává
+**ODLOŽENO PO PRVNÍM NASAZENÍ**.

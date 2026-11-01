@@ -26,6 +26,15 @@
       "audienceRole": "member"
     },
     {
+      "id": "dochazka.admin.overview",
+      "title": "Docházka · přehled správce",
+      "navigation_title": "Přehled",
+      "path": "/sections/dochazka/?view=overview",
+      "icon": "dashboard",
+      "admin": true,
+      "audienceRole": "admin"
+    },
+    {
       "id": "dochazka.admin.attendance",
       "title": "Docházkové listy",
       "path": "/sections/dochazka/?view=attendance",
@@ -87,6 +96,22 @@
       "navigation": false,
       "parent": "dochazka.admin.prints",
       "dynamic_title": true
+    },
+    {
+      "id": "dochazka.admin.integrations",
+      "title": "Integrace docházky",
+      "navigation_title": "Integrace",
+      "path": "/sections/dochazka/?view=integrations",
+      "icon": "link",
+      "admin": true,
+      "audienceRole": "admin"
+    },
+    {
+      "id": "dochazka.employee.public-docs",
+      "title": "Dokumentace integračního API",
+      "path": "/sections/dochazka/?view=public-docs",
+      "icon": "info",
+      "admin": false
     }
   ],
   "exports": [

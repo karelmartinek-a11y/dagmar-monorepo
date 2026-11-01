@@ -16,7 +16,7 @@ for(const engine of(process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
   await page.addInitScript(()=>{globalThis.printCalls=0;globalThis.print=()=>globalThis.printCalls++;});
   await context.route('**/*',async route=>{
    const request=route.request(),url=new URL(request.url());assert.equal(url.origin,origin);const path=url.pathname.slice(prefix.length);requests.push({path,method:request.method(),query:Object.fromEntries(url.searchParams)});
-   if(['','app.js','printing.js','api.js','ui.js','ui.css'].includes(path)){const file=path||'index.html';await route.fulfill({body:await readFile(new URL(file,root)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});return;}
+   if(['','app.js','printing.js','admin-info.js','api.js','ui.js','ui.css'].includes(path)){const file=path||'index.html';await route.fulfill({body:await readFile(new URL(file,root)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});return;}
    if(url.pathname.startsWith('/assets/')){await route.fulfill({status:204});return;}
    if(path==='identity'){await route.fulfill({json:{admin}});return;}
    if(path==='api/v1/admin/attendance/month'){await route.fulfill({json:{data}});return;}

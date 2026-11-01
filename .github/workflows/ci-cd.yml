@@ -224,6 +224,7 @@ jobs:
           npm run test:cml-periods
           npm run test:cml-downloads
           npm run test:cml-prints
+          npm run test:cml-admin-info
       - name: Verify clean tree after web checks
         run: |
           git diff --exit-code

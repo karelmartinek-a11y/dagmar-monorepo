@@ -36,7 +36,7 @@ async function fixture(browser,width,view,handler,admin=false){
   const url=new URL(route.request().url());
   assert.equal(url.origin,origin,'No external or production network access');
   const path=url.pathname.slice(prefix.length);
-  if(['','app.js','api.js','ui.js','ui.css','printing.js'].includes(path)){
+  if(['','app.js','api.js','ui.js','ui.css','printing.js','admin-info.js'].includes(path)){
    const file=path||'index.html';
    await route.fulfill({body:await readFile(new URL(file,root)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});return;
   }

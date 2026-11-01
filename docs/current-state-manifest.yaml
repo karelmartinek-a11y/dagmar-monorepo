@@ -746,6 +746,8 @@
     }
   ],
   "cml_web_candidate": {
+    "admin_info_regression": "web/scripts/cml-admin-info.browser.mjs",
+    "admin_overview": "original list counts and actual liveness; unavailable is N/A, no integration token borrowing",
     "attendance_monthly_metrics": "canonical values wrap inside the visible panel, including 390/320 px",
     "audience": "dochazka",
     "automatic_employment": false,
@@ -781,6 +783,7 @@
     "public_entry": "https://kajovocml.hcasc.cz/#dochazka",
     "public_smoke": "web/scripts/cml-production-smoke.mjs",
     "state": "first_release_deployed",
+    "technical_metadata": "exact signed GET api/version only outside api/v1",
     "ui": "app/web_ui/",
     "ui_delivery": "signed backend wheel; no legacy SPA in the web release"
   },

@@ -139,7 +139,8 @@ class CmlWebBoundary:
                     await JSONResponse({'error': {'code': 'cml_reauth_required', 'message': 'Nejprve čerstvě ověřte identitu v KájovoCML.'}}, status_code=403, headers={'Cache-Control': 'no-store'})(scope, receive, send)
                     return
             # A signed request cannot start a local login or invoke a different public protocol.
-            if not suffix.startswith(('api/v1/', 'api/auth/')) or suffix.endswith(('/login', '/logout', '/reset-password', '/request-password-reset')):
+            version_read = self.audience == 'dochazka' and suffix == 'api/version' and scope['method'] == 'GET'
+            if not version_read and (not suffix.startswith(('api/v1/', 'api/auth/')) or suffix.endswith(('/login', '/logout', '/reset-password', '/request-password-reset'))):
                 raise AssertionDenied('route_denied')
             forwarded = dict(scope)
             forwarded['path'] = '/' + suffix
