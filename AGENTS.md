@@ -256,3 +256,21 @@ Závěrečný report musí obsahovat:
   Nepřidávat původní frontend bundle jako fallback. Veřejný smoke je
   `web/scripts/cml-production-smoke.mjs`, autentizovaná přejímka a design
   gate zůstávají samostatné.
+
+- První použitelné vydání má podle přímého zadání z 1. 11. 2026 přednost
+  před úplnou vizuální přejímkou. Kosmetika a úplné méně používané stavy,
+  překlady/tisk/přístupnost jsou ODLOŽENO PO PRVNÍM NASAZENÍ, ne PASS.
+  Vynucení autorizace a zachování dat/nativních klientů zůstává povinné.
+- `CML_BROWSER_ENTRY_ONLY=1` při koordinovaném cutoveru zavře původní
+  browserové cookies pro obchodní API i administraci. Podepsaný CML stav
+  a původní nativní instance/integration tokeny jsou oddělené profily.
+  Browserové Fetch Metadata/Origin se nesmějí použít k nativnímu bearer
+  přístupu. Flag má jen hodnoty 0/1; chyba konfigurace zastaví start.
+  Výchozí 0 slouží přípravě kompatibilního backendu před cutoverem,
+  nikoli jako důkaz výhradního webového vstupu v produkci.
+
+První koordinovaný commit používá trailer `CML-Coordinated-Cutover: true`.
+CI a tvorba artefaktů dále běží; pouze automatický produkční job pro tento
+commit nepřepne portál před připraveným CML. Publikovaný otestovaný artefakt
+se v tomto cutoveru nasazuje přímým SSH z Codexu. Ostatní commity zachovávají
+původní automatizační pravidlo. Tato výjimka nevypíná testy.

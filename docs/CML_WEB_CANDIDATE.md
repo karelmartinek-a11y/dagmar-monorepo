@@ -89,3 +89,25 @@ Plný pytest vyžaduje obě proměnné `DAGMAR_DATABASE_URL` a
 s ovladačem `postgresql+psycopg`; migrační regrese není volitelný skip.
 Nový produkční smoke se zatím kvalifikoval syntaxí a odpovídajícími lokálními
 Nginx/CML průchody, nikoli spuštěním na produkci.
+
+## První vydání – API vstup
+
+`CML_BROWSER_ENTRY_ONLY=1` je povinné při aktivaci nové sekce. Staré
+administrátorské/portálové cookies neotevírají obchodní API; samotný
+HTTP header nemůže vytvořit ověřený CML stav. Původní aktivní nativní
+instance a integrační tokeny zůstávají vlastnímu klientovi. Nativní bearer
+se v browserovém požadavku s Fetch Metadata/Origin odmítne. Vlastní CML
+podpis nad každým skutečným požadavkem je nadále nutný. Flag 0 připraví
+kompatibilní backend před společným přepnutím; neznamená uzavřený vstup.
+Chybné jiné hodnoty znemožní start. Testy ověřují cookies, nativní bearer,
+falšované hlavičky a skutečnou původní identitu přes podepsanou gateway.
+
+Přímé zadání z 1. 11. 2026 odkládá úplnou vizuální matici a kosmetiku,
+menší stavy/překlady/tisk/přístupnost jako ODLOŽENO PO PRVNÍM NASAZENÍ.
+Tento odklad se netýká autorizace, dat, sestavení a základních funkcí.
+
+První koordinovaný commit používá trailer `CML-Coordinated-Cutover: true`.
+CI a tvorba artefaktů dále běží; pouze automatický produkční job pro tento
+commit nepřepne portál před připraveným CML. Publikovaný otestovaný artefakt
+se v tomto cutoveru nasazuje přímým SSH z Codexu. Ostatní commity zachovávají
+původní automatizační pravidlo. Tato výjimka nevypíná testy.

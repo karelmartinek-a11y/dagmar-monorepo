@@ -247,7 +247,8 @@ jobs:
         run: python scripts/check_release_gate.py --github-output
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-gate.outputs.allowed == 'true'
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-gate.outputs.allowed == 'true' && !contains(github.event.head_commit.message, 'CML-Coordinated-Cutover: true')
     needs: [security, backend, web, release-gate]
     runs-on: ubuntu-latest
     environment: production

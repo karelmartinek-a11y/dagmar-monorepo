@@ -63,6 +63,8 @@ def _bearer_from_auth_header(authorization: str | None) -> str | None:
 
 
 def require_admin(request: Request):
+    if getattr(request.state, "cml_browser_entry_only", False) and not getattr(request.state, "cml_web_claims", None):
+        raise_enveloped_api_error(403, "cml_browser_entry_required", "Správu Docházky otevřete v KájovoCML.")
     sess = get_admin_session(request)
     if not sess or not sess.is_authenticated:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -74,6 +76,11 @@ def require_instance_auth(
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
 ) -> InstanceAuth:
+    if getattr(request.state, "cml_browser_entry_only", False) and (
+        any(name in request.headers for name in ("origin", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest"))
+        or request.headers.get("user-agent", "").startswith("Mozilla/")
+    ) and not getattr(request.state, "cml_web_claims", None):
+        raise_enveloped_api_error(403, "cml_browser_entry_required", "Docházku otevřete v KájovoCML.")
     token = _bearer_from_auth_header(authorization)
     if not token:
         raise_enveloped_api_error(
@@ -125,6 +132,8 @@ def require_portal_user_auth(
         ).scalar_one_or_none()
         instance = auth.instance
     else:
+        if getattr(request.state, "cml_browser_entry_only", False):
+            raise_enveloped_api_error(403, "cml_browser_entry_required", "Docházku otevřete v KájovoCML.")
         browser_session = get_portal_session(request, settings)
         if not browser_session.is_authenticated or browser_session.user_id is None:
             raise_enveloped_api_error(

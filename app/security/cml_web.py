@@ -26,6 +26,10 @@ class CmlWebBoundary:
         self.ui_root = Path(ui_root).resolve()
         path = os.getenv('CML_WEB_JWKS_PATH')
         self.verifier = WebVerifier.from_file(audience, path) if path else None
+        entry_only = os.getenv('CML_BROWSER_ENTRY_ONLY', '0')
+        if entry_only not in {'0', '1'}:
+            raise RuntimeError('CML_BROWSER_ENTRY_ONLY must be 0 or 1')
+        self.browser_entry_only = entry_only == '1'
 
     def _identity(self, claims, selected_role):
         with self.session_factory() as db:
@@ -39,6 +43,8 @@ class CmlWebBoundary:
             return self.resolve_identity(db, claims, selected_role)
 
     async def __call__(self, scope, receive, send):
+        if scope['type'] == 'http':
+            scope.setdefault('state', {})['cml_browser_entry_only'] = self.browser_entry_only
         if scope['type'] != 'http' or not scope['path'].startswith('/cml-web/'):
             await self.app(scope, receive, send)
             return
