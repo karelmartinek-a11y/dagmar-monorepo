@@ -64,11 +64,19 @@ Následná oprava plánu odmítá opožděné odpovědi i chyby po změně obdob
 nebo skupiny. Dotaz používá zachycené období a skupinu dostupnou v novém
 seznamu. Prázdný adminský výběr zůstává prázdný při uložení i načtení.
 `CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-periods` z `web/`
-ověřuje deset scénářů na desktopu a telefonu v obou enginech (40 případů).
+ověřuje 23 scénářů na desktopu a telefonu v obou enginech (92 případů).
 Po souběžných zápisech různých dnů se každý výsledek znovu načte, i když
 jiný zápis již obnovil stejný pohled. Dokončení starého zápisu nevrací UI
 do opuštěného měsíce. Enter zachová focus buňky; Tab přejde až po potvrzeném
-read-backu. Veškeré odpovědi a testovací zápisy jsou izolované adaptéry bez
+read-backu. Adminský plán tvoří měsíční listy vybraných úvazků se skutečným
+zámkem; společná matice patří skupinovému plánu. Nabídka plánovaného dne
+používá původní PUT `/api/v1/admin/shift-plan` nebo `/api/v1/shift-plan`
+s nulovými časovými hranicemi. Nepoužívá docházkovou změnu stavu.
+Neprázdný plánový stav vyžaduje potvrzení, prázdný stav nelze znovu mazat
+a konfliktní odpověď nevyvolá automatické opakování. Vlastní plán nabízí
+všechny dostupné úvazky. Denní sloupce i měsíční metriky zobrazuje pouze
+z původních backendových hodnot a `display_metrics`; úkolový úvazek má
+měsíční plánované hodiny i bez denních hodinových sloupců. Veškeré odpovědi a testovací zápisy jsou izolované adaptéry bez
 přístupu na produkční backend. CI spouští stejný runner v Chromium.
 
 `tests/cml_local_server.py` je oddělený loopback host se skutečnými

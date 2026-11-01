@@ -10,7 +10,7 @@ const prefix='/sections/dochazka/';
 const failures=[];
 const row=(label,date)=>({employment_id:1,display_label:label,user_name:label,
  employment_label:label,title:'Recepce',employment_type:'WORK_CONTRACT',
- is_own_employment:false,shift_plan_locked:false,planned_hours:8,
+ is_own_employment:false,shift_plan_locked:false,planned_hours:8,display_metrics:['total'],
  summary:{planned_hours:8},days:[{date,arrival_time:'08:00',departure_time:'16:00',
  planned_arrival_time:'08:00',planned_departure_time:'16:00',
  status:null,planned_status:null,is_within_employment_period:true}]});
@@ -19,7 +19,7 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});retur
 
 async function fixture(browser,width,view,handler,admin=false){
  const context=await browser.newContext({viewport:{width,height:900}});
- const page=await context.newPage(),errors=[];
+ const page=await context.newPage(),errors=[];page.setDefaultTimeout(5000);
  page.on('pageerror',error=>errors.push(error.message));
  // A zero-delay task after response.json settles runs after the UI's awaiting
  // microtasks. It makes the released stale response assertion deterministic.
@@ -50,11 +50,11 @@ async function fixture(browser,width,view,handler,admin=false){
  return {page,close:async()=>{assert.deepEqual(errors,[]);await context.close();}};
 }
 
-async function stalePeriod(browser,width,view,{switchGroup=false,lateError=false}={}){
+async function stalePeriod(browser,width,view,{switchGroup=false,switchEmployment=false,lateError=false}={}){
  const release=deferred(),started=deferred();let first=true,oldUrl;
  const f=await fixture(browser,width,view,async({path,url})=>{
   if(path==='api/v1/shift-plan/groups')return {groups:[{id:10,name:'Recepce'},{id:20,name:'Kuchyně'}]};
-  if(path==='api/v1/attendance/employments')return [{id:1,label:'Recepce'}];
+  if(path==='api/v1/attendance/employments')return [{id:1,label:'Recepce'},{id:2,label:'Výpomoc'}];
   if(['api/v1/shift-plan/groups/10','api/v1/shift-plan/groups/20','api/v1/attendance'].includes(path)){
    const old=first;first=false;
    if(old){oldUrl=url.href;started.resolve();await release.promise;if(lateError)return {httpStatus:403,message:'Staré odmítnutí'};}
@@ -65,6 +65,7 @@ async function stalePeriod(browser,width,view,{switchGroup=false,lateError=false
  try{
   await started.promise;
   if(switchGroup)await f.page.getByRole('combobox',{name:'Skupina'}).selectOption('20');
+  else if(switchEmployment)await f.page.getByRole('combobox',{name:'Úvazek'}).selectOption('2');
   else await f.page.getByRole('button',{name:'›',exact:true}).click();
   await expect(f.page.getByText('Nové období',{exact:true})).toBeVisible();
   release.resolve();
@@ -160,12 +161,114 @@ async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=fal
  }finally{releases.forEach(r=>r.resolve());await f.close();}
 }
 
+async function planStatus(browser,width,{admin=false,group=false,clear=false,cancel=false,rejected=false}={}){
+ const writes=[];let date,dialogs=0;
+ const f=await fixture(browser,width,group?'group-plan':'plan',({path,url,request})=>{
+  if(request.method()==='PUT'){writes.push({path,body:request.postDataJSON()});return rejected?{httpStatus:409,message:'Změna vyžaduje vyřešení konfliktu'}:{};}
+  if(path==='api/v1/shift-plan/groups')return {groups:[{id:10,name:'Recepce'}]};
+  if(path==='api/v1/attendance/employments')return [{id:1,label:'Recepce'}];
+  date=dateOf(url);const data=row('Recepce',date);data.is_own_employment=true;
+  data.days[0].arrival_time=data.days[0].departure_time=null;
+  data.days[0].planned_arrival_time=data.days[0].planned_departure_time=null;
+  if(path==='api/v1/admin/shift-plan')return {rows:[data],available_employments:[],selected_employment_ids:[1]};
+  if(path==='api/v1/shift-plan/groups/10')return {rows:[data]};
+  if(path==='api/v1/attendance')return data;
+ },admin);
+ f.page.on('dialog',dialog=>{dialogs++;return cancel?dialog.dismiss():dialog.accept();});
+ try{
+  await f.page.locator('table tbody button').first().click();
+  if(clear){await expect(f.page.getByRole('button',{name:'Zrušit celodenní stav',exact:true})).toBeDisabled();assert.equal(writes.length,0);return;}
+  await f.page.getByRole('button',{name:'Volno',exact:true}).click();
+  assert.equal(dialogs,1);
+  if(cancel){await expect(f.page.getByRole('dialog')).toBeVisible();assert.equal(writes.length,0);return;}
+  if(rejected){await expect(f.page.getByRole('alert')).toContainText('Změna vyžaduje');await expect(f.page.getByRole('button',{name:'Volno',exact:true})).toBeEnabled();}
+  else await expect(f.page.getByRole('dialog')).not.toBeVisible();
+  assert.equal(writes.length,1);
+  assert.deepEqual(writes[0],{path:admin?'api/v1/admin/shift-plan':'api/v1/shift-plan',body:{employment_id:1,date,arrival_time:null,departure_time:null,status:'OFF'}});
+ }finally{await f.close();}
+}
+
+async function adminLock(browser,width,{rejected=false}={}){
+ let locked=false;const writes=[];
+ const f=await fixture(browser,width,'plan',({path,url,request})=>{
+  if(path==='api/v1/admin/shift-plan')return {rows:[{...row('Recepce',dateOf(url)),shift_plan_locked:locked}],available_employments:[],selected_employment_ids:[1]};
+  if(path==='api/v1/admin/locks'){
+   const body=request.postDataJSON();writes.push(body);if(rejected)return {httpStatus:409,message:'Plán nelze uzamknout'};locked=body.locked;return {ok:true};
+  }
+ },true);
+ try{
+  await f.page.getByRole('button',{name:'Zamknout plán',exact:true}).click();
+  if(rejected){await expect(f.page.getByRole('alert')).toContainText('Plán nelze uzamknout');await expect(f.page.getByRole('button',{name:'Zamknout plán',exact:true})).toBeEnabled();assert.equal(writes.length,1);return;}
+  await expect(f.page.getByRole('button',{name:'Odemknout plán',exact:true})).toBeVisible();
+  await expect(f.page.locator('input.clock').first()).toHaveAttribute('readonly','');
+  assert.equal(writes.length,1);assert.equal(writes[0].lock_type,'shift_plan');assert.deepEqual(writes[0].employment_ids,[1]);
+  await f.page.getByRole('button',{name:'Odemknout plán',exact:true}).click();
+  await expect(f.page.getByRole('button',{name:'Zamknout plán',exact:true})).toBeVisible();
+  await expect(f.page.locator('input.clock').first()).not.toHaveAttribute('readonly','');
+ }finally{await f.close();}
+}
+
+async function ownEmployment(browser,width){
+ const requested=[];
+ const f=await fixture(browser,width,'plan',({path,url})=>{
+  if(path==='api/v1/attendance/employments')return [{id:1,label:'Recepce'},{id:2,label:'Výpomoc'}];
+  if(path==='api/v1/attendance'){
+   const id=+url.searchParams.get('employment_id');requested.push(id);return {...row(id===1?'První úvazek':'Druhý úvazek',dateOf(url)),employment_id:id};
+  }
+ });
+ try{
+  await expect(f.page.getByRole('heading',{name:'První úvazek',exact:true})).toBeVisible();
+  await f.page.getByRole('combobox',{name:'Úvazek'}).selectOption('2');
+  await expect(f.page.getByRole('heading',{name:'Druhý úvazek',exact:true})).toBeVisible();
+  await expect(f.page.locator('input.clock').first()).toHaveAttribute('data-day-key',/2:/);
+  assert.deepEqual(requested,[1,2]);
+ }finally{await f.close();}
+}
+
+async function planMetrics(browser,width,{task=false}={}){
+ const f=await fixture(browser,width,'plan',({path,url})=>{
+  if(path==='api/v1/admin/shift-plan'){
+   const data=row('Recepce',dateOf(url));data.display_metrics=task?[]:['total','night'];
+   data.employment_type=task?'TASK_SHIFT_BASED':'WORK_CONTRACT';
+   data.days[0].planned_hours=7.3;data.days[0].planned={night:{hours:2.4}};
+   data.summary={planned_hours:33.7,planned:{night:{hours:10.2}}};
+   return {rows:[data],available_employments:[],selected_employment_ids:[1]};
+  }
+ },true);
+ try{
+  await expect(f.page.getByText('Měsíční součet: 33,7 h',{exact:false})).toBeVisible();
+  if(task){await expect(f.page.getByRole('columnheader')).toHaveCount(4);}
+  else{
+   await expect(f.page.getByRole('columnheader',{name:'Plán (h)',exact:true})).toBeVisible();
+   await expect(f.page.getByRole('cell',{name:'7,3 h',exact:true})).toBeVisible();
+   await expect(f.page.getByRole('cell',{name:'2,4 h',exact:true})).toBeVisible();
+   await expect(f.page.getByText('Noc 10,2 h',{exact:true})).toBeVisible();
+  }
+ }finally{await f.close();}
+}
+
+async function inheritedStatus(browser,width){
+ const f=await fixture(browser,width,'plan',({path,url})=>{
+  if(path==='api/v1/admin/shift-plan'){
+   const data=row('Recepce',dateOf(url));data.days[0].effective_status='SICKNESS';
+   return {rows:[data],available_employments:[],selected_employment_ids:[1]};
+  }
+ },true);
+ try{
+  await expect(f.page.getByRole('cell',{name:'Nemoc',exact:true})).toHaveCount(2);
+  await expect(f.page.locator('input.clock')).toHaveCount(0);
+  await expect(f.page.locator('table tbody button')).toHaveCount(0);
+ }finally{await f.close();}
+}
+
 for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
  assert.ok(['chromium','webkit'].includes(engine));
  const browser=await ({chromium,webkit}[engine]).launch();
  try{for(const width of [1440,390])for(const [name,test] of [
   ['group-period',b=>stalePeriod(b,width,'group-plan')],
   ['own-period',b=>stalePeriod(b,width,'plan')],
+  ['own-employment-selection',b=>ownEmployment(b,width)],
+  ['own-employment-race',b=>stalePeriod(b,width,'plan',{switchEmployment:true})],
   ['group-selection-race',b=>stalePeriod(b,width,'group-plan',{switchGroup:true})],
   ['stale-error',b=>stalePeriod(b,width,'group-plan',{lateError:true})],
   ['available-group',b=>groupFallback(b,width)],
@@ -173,6 +276,17 @@ for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
   ['save-keeps-focus',b=>clockSaves(b,width)],
   ['save-tab-after-readback',b=>clockSaves(b,width,{tab:true})],
   ['save-after-month-navigation',b=>clockSaves(b,width,{navigate:true})],
+  ['admin-plan-status-route',b=>planStatus(b,width,{admin:true})],
+  ['own-plan-status-route',b=>planStatus(b,width)],
+  ['group-plan-status-route',b=>planStatus(b,width,{group:true})],
+  ['admin-plan-lock',b=>adminLock(b,width)],
+  ['admin-plan-lock-error',b=>adminLock(b,width,{rejected:true})],
+  ['backend-plan-metrics',b=>planMetrics(b,width)],
+  ['task-plan-monthly-hours',b=>planMetrics(b,width,{task:true})],
+  ['inherited-attendance-status',b=>inheritedStatus(b,width)],
+  ['plan-clear-disabled-without-status',b=>planStatus(b,width,{admin:true,clear:true})],
+  ['plan-status-cancel-no-write',b=>planStatus(b,width,{admin:true,cancel:true})],
+  ['plan-status-conflict-not-retried',b=>planStatus(b,width,{admin:true,rejected:true})],
   ['empty-selection',b=>emptySelection(b,width)]]){
   try{await test(browser);console.log(`PASS ${engine} ${width} ${name}`);}
   catch(error){failures.push(`${engine} ${width} ${name}: ${error.message}`);console.error(`FAIL ${engine} ${width} ${name}: ${error.message}`);}

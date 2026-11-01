@@ -764,7 +764,11 @@
       }
     ],
     "native_password_issued": false,
+    "own_plan_employment": "all currently available employments with stale-response rejection",
     "period_regression": "web/scripts/cml-periods.browser.mjs",
+    "plan_day_status": "PUT shift-plan with explicit null times, never attendance day-status",
+    "plan_layout": "admin and own monthly day rows; group employment-day matrix",
+    "plan_metrics": "backend display_metrics and canonical totals; monthly planned hours always visible",
     "plan_response_scope": "current generation, frozen period, available group",
     "profile_contract": "kajovo-profile-provision/1",
     "profile_migration": "2026_10_31_0030",

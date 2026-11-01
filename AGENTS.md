@@ -286,3 +286,16 @@ Dokončení souběžných zápisů různých dnů v novém CML editoru musí ka�
 výsledek kanonicky znovu načíst v aktuálním období. Obnova jiným zápisem
 není navigace a nesmí druhé potvrzení zahodit. Po skutečné změně období
 se starý pohled neobnovuje. Enter zachovává focus; Tab čeká na read-back.
+
+CML adminský plán má měsíční listy jednotlivých vybraných úvazků a funkční
+zámek/odemčení; skupinový plán zachovává matici úvazků a dnů. Plánové
+celodenní stavy používají PUT `/api/v1/admin/shift-plan` nebo
+`/api/v1/shift-plan`, nikoli docházkový `day-status`. Časy jsou výslovně
+null. Neprázdný stav vyžaduje potvrzení; clear bez původního plánového
+stavu je neaktivní. Serverový konflikt se neopakuje automaticky.
+
+Vlastní CML plán musí umožnit zvolit každý dostupný úvazek a odmítnout
+opožděná data předchozího výběru. Denní plánové metriky řídí backendové
+`display_metrics`; měsíční plánované hodiny jsou viditelné i bez denních
+hodinových sloupců. Součty se ve frontendu nevypočítávají. Efektivní stav
+z vlastní docházky nesmí plánový editor nabídnout jako prázdné časové buňky.

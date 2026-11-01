@@ -314,6 +314,10 @@ def build_manifest() -> dict[str, object]:
             "period_regression": "web/scripts/cml-periods.browser.mjs",
             "plan_response_scope": "current generation, frozen period, available group",
             "clock_confirmation": "read back every completed save in the same view and period, including concurrent days",
+            "plan_layout": "admin and own monthly day rows; group employment-day matrix",
+            "plan_day_status": "PUT shift-plan with explicit null times, never attendance day-status",
+            "plan_metrics": "backend display_metrics and canonical totals; monthly planned hours always visible",
+            "own_plan_employment": "all currently available employments with stale-response rejection",
             "audience": "dochazka",
             "profile_contract": "kajovo-profile-provision/1",
             "middleware_endpoints": [

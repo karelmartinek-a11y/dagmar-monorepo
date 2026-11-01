@@ -54,15 +54,32 @@ async function attendance(){
   return [dateCell,dayName(day.date),...cells,...cols.map(m=>hours(day.worked?.[m]?.hours))];
  });
  const body=el('div',{},el('div',{class:'sheet-heading'},el('strong',{},sheet.employment_label),el('span',{class:'badge'},sheet.attendance_locked?'Uzamčeno':'Otevřeno')),metricBadges(sheet,'worked'),table(['Datum','Den',...Array.from({length:count},(_,i)=>'Průchod '+(i+1)),...cols.map(k=>metricNames[k]+' (h)')],tableRows),el('div',{class:'monthly-total'},'Součet za měsíc: ',cols.map(k=>el('span',{},metricNames[k]+' '+hours(sheet.worked?.[k]?.hours)))),el('p',{},'Plánované časy slouží jako nápověda. Hodiny a jejich součty dodává backend.'));
- if(isAdmin)body.append(el('div',{class:'actions'},button(sheet.attendance_locked?'Odemknout měsíc':'Uzamknout měsíc',()=>lock(sheet,'ATTENDANCE')),button('Přidej pauzy',()=>confirm('Doplnit zákonné přestávky','Změní historické časy ve vybraném měsíci. Zápis se nevrací hromadným undo.',async()=>{await api('api/v1/admin/attendance/breaks',{method:'POST',body:{employment_id:sheet.employment_id,year:state.year,month:state.month,confirmed:true}});await render();}))));
+ if(isAdmin)body.append(el('div',{class:'actions'},button(sheet.attendance_locked?'Odemknout měsíc':'Uzamknout měsíc',e=>lock(sheet,'ATTENDANCE',e.currentTarget)),button('Přidej pauzy',()=>confirm('Doplnit zákonné přestávky','Změní historické časy ve vybraném měsíci. Zápis se nevrací hromadným undo.',async()=>{await api('api/v1/admin/attendance/breaks',{method:'POST',body:{employment_id:sheet.employment_id,year:state.year,month:state.month,confirmed:true}});await render();}))));
  main.append(panel(sheet.employment_label,body,'attendance'));
  }
 }
 function confirm(title,text,task){modal(title,close=>el('div',{},notice(text,'warning'),button('Potvrdit',async e=>{e.currentTarget.disabled=true;try{await task();close();}catch(err){showError(document.querySelector('#dialog'),err);}},'danger')));}
 function dayMenu(sheet,day,kind){modal('Nabídka dne '+day.date,close=>{
  const choices=kind==='plan'?{HOLIDAY:'Dovolená',OFF:'Volno'}:statuses;
- return el('div',{},el('div',{class:'actions'},Object.entries({...choices,'':'Zrušit celodenní stav'}).map(([status,label])=>button(label,async e=>{e.currentTarget.disabled=true;try{const base=adminBase(),path=kind==='plan'?(state.identity.admin?'api/v1/admin/day-status':'api/v1/shift-plan/day-status'):(state.identity.admin?'api/v1/admin/day-status':'api/v1/attendance/day-status');await api(path,{method:'PUT',body:{employment_id:sheet.employment_id,date:day.date,status:status||null}});close();await render();}catch(err){showError(document.querySelector('#dialog'),err);}}))));});}
-async function lock(sheet,type){await api('api/v1/admin/locks',{method:'PUT',body:{lock_type:type.toLowerCase(),year:state.year,month:state.month,locked:!(type==='ATTENDANCE'?sheet.attendance_locked:sheet.shift_plan_locked),employment_ids:[sheet.employment_id]}});await render();}
+ return el('div',{},el('div',{class:'actions'},Object.entries({...choices,'':'Zrušit celodenní stav'}).map(([status,label])=>{
+  const action=button(label,async e=>{
+   const control=e.currentTarget;
+   if(kind==='plan'&&status&&!window.confirm('Nastavit '+label+' pro den '+day.date+'?'))return;
+   control.disabled=true;
+   try{
+    const path=kind==='plan'?adminBase()+'shift-plan':(state.identity.admin?'api/v1/admin/day-status':'api/v1/attendance/day-status');
+    const body={employment_id:sheet.employment_id,date:day.date,...(kind==='plan'?{arrival_time:null,departure_time:null}:{}),status:status||null};
+    await api(path,{method:'PUT',body});close();await render();
+   }catch(err){showError(document.querySelector('#dialog'),err);control.disabled=false;}
+  });
+  action.disabled=kind==='plan'&&!status&&!day.status;return action;
+ })));
+ });}
+async function lock(sheet,type,control){
+ if(control?.disabled)return;if(control)control.disabled=true;
+ try{await api('api/v1/admin/locks',{method:'PUT',body:{lock_type:type.toLowerCase(),year:state.year,month:state.month,locked:!(type==='ATTENDANCE'?sheet.attendance_locked:sheet.shift_plan_locked),employment_ids:[sheet.employment_id]}});await render();}
+ catch(e){error(e);}finally{if(control)control.disabled=false;}
+}
 async function plan(){
  const generation=state.generation,period=monthQuery(),isAdmin=state.identity.admin,groupView=state.view==='group-plan',main=heading(groupView?'dochazka.employee.group-plan':isAdmin?'dochazka.admin.plan':'dochazka.employee.plan',groupView?'Skupinový plán služeb':'Plán služeb','Upravujte plán přímo v časových buňkách. Uložení je potvrzeno až po načtení skutečného stavu.');
  let rows=[];
@@ -76,12 +93,14 @@ async function plan(){
  }
  else{
   const emps=await api('api/v1/attendance/employments?'+period);if(generation!==state.generation)return;
-  if(!emps.some(e=>e.id===state.employment))state.employment=emps[0]?.id;main.append(monthBar());
+  if(!emps.some(e=>e.id===state.employment))state.employment=emps[0]?.id;
+  const selector=select('Úvazek','employment',emps.map(e=>[String(e.id),e.label]),String(state.employment??''));
+  selector.querySelector('select').addEventListener('change',e=>{state.employment=+e.target.value;render();});main.append(monthBar([selector]));
   if(state.employment){const s=await api('api/v1/attendance?'+period+'&employment_id='+state.employment);rows=[{...s,display_label:s.employment_label,summary:{planned_hours:s.planned_hours},days:s.days.map(d=>({...d,arrival_time:d.planned_arrival_time,departure_time:d.planned_departure_time,status:d.planned_status}))}];}
  }
  if(generation!==state.generation)return;
  if(!rows.length){main.append(notice('Ve výběru není žádný úvazek.'));return;}
- if(isAdmin||groupView){
+ if(groupView){
   const days=rows[0].days;
   const matrix=table(['Úvazek',...days.map(d=>new Date(d.date+'T12:00:00').getDate()+'. '+dayName(d.date)), 'Měsíční součet'],rows.map(row=>{
    const identity=el('div',{class:'employment-identity'},row.user_name?el('strong',{},row.user_name):el('strong',{},row.display_label),row.title?el('span',{},row.title):null,row.employment_type?el('small',{},employmentNames[row.employment_type]??row.employment_type):null);
@@ -94,11 +113,19 @@ async function plan(){
   main.append(panel('Plán služeb',matrix,'group-plan'));return;
  }
  for(const row of rows){
-  const grid=table(['Datum','Den','Průchod 1','Průchod 2','Plánované hodiny'],row.days.map(day=>{
+  const cols=row.display_metrics??[],summary=row.summary??row,plannedTotals=summary.planned??row.planned,absences=summary.status_metrics??row.status_metrics;
+  const grid=table(['Datum','Den','Průchod 1','Průchod 2',...cols.map(k=>k==='total'?'Plán (h)':(metricNames[k]??k)+' (h)')],row.days.map(day=>{
    const key=row.employment_id+':'+day.date,locked=row.shift_plan_locked||day.is_within_employment_period===false;
-   const cell=side=>day.status?(statuses[day.status]??day.status):clock(day[side],{key,disabled:locked,label:day.date+' '+side+' úvazek '+row.employment_id,save:async value=>{await api(adminBase()+'shift-plan',{method:'PUT',body:{employment_id:row.employment_id,date:day.date,arrival_time:side==='arrival_time'?value:day.arrival_time??null,departure_time:side==='departure_time'?value:day.departure_time??null,status:null}});}});
-   return [button(new Date(day.date+'T12:00:00').toLocaleDateString('cs',{day:'numeric',month:'numeric'}),()=>dayMenu(row,day,'plan')),dayName(day.date),cell('arrival_time'),cell('departure_time'),hours(day.planned_hours??day.planned?.total?.hours)];
-  }));main.append(panel(row.display_label??row.employment_label,[el('div',{class:'sheet-heading'},'Měsíční součet: '+hours(row.summary?.planned_hours??row.planned_hours),el('span',{class:'badge'},row.shift_plan_locked?'Uzamčeno':'Otevřeno')),grid,isAdmin?button(row.shift_plan_locked?'Odemknout plán':'Uzamknout plán',()=>lock(row,'SHIFT_PLAN')):null],'group-plan'));
+   const dayStatus=day.effective_status??day.status;
+   const cell=side=>dayStatus?(statuses[dayStatus]??dayStatus):clock(day[side],{key,disabled:locked,label:day.date+' '+side+' úvazek '+row.employment_id,save:async value=>{await api(adminBase()+'shift-plan',{method:'PUT',body:{employment_id:row.employment_id,date:day.date,arrival_time:side==='arrival_time'?value:day.arrival_time??null,departure_time:side==='departure_time'?value:day.departure_time??null,status:null}});}});
+   const date=new Date(day.date+'T12:00:00').toLocaleDateString('cs',{day:'numeric',month:'numeric'});
+   return [locked||!!(dayStatus&&!day.status)?date:button(date,()=>dayMenu(row,day,'plan')),dayName(day.date),cell('arrival_time'),cell('departure_time'),...cols.map(k=>hours(k==='total'?day.planned_hours??day.planned?.total?.hours:day.planned?.[k]?.hours))];
+  }));
+  main.append(panel(row.display_label??row.employment_label,[
+   el('div',{class:'sheet-heading'},el('strong',{},'Měsíční součet: '+hours(summary.planned_hours)),el('span',{class:'badge'},row.shift_plan_locked?'Uzamčeno':'Otevřeno'),isAdmin?button(row.shift_plan_locked?'Odemknout plán':'Zamknout plán',e=>lock(row,'SHIFT_PLAN',e.currentTarget)):null),
+   el('div',{class:'metrics'},cols.filter(k=>k!=='total').map(k=>el('span',{class:'badge'},(metricNames[k]??k)+' '+hours(plannedTotals?.[k]?.hours)))),
+   grid,absences?el('p',{},'Celodenní stavy: '+['holiday','sickness','paragraph'].map(k=>metricNames[k]+' '+hours(absences[k]?.hours)).join(' · ')):null
+  ],'group-plan'));
  }
 }
 function selection(data){modal('Výběr úvazků pro zobrazení',close=>{
