@@ -34,7 +34,7 @@ Podepsaná gateway se nevrací do SPA. CI balí pouze deterministický
 Sdílené identity byly importovány podle schváleného pravidla shodného
 e-mailu a hesla z Docházky. Původní nativní účty a credentials se nemění.
 Centrální detail účtu používá původní adminské endpointy úvazků; vyžaduje
-hlavního vlastníka a pro zápis čerstvé podepsané reauth. `end_date: null`
+hlavního vlastníka a pro zápis buď čerstvé podepsané reauth, nebo ověřenou politiku `owner-no-additional-prompts/1` ze standardu 1.3. Politika je platná jen pro `KRMAR78`/`admin` bez nativního ID; nezvyšuje práva členů. `end_date: null`
 ruší konec platnosti, vynechané pole jej zachovává. Zúžení období nadále
 vyžaduje původní kontrolu a potvrzení navázaných dat.
 

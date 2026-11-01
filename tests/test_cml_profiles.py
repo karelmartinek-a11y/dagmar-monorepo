@@ -108,7 +108,8 @@ def test_failure_before_receipt_commit_leaves_no_partial_profile(profiles, monke
     monkeypatch.setattr(service, "_result", original)
 
 
-def test_signed_profile_routes_reject_member_stale_auth_csrf_and_replay(profiles, tmp_path, monkeypatch):
+@pytest.mark.parametrize("owner_policy", [False, True])
+def test_signed_profile_routes_reject_member_stale_auth_csrf_and_replay(profiles, tmp_path, monkeypatch, owner_policy):
     factory, _ = profiles
     key, jwks = fixture_key()
     keyfile = tmp_path / "jwks.json"
@@ -123,7 +124,7 @@ def test_signed_profile_routes_reject_member_stale_auth_csrf_and_replay(profiles
         return {"Origin": "https://kajovocml.hcasc.cz", "X-CML-Web-Prefix": "/sections/" + SOURCE + "/",
             "X-CSRF-Token": "a" * 43, "Content-Type": "application/json",
             "X-CML-Web-Assertion": assertion(key, SOURCE, path=path, body=body,
-                reauthUntil=int(time.time()) + 60, **patch)}
+                **({"reauthUntil": 0, "authzPolicy": "owner-no-additional-prompts/1"} if owner_policy else {"reauthUntil": int(time.time()) + 60}), **patch)}
     with TestClient(boundary) as client:
         assert client.post(path, headers=headers(sub="user:" + str(uuid4()), nativeId="1", role="member"), content=body).status_code == 401
         expired = headers()

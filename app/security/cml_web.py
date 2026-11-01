@@ -17,6 +17,19 @@ from starlette.responses import FileResponse, JSONResponse
 from app.security.cml_assertion import AssertionDenied, WebVerifier
 
 
+def central_write_authorized(claims):
+    """Accept an authenticated owner policy or the original fresh verification."""
+    return (
+        claims.get('sub') == 'KRMAR78'
+        and claims.get('role') == 'admin'
+        and claims.get('nativeId') is None
+        and claims.get('authzPolicy') == 'owner-no-additional-prompts/1'
+    ) or (
+        type(claims.get('reauthUntil')) is int
+        and claims['reauthUntil'] > int(time.time())
+    )
+
+
 class CmlWebBoundary:
     def __init__(self, app, *, audience, session_factory, resolve_identity, ui_root):
         self.app = app
@@ -83,7 +96,7 @@ class CmlWebBoundary:
                 if claims['sub'] != 'KRMAR78' or query:
                     raise AssertionDenied('central_owner_required')
                 if scope['method'] == 'POST' and suffix == 'api/profiles':
-                    if type(claims.get('reauthUntil')) is not int or claims['reauthUntil'] <= int(time.time()):
+                    if not central_write_authorized(claims):
                         await JSONResponse({'error': {'code': 'cml_reauth_required'}}, status_code=403)(scope, receive, send)
                         return
                     if headers.get('content-type', '').split(';')[0] != 'application/json' or len(body) > 16384:
@@ -135,7 +148,7 @@ class CmlWebBoundary:
                         raise AssertionDenied('invalid_json') from exc
                     if isinstance(payload, dict) and payload.get('password') is not None:
                         raise AssertionDenied('central_credentials_only')
-                if scope['method'] not in {'GET', 'HEAD'} and (type(claims.get('reauthUntil')) is not int or claims['reauthUntil'] <= int(time.time())):
+                if scope['method'] not in {'GET', 'HEAD'} and (not central_write_authorized(claims)):
                     await JSONResponse({'error': {'code': 'cml_reauth_required', 'message': 'Nejprve čerstvě ověřte identitu v KájovoCML.'}}, status_code=403, headers={'Cache-Control': 'no-store'})(scope, receive, send)
                     return
             # A signed request cannot start a local login or invoke a different public protocol.

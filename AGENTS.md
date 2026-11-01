@@ -324,3 +324,5 @@ s původními routami a skutečným stažením běží v CML checkoutu.
   a drží fokus; úspěch blikne zeleně až po read-backu. Přijatý zápis
   s chybným následným čtením se neposílá znovu; obnova je pouze čtecí.
   Neověřený zámek nedovolí editaci, dokud uživatel neobnoví stav.
+
+- Standard 1.3: centrální zápis přijímá také podepsanou politiku `owner-no-additional-prompts/1`, výhradně pro ověřený `KRMAR78`/`admin` bez nativního ID. Kontrola podpisu, audience, aktuální identity, CSRF a replay zůstává povinná; `reauthUntil` se nefalšuje. Členům politika nezvyšuje práva.
