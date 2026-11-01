@@ -219,7 +219,9 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Browser, accessibility and visual tests
         working-directory: web
-        run: npm run test:e2e
+        run: |
+          npm run test:e2e
+          npm run test:cml-periods
       - name: Verify clean tree after web checks
         run: |
           git diff --exit-code

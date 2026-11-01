@@ -763,11 +763,13 @@
       }
     ],
     "native_password_issued": false,
+    "period_regression": "web/scripts/cml-periods.browser.mjs",
+    "plan_response_scope": "current generation, frozen period, available group",
     "profile_contract": "kajovo-profile-provision/1",
     "profile_migration": "2026_10_31_0030",
     "public_entry": "https://kajovocml.hcasc.cz/#dochazka",
     "public_smoke": "web/scripts/cml-production-smoke.mjs",
-    "state": "not_deployed",
+    "state": "first_release_deployed",
     "ui": "app/web_ui/",
     "ui_delivery": "signed backend wheel; no legacy SPA in the web release"
   },

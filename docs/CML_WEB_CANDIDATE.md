@@ -1,113 +1,88 @@
-# KájovoDocházka v CML – vývojový kandidát
+# KájovoDocházka v CML – aktuální integrace
 
-Webové UI `app/web_ui/` je nové a používá existující docházkové endpointy i výpočty. Není přepnuté do produkce. Původní pracovní kopie s jiným rozpracovaným redesignem nebyla změněna.
+První verze běží od 1. 11. 2026 jako sekce
+`https://kajovocml.hcasc.cz/#dochazka`. Výchozí nasazený zdroj je
+`cd42151c5930b4d1b90168b007f12789209b1227`; přesnou aktuální verzi vrací
+`https://dagmar.hcasc.cz/api/version`. Nové samostatně napsané UI
+`app/web_ui/` se dodává v backend wheelu a používá původní endpointy,
+výpočty a data. Původní frontendový kód nebyl převzat.
 
-`CmlWebBoundary` obsluhuje `/cml-web/` jen při explicitním veřejném klíči v `CML_WEB_JWKS_PATH`. Každý požadavek ověřuje přes issuer `https://kajovocml.hcasc.cz`, audience `dochazka`, metodu, přesnou cestu s query, hash těla a desetisekundovou platnost. Replaye blokuje tabulka `cml_web_nonce`, která vzniká Alembic migrací `2026_10_30_0029`. Veřejný JWKS není credentials jiného MCP.
+## Vstup a nativní klienti
 
-Podepsaný stav se vkládá výhradně do ASGI state po úspěšném ověření a spotřebování nonce. Browserová hlavička nemůže nastavit `cml_admin`, `cml_user_id` ani `cml_web_claims`. Zaměstnanecké požadavky se znovu vážou na původní aktivní `PortalUser` a `Instance`; endpointové kontroly úvazku a zámků zůstávají zachované. Stávající cookie, integrační a nativní přístupy nejsou tímto kandidátem odstřižené.
+`CmlWebBoundary` vyžaduje veřejný klíč v `CML_WEB_JWKS_PATH` a na každém
+`/cml-web/` požadavku ověřuje issuer `https://kajovocml.hcasc.cz`, audience
+`dochazka`, metodu, přesnou cestu s query, hash těla a desetisekundovou
+platnost. Replaye blokuje sdílená DB tabulka `cml_web_nonce`, nikoli paměť
+workeru. Jen ověřený ASGI state může nést centrální identitu a roli.
+Zaměstnanecký požadavek se znovu váže na aktivní `PortalUser` a `Instance`;
+původní kontroly úvazku a zámků zůstávají autoritou.
 
-Společné logo, font a piktogramy načítá vložené UI z veřejných brand assets CML. Žádná původní frontendová komponenta nebyla převzata. `tests/cml_local_server.py` je výslovně zapínaný loopback kvalifikační host s izolovanou syntetickou DB a skutečnými backendovými routami; není produkční aplikace ani doklad živých produkčních účinků.
+Produkční `CML_BROWSER_ENTRY_ONLY=1` odmítá původní browserové cookies pro
+obchodní API i administraci. Nativní instance/integration tokeny zůstávají
+odděleným profilem. Browserový požadavek s Fetch Metadata/Origin nemůže
+použít nativní bearer. Flag přijímá jen 0/1; 0 je pouze přípravný režim,
+nikoli důkaz uzavřeného vstupu. Nesprávná konfigurace zastaví start.
 
-Neuzavřeno zůstává úplné pokrytí předloh a jazyků, část provozní administrace, centrální správa úvazků, převod identit a jejich hesel, uzavření přímých browserových vstupů, design gate, publikace na main a produkční nasazení. Není přípustné tyto části vydávat za dokončené na základě testu několika nových obrazovek.
+Původní browserové dokumenty/assety vracejí pevné 302 do CML s no-store,
+bez přenosu původních query/reset tokenů. `/api/`, `/cml-web/`, health a
+stávající soubory nativních klientů zachovává skutečná Nginx konfigurace.
+Podepsaná gateway se nevrací do SPA. CI balí pouze deterministický
+`cml-entry.json`; původní frontend bundle není produkční fallback.
 
-Centrální CML detail účtu spravuje úvazky přes původní `/api/v1/admin/users/{id}/employments` a `/api/v1/admin/employments/{id}`. Podepsané routy účtů a úvazků připouštějí jen hlavního správce; zápisy vyžadují aktuální `reauthUntil`. Lokální heslové a resetovací toky jsou pro tuto cestu odmítnuté. Explicitní `end_date: null` ruší konec platnosti, vynechané pole jej zachovává. Nejasná odpověď nesmí sama vyvolat nový zápis. Při zúžení období zůstává původní kontrola a samostatné potvrzení navázaných dat.
+## Účty a úvazky
 
-Generátor manifestu vždy preferuje vlastní checkout před jinou editable instalací nebo cizím PYTHONPATH. CLI kontrola to ověřuje ze samostatného pracovního adresáře. Kvalifikační host zahrnuje skutečné administrační routy; nevytváří náhradní výpočty.
+Sdílené identity byly importovány podle schváleného pravidla shodného
+e-mailu a hesla z Docházky. Původní nativní účty a credentials se nemění.
+Centrální detail účtu používá původní adminské endpointy úvazků; vyžaduje
+hlavního vlastníka a pro zápis čerstvé podepsané reauth. `end_date: null`
+ruší konec platnosti, vynechané pole jej zachovává. Zúžení období nadále
+vyžaduje původní kontrolu a potvrzení navázaných dat.
 
-Nový atomický kontrakt `kajovo-profile-provision/1` vytváří vlastní pracovní
-profil z centrálního CML průvodce. Podepsaný POST `/cml-web/api/profiles` přijímá
-`operation_id`, `central_user_id` a původní profilová pole bez hesla/ID. Vyžaduje
-hlavního vlastníka a čerstvé reauth; GET se stejným ID pouze čte účtenku a
-aktuální profil. Pole navíc jsou odmítnutá. Účtenka obsahuje původní fingerprint,
-centrální UUID a skutečné nativní ID, nikdy heslo. Jedinečné operace a centrální
-UUID spolu s profilem vznikají jednou transakcí. Konflikt e-mailu nevytvoří
-vazbu k cizímu účtu; změna argumentů stejného ID vrací konflikt. Smazání
-pracovního profilu nemaže jeho účtenku a opakování jej nevytváří znovu.
+Atomický kontrakt `kajovo-profile-provision/1` přijímá na POST
+`/cml-web/api/profiles` operation ID, centrální UUID a původní profilová
+pole bez hesla či nativního ID. GET se stejným ID čte účtenku a aktuální
+profil. Jedinečné operace, vazba a profil vznikají jednou transakcí.
+Změna argumentů stejného ID či konflikt e-mailu vrací konflikt; cizí účet
+se nepřebírá. Smazání profilu nemaže účtenku ani nepovoluje nové založení
+opakovaným požadavkem. Nejistý výsledek se nejprve čte, automaticky neopakuje.
 
-CML nejprve trvale uloží rozepsaný neaktivní účet, poté vytvoří profily a po
-nezávislém read-backu potvrdí vazby/granty. Pozvánku vydává až nad konečnou
-revizí. Původní nativní credentials a neveboví klienti se nemění; tento kontrakt
-nevolá původní nativní onboarding. Obnova nejisté žádosti nejprve čte původní
-ID a případné pokračování je výslovné, nad stejným DB-only atomickým kontraktem.
+Nový profil má `PortalUserRole.EMPLOYEE`, vlastní aktivní WEB Instance,
+žádný automatický úvazek ani nativní heslo. CML správce je ověřená centrální
+role. Limity původních sloupců jsou 128 znaků jména a 160 znaků e-mailu.
+CML potvrdí vazby/granty až po read-backu; pozvánka patří konečné revizi.
 
-Docházka tímto tokem zakládá `PortalUserRole.EMPLOYEE`, aktivní vlastní WEB
-Instance a žádný úvazek nebo nativní heslo. CML správce Docházky je ověřená
-centrální role; nevzniká nový nativní enum. Maximální jméno je 128 znaků podle
-skutečného sloupce Instance; e-mail maximálně 160. Nevebové přihlášení, reset
-a zaměstnanecké výpočty zůstávají původní.
+## Průběžná kvalifikace
 
-Místní kvalifikace nových profilů zahrnuje devět testů včetně skutečného
-PostgreSQL souběhu a celou backendovou sadu 249 PASS / 0 skipped, mypy 69
-souborů, Ruff, kontrolu invariantů, migrací, manifestu, hashovaných locků
-a bezpečnostní politiky. Audit produkčního Python locku z Pythonu 3.12 nemá
-známý nález; Bandit na požadované úrovni nezjistil problém. Frontendová sada
-má 84 PASS; lint, typy a build prošly. Původní prohlížečové regrese s reálným
-izolovaným PostgreSQL backendem mají 25 PASS, pět volitelných design captures
-bylo přeskočeno. To nenahrazuje design gate nového CML frontendu.
+První vydání prošlo cílenými backendovými kontrolami autorizace, importu
+identit a zachování native přístupů i skutečným CI `ci-cd.yml` nad zdrojem
+`cd42151`. Živé ověření zahrnulo 302 do CML, 401 bez podpisu, readiness,
+verzi a autorizované čtení skutečných profilů. Vlastník potvrdil reálné
+centrální přihlášení včetně svého zachovaného MFA. To není úplná přejímka
+všech zaměstnaneckých a zapisovacích stavů.
 
-Povinný npm audit zachytil GHSA-g3hv-75wg-m249. Připnutý override
-`minimatch: 11.0.1` a odpovídající lock odstranily všechny npm nálezy. Původní
-ESLint a jeho pravidla zůstávají; skutečný lint ověřil kompatibilní rozhraní
-použitých konzumentů. Neproběhlo potlačení advisory nebo oslabení gate.
-Zdroj: https://github.com/advisories/GHSA-g3hv-75wg-m249 .
+Následná oprava plánu odmítá opožděné odpovědi i chyby po změně období
+nebo skupiny. Dotaz používá zachycené období a skupinu dostupnou v novém
+seznamu. Prázdný adminský výběr zůstává prázdný při uložení i načtení.
+`CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-periods` z `web/`
+ověřuje šest scénářů na desktopu a telefonu v obou enginech (24 případů).
+Veškeré odpovědi a jediný testovací zápis jsou izolované adaptéry bez
+přístupu na produkční backend. CI spouští stejný runner v Chromium.
 
-Kandidátní Nginx snippet směruje `/cml-web/` na tentýž vlastní backend 8101
-bez přepisu cesty, s no-store a samostatnou sadou bezpečnostních hlaviček.
-Nesmí se vracet původní SPA index. Samotná proxy nepřijímá uživatele: podpis
-a nativní stav nadále ověřuje backend. Produkční konfigurace se tímto místním
-krokem nezměnila; přímé staré browserové vstupy čekají na úplný cutover.
+`tests/cml_local_server.py` je oddělený loopback host se skutečnými
+backendovými routami a syntetickou DB, explicitně zapínaný pomocí
+`CML_LOCAL_QUALIFICATION=1`. Není produkční artefakt. Veřejný smoke
+`web/scripts/cml-production-smoke.mjs` nenahrazuje autentizovanou přejímku.
 
-## Výhradní CML vstup – místní kandidát 31. 10. 2026
+Úplná vizuální matice, méně používané stavy, překlady, tisk a úplná
+přístupnost jsou **ODLOŽENO PO PRVNÍM NASAZENÍ**, nikoli PASS. Předloha
+zůstává cílem. Autorizace, zachování dat a hlavní funkce se tím neodkládají.
 
-Nginx již nepoužívá původní `try_files` nebo SPA index. Každý browserový
-dokument/asset mimo vyhrazené `/api/` a podepsané `/cml-web/` vrací pevné
-302 do `https://kajovocml.hcasc.cz/#dochazka`, s no-store a jedinou sadou
-bezpečnostních hlaviček. Původní query nebo resetový token se do CML
-nepřenáší. Nativní API, callbacky a výpočty se touto routovací změnou nemění.
+## Publikace a nasazení
 
-CI dále kvalifikuje historický frontend pro regresi, do nového web release
-ale balí pouze nový deterministický `cml-entry.json` s přesným Git SHA.
-Původní JS/CSS/HTML se nedistribuuje; nové vlastní UI `app/web_ui/` je
-v backend wheelu za podepsanou gateway. Symlink web release zůstává
-kompatibilním technickým krokem pro rollback, nikoli veřejným SPA hostem.
-Nový veřejný smoke kontroluje pevný CML vstup, skutečný backend SHA/readiness,
-401 bez podpisu a skutečnou anonymní login stránku CML. Přihlášená funkční
-přejímka má samostatný společný gate; veřejné 302/200 ji nenahrazuje.
-
-Sedm místních kontrol prošlo: skutečný Docker Nginx/HTTPS bez vnějšího
-následování redirectů, zachování obou API cest, odstranění starého
-browserového vstupu a přesný reprodukovatelný balíček bez původního UI.
-Produkční smoke zatím nebyl spuštěný. Úplné designové/jazykové/tiskové
-řady, nezávislý designový verdikt, GitHub a koordinované nasazení zůstávají
-otevřené. Produkční Nginx, účty, úvazky a relace se tímto krokem nezměnily.
-
-Po portu publikačních kontrol prošla úplná backendová suite: 251 PASS,
-bez skipů. Ruff nad app/tests/scripts, mypy (69 souborů), compileall,
-repo invarianty, generovaný current-state manifest a frontend lint prošly.
-Plný pytest vyžaduje obě proměnné `DAGMAR_DATABASE_URL` a
-`CML_PROFILE_TEST_DATABASE_URL` na vlastním local-only PostgreSQL prostředí
-s ovladačem `postgresql+psycopg`; migrační regrese není volitelný skip.
-Nový produkční smoke se zatím kvalifikoval syntaxí a odpovídajícími lokálními
-Nginx/CML průchody, nikoli spuštěním na produkci.
-
-## První vydání – API vstup
-
-`CML_BROWSER_ENTRY_ONLY=1` je povinné při aktivaci nové sekce. Staré
-administrátorské/portálové cookies neotevírají obchodní API; samotný
-HTTP header nemůže vytvořit ověřený CML stav. Původní aktivní nativní
-instance a integrační tokeny zůstávají vlastnímu klientovi. Nativní bearer
-se v browserovém požadavku s Fetch Metadata/Origin odmítne. Vlastní CML
-podpis nad každým skutečným požadavkem je nadále nutný. Flag 0 připraví
-kompatibilní backend před společným přepnutím; neznamená uzavřený vstup.
-Chybné jiné hodnoty znemožní start. Testy ověřují cookies, nativní bearer,
-falšované hlavičky a skutečnou původní identitu přes podepsanou gateway.
-
-Přímé zadání z 1. 11. 2026 odkládá úplnou vizuální matici a kosmetiku,
-menší stavy/překlady/tisk/přístupnost jako ODLOŽENO PO PRVNÍM NASAZENÍ.
-Tento odklad se netýká autorizace, dat, sestavení a základních funkcí.
-
-První koordinovaný commit používá trailer `CML-Coordinated-Cutover: true`.
-CI a tvorba artefaktů dále běží; pouze automatický produkční job pro tento
-commit nepřepne portál před připraveným CML. Publikovaný otestovaný artefakt
-se v tomto cutoveru nasazuje přímým SSH z Codexu. Ostatní commity zachovávají
-původní automatizační pravidlo. Tato výjimka nevypíná testy.
+Koordinovaný SSH release používá trailer `CML-Coordinated-Cutover: true`.
+CI a bezpečnostní gate běží beze změny; automatický produkční job se pro
+tento commit nepřepne mimo řízené nasazení. Dodává se skutečný CI wheel a
+hashovaný offline wheelhouse, ověřuje se SHA a veřejné HTTPS. UI oprava
+bez databázové změny nevyžaduje migraci ani přepočet skutečných metrik.
+Návrat kódu neobnovuje živou DB ze zálohy. Ostatní commity zachovávají
+standardní automatizační pravidla.

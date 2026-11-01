@@ -215,12 +215,12 @@ Závěrečný report musí obsahovat:
 9. informace o commitu, pushi, GitHub Actions, deployi a produkční validaci
 10. potvrzení, že staré názvy a historické artefakty nezůstaly aktivně přítomné, nebo doložený blocker
 
-## Kandidát webové integrace CML
+## Webová integrace CML
 
-- Nový samostatně napsaný frontend `app/web_ui/` používá název KájovoDocházka a kontrakt `kajovo-web-ui/1`; nepřebírá původní UI. Původní doména a neveboví klienti zůstávají kompatibilní do ověřeného přechodu.
+- Nový samostatně napsaný frontend `app/web_ui/` používá název KájovoDocházka a kontrakt `kajovo-web-ui/1`; nepřebírá původní UI. Původní API doména a neveboví klienti zůstávají kompatibilní; browserový vstup vede výhradně přes CML.
 - `/cml-web/` vyžaduje podepsanou CML žádost s audience `dochazka`; nativní identita a přístup k úvazku se ověřují v tomto backendu. Jednorázovost podpisu patří do sdílené DB, nikoli do paměti workeru.
 - Kvalifikační host `tests/cml_local_server.py` používá skutečné backendové routy a syntetickou místní DB; vyžaduje explicitní `CML_LOCAL_QUALIFICATION=1` a nikdy není součástí produkčního UI artefaktu.
-- Stav nedokončeného přechodu popisuje `docs/CML_WEB_CANDIDATE.md`. Nezaměňovat místní funkční průchod za úplné grafické schválení nebo nasazení.
+- Aktuální stav integrace popisuje `docs/CML_WEB_CANDIDATE.md`. Nezaměňovat místní funkční průchod za úplné grafické schválení nebo nasazení.
 - Centrální správa účtů a úvazků přes CML vyžaduje hlavní účet a pro zápis čerstvé podepsané ověření. Nativní credentials tímto tokem neměnit. `end_date: null` znamená úvazek bez konce; vynechané datum ponechává stávající hodnotu. Generátor manifestu musí importovat vlastní checkout i při cizím editable prostředí/PYTHONPATH.
 
 - Nové pracovní profily zakládá jen hlavní účet přes podepsaný CML kontrakt
@@ -269,8 +269,15 @@ Závěrečný report musí obsahovat:
   Výchozí 0 slouží přípravě kompatibilního backendu před cutoverem,
   nikoli jako důkaz výhradního webového vstupu v produkci.
 
-První koordinovaný commit používá trailer `CML-Coordinated-Cutover: true`.
+Koordinované nasazení přes přímé SSH používá trailer `CML-Coordinated-Cutover: true`.
 CI a tvorba artefaktů dále běží; pouze automatický produkční job pro tento
-commit nepřepne portál před připraveným CML. Publikovaný otestovaný artefakt
-se v tomto cutoveru nasazuje přímým SSH z Codexu. Ostatní commity zachovávají
+commit nepřepne portál mimo řízené nasazení. Publikovaný otestovaný artefakt
+se v tomto režimu nasazuje přímým SSH z Codexu. Ostatní commity zachovávají
 původní automatizační pravidlo. Tato výjimka nevypíná testy.
+
+Nový CML plán služeb přijímá odpovědi jen z aktuální generace načtení.
+Změna období/skupiny nesmí připojit staré řádky ani starou chybu do nového
+pohledu. Skupina musí patřit do právě načteného seznamu; prázdný adminský
+výběr úvazků zůstává prázdný. Izolované browserové regrese spouští
+`npm run test:cml-periods` z `web/` (CI Chromium; lokálně také
+`CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-periods`).

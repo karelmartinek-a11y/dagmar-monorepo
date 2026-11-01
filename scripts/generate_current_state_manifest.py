@@ -305,12 +305,14 @@ def build_manifest() -> dict[str, object]:
             },
         ],
         "cml_web_candidate": {
-            "state": "not_deployed",
+            "state": "first_release_deployed",
             "ui": "app/web_ui/",
             "public_entry": "https://kajovocml.hcasc.cz/#dochazka",
             "ui_delivery": "signed backend wheel; no legacy SPA in the web release",
             "entry_package": "scripts/package_cml_entry.py",
             "public_smoke": "web/scripts/cml-production-smoke.mjs",
+            "period_regression": "web/scripts/cml-periods.browser.mjs",
+            "plan_response_scope": "current generation, frozen period, available group",
             "audience": "dochazka",
             "profile_contract": "kajovo-profile-provision/1",
             "middleware_endpoints": [
