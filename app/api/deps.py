@@ -62,10 +62,10 @@ def _bearer_from_auth_header(authorization: str | None) -> str | None:
     return token or None
 
 
-def require_admin(request: Request):
+def require_admin(request: Request, settings: Settings = Depends(get_settings)):
     if getattr(request.state, "cml_browser_entry_only", False) and not getattr(request.state, "cml_web_claims", None):
         raise_enveloped_api_error(403, "cml_browser_entry_required", "Správu Docházky otevřete v KájovoCML.")
-    sess = get_admin_session(request)
+    sess = get_admin_session(request, settings=settings)
     if not sess or not sess.is_authenticated:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return sess

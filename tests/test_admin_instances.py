@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -61,7 +62,12 @@ def _login(client: TestClient) -> None:
     assert response.status_code == 200
 
 
-def test_admin_can_list_and_activate_pending_instance_without_exposing_credentials() -> None:
+def test_admin_can_list_and_activate_pending_instance_without_exposing_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Route authentication must use the same application settings as login,
+    # even when the process default belongs to another application instance.
+    monkeypatch.setenv("DAGMAR_SESSION_SECRET", "process-default-secret-" * 2)
     client = _client()
     registered = client.post(
         "/api/v1/instances/register",

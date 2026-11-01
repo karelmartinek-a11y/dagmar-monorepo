@@ -206,3 +206,9 @@ bez druhého zápisu. Plánové regrese pokrývají souběh, období, zámky
 a chybu read-backu; tisky a exporty zachovávají původní backendová data.
 Lint, typecheck, unit testy a build prošly. Produkční přijímací kontrola
 neprovádí testovací zápisy do skutečné docházky.
+
+Při kontrole logu kvalifikace byl odhalen neúspěšný test, který starší shellová
+pipeline nezohlednila v návratovém kódu. Backendový krok nyní používá Bash
+s pipefail. Závislost správce dostává stejné nastavení aplikace jako login;
+regrese ověřuje odlišný výchozí klíč procesu bez oslabení autentizace.
+Původní běh 41349280391 není použit jako úspěšná kvalifikace ani nasazen.

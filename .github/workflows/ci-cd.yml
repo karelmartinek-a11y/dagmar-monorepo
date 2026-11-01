@@ -104,6 +104,7 @@ jobs:
           alembic upgrade head
           alembic current
       - name: Backend tests
+        shell: bash
         run: |
           python -c "import os; from sqlalchemy import create_engine,text; from sqlalchemy.engine import make_url; u=make_url(os.environ['DAGMAR_DATABASE_URL']); e=create_engine(u.set(database='postgres'),isolation_level='AUTOCOMMIT'); c=e.connect(); c.execute(text('CREATE DATABASE dagmar_profiles_test')); c.close(); e.dispose()"
           pytest -q --strict-markers -W error::DeprecationWarning -W error::PendingDeprecationWarning -r s | tee /tmp/pytest-output.txt
