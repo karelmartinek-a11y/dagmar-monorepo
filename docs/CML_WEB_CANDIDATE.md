@@ -135,7 +135,7 @@ výběr nezapisuje uloženou adminskou volbu plánu služeb.
 Bílé náhledy čtou původní `GET /api/v1/admin/attendance/month`, zobrazují
 kanonické `display_metrics`, denní/měsíční hodnoty a `planned_hours`, včetně
 úkolových úvazků bez hodinových sloupců. Detail má jeden den na řádku a
-zachovává všechny průchody, i více než osm. Souhrn neobsahuje denní tabulku.
+zachovává všechny průchody, i více než osm. Případný celodenní stav neskrývá existující průchody. Souhrn neobsahuje denní tabulku.
 Plán zobrazuje plánované časy a plánové stavy. Chybějící vybraný úvazek je
 chyba, nikoli tichý neúplný dokument. Tisk lze otevřít až po načtení dat.
 Původní backendové PDF plánu zůstává samostatně dostupné a beze změny.

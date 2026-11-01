@@ -88,15 +88,15 @@ export async function printing({state,heading,error,render}){
   }else{
    const count=plan?8:Math.max(8,...sheet.days.map(day=>day.events.length));
    const rows=sheet.days.map(day=>{
-    const status=plan?day.planned_status:day.effective_status;
+    const status=plan?day.planned_status:day.effective_status,hasEvents=!plan&&day.events.length>0;
     const values=plan?[day.planned_arrival_time??'',day.planned_departure_time??'']:day.events.map(event=>time(event.occurred_at));
-    return [new Date(day.date+'T12:00:00').toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'}),new Date(day.date+'T12:00:00').toLocaleDateString('cs-CZ',{weekday:'short'}),...Array.from({length:count},(_,i)=>status?(i===0?(statuses[status]??status):''):values[i]??''),...cols.map(key=>hours(day[source]?.[key]?.hours))];
+    return [el('div',{},new Date(day.date+'T12:00:00').toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'}),hasEvents&&status?el('small',{},statuses[status]??status):null),new Date(day.date+'T12:00:00').toLocaleDateString('cs-CZ',{weekday:'short'}),...Array.from({length:count},(_,i)=>status&&!hasEvents?(i===0?(statuses[status]??status):''):values[i]??''),...cols.map(key=>hours(day[source]?.[key]?.hours))];
    });
    paper.append(table(['Datum','Den',...Array.from({length:count},(_,i)=>'PRŮCHOD '+(i+1)),...cols.map(key=>(plan&&key==='total'?'Plán':metrics[key]??key)+' (h)')],rows));
-   paper.querySelector('.table-scroll').setAttribute('aria-label',title+' – '+sheet.employment_label);
    paper.append(el('div',{class:'print-summary'},cols.map(key=>el('span',{},(plan&&key==='total'?'Plán':metrics[key]??key)+': '+hours(sheet[source]?.[key]?.hours))),el('span',{},'Plánované hodiny: '+hours(sheet.planned_hours))));
    if(sheet.days.some(day=>day.public_holiday_label))paper.append(el('p',{},sheet.days.filter(day=>day.public_holiday_label).map(day=>day.date+': '+day.public_holiday_label).join(' · ')));
   }
+  const scroll=paper.querySelector('.table-scroll');scroll.setAttribute('role','region');scroll.setAttribute('aria-label',title+' – '+sheet.employment_label);
   paper.append(el('p',{class:'print-absence'},Object.entries(absences).map(([key,label])=>label+': '+hours(sheet.status_metrics?.[key]?.hours)).join(' · ')),el('footer',{class:'print-paper-footer'},el('span',{},'KájovoDocházka'),el('span',{},'Dokument '+(index+1)+' / '+sheets.length)));
   return paper;
  }));
