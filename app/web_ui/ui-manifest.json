@@ -50,12 +50,43 @@
       "audienceRole": "admin"
     },
     {
+      "id": "dochazka.admin.export",
+      "title": "Export docházky",
+      "navigation_title": "Export",
+      "path": "/sections/dochazka/?view=export",
+      "icon": "export",
+      "admin": true,
+      "audienceRole": "admin"
+    },
+    {
       "id": "dochazka.admin.prints",
       "title": "Tiskové sestavy",
       "path": "/sections/dochazka/?view=prints",
       "icon": "print",
       "admin": true,
       "audienceRole": "admin"
+    },
+    {
+      "id": "dochazka.print.plan",
+      "title": "Náhled plánu služeb",
+      "path": "/sections/dochazka/?view=print-plan",
+      "icon": "print",
+      "admin": true,
+      "audienceRole": "admin",
+      "navigation": false,
+      "parent": "dochazka.admin.prints",
+      "dynamic_title": true
+    },
+    {
+      "id": "dochazka.print.summary",
+      "title": "Náhled docházky",
+      "path": "/sections/dochazka/?view=print-summary",
+      "icon": "print",
+      "admin": true,
+      "audienceRole": "admin",
+      "navigation": false,
+      "parent": "dochazka.admin.prints",
+      "dynamic_title": true
     }
   ],
   "exports": [
@@ -69,6 +100,12 @@
       "id": "attendance-csv-zip",
       "format": "zip",
       "filename": "dochazka.zip",
+      "max_bytes": 16777216
+    },
+    {
+      "id": "attendance-csv",
+      "format": "csv",
+      "filename": "dochazka.csv",
       "max_bytes": 16777216
     }
   ]

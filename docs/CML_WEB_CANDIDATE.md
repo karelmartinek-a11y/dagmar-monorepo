@@ -100,7 +100,7 @@ standardní automatizační pravidla.
 
 ## Stažení tiskových exportů
 
-Nové UI předává PDF plánu a hromadný CSV/ZIP přes stávající typovaný CML
+Nové UI předává PDF plánu, samostatný CSV a hromadný CSV/ZIP přes stávající typovaný CML
 transport. Přímé blob stažení z opaque rámce ve WebKitu nevyvolalo download,
 přestože původní backend vracel platné PDF 200. Exportní backend, jeho
 oprávnění, výpočty a původní souborové bajty se nemění. Deklarace formátu,
@@ -122,3 +122,35 @@ Měsíční souhrn skutečné docházky používá zalamování metrik, aby dlou
 hodnoty nezmizely za levým okrajem mobilního panelu. `test:cml-periods`
 kontroluje obdélníky všech metrik také na 390/320 px; čísla a součty nadále
 pocházejí výhradně z backendu.
+
+
+## Výběr a náhledy sestav
+
+`app/web_ui/printing.js` je nově napsané UI podle dodané předlohy. Nabízí
+výběr docházky / plánu, detailní / souhrnné docházky, měsíce a úvazků.
+Výchozí výběr obsahuje všechny dostupné aktivní úvazky; explicitní prázdný
+výběr zůstává prázdný. Změna typu či měsíce nabídku znovu načte. Tento
+výběr nezapisuje uloženou adminskou volbu plánu služeb.
+
+Bílé náhledy čtou původní `GET /api/v1/admin/attendance/month`, zobrazují
+kanonické `display_metrics`, denní/měsíční hodnoty a `planned_hours`, včetně
+úkolových úvazků bez hodinových sloupců. Detail má jeden den na řádku a
+zachovává všechny průchody, i více než osm. Souhrn neobsahuje denní tabulku.
+Plán zobrazuje plánované časy a plánové stavy. Chybějící vybraný úvazek je
+chyba, nikoli tichý neúplný dokument. Tisk lze otevřít až po načtení dat.
+Původní backendové PDF plánu zůstává samostatně dostupné a beze změny.
+
+Export má vlastní navigační položku a volbu všech úvazků (ZIP) nebo jednoho
+úvazku (CSV). Používá původní export GET s `month` a právě jedním z
+`employment_id` / `bulk=true`; nemění události, zámky ani plán.
+Transport odmítá prázdné/nadměrné soubory, neplatnou PDF/ZIP hlavičku a NUL
+v CSV. Při opožděném souboru zůstává druhé gesto bez dalšího exportního POST.
+
+`CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-prints` ověřuje nové
+selektory, rozdíl obou variant, deset průchodů, úkolové hodiny, neplatný měsíc,
+CSV/ZIP, tiskové styly a odmítnutí běžného uživatele na 1440/768/390 px.
+Samostatný renderer používá izolované odpovědi. Test v CML repozitáři navíc
+čte původní routery přes podepsanou gateway a stahuje skutečné exporty ze
+syntetické DB. Nejde o hotelové produkční zápisy ani úplnou přejímku tisku.
+Úplná vizuální, tisková a přístupnostní matice zůstává
+**ODLOŽENO PO PRVNÍM NASAZENÍ**.

@@ -313,3 +313,5 @@ další kliknutí znovu neposílá exportní požadavek. ACK musí pocházet z p
 správného originu, prefixu a UUID. `npm run test:cml-downloads` z `web/`
 ověřuje binární přenos, odmítnuté předání a poškozený soubor; integrace
 s původními routami a skutečným stažením běží v CML checkoutu.
+
+- Tiskový výběr v CML je místní a nemění persistentní výběr plánu. Detailní docházka zachovává všechny chronologické průchody a jediný den na řádku; souhrnná varianta zobrazuje měsíční metriky. Náhledy čtou původní admin attendance/month DTO, včetně `planned_hours` úkolových úvazků; frontend nepočítá hodiny. Export samostatného úvazku používá `employment_id`, hromadný `bulk=true`, nikdy obojí. CSV/PDF/ZIP používají deklarovaný CML transport a limit; NUL v CSV je odmítnut. Regrese nových obrazovek: `npm run test:cml-prints` (také `CML_BROWSER_ENGINES=chromium,webkit`).

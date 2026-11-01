@@ -753,7 +753,8 @@
     "clock_confirmation": "read back every completed save in the same view and period, including concurrent days",
     "download_regression": "web/scripts/cml-downloads.browser.mjs",
     "entry_package": "scripts/package_cml_entry.py",
-    "export_transport": "declared CML PDF/ZIP bytes with live gesture; memory-only retry without another export request",
+    "export_scope": "month plus employment_id CSV or bulk=true ZIP, never both",
+    "export_transport": "declared CML CSV/PDF/ZIP bytes with live gesture; memory-only retry without another export request",
     "middleware_endpoints": [
       {
         "method": "POST",
@@ -773,6 +774,8 @@
     "plan_layout": "admin and own monthly day rows; group employment-day matrix",
     "plan_metrics": "backend display_metrics and canonical totals; monthly planned hours always visible",
     "plan_response_scope": "current generation, frozen period, available group",
+    "print_regression": "web/scripts/cml-prints.browser.mjs",
+    "print_views": "local employment selection; detail, summary and plan from canonical month DTO; all chronological events preserved",
     "profile_contract": "kajovo-profile-provision/1",
     "profile_migration": "2026_10_31_0030",
     "public_entry": "https://kajovocml.hcasc.cz/#dochazka",
