@@ -196,3 +196,30 @@
 .clock-ok{animation:clock-saved .8s ease-out}.clock-error{animation:clock-rejected .8s ease-out}
 @keyframes clock-saved{0%,45%{border-color:#22c55e;box-shadow:0 0 0 2px #22c55e}100%{box-shadow:none}}
 @keyframes clock-rejected{0%,45%{border-color:#f04452;box-shadow:0 0 0 2px #f04452}100%{box-shadow:none}}
+
+/* A complete 31-day statement, including backend totals, fits one A4 sheet. */
+.print-total th,.print-total td{font-weight:700;border-top:2px solid #52637a}
+@media print{
+ .print-paper{font-size:10px;line-height:1.15;color:#000}
+ .print-paper-header{margin-bottom:8px;gap:12px}
+ .print-paper h2{font-size:16px;line-height:1.2;margin:0 0 6px}
+ .print-paper p{margin:3px 0}
+ .print-paper .table-scroll th,.print-paper .table-scroll td{font-size:10px;line-height:1.15;padding:2px;color:#000}
+ .print-paper .table-scroll th{font-size:8px}
+ .print-paper .print-total th{font-size:10px;text-align:right}
+ .print-paper .print-total td{white-space:nowrap}
+ .print-summary{gap:5px 12px;margin:7px 0;font-size:10px;break-inside:avoid}
+ .print-absence{font-size:10px;break-inside:avoid}
+ .print-paper-footer{margin-top:8px;padding-top:5px;font-size:9px;break-inside:avoid}
+ .print-paper-summary .table-scroll th,.print-paper-summary .table-scroll td{font-size:12px;padding:6px}
+}
+@media print{
+ #content{padding:0;min-height:0;margin:0}
+ #content>.panel{margin:0;overflow:visible}
+ .print-over-capacity .print-paper{display:none}
+ [data-error-code=print_capacity_exceeded]{background:white;color:#000;border-color:#000}
+ .print-paper p{line-height:1.15}
+ .print-date-col{width:6%}
+ .print-day-col{width:4%}
+ .print-metric-col{width:10%}
+}

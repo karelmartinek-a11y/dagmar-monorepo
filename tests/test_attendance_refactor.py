@@ -2428,3 +2428,81 @@ def test_employment_end_date_can_be_cleared_without_changing_other_profile() -> 
         assert employment.start_date == original_start
         assert employment.employment_type == EmploymentType.DPP_DPC
     engine.dispose()
+
+
+@pytest.mark.parametrize("year,month,day_count", [(2026, 2, 28), (2028, 2, 29), (2026, 6, 30), (2026, 10, 31)])
+@pytest.mark.parametrize("employment_type", list(EmploymentType))
+def test_complete_print_month_uses_sum_of_daily_backend_tenths(
+    year: int, month: int, day_count: int, employment_type: EmploymentType
+) -> None:
+    """Browser and native print totals agree, including a hidden hourly total."""
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db, employment_type)
+        employment.start_date = date(2026, 1, 1)
+        for day in range(1, day_count + 1):
+            db.add_all([
+                _event(employment.id, datetime(year, month, day, 7)),
+                _event(employment.id, datetime(year, month, day, 15, 3)),
+                ShiftPlan(employment_id=employment.id, date=date(year, month, day),
+                          arrival_time="07:00", departure_time="15:03"),
+            ])
+        db.flush()
+        payload = _build_month(db, employment, year, month)
+        report = build_shift_plan_report(db, year=year, month=month, employment_ids=[employment.id])
+        expected_hours = day_count * 81 / 10
+        assert len(payload.days) == day_count
+        assert payload.planned_hours == expected_hours
+        assert report.pages[0].employments[0].planned_hours == expected_hours
+        if employment_type == EmploymentType.TASK_SHIFT_BASED:
+            assert payload.worked is None
+            assert payload.display_metrics == []
+        else:
+            assert payload.worked["total"].hours == expected_hours
+            assert all(day.worked["total"].hours == 8.1 for day in payload.days)
+        # Rounding the whole month's minutes would produce a different answer.
+        assert expected_hours != round(day_count * 483 / 60, 1)
+
+
+def test_native_plan_pdf_paginates_six_profiles_and_uses_readable_labels(monkeypatch) -> None:
+    import re
+
+    from app.services import shift_plan_reports
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        employment = _employment(db)
+        profiles = [employment]
+        for index in range(5):
+            profiles.append(Employment(
+                user_id=employment.user_id, title=f"Úvazek {index + 2}",
+                employment_type=EmploymentType.WORK_CONTRACT, workload_fraction=1,
+                start_date=date(2026, 1, 1), is_active=True,
+                total_hours_enabled=True, night_hours_enabled=True, automatic_breaks_enabled=False,
+            ))
+        db.add_all(profiles)
+        db.flush()
+        for profile in profiles:
+            db.add(ShiftPlan(employment_id=profile.id, date=date(2026, 10, 1),
+                             arrival_time="08:00", departure_time="16:03"))
+        db.flush()
+        report = build_shift_plan_report(db, year=2026, month=10,
+                                         employment_ids=[item.id for item in profiles])
+        drawn_text = []
+        original = shift_plan_reports._draw_text_box
+
+        def record_text(*args, **kwargs):
+            drawn_text.append(args[2])
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(shift_plan_reports, "_draw_text_box", record_text)
+        data = shift_plan_reports.render_shift_plan_report_pdf(report)
+        assert len(re.findall(rb"/Type /Page\b", data)) == 2
+        assert [len(page.employments) for page in report.pages] == [5, 1]
+        assert all(item.planned_hours == 8.1 for page in report.pages for item in page.employments)
+        assert any("KájovoDocházka" in text for text in drawn_text)
+        assert any("Pracovní smlouva" in text for text in drawn_text)
+        assert not any("KájovoDagmar" in text or "WORK_CONTRACT" in text for text in drawn_text)
+        assert any("P plán" in text for text in drawn_text)

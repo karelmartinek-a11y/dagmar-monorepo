@@ -80,6 +80,8 @@ export async function printing({state,heading,error,render}){
  const {data}=await api('api/v1/admin/attendance/month?'+period(state));if(!current())return;
  const sheets=selected.map(id=>data.find(row=>row.employment_id===id));
  if(sheets.some(row=>!row))throw Error('Některý vybraný úvazek už není dostupný. Vraťte se na výběr a obnovte jej.');
+ const overCapacity=!plan&&!summary&&sheets.some(sheet=>sheet.days.some(day=>day.events.length>8));
+ if(overCapacity){documentHost.classList.add('print-over-capacity');const warning=notice('Detailní tisk podporuje nejvýše 8 průchodů za den. Náhled zachovává všechny průchody; pro úplná data použijte export CSV.','error');warning.dataset.errorCode='print_capacity_exceeded';actions.after(warning);}
  documentHost.replaceChildren(...sheets.map((sheet,index)=>{
   const paper=el('article',{class:'print-paper'+(summary?' print-paper-summary':''),'data-employment':sheet.employment_id},el('header',{class:'print-paper-header'},el('div',{},el('h2',{},title),el('strong',{},sheet.user_name??sheet.employment_label),el('p',{},sheet.employment_title??''),el('p',{},types[sheet.employment_type]??sheet.employment_type??'')),el('strong',{},monthLabel(state))));
   const cols=sheet.display_metrics??[],source=plan?'planned':'worked';
@@ -92,7 +94,10 @@ export async function printing({state,heading,error,render}){
     const values=plan?[day.planned_arrival_time??'',day.planned_departure_time??'']:day.events.map(event=>time(event.occurred_at));
     return [el('div',{},new Date(day.date+'T12:00:00').toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'}),hasEvents&&status?el('small',{},statuses[status]??status):null),new Date(day.date+'T12:00:00').toLocaleDateString('cs-CZ',{weekday:'short'}),...Array.from({length:count},(_,i)=>status&&!hasEvents?(i===0?(statuses[status]??status):''):values[i]??''),...cols.map(key=>hours(day[source]?.[key]?.hours))];
    });
-   paper.append(table(['Datum','Den',...Array.from({length:count},(_,i)=>'PRŮCHOD '+(i+1)),...cols.map(key=>(plan&&key==='total'?'Plán':metrics[key]??key)+' (h)')],rows));
+   const grid=table(['Datum','Den',...Array.from({length:count},(_,i)=>'PRŮCHOD '+(i+1)),...cols.map(key=>(plan&&key==='total'?'Plán':metrics[key]??key)+' (h)')],rows);
+   grid.querySelector('table').prepend(el('colgroup',{},el('col',{class:'print-date-col'}),el('col',{class:'print-day-col'}),...Array.from({length:count},()=>el('col')), ...cols.map(()=>el('col',{class:'print-metric-col'}))));
+   grid.querySelector('tbody').append(el('tr',{class:'print-total'},el('th',{scope:'row',colspan:count+2},'Součet hodin'),...cols.map(key=>el('td',{},hours(sheet[source]?.[key]?.hours)))));
+   paper.append(grid);
    paper.append(el('div',{class:'print-summary'},cols.map(key=>el('span',{},(plan&&key==='total'?'Plán':metrics[key]??key)+': '+hours(sheet[source]?.[key]?.hours))),el('span',{},'Plánované hodiny: '+hours(sheet.planned_hours))));
    if(sheet.days.some(day=>day.public_holiday_label))paper.append(el('p',{},sheet.days.filter(day=>day.public_holiday_label).map(day=>day.date+': '+day.public_holiday_label).join(' · ')));
   }
@@ -100,5 +105,5 @@ export async function printing({state,heading,error,render}){
   paper.append(el('p',{class:'print-absence'},Object.entries(absences).map(([key,label])=>label+': '+hours(sheet.status_metrics?.[key]?.hours)).join(' · ')),el('footer',{class:'print-paper-footer'},el('span',{},'KájovoDocházka'),el('span',{},'Dokument '+(index+1)+' / '+sheets.length)));
   return paper;
  }));
- printAction.disabled=false;
+ printAction.disabled=overCapacity;
 }

@@ -226,6 +226,7 @@ jobs:
           npm run test:cml-clock
           npm run test:cml-downloads
           npm run test:cml-prints
+          npm run test:cml-print-backend
           npm run test:cml-admin-info
       - name: Verify clean tree after web checks
         run: |

@@ -30,6 +30,12 @@ LEGEND_HEIGHT = 160
 FOOTER_HEIGHT = 44
 LABEL_COLUMN_WIDTH = 420
 SUMMARY_COLUMN_WIDTH = 118
+EMPLOYMENT_LABELS_CS = {
+    "WORK_CONTRACT": "Pracovní smlouva",
+    "DPP_DPC": "DPP / DPČ",
+    "TASK_SHIFT_BASED": "Úkolová / směnová odměna",
+    "EXTERNAL_HOURLY": "Externí hodinová fakturace",
+}
 MONTH_LABELS_CS = {
     1: "leden",
     2: "únor",
@@ -446,6 +452,7 @@ def build_shift_plan_report(
             "Dovolená = celodenní stav z plánu směn.",
             "Volno = celodenní stav bez plánované směny.",
             "Šedé buňky označují víkend, béžové státní svátek.",
+            "Hodiny: P plán, O odpoledne, N noc, V víkend, S svátek; DOV dovolená, NEM nemoc, PAR paragraf.",
         ],
     )
 
@@ -587,7 +594,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
         _draw_text_box(
             draw,
             (right - 325, PAGE_MARGIN_Y + 28, right - 20, table_top - 36),
-            f"Strana {page.page_number}/{page_count}\nKájovoDagmar · dagmar.hcasc.cz",
+            f"Strana {page.page_number}/{page_count}\nKájovoDocházka",
             size=16,
         )
         draw.rectangle((x0, table_top, right, table_top + row_height), fill="#efebe2")
@@ -632,7 +639,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             _draw_text_box(
                 draw,
                 (x0 + 12, top + 12, summary_x - 12, bottom - 12),
-                f"{employment.user_name}\n{employment.title}\n{employment.employment_type}",
+                f"{employment.user_name}\n{employment.title}\n{EMPLOYMENT_LABELS_CS.get(employment.employment_type, employment.employment_type)}",
                 size=16,
             )
             other_metrics = {

@@ -212,3 +212,35 @@ pipeline nezohlednila v návratovém kódu. Backendový krok nyní používá Ba
 s pipefail. Závislost správce dostává stejné nastavení aplikace jako login;
 regrese ověřuje odlišný výchozí klíč procesu bez oslabení autentizace.
 Původní běh 41349280391 není použit jako úspěšná kvalifikace ani nasazen.
+
+## Kontrola docházky a tisků 2. 11. 2026
+
+Detailní docházka a individuální plán mají měsíční součty v posledním řádku
+stejné tabulky jako dny. Hodnoty i doplňující rekapitulace přebírají výhradně
+z backendového měsíčního DTO. Zaokrouhlené denní desetiny se sčítají na
+backendu; frontend neodvozuje hodiny z průchodů. Plánované hodiny zůstávají
+viditelné také u úkolového úvazku a při vypnutém hodinovém sloupci.
+
+Tiskové styly odstraňují prostor obrazovkového obalu a drží celý 31denní
+měsíc s osmi průchody a pěti metrikami na jedné A4 naležato, včetně součtů,
+poznámek a patičky. Nad osmi průchody zůstává úplný obrazovkový náhled;
+`print_capacity_exceeded` zablokuje tisk tabulky a nabídne bezeztrátový CSV.
+Také přímý tisk prohlížeče v tomto stavu vytiskne vysvětlení místo neúplné
+tabulky. Mobilní tabulka se posouvá vodorovně až k poslední metrice.
+
+Samostatné backendové PDF plánu zachovává pět úvazků na stranu, backendové
+součty a měřenou kapacitu textu. Používá označení KájovoDocházka, české typy
+úvazků a legendu zkratek. Databázové schéma ani výpočetní pravidla se nemění.
+
+Regrese: `npm run test:cml-print-backend` z `web/` spouští skutečné routy v
+izolované databázi, ověřuje 28/29/30/31denní měsíce, součty, počet PDF stran,
+tři velikosti obrazovky, mobilní posun a skutečný download backendového PDF.
+`CML_TEST_PYTHON` volí interpreter s projektovými závislostmi;
+`CML_PRINT_EVIDENCE_DIR` volitelně uchová lokální PDF a PNG. Test se spouští i
+v CI. `test:cml-prints` pokrývá navíc úkolový profil, kapacitní odmítnutí,
+backendové sentinelové součty, místní výběr úvazků a zákaz vstupu člena.
+
+Čtecí audit produkčního stavu k tomuto datu porovnal 14 úvazků, 67 měsíců a
+2 041 dnů: uložené metriky, nový výpočet z průchodů a hodnoty API se shodují;
+žádný rozpor v měsíčních součtech. Nebyl proveden opravný zápis ani backfill.
+Tato kontrola není oprávněním k budoucím automatickým opravám dat.
