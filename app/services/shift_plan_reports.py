@@ -17,6 +17,7 @@ from app.services.employment_access import (
 )
 from app.services.month_summary import build_month_summaries, is_czech_holiday
 from app.services.prague_time import prague_now
+from app.services.print_locales import MONTHS, print_text
 from app.services.time_metrics import STATUS_METRIC_KEYS, DailyMetrics, MetricValue
 
 EMPLOYMENTS_PER_PAGE = 5
@@ -153,8 +154,9 @@ def _unique_ids(values: list[int]) -> list[int]:
     return result
 
 
-def _format_hours(hours: float) -> str:
-    return f"{hours:.1f}".replace(".", ",") + " h"
+def _format_hours(hours: float, locale: str = "cs") -> str:
+    text = f"{hours:.1f}"
+    return (text if locale == "en" else text.replace(".", ",")) + " h"
 
 
 def _metric_payload(value: MetricValue) -> dict[str, int | float]:
@@ -197,14 +199,14 @@ def _status_metric_payload(
     }
 
 
-def _metric_summary_label(metrics: dict[str, dict[str, int | float]]) -> str:
+def _metric_summary_label(metrics: dict[str, dict[str, int | float]], locale: str = "cs") -> str:
     return "\n".join(
-        f"{METRIC_LABELS[key]} {_format_hours(float(value['hours']))}"
+        f"{print_text(METRIC_LABELS[key], locale)} {_format_hours(float(value['hours']), locale)}"
         for key, value in metrics.items()
     )
 
 
-def _metric_cell_label(metrics: dict[str, dict[str, int | float]]) -> str:
+def _metric_cell_label(metrics: dict[str, dict[str, int | float]], locale: str = "cs") -> str:
     abbreviations = {
         "total": "P",
         "afternoon": "O",
@@ -213,22 +215,22 @@ def _metric_cell_label(metrics: dict[str, dict[str, int | float]]) -> str:
         "public_holiday": "S",
     }
     return "\n".join(
-        f"{abbreviations[key]} {float(value['hours']):.1f}".replace(".", ",")
+        f"{abbreviations[key]} {_format_hours(float(value['hours']), locale)[:-2]}"
         for key, value in metrics.items()
     )
 
 
-def _status_metric_summary_label(metrics: dict[str, dict[str, int | float]]) -> str:
+def _status_metric_summary_label(metrics: dict[str, dict[str, int | float]], locale: str = "cs") -> str:
     labels = {"holiday": "Dovolená", "sickness": "Nemoc", "paragraph": "Paragraf"}
     return "\n".join(
-        f"{labels[key]} {_format_hours(float(value['hours']))}" for key, value in metrics.items()
+        f"{print_text(labels[key], locale)} {_format_hours(float(value['hours']), locale)}" for key, value in metrics.items()
     )
 
 
-def _status_metric_cell_label(metrics: dict[str, dict[str, int | float]]) -> str:
+def _status_metric_cell_label(metrics: dict[str, dict[str, int | float]], locale: str = "cs") -> str:
     labels = {"holiday": "DOV", "sickness": "NEM", "paragraph": "PAR"}
     return "\n".join(
-        f"{labels[key]} {float(value['hours']):.1f}".replace(".", ",")
+        f"{labels[key]} {_format_hours(float(value['hours']), locale)[:-2]}"
         for key, value in metrics.items()
     )
 
@@ -560,7 +562,12 @@ def _draw_text_box(
     draw.multiline_text((x - left_offset, y - top_offset), wrapped, font=font, fill=fill, spacing=3)
 
 
-def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
+def render_shift_plan_report_pdf(report: ShiftPlanReport, locale: str = "cs") -> bytes:
+    def translate(value: str) -> str:
+        return print_text(value, locale)
+
+    translate("")
+    month_label = report.month_label if locale == "cs" else f"{MONTHS[locale][report.month - 1]} {report.year}"
     images: list[Image.Image] = []
     page_count = max(1, len(report.pages))
     days_count = max(1, len(report.day_headers))
@@ -588,26 +595,26 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
         _draw_text_box(
             draw,
             (x0 + 24, PAGE_MARGIN_Y + 20, right - 340, table_top - 36),
-            f"Plán směn\nMěsíc: {report.month_label}\nVygenerováno: {report.generated_at_label}",
+            f"{translate('Plán směn')}\n{translate('Měsíc')}: {month_label}\n{translate('Vygenerováno')}: {report.generated_at_label}",
             size=24,
         )
         _draw_text_box(
             draw,
             (right - 325, PAGE_MARGIN_Y + 28, right - 20, table_top - 36),
-            f"Strana {page.page_number}/{page_count}\nKájovoDocházka",
+            f"{translate('Strana')} {page.page_number}/{page_count}\nKájovoDocházka",
             size=16,
         )
         draw.rectangle((x0, table_top, right, table_top + row_height), fill="#efebe2")
         _draw_text_box(
             draw,
             (x0 + 12, table_top + 12, summary_x - 12, table_top + row_height - 12),
-            "Úvazek / osoba\nČasy PRŮCHOD 1, PRŮCHOD 2\nv každé buňce shora dolů",
+            "\n".join(translate(value) for value in ("Úvazek / osoba", "Časy PRŮCHOD 1, PRŮCHOD 2", "v každé buňce shora dolů")),
             size=18,
         )
         _draw_text_box(
             draw,
             (summary_x + 8, table_top + 12, days_x - 8, table_top + row_height - 12),
-            "Měsíční součet (h)",
+            translate("Měsíční součet (h)"),
             size=16,
         )
         for day_index, header in enumerate(report.day_headers):
@@ -623,13 +630,13 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             _draw_text_box(
                 draw,
                 (x + 5, table_top + 10, x + day_width - 5, table_top + 65),
-                f"{header['day_number']}\n{header['weekday_short']}",
+                f"{header['day_number']}\n{translate(str(header['weekday_short']))}",
                 size=18,
             )
             _draw_text_box(
                 draw,
                 (x + 4, table_top + 80, x + day_width - 4, table_top + row_height - 10),
-                str(header["holiday_label"] or ""),
+                translate(str(header["holiday_label"] or "")),
                 size=12,
                 fill="#8a4b08",
             )
@@ -639,7 +646,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             _draw_text_box(
                 draw,
                 (x0 + 12, top + 12, summary_x - 12, bottom - 12),
-                f"{employment.user_name}\n{employment.title}\n{EMPLOYMENT_LABELS_CS.get(employment.employment_type, employment.employment_type)}",
+                f"{employment.user_name}\n{employment.title}\n{translate(EMPLOYMENT_LABELS_CS.get(employment.employment_type, employment.employment_type))}",
                 size=16,
             )
             other_metrics = {
@@ -648,10 +655,10 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
             summary = "\n".join(
                 value
                 for value in (
-                    f"Plán {_format_hours(employment.planned_hours)}",
-                    _metric_summary_label(other_metrics),
-                    _status_metric_summary_label(employment.status_metrics),
-                    f"{employment.scheduled_days} směn",
+                    f"{translate('Plán')} {_format_hours(employment.planned_hours, locale)}",
+                    _metric_summary_label(other_metrics, locale),
+                    _status_metric_summary_label(employment.status_metrics, locale),
+                    f"{employment.scheduled_days} {translate('směn')}",
                     f"D {employment.holiday_days} · V {employment.off_days}",
                 )
                 if value
@@ -680,7 +687,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                 _draw_text_box(draw, (left + 4, top + 10, cell_right - 4, top + 54), times, size=14)
                 status = "\n".join(
                     value
-                    for value in (cell.status_label, _status_metric_cell_label(cell.status_metrics))
+                    for value in (translate(cell.status_label) if cell.status_label else None, _status_metric_cell_label(cell.status_metrics, locale))
                     if value
                 )
                 _draw_text_box(
@@ -693,7 +700,7 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
                 _draw_text_box(
                     draw,
                     (left + 4, top + 65, cell_right - 4, bottom - 10),
-                    "" if cell.status_label else _metric_cell_label(cell.planned_metrics),
+                    "" if cell.status_label else _metric_cell_label(cell.planned_metrics, locale),
                     size=12,
                     fill="#555555",
                 )
@@ -717,13 +724,13 @@ def render_shift_plan_report_pdf(report: ShiftPlanReport) -> bytes:
         _draw_text_box(
             draw,
             (x0 + 18, legend_top + 12, right - 18, PAGE_HEIGHT - FOOTER_HEIGHT - 24),
-            "Legenda\n" + "\n".join(f"• {item}" for item in report.legend),
+            translate("Legenda") + "\n" + "\n".join(f"• {translate(item)}" for item in report.legend),
             size=15,
         )
         _draw_text_box(
             draw,
             (x0, PAGE_HEIGHT - FOOTER_HEIGHT, right, PAGE_HEIGHT - 8),
-            "Výstup je optimalizovaný pro A4 na šířku a stránkuje po nejvýše pěti úvazcích.",
+            translate("Výstup je optimalizovaný pro A4 na šířku a stránkuje po nejvýše pěti úvazcích."),
             size=13,
             fill="#555555",
         )

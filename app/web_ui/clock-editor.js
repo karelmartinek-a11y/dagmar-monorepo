@@ -1,3 +1,4 @@
+import {t,locale} from './i18n.js';
 // Newly authored editor shared by actual attendance and shift-plan cells.
 export function normalizeTime(raw){
  const text=raw.trim();if(!text)return '';
@@ -19,11 +20,11 @@ export function clockEditor(value,{key,disabled,label,save,state,render,error,el
  const commit=next=>{
   if(working)return working;
   if(disabled||state.pending.has(key))return Promise.resolve(false);
-  if(state.uncertain.has(key))return Promise.resolve(reject('Výsledek zápisu není ověřený. Stiskněte Escape a obnovte stav.'));
+  if(state.uncertain.has(key))return Promise.resolve(reject(t('Výsledek zápisu není ověřený. Stiskněte Escape a obnovte stav.')));
   const normalized=normalizeTime(input.value);
-  if(normalized===null)return Promise.resolve(reject('Zadejte platný čas od 0:00 do 23:59.'));
+  if(normalized===null)return Promise.resolve(reject(t('Zadejte platný čas od 0:00 do 23:59.')));
   if(!dirty()&&!failed){flash(input,'ok');if(next)next.focus();return Promise.resolve(true);}
-  if(disabled||state.pending.has(key)||state.uncertain.has(key))return Promise.resolve(reject('Zápis není povolen nebo jeho předchozí výsledek není ověřený. Obnovte stav.'));
+  if(disabled||state.pending.has(key)||state.uncertain.has(key))return Promise.resolve(reject(t('Zápis není povolen nebo jeho předchozí výsledek není ověřený. Obnovte stav.')));
   drafts.set(label,{value:input.value});state.pending.add(key);
   const peers=[...document.querySelectorAll('input.clock')].filter(n=>n.dataset.dayKey===key);peers.forEach(n=>n.readOnly=true);
   const selected={view:state.view,year:state.year,month:state.month,employment:state.employment,group:state.group};
@@ -36,7 +37,7 @@ export function clockEditor(value,{key,disabled,label,save,state,render,error,el
    if(active?.input===input)active=null;
    if(next){const target=next.dataset?.clock?current(next.dataset.clock):next;target?.isConnected&&target.focus();}else (current(focusLabel)??saved)?.focus({preventScroll:true});
    return true;
-  }catch(e){if(accepted||e.uncertain)state.uncertain.add(key);if(!stillCurrent())return false;return reject(accepted?'Zápis byl přijat, ale následné načtení selhalo. Stiskněte Escape a obnovte přehled; zápis neopakujte.':e.message||'Změnu se nepodařilo uložit.');}
+  }catch(e){if(accepted||e.uncertain)state.uncertain.add(key);if(!stillCurrent())return false;return reject(accepted?t('Zápis byl přijat, ale následné načtení selhalo. Stiskněte Escape a obnovte přehled; zápis neopakujte.'):e.message||t('Změnu se nepodařilo uložit.'));}
   finally{state.pending.delete(key);working=null;peers.forEach(n=>n.readOnly=disabled||state.uncertain.has(key));}})();return working;
  };
  input.addEventListener('focus',()=>{active={input,dirty,commit,cancel,blocked:()=>failed||!!working,invalid:()=>failed};});

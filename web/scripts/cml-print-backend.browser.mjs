@@ -27,32 +27,36 @@ try{
   const {r,bytes}=await response;if(!r.ok)console.log('HTTP_ERROR',path,r.status,bytes.toString().slice(0,200));if(r.ok&&path.includes('admin/attendance/month'))dto=JSON.parse(bytes);await route.fulfill({status:r.status,contentType:r.headers.get('content-type')??'application/octet-stream',body:bytes});
  });
  await page.clock.setFixedTime(new Date('2026-10-15T12:00:00Z'));
+ const captions={cs:['Typ dokumentu','Varianta docházky','Otevřít náhled','Tisk / PDF','Stáhnout PDF'],en:['Document type','Attendance variant','Open preview','Print / PDF','Download PDF'],sk:['Typ dokumentu','Variant dochádzky','Otvoriť náhľad','Tlač / PDF','Stiahnuť PDF'],de:['Dokumenttyp','Berichtsart','Vorschau öffnen','Drucken / PDF','PDF herunterladen']};
+ for(const lang of ['cs','en','sk','de']){
+ const labels=captions[lang];
  for(const width of [1440,768,390]){
  await page.setViewportSize({width,height:width===768?1024:width===390?844:900});
  for(const [period,days] of (width===1440?[['2026-10',31],['2026-02',28],['2028-02',29],['2026-06',30]]:[['2026-10',31]])){
  await page.clock.setFixedTime(new Date(period+'-15T12:00:00Z'));
  for(const kind of ['detail','summary','plan']){
-  await page.goto(origin+prefix+'?view=prints');try{await page.locator('input[name=employment]').first().waitFor();}catch(e){console.log('BODY',await page.locator('body').innerText());throw e;}
-  if(kind==='plan')await page.getByLabel('Typ dokumentu').selectOption('shift_plan');else await page.getByLabel('Varianta docházky').selectOption(kind);
-  await page.getByRole('button',{name:'Otevřít náhled',exact:true}).click();await page.locator('.print-paper').waitFor();await page.getByRole('button',{name:'Tisk / PDF',exact:true}).waitFor();
+  await page.goto(origin+prefix+'?view=prints&lang='+lang);try{await page.locator('input[name=employment]').first().waitFor();}catch(e){console.log('BODY',await page.locator('body').innerText());throw e;}
+  if(kind==='plan')await page.getByLabel(labels[0]).selectOption('shift_plan');else await page.getByLabel(labels[1]).selectOption(kind);
+  await page.getByRole('button',{name:labels[2],exact:true}).click();await page.locator('.print-paper').waitFor();await page.getByRole('button',{name:labels[3],exact:true}).waitFor();
   assert.equal(dto.data[0].worked.total.hours,days*81/10);assert.equal(dto.data[0].planned_hours,days*81/10);assert.equal(dto.data[0].days.length,days);
-  assert.equal(await page.getByRole('button',{name:'Tisk / PDF',exact:true}).isEnabled(),true);
-  if(kind!=='summary'){assert.match(await page.locator('.print-total').innerText(),new RegExp((days*81/10).toFixed(1).replace('.',',')));}
-  if(kind==='plan'&&width===1440){const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Stáhnout PDF',exact:true}).click();const download=await downloadEvent;await download.saveAs(out+'/'+period+'-native-plan.pdf');assert.equal(await download.failure(),null);}
-  await page.screenshot({path:out+'/'+period+'-'+width+'-'+kind+'-screen.png',fullPage:true});
+  assert.equal(await page.getByRole('button',{name:labels[3],exact:true}).isEnabled(),true);
+  if(kind!=='summary'){assert.match(await page.locator('.print-total').innerText(),new RegExp(new Intl.NumberFormat(lang,{minimumFractionDigits:1,maximumFractionDigits:1}).format(days*81/10).replace('.', String.fromCharCode(92)+'.')));}
+  if(kind==='plan'&&width===1440){const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:labels[4],exact:true}).click();const download=await downloadEvent;await download.saveAs(out+'/'+lang+'-'+period+'-native-plan.pdf');assert.equal(await download.failure(),null);}
+  await page.screenshot({path:out+'/'+lang+'-'+period+'-'+width+'-'+kind+'-screen.png',fullPage:true});
   if(width===390&&kind!=='summary'){
    const region=page.locator('.print-paper .table-scroll');
    assert(await region.evaluate(n=>{n.scrollLeft=n.scrollWidth;const last=n.querySelector('thead th:last-child').getBoundingClientRect(),box=n.getBoundingClientRect();return n.scrollLeft>0&&last.right<=box.right+1&&last.left>=box.left;}),'Rightmost metric remains reachable on mobile');
-   await page.screenshot({path:out+'/'+period+'-'+width+'-'+kind+'-right-screen.png',fullPage:true});
+   await page.screenshot({path:out+'/'+lang+'-'+period+'-'+width+'-'+kind+'-right-screen.png',fullPage:true});
    await region.evaluate(n=>{n.scrollLeft=0;});
   }
   assert(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.innerWidth),'The page itself must not overflow');
-  await page.emulateMedia({media:'print'});const pdf=await page.pdf({path:out+'/'+period+'-'+width+'-'+kind+'.pdf',preferCSSPageSize:true,printBackground:true});
+  await page.emulateMedia({media:'print'});const pdf=await page.pdf({path:out+'/'+lang+'-'+period+'-'+width+'-'+kind+'.pdf',preferCSSPageSize:true,printBackground:true});
   assert.equal((pdf.toString('latin1').match(/\/Type \/Page\b/g)??[]).length,1,kind+' must fit one A4 page at viewport '+width);
-  await page.screenshot({path:out+'/'+period+'-'+width+'-'+kind+'-print.png',fullPage:true});
-  console.log(JSON.stringify({period,width,kind,monthlyWorked:dto.data[0].worked.total.hours,monthlyPlan:dto.data[0].planned_hours,summaryText:await page.locator('.print-summary').allTextContents()}));await page.emulateMedia({media:'screen'});
+  await page.screenshot({path:out+'/'+lang+'-'+period+'-'+width+'-'+kind+'-print.png',fullPage:true});
+  console.log(JSON.stringify({lang,period,width,kind,monthlyWorked:dto.data[0].worked.total.hours,monthlyPlan:dto.data[0].planned_hours,summaryText:await page.locator('.print-summary').allTextContents()}));await page.emulateMedia({media:'screen'});
  }
  }
  }
- await writeFile(out+'/dto.json',JSON.stringify(dto));await context.close();console.log('PASS full-month backend print: 28/29/30/31 days, three viewports, native plan PDF, backend totals');
+ }
+ await writeFile(out+'/dto.json',JSON.stringify(dto));await context.close();console.log('PASS full-month backend print: 28/29/30/31 days, four languages, three viewports, native plan PDF, backend totals');
 }finally{if(err.includes('ERROR:'))console.error(err);if(browser)await browser.close();child.kill('SIGTERM');}

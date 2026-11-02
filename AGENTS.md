@@ -326,3 +326,8 @@ s původními routami a skutečným stažením běží v CML checkoutu.
   Neověřený zámek nedovolí editaci, dokud uživatel neobnoví stav.
 
 - Standard 1.3: centrální zápis přijímá také podepsanou politiku `owner-no-additional-prompts/1`, výhradně pro ověřený `KRMAR78`/`admin` bez nativního ID. Kontrola podpisu, audience, aktuální identity, CSRF a replay zůstává povinná; `reauthUntil` se nefalšuje. Členům politika nezvyšuje práva.
+
+- Lokalizace nového CML UI překládá pouze vlastní statické texty; nikdy jména,
+  API kódy nebo uložená data. Časové buňky zůstávají 24hodinové ve všech jazycích.
+  Parametr locale nativního PDF je omezen na cs/en/sk/de, výchozí cs. Jazyk ani
+  překlad navigace nemění účet, rozsah oprávnění, výpočty nebo strukturu reportu.

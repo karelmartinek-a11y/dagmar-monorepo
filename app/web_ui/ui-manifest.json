@@ -7,7 +7,21 @@
       "path": "/sections/dochazka/?view=attendance",
       "icon": "attendance",
       "admin": false,
-      "audienceRole": "member"
+      "audienceRole": "member",
+      "localizations": {
+        "en": {
+          "title": "My attendance"
+        },
+        "sk": {
+          "title": "Moja dochádzka"
+        },
+        "de": {
+          "title": "Meine Zeiterfassung"
+        },
+        "hi": {
+          "title": "मेरी उपस्थिति"
+        }
+      }
     },
     {
       "id": "dochazka.employee.plan",
@@ -15,7 +29,21 @@
       "path": "/sections/dochazka/?view=plan",
       "icon": "calendar",
       "admin": false,
-      "audienceRole": "member"
+      "audienceRole": "member",
+      "localizations": {
+        "en": {
+          "title": "My shift plan"
+        },
+        "sk": {
+          "title": "Môj plán služieb"
+        },
+        "de": {
+          "title": "Mein Dienstplan"
+        },
+        "hi": {
+          "title": "मेरी शिफ्ट योजना"
+        }
+      }
     },
     {
       "id": "dochazka.employee.group-plan",
@@ -23,7 +51,21 @@
       "path": "/sections/dochazka/?view=group-plan",
       "icon": "group-plan",
       "admin": false,
-      "audienceRole": "member"
+      "audienceRole": "member",
+      "localizations": {
+        "en": {
+          "title": "Group shift schedule"
+        },
+        "sk": {
+          "title": "Skupinový plán služieb"
+        },
+        "de": {
+          "title": "Gruppendienstplan"
+        },
+        "hi": {
+          "title": "समूह पाली योजना"
+        }
+      }
     },
     {
       "id": "dochazka.admin.overview",
@@ -32,7 +74,25 @@
       "path": "/sections/dochazka/?view=overview",
       "icon": "dashboard",
       "admin": true,
-      "audienceRole": "admin"
+      "audienceRole": "admin",
+      "localizations": {
+        "en": {
+          "title": "Attendance · administrator overview",
+          "navigation_title": "Overview"
+        },
+        "sk": {
+          "title": "Dochádzka · prehľad správcu",
+          "navigation_title": "Prehľad"
+        },
+        "de": {
+          "title": "Zeiterfassung · Verwaltungsübersicht",
+          "navigation_title": "Übersicht"
+        },
+        "hi": {
+          "title": "उपस्थिति · प्रशासक अवलोकन",
+          "navigation_title": "अवलोकन"
+        }
+      }
     },
     {
       "id": "dochazka.admin.attendance",
@@ -40,7 +100,21 @@
       "path": "/sections/dochazka/?view=attendance",
       "icon": "attendance",
       "admin": true,
-      "audienceRole": "admin"
+      "audienceRole": "admin",
+      "localizations": {
+        "en": {
+          "title": "Attendance sheets"
+        },
+        "sk": {
+          "title": "Dochádzkové listy"
+        },
+        "de": {
+          "title": "Stundenzettel"
+        },
+        "hi": {
+          "title": "उपस्थिति पत्रक"
+        }
+      }
     },
     {
       "id": "dochazka.admin.plan",
@@ -48,7 +122,21 @@
       "path": "/sections/dochazka/?view=plan",
       "icon": "calendar",
       "admin": true,
-      "audienceRole": "admin"
+      "audienceRole": "admin",
+      "localizations": {
+        "en": {
+          "title": "Shift schedule"
+        },
+        "sk": {
+          "title": "Plán služieb"
+        },
+        "de": {
+          "title": "Dienstplan"
+        },
+        "hi": {
+          "title": "पाली योजना"
+        }
+      }
     },
     {
       "id": "dochazka.admin.groups",
@@ -56,7 +144,21 @@
       "path": "/sections/dochazka/?view=groups",
       "icon": "users",
       "admin": true,
-      "audienceRole": "admin"
+      "audienceRole": "admin",
+      "localizations": {
+        "en": {
+          "title": "Employment groups"
+        },
+        "sk": {
+          "title": "Skupiny úväzkov"
+        },
+        "de": {
+          "title": "Beschäftigungsgruppen"
+        },
+        "hi": {
+          "title": "नियोजन समूह"
+        }
+      }
     },
     {
       "id": "dochazka.admin.export",
@@ -65,7 +167,25 @@
       "path": "/sections/dochazka/?view=export",
       "icon": "export",
       "admin": true,
-      "audienceRole": "admin"
+      "audienceRole": "admin",
+      "localizations": {
+        "en": {
+          "title": "Attendance export",
+          "navigation_title": "Export"
+        },
+        "sk": {
+          "title": "Export dochádzky",
+          "navigation_title": "Export"
+        },
+        "de": {
+          "title": "Zeiterfassung exportieren",
+          "navigation_title": "Export"
+        },
+        "hi": {
+          "title": "उपस्थिति निर्यात",
+          "navigation_title": "निर्यात"
+        }
+      }
     },
     {
       "id": "dochazka.admin.prints",
@@ -73,7 +193,21 @@
       "path": "/sections/dochazka/?view=prints",
       "icon": "print",
       "admin": true,
-      "audienceRole": "admin"
+      "audienceRole": "admin",
+      "localizations": {
+        "en": {
+          "title": "Print reports"
+        },
+        "sk": {
+          "title": "Tlačové zostavy"
+        },
+        "de": {
+          "title": "Druckberichte"
+        },
+        "hi": {
+          "title": "प्रिंट रिपोर्ट"
+        }
+      }
     },
     {
       "id": "dochazka.print.plan",
@@ -84,7 +218,21 @@
       "audienceRole": "admin",
       "navigation": false,
       "parent": "dochazka.admin.prints",
-      "dynamic_title": true
+      "dynamic_title": true,
+      "localizations": {
+        "en": {
+          "title": "Shift plan preview"
+        },
+        "sk": {
+          "title": "Náhľad plánu služieb"
+        },
+        "de": {
+          "title": "Dienstplanvorschau"
+        },
+        "hi": {
+          "title": "शिफ्ट योजना पूर्वावलोकन"
+        }
+      }
     },
     {
       "id": "dochazka.print.summary",
@@ -95,7 +243,21 @@
       "audienceRole": "admin",
       "navigation": false,
       "parent": "dochazka.admin.prints",
-      "dynamic_title": true
+      "dynamic_title": true,
+      "localizations": {
+        "en": {
+          "title": "Attendance preview"
+        },
+        "sk": {
+          "title": "Náhľad dochádzky"
+        },
+        "de": {
+          "title": "Anwesenheitsvorschau"
+        },
+        "hi": {
+          "title": "उपस्थिति पूर्वावलोकन"
+        }
+      }
     },
     {
       "id": "dochazka.admin.integrations",
@@ -104,14 +266,46 @@
       "path": "/sections/dochazka/?view=integrations",
       "icon": "link",
       "admin": true,
-      "audienceRole": "admin"
+      "audienceRole": "admin",
+      "localizations": {
+        "en": {
+          "title": "Attendance integration",
+          "navigation_title": "Integrations"
+        },
+        "sk": {
+          "title": "Integrácia dochádzky",
+          "navigation_title": "Integrácie"
+        },
+        "de": {
+          "title": "Zeiterfassungsintegration",
+          "navigation_title": "Integrationen"
+        },
+        "hi": {
+          "title": "उपस्थिति एकीकरण",
+          "navigation_title": "एकीकरण"
+        }
+      }
     },
     {
       "id": "dochazka.employee.public-docs",
       "title": "Dokumentace integračního API",
       "path": "/sections/dochazka/?view=public-docs",
       "icon": "info",
-      "admin": false
+      "admin": false,
+      "localizations": {
+        "en": {
+          "title": "Integration API documentation"
+        },
+        "sk": {
+          "title": "Dokumentácia integračného API"
+        },
+        "de": {
+          "title": "Dokumentation der Integrations-API"
+        },
+        "hi": {
+          "title": "एकीकरण API दस्तावेज़"
+        }
+      }
     }
   ],
   "exports": [
@@ -133,5 +327,25 @@
       "filename": "dochazka.csv",
       "max_bytes": 16777216
     }
+  ],
+  "state_keys": [
+    {
+      "key": "locale",
+      "type": "locale",
+      "values": [
+        "cs",
+        "en",
+        "sk",
+        "de",
+        "hi"
+      ]
+    }
+  ],
+  "locales": [
+    "cs",
+    "en",
+    "sk",
+    "de",
+    "hi"
   ]
 }

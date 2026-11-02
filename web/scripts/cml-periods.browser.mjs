@@ -36,7 +36,7 @@ async function fixture(browser,width,view,handler,admin=false){
   const url=new URL(route.request().url());
   assert.equal(url.origin,origin,'No external or production network access');
   const path=url.pathname.slice(prefix.length);
-  if(['','app.js','clock-editor.js','api.js','ui.js','ui.css','printing.js','admin-info.js'].includes(path)){
+  if(['','app.js','clock-editor.js','api.js','ui.js','ui.css','i18n.js','translations.js','printing.js','admin-info.js'].includes(path)){
    const file=path||'index.html';
    await route.fulfill({body:await readFile(new URL(file,root)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});return;
   }
@@ -132,7 +132,7 @@ async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=fal
  });
  try{
   await expect(f.page.locator('input.clock')).toHaveCount(4);
-  const arrival=index=>f.page.getByRole('textbox',{name:dates[index]+' arrival_time úvazek 1',exact:true});
+  const arrival=index=>f.page.getByRole('textbox',{name:dates[index]+' Průchod 1 úvazek 1',exact:true});
   await arrival(0).fill('08:10');await arrival(0).press(tab?'Tab':'Enter');await started[0].promise;
   await expect(arrival(0)).toHaveAttribute('readonly','');
   await expect(arrival(1)).not.toHaveAttribute('readonly','');
@@ -141,8 +141,8 @@ async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=fal
    await expect(f.page.locator('input.clock')).toHaveCount(4);assert.equal(dates[0],oldDate,'Navigation waits for save and canonical read');
    releases[0].resolve();await expect.poll(()=>dates[0]).not.toBe(oldDate);const currentDate=dates[0];
    await f.page.waitForFunction(url=>globalThis.cmlSettled.includes(url),origin+prefix+'api/v1/shift-plan');
-   await expect(f.page.getByRole('textbox',{name:oldDate+' arrival_time úvazek 1',exact:true})).toHaveCount(0);
-   await expect(f.page.getByRole('textbox',{name:currentDate+' arrival_time úvazek 1',exact:true})).toHaveValue('08:00');
+   await expect(f.page.getByRole('textbox',{name:oldDate+' Průchod 1 úvazek 1',exact:true})).toHaveCount(0);
+   await expect(f.page.getByRole('textbox',{name:currentDate+' Průchod 1 úvazek 1',exact:true})).toHaveValue('08:00');
    await expect(f.page.locator('input.clock')).toHaveCount(4);assert.equal(saved.size,1);return;
   }
   if(concurrent){await arrival(1).fill('08:20');await arrival(1).press('Enter');await started[1].promise;}
@@ -155,7 +155,7 @@ async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=fal
    await expect(arrival(1)).not.toHaveAttribute('readonly','');
   }else{
    await expect(arrival(0)).not.toHaveAttribute('readonly','');
-   await expect(tab?f.page.getByRole('textbox',{name:dates[0]+' departure_time úvazek 1',exact:true}):arrival(0)).toBeFocused();
+   await expect(tab?f.page.getByRole('textbox',{name:dates[0]+' Průchod 2 úvazek 1',exact:true}):arrival(0)).toBeFocused();
   }
   assert.equal(saved.size,concurrent?2:1);
  }finally{releases.forEach(r=>r.resolve());await f.close();}

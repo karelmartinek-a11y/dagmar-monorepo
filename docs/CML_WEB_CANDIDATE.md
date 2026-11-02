@@ -244,3 +244,21 @@ backendové sentinelové součty, místní výběr úvazků a zákaz vstupu čle
 2 041 dnů: uložené metriky, nový výpočet z průchodů a hodnoty API se shodují;
 žádný rozpor v měsíčních součtech. Nebyl proveden opravný zápis ani backfill.
 Tato kontrola není oprávněním k budoucím automatickým opravám dat.
+
+
+## Lokalizace po prvním vydání (2. 11. 2026)
+
+Nové UI překládá vlastní texty podle podepsaného jazykového rozsahu: správce
+cs/en/sk/de, zaměstnanec navíc hi. Jména, uložená data, identifikátory a API
+hodnoty se nepřekládají. Časové buňky používají vždy 24hodinový čas; výpočty
+nadále provádí původní backend. CML ukládá pouze deklarovanou jazykovou volbu
+odděleně pro účet a sekci. Nativní PDF přijímá volitelný locale cs/en/sk/de;
+bez parametru zůstává dosavadní český výstup. Stejné součty, stránkování,
+kapacitní odmítnutí a CSV alternativa platí ve všech jazycích.
+
+Regrese: `npm run test:cml-languages` a `npm run test:cml-print-backend` z web/.
+Pro úplnou lokální vizuální evidenci nastavte CML_SHARED_ASSETS na assets
+aktuálního CML checkoutu a CML_TEST_PYTHON na Python s projektovými závislostmi.
+Pouze tato varianta dokládá i skutečné sdílené ikony a fonty. Výchozí CI testuje
+nativní obsah bez přístupu k jinému Git repozitáři. Testové účty i data jsou
+izolované; žádné produkční časové úseky nebo zámky test nemění.

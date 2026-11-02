@@ -6,6 +6,7 @@ import io
 import zipfile
 from collections.abc import Iterable
 from datetime import date, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -37,6 +38,9 @@ class ShiftPlanReportRequestIn(BaseModel):
     month: int = Field(..., ge=1, le=12)
     employment_ids: list[int] = Field(default_factory=list)
 
+
+class ShiftPlanPdfRequestIn(ShiftPlanReportRequestIn):
+    locale: Literal["cs", "en", "sk", "de"] = "cs"
 
 def _month_range(month_yyyy_mm: str) -> tuple[date, date]:
     try:
@@ -300,7 +304,7 @@ def export_shift_plan_report_payload(
 
 @router.post("/api/v1/admin/export/shift-plan/pdf")
 def export_shift_plan_pdf(
-    body: ShiftPlanReportRequestIn,
+    body: ShiftPlanPdfRequestIn,
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
@@ -312,7 +316,7 @@ def export_shift_plan_pdf(
             month=body.month,
             employment_ids=body.employment_ids,
         )
-        pdf_bytes = render_shift_plan_report_pdf(report)
+        pdf_bytes = render_shift_plan_report_pdf(report, locale=body.locale)
     except ValueError as exc:
         if str(exc) == "print_capacity_exceeded":
             raise_api_error(

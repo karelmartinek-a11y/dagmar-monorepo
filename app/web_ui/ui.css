@@ -223,3 +223,14 @@
  .print-day-col{width:4%}
  .print-metric-col{width:10%}
 }
+
+.native-language{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:8px 0 12px;font-size:12px}.native-language select{width:auto;max-width:180px}
+@media print{.native-language{display:none!important}}
+
+@font-face{font-family:"Noto Sans Devanagari";src:url('./fonts/noto-sans-devanagari-devanagari-400-normal.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Noto Sans Devanagari";src:url('./fonts/noto-sans-devanagari-devanagari-700-normal.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+html[lang=hi]{font-family:Montserrat,"Noto Sans Devanagari",sans-serif}
+html[lang=hi] .print-paper{font-family:Arial,"Noto Sans Devanagari",sans-serif}
+
+/* Native picker glyphs must remain legible on the established dark fields. */
+input[type="date"],input[type="month"],input[type="time"]{color-scheme:dark}

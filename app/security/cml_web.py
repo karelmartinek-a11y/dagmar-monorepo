@@ -125,7 +125,7 @@ class CmlWebBoundary:
                 return
             if not suffix.startswith('api/'):
                 path = self.ui_root / (suffix or 'index.html')
-                if path.resolve().is_relative_to(self.ui_root) and path.is_file() and path.suffix in {'.html', '.js', '.css', '.svg', '.ttf'}:
+                if path.resolve().is_relative_to(self.ui_root) and path.is_file() and path.suffix in {'.html', '.js', '.css', '.svg', '.ttf', '.woff2'}:
                     response = FileResponse(path, media_type=mimetypes.guess_type(path)[0], headers={'Cache-Control': 'no-store'})
                     await response(scope, receive, send)
                 else:

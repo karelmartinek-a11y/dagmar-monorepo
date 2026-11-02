@@ -52,10 +52,20 @@ def test_pdf_capacity_failure_uses_shared_error_contract(monkeypatch) -> None:
     )
     with pytest.raises(HTTPException) as caught:
         admin_export.export_shift_plan_pdf(
-            admin_export.ShiftPlanReportRequestIn(year=2026, month=10, employment_ids=[1]),
+            admin_export.ShiftPlanPdfRequestIn(year=2026, month=10, employment_ids=[1]),
             _admin={},
             _=None,
             db=Mock(),
         )
     assert caught.value.status_code == 409
     assert caught.value.detail["code"] == "print_capacity_exceeded"
+
+
+def test_pdf_request_defaults_to_czech_and_rejects_unsupported_languages():
+    from pydantic import ValidationError
+
+    assert admin_export.ShiftPlanPdfRequestIn(year=2026, month=10).locale == "cs"
+    for value in ["en", "sk", "de"]:
+        assert admin_export.ShiftPlanPdfRequestIn(year=2026, month=10, locale=value).locale == value
+    with pytest.raises(ValidationError):
+        admin_export.ShiftPlanPdfRequestIn(year=2026, month=10, locale="hi")
