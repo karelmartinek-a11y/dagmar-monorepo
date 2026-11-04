@@ -1,0 +1,26 @@
+{
+  "contract": "kajovo-user-access-deployment/1",
+  "checked_at": "2026-11-04T12:39:40.075481+00:00",
+  "repository": "karelmartinek-a11y/dagmar-monorepo",
+  "runtime": {
+    "source": "7e3cf1bb491dc51ed8a7c103c089814fdd127cf9",
+    "release": "/opt/dagmar/releases/7e3cf1bb491dc51ed8a7c103c089814fdd127cf9-cml-user-admin"
+  },
+  "qualification": {
+    "ci_run": 41819124670,
+    "ci": "PASS",
+    "cases": [
+      "purpose-bound central user administrator",
+      "profile provisioning and employment paths",
+      "PostgreSQL and concurrent worker qualification"
+    ],
+    "deployment_scope": "backend only; existing schema, users and frontends preserved"
+  },
+  "production_business_test_effects": {
+    "user_changes": 0,
+    "messages_sent": 0,
+    "hotel_writes": 0,
+    "paid_calls": 0,
+    "physical_commands": 0
+  }
+}
