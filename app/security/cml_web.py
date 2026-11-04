@@ -6,6 +6,7 @@ import hmac
 import json
 import mimetypes
 import os
+import re
 import time
 from pathlib import Path
 from urllib.parse import parse_qs
@@ -14,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from starlette.responses import FileResponse, JSONResponse
 
-from app.security.cml_assertion import AssertionDenied, WebVerifier
+from app.security.cml_assertion import AssertionDenied, WebVerifier, central_administrator
 
 
 def central_write_authorized(claims):
@@ -87,13 +88,20 @@ class CmlWebBoundary:
                 raise AssertionDenied('prefix_mismatch')
             if scope['method'] not in {'GET', 'HEAD'} and not hmac.compare_digest(headers.get('x-csrf-token', ''), claims['csrf']):
                 raise AssertionDenied('csrf_denied')
+            suffix = scope['path'][len('/cml-web/'):]
+            if central_administrator(claims):
+                allowed=(suffix=='api/profiles' or re.fullmatch(r'api/profiles/[0-9a-f-]{36}',suffix) or
+                         (self.audience=='hotel' and re.fullmatch(r'api/v1/users/[1-9][0-9]*(?:/(?:roles|active))?',suffix)) or
+                         (self.audience=='dochazka' and re.fullmatch(r'api/v1/admin/(?:users/[1-9][0-9]*/employments|employments/[1-9][0-9]*)',suffix)))
+                if not allowed or query or scope['method'] not in {'GET','POST','PUT','PATCH'}:
+                    raise AssertionDenied('central_administration_path_denied')
             identity = await asyncio.to_thread(self._identity, claims, parse_qs(query).get('_role', [None])[0])
             suffix = scope['path'][len('/cml-web/'):]
             if any(v in raw_path.lower() for v in ('%2e', '%2f', '%5c', '%25')) or '..' in suffix.split('/') or '\\' in suffix:
                 raise AssertionDenied('path_denied')
             if suffix == 'api/profiles' or suffix.startswith('api/profiles/'):
                 from app.services.cml_profiles import ProfileFault, ProfileProvisioner
-                if claims['sub'] != 'KRMAR78' or query:
+                if (claims['sub'] != 'KRMAR78' and not central_administrator(claims)) or query:
                     raise AssertionDenied('central_owner_required')
                 if scope['method'] == 'POST' and suffix == 'api/profiles':
                     if not central_write_authorized(claims):
@@ -135,8 +143,8 @@ class CmlWebBoundary:
             central = ((self.audience == 'hotel' and (suffix == 'api/v1/users' or suffix.startswith('api/v1/users/')))
                        or (self.audience == 'dochazka' and (suffix == 'api/v1/admin/users' or suffix.startswith(('api/v1/admin/users/', 'api/v1/admin/employments/')))))
             if central:
-                if claims['sub'] != 'KRMAR78':
-                    raise AssertionDenied('central_owner_required')
+                if claims['sub'] != 'KRMAR78' and not central_administrator(claims):
+                    raise AssertionDenied('central_administrator_required')
                 if scope['method'] == 'POST' and suffix in {'api/v1/users', 'api/v1/admin/users'}:
                     raise AssertionDenied('central_profile_contract_required')
                 if any(part in suffix.split('/') for part in ('set-password', 'send-reset', 'password', 'reset-link')):

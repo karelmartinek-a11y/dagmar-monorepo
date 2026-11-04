@@ -184,3 +184,42 @@ def test_actual_postgres_two_workers_leave_one_profile_and_receipt():
         with admin.connect() as connection:
             connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         admin.dispose()
+
+
+def test_delegated_central_admin_creates_profile_without_native_account_and_cannot_enter_business_routes(profiles,tmp_path,monkeypatch):
+    from app.services.cml_identity import resolve_identity
+    factory, _ = profiles
+    key, jwks = fixture_key()
+    keyfile = tmp_path / 'jwks.json'
+    keyfile.write_text(json.dumps(jwks))
+    monkeypatch.setenv('CML_WEB_JWKS_PATH', str(keyfile))
+    actor='user:'+str(uuid4())
+    seen=[]
+    def identity(db,claims,role):
+        resolved=resolve_identity(db,claims,role)
+        seen.append((claims['sub'],resolved))
+        return resolved
+    boundary=CmlWebBoundary(FastAPI(),audience=SOURCE,session_factory=factory,resolve_identity=identity,ui_root=tmp_path)
+    value=payload()
+    body=json.dumps(value).encode()
+    path='/cml-web/api/profiles'
+    def headers(path=path,method='POST',body=body,patch=None):
+        claims={'sub':actor,'role':'admin','nativeId':None,'grant':{'contract':'kajovo-user-administration/1','permissions':['users.access'],'dataScope':{'kind':'service'}},'reauthUntil':int(time.time())+60,**(patch or {})}
+        return {'Origin':'https://kajovocml.hcasc.cz','X-CML-Web-Prefix':'/sections/'+SOURCE+'/','X-CSRF-Token':'a'*43,'Content-Type':'application/json','X-CML-Web-Assertion':assertion(key,SOURCE,path=path,method=method,body=body,**claims)}
+    with TestClient(boundary) as client:
+        response=client.post(path,headers=headers(),content=body)
+        assert response.status_code==200,response.text
+        assert counts(factory)[:2]==[1,1]
+        assert seen[0][0]==actor
+        state=seen[0][1]['state']
+        if SOURCE=='hotel':
+            assert state['_kajovo_auth_session']['email']==actor
+        else:
+            assert state['cml_admin'].username=='cml:'+actor
+        readpath=path+'/'+value['operation_id']
+        assert client.get(readpath,headers=headers(readpath,'GET',b'')).json()==response.json()
+        # A purpose-bound user administrator never receives Hotel/Attendance business access.
+        forbidden='/cml-web/api/v1/housekeeping/rooms' if SOURCE=='hotel' else '/cml-web/api/v1/admin/events'
+        assert client.get(forbidden,headers=headers(forbidden,'GET',b'')).status_code==401
+        assert client.post(path,headers=headers(patch={'reauthUntil':0}),content=body).status_code==403
+        assert client.post(path,headers=headers(patch={'grant':{'contract':'kajovo-web-grant/1','permissions':['users.access'],'dataScope':{'kind':'service'}}}),content=body).status_code==401

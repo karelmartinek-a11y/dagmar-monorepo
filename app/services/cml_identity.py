@@ -1,11 +1,13 @@
 """Resolve a signed CML principal against current attendance ownership."""
 from app.db import models
-from app.security.cml_assertion import AssertionDenied
+from app.security.cml_assertion import AssertionDenied, central_administrator
 from app.security.sessions import AdminSession
 
 
 def resolve_identity(db, claims, selected_role):
     admin = claims['role'] == 'admin'
+    if central_administrator(claims):
+        return {'state':{'cml_admin':AdminSession(username='cml:'+claims['sub'],issued_at=claims['iat'])},'public':{'admin':True,'name':claims['sub'],'languages':['cs']}}
     if claims['sub'] == 'KRMAR78':
         return {'state': {'cml_admin': AdminSession(username='cml:owner', issued_at=claims['iat'])}, 'public': {'admin': True, 'name': 'karmar78', 'languages': ['cs', 'en', 'sk', 'de']}}
     user = db.get(models.PortalUser, int(claims['nativeId']))

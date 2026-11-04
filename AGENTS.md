@@ -1,3 +1,7 @@
+## Delegovaná správa účtů v CML — 4. 11. 2026
+
+Výslovné zadání vlastníka nahrazuje omezení centrální správy jen na hlavní účet. Účelový kajovo-user-administration/1 přenáší skutečného user:UUID, pouze na vyjmenované cesty správy profilů a úvazků. Bez nativního osobního profilu správce, bez aliasu OWNER; další provozní agendy zůstávají oddělené. Viz docs/CML_USER_ADMINISTRATION_20261104.md.
+
 # AGENTS.md
 
 ## Rozsah

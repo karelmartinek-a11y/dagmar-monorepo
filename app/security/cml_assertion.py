@@ -25,6 +25,16 @@ def _decode(value: str) -> bytes:
     return base64.b64decode(value + "=" * (-len(value) % 4), altchars=b"-_", validate=True)
 
 
+def central_administrator(claims):
+    subject=claims.get('sub','')
+    try:
+        from uuid import UUID
+        valid=subject.startswith('user:') and str(UUID(subject[5:]))==subject[5:]
+    except (ValueError,TypeError,AttributeError):
+        return False
+    return valid and claims.get('role')=='admin' and 'nativeId' in claims and claims['nativeId'] is None and 'authzPolicy' not in claims and claims.get('grant')=={'contract':'kajovo-user-administration/1','permissions':['users.access'],'dataScope':{'kind':'service'}}
+
+
 class WebVerifier:
     def __init__(self, audience: str, jwks: dict[str, Any]):
         self.audience = audience
@@ -64,7 +74,7 @@ class WebVerifier:
                 raise AssertionDenied("invalid_subject")
             if claims.get("role") not in {"admin", "member"}:
                 raise AssertionDenied("invalid_role")
-            if subject != "KRMAR78" and (not isinstance(claims.get("nativeId"), str) or not re.fullmatch(r"[1-9][0-9]*", claims["nativeId"])):
+            if subject != "KRMAR78" and not central_administrator(claims) and (not isinstance(claims.get("nativeId"), str) or not re.fullmatch(r"[1-9][0-9]*", claims["nativeId"])):
                 raise AssertionDenied("native_identity_required")
             if not isinstance(claims.get("csrf"), str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", claims["csrf"]):
                 raise AssertionDenied("invalid_csrf")
