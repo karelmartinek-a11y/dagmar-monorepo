@@ -128,7 +128,7 @@ class CmlWebBoundary:
                 return
             if suffix == 'ui-manifest.json':
                 manifest = json.loads((self.ui_root / 'ui-manifest.json').read_text(encoding='utf-8'))
-                manifest['views'] = [v for v in manifest['views'] if (not v.get('admin') or identity['public']['admin']) and (v.get('audienceRole') is None or v['audienceRole']==('admin' if identity['public']['admin'] else 'member')) and (not v.get('permission') or v['permission'] in identity['public'].get('permissions', []))]
+                manifest['views'] = [v for v in manifest['views'] if (identity['public']['admin'] or v['id'] in {'dochazka.employee.attendance', 'dochazka.employee.plan'}) and (not v.get('admin') or identity['public']['admin']) and (v.get('audienceRole') is None or v['audienceRole']==('admin' if identity['public']['admin'] else 'member')) and (not v.get('permission') or v['permission'] in identity['public'].get('permissions', []))]
                 await JSONResponse(manifest, headers={'Cache-Control': 'no-store'})(scope, receive, send)
                 return
             if not suffix.startswith('api/'):
@@ -163,6 +163,10 @@ class CmlWebBoundary:
             version_read = self.audience == 'dochazka' and suffix == 'api/version' and scope['method'] == 'GET'
             if not version_read and (not suffix.startswith(('api/v1/', 'api/auth/')) or suffix.endswith(('/login', '/logout', '/reset-password', '/request-password-reset'))):
                 raise AssertionDenied('route_denied')
+            if self.audience == 'dochazka' and not identity['public']['admin']:
+                allowed = (suffix == 'api/v1/portal/session' and scope['method'] == 'GET') or suffix == 'api/version' or suffix == 'api/v1/attendance' or suffix.startswith('api/v1/attendance/') or suffix == 'api/v1/shift-plan' or suffix.startswith('api/v1/shift-plan/')
+                if not allowed or suffix.startswith('api/v1/shift-plan/groups'):
+                    raise AssertionDenied('attendance_self_path_denied')
             forwarded = dict(scope)
             forwarded['path'] = '/' + suffix
             forwarded['raw_path'] = ('/' + suffix).encode()

@@ -42,6 +42,7 @@ class InstanceAuth:
 class PortalUserAuth:
     instance: models.Instance
     user: models.PortalUser
+    employment_ids: frozenset[int] | None = None
 
 
 @dataclass(frozen=True)
@@ -122,7 +123,7 @@ def require_portal_user_auth(
         user = db.get(models.PortalUser, cml_user_id)
         if user is None or not user.is_active or user.is_blocked or user.instance is None or user.instance.status != models.InstanceStatus.ACTIVE:
             raise HTTPException(status_code=403, detail='CML local account unavailable')
-        return PortalUserAuth(instance=user.instance, user=user)
+        return PortalUserAuth(instance=user.instance, user=user, employment_ids=getattr(request.state, "cml_employment_ids", None))
     bearer = _bearer_from_auth_header(authorization)
     instance: models.Instance | None
     if bearer:

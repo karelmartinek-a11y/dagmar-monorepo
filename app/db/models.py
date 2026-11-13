@@ -901,3 +901,13 @@ class CmlProfileProvision(Base):
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     native_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CmlEmploymentCreation(Base):
+    """Creation receipt survives removal of the original employment."""
+    __tablename__ = "cml_employment_creation"
+    operation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    actor: Mapped[str] = mapped_column(String(80), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    employment_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)

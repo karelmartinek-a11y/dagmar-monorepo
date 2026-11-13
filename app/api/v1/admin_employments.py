@@ -2,15 +2,19 @@
 from __future__ import annotations
 
 import calendar
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import delete, or_, select
 from sqlalchemy.engine import CursorResult
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
@@ -21,6 +25,7 @@ from app.db.models import (
     AttendanceEvent,
     AttendanceLock,
     AttendanceReminderEvent,
+    CmlEmploymentCreation,
     Employment,
     EmploymentType,
     PortalUser,
@@ -44,6 +49,7 @@ router = APIRouter(tags=["admin-employments"])
 
 
 class EmploymentCreateIn(BaseModel):
+    operation_id: UUID | None = None
     title: str = Field(min_length=1, max_length=160)
     employment_type: str = Field(min_length=3, max_length=16)
     start_date: str = Field(description="YYYY-MM-DD")
@@ -706,13 +712,36 @@ def _delete_all_related_records(employment_id: int, db: Session) -> EmploymentDe
 def create_employment(
     user_id: int,
     payload: EmploymentCreateIn,
+    request: Request,
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
 ):
-    user = db.get(PortalUser, user_id)
+    user = db.get(PortalUser, user_id, with_for_update=True)
     if user is None:
         raise_api_error(404, "user_not_found", "Uživatel nebyl nalezen.")
+
+    claims = getattr(request.state, 'cml_web_claims', None)
+    if claims and payload.operation_id is None:
+        raise_api_error(400, 'operation_id_required', 'Chybí identita vytvoření úvazku.')
+    actor = claims['sub'] if claims else _admin.username
+    fingerprint = hashlib.sha256(json.dumps(payload.model_dump(mode='json', exclude={'operation_id'}), sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+    def previous_result():
+        receipt = db.get(CmlEmploymentCreation, str(payload.operation_id))
+        if receipt is None:
+            return None
+        if receipt.user_id != user_id or receipt.actor != actor or receipt.fingerprint != fingerprint:
+            raise_api_error(409, 'operation_conflict', 'Původní požadavek má jiný obsah.')
+        previous = db.get(Employment, receipt.employment_id)
+        if previous is None:
+            raise_api_error(410, 'employment_removed', 'Původní úvazek byl později odstraněn.')
+        return _to_employment_out(previous)
+
+    if payload.operation_id is not None:
+        previous = previous_result()
+        if previous is not None:
+            return previous
 
     if not employment_type_is_valid(payload.employment_type):
         raise_api_error(400, "invalid_employment_type", "Neplatný typ úvazku.")
@@ -740,7 +769,20 @@ def create_employment(
         public_holiday_hours_enabled=payload.public_holiday_hours_enabled,
     )
     db.add(employment)
-    db.commit()
+    db.flush()
+    if payload.operation_id is not None:
+        db.add(CmlEmploymentCreation(operation_id=str(payload.operation_id), user_id=user_id,
+                                    actor=actor, fingerprint=fingerprint, employment_id=employment.id))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if payload.operation_id is None:
+            raise
+        previous = previous_result()
+        if previous is None:
+            raise
+        return previous
     db.refresh(employment)
     return _to_employment_out(employment)
 

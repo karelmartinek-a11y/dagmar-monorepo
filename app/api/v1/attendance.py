@@ -169,6 +169,7 @@ def _employment(auth: PortalUserAuth, employment_id: int, db: Session) -> Employ
         employment is None
         or employment.user_id != auth.user.id
         or not auth.user.is_active
+        or (auth.employment_ids is not None and employment_id not in auth.employment_ids)
     ):
         raise_api_error(404, "employment_not_found", "Úvazek nebyl nalezen.")
     return employment
@@ -364,6 +365,7 @@ def get_month_employments(
             label=employment_label(item),
         )
         for item in employments
+        if auth.employment_ids is None or item.id in auth.employment_ids
     ]
 
 

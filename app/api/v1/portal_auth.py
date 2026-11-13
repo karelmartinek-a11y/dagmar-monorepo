@@ -198,11 +198,13 @@ def portal_login(
 def portal_session(auth: PortalUserAuth = Depends(require_portal_user_auth)):
     today = prague_today()
     selection = select_login_employments(auth.user, today)
+    available = [item for item in selection.available if auth.employment_ids is None or item.id in auth.employment_ids]
+    selected = selection.default if selection.default in available else (available[0] if available else None)
     return PortalLoginOut(
         display_name=auth.user.name,
-        employment_id=selection.default.id if selection.default is not None else None,
+        employment_id=selected.id if selected is not None else None,
         available_employments=[
-            _to_login_employment_out(item, today) for item in selection.available
+            _to_login_employment_out(item, today) for item in available
         ],
     )
 

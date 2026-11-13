@@ -56,7 +56,7 @@ def test_signed_cml_uses_original_identity_and_data_after_browser_cutover(tmp_pa
     monkeypatch.setattr("app.db.session.get_sessionmaker", lambda: sessionmaker(bind=engine))
     try:
         path = "/cml-web/api/v1/portal/session"
-        signed = {"Origin": "https://kajovocml.hcasc.cz", "X-CML-Web-Prefix": "/sections/dochazka/", "X-CML-Web-Assertion": assertion(key, "dochazka", path=path, method="GET", body=b"", sub="user:" + str(uuid.uuid4()), nativeId=str(user.id), role="member")}
+        signed = {"Origin": "https://kajovocml.hcasc.cz", "X-CML-Web-Prefix": "/sections/dochazka/", "X-CML-Web-Assertion": assertion(key, "dochazka", path=path, method="GET", body=b"", sub="user:" + str(uuid.uuid4()), nativeId=str(user.id), role="member", grant={"contract":"kajovo-web-grant/1","permissions":["attendance.self"],"dataScope":{"kind":"employments","employmentIds":[str(e.id) for e in user.employments]}})}
         assert client.get(path).status_code == 401
         result = client.get(path, headers=signed)
         assert result.status_code == 200
