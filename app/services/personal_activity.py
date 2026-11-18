@@ -2,18 +2,22 @@
 
 from datetime import UTC
 
+from fastapi import Request
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.db.models import CmlAttendanceActivity
 
 
-def record_attendance_activity(db, request, action):
-    # These receipts share the transaction of the attendance mutation.
-    if request is None:
-        return
+def attendance_actor(request: Request) -> str | None:
     claims = getattr(request.state, "cml_web_claims", None)
-    if claims:
-        db.add(CmlAttendanceActivity(actor=claims["sub"], action=action))
+    return str(claims["sub"]) if claims else None
+
+
+def record_attendance_activity(db: Session, actor: str | None, action: str) -> None:
+    # These receipts share the transaction of the attendance mutation.
+    if actor is not None:
+        db.add(CmlAttendanceActivity(actor=actor, action=action))
 
 
 def read_attendance_activity(session_factory, actor, cursor):

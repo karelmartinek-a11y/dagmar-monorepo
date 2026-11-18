@@ -182,7 +182,7 @@ def test_owner_policy_does_not_authorize_member_or_forged_owner():
 
 def test_attendance_personal_receipts_track_only_own_committed_web_changes(tmp_path, monkeypatch):
     from app.db.models import CmlAttendanceActivity
-    from app.services.personal_activity import record_attendance_activity
+    from app.services.personal_activity import attendance_actor, record_attendance_activity
 
     key, jwks = fixture_key()
     path = tmp_path / 'public.json'
@@ -198,7 +198,7 @@ def test_attendance_personal_receipts_track_only_own_committed_web_changes(tmp_p
     @app.put('/api/v1/attendance/day-status')
     async def save(request: Request):
         with factory() as db:
-            record_attendance_activity(db, request, 'day_status')
+            record_attendance_activity(db, attendance_actor(request), 'day_status')
             db.commit()
         return {'ok': True}
 
