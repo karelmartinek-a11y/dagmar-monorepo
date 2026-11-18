@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -41,6 +41,7 @@ from app.services.employment_access import (
 )
 from app.services.locks import LockType, ensure_month_unlocked, is_month_locked
 from app.services.month_summary import build_month_summary
+from app.services.personal_activity import record_attendance_activity
 from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
 from app.services.time_metrics import DailyMetrics, MetricValue
 
@@ -374,6 +375,7 @@ def create_attendance_event(
     body: AttendanceEventIn,
     db: Session = Depends(get_db),
     auth: PortalUserAuth = Depends(require_portal_user_auth),
+    request: Request = None,
 ) -> AttendanceEventOut:
     employment = _employment(auth, body.employment_id, db)
     employment = lock_employment_for_time_mutation(db, employment.id)
@@ -464,6 +466,7 @@ def create_attendance_event(
         db.rollback()
         raise
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    record_attendance_activity(db, request, "create_event")
     db.commit()
     db.refresh(event)
     return AttendanceEventOut(
@@ -479,6 +482,7 @@ def update_attendance_event(
     body: AttendanceEventIn,
     db: Session = Depends(get_db),
     auth: PortalUserAuth = Depends(require_portal_user_auth),
+    request: Request = None,
 ) -> AttendanceEventOut:
     if body.paired_occurred_at is not None:
         raise_api_error(
@@ -561,6 +565,7 @@ def update_attendance_event(
         db.rollback()
         raise
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    record_attendance_activity(db, request, "update_event")
     db.commit()
     db.refresh(event)
     return AttendanceEventOut(
@@ -576,6 +581,7 @@ def delete_attendance_event(
     paired_event_id: int | None = None,
     db: Session = Depends(get_db),
     auth: PortalUserAuth = Depends(require_portal_user_auth),
+    request: Request = None,
 ) -> dict[str, bool]:
     event = db.get(AttendanceEvent, event_id)
     if event is None:
@@ -619,6 +625,7 @@ def delete_attendance_event(
             db.delete(item)
     db.flush()
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    record_attendance_activity(db, request, "delete_event")
     db.commit()
     return {"ok": True}
 
@@ -628,6 +635,7 @@ def upsert_attendance_status(
     body: AttendanceStatusUpsertIn,
     db: Session = Depends(get_db),
     auth: PortalUserAuth = Depends(require_portal_user_auth),
+    request: Request = None,
 ) -> dict[str, bool]:
     employment = _employment(auth, body.employment_id, db)
     employment = lock_employment_for_time_mutation(db, employment.id)
@@ -725,5 +733,6 @@ def upsert_attendance_status(
                 month=month,
             )
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    record_attendance_activity(db, request, "day_status")
     db.commit()
     return {"ok": True}

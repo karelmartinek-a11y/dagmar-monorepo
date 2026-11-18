@@ -51,3 +51,9 @@ Výpočet metrik používá aktuální chronologicky seřazené časy a páruje 
 ## Adminský tisk docházky
 
 `/admin/tisky/preview?type=attendance` vykresluje pro každý vybraný `employment_id` a měsíc jednu A4 stránku vždy na šířku podle osmi-průchodové předlohy; nejvýše osm průchodů se zobrazí v osmi chronologických sloupcích a devátý nebo další průchod vyvolá kapacitní chybu. Náhled i browserové uložení do PDF používají stejnou DOM kompozici: jméno zaměstnance bez popisku, titul pouze s měsícem a rokem, identifikační mřížku pouze s typem úvazku, platností úvazku a názvem úvazku, jeden řádek na kalendářní den, chronologické časové sloupce `PRŮCHOD` a pevnou masku pěti intervalových metrik v pořadí backendového kontraktu. Neaktivní metriky jsou v masce výslovně označené jako nerelevantní, nikoli skryté. Spodní souhrn obsahuje stejnou pevnou masku, relevantní statusové kredity a měsíční plán z pole `planned` dodaného backendem; chybějící backendová hodnota zůstává `—`, nikoli falešná nula. Podpisová pole se netisknou; zápatí obsahuje lokalizovaný text KájovoDagmar a čas generování. Frontend ani tisk žádnou hodnotu nedopočítává a nedostupné údaje se nevymýšlejí.
+
+### Osobní historie docházkových změn
+
+Podepsané `GET /cml-web/api/personal-activity` vrací historii skutečně potvrzených webových změn aktuálního CML účtu. Potvrzení vzniká v transakci se zápisem průchodu, časového intervalu, stavu dne nebo vložených přestávek. Platný podpis a aktuální nativní přístup se ověřují při každém čtení.
+
+Výpis obsahuje pouze sekvenci, datum potvrzení, druh operace a stav. Neobsahuje zaměstnance, čas směny, úvazek ani nastavenou docházkovou hodnotu. Volitelný kurzor `cursor` pokračuje v témže účtu. Starší docházkové položky bez potvrzeného aktéra a změny z jiných vstupů se zpětně nepřiřazují.

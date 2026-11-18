@@ -911,3 +911,16 @@ class CmlEmploymentCreation(Base):
     actor: Mapped[str] = mapped_column(String(80), nullable=False)
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     employment_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+
+
+class CmlAttendanceActivity(Base):
+    """Minimal personal receipt without attendance times or employee IDs."""
+
+    __tablename__ = "cml_attendance_activity"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor: Mapped[str] = mapped_column(String(80), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (Index("ix_cml_attendance_activity_actor_id", "actor", "id"),)

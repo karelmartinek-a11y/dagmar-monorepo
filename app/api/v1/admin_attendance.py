@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -30,6 +30,7 @@ from app.services.employment_access import (
     locked_employment_has_active_user,
 )
 from app.services.locks import LockType, ensure_month_unlocked
+from app.services.personal_activity import record_attendance_activity
 from app.services.prague_time import PRAGUE_TIMEZONE, prague_now
 from app.services.time_intervals import missing_break_event_groups, pair_events
 
@@ -169,6 +170,7 @@ def add_missing_breaks(
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> AddBreaksOut:
     if not body.confirmed:
         raise_api_error(
@@ -258,6 +260,8 @@ def add_missing_breaks(
             db, lock_type=LockType.ATTENDANCE, employment_id=employment.id, year=year, month=month
         )
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    if inserted_events:
+        record_attendance_activity(db, request, "add_breaks")
     db.commit()
     return AddBreaksOut(
         affected_intervals=affected_intervals,
@@ -272,6 +276,7 @@ def create_event(
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> AdminAttendanceEventOut:
     employment = _employment(db, body.employment_id)
     employment = lock_employment_for_time_mutation(db, employment.id)
@@ -347,6 +352,7 @@ def create_event(
             db, lock_type=LockType.ATTENDANCE, employment_id=employment.id, year=year, month=month
         )
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    record_attendance_activity(db, request, "create_event")
     db.commit()
     db.refresh(event)
     return _out(event)
@@ -384,6 +390,7 @@ def update_event(
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> AdminAttendanceEventOut:
     if body.paired_occurred_at is not None:
         raise_api_error(
@@ -455,6 +462,7 @@ def update_event(
             db, lock_type=LockType.ATTENDANCE, employment_id=employment.id, year=year, month=month
         )
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    record_attendance_activity(db, request, "update_event")
     db.commit()
     db.refresh(event)
     return _out(event)
@@ -467,6 +475,7 @@ def delete_event(
     _admin=Depends(require_admin),
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> dict[str, bool]:
     event = db.get(AttendanceEvent, event_id)
     if event is None:
@@ -512,5 +521,6 @@ def delete_event(
             db.delete(item)
     db.flush()
     sync_employment_metric_months(db, employment=employment, months=affected_months)
+    record_attendance_activity(db, request, "delete_event")
     db.commit()
     return {"ok": True}

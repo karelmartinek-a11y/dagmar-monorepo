@@ -178,3 +178,45 @@ def test_owner_policy_does_not_authorize_member_or_forged_owner():
     assert central_write_authorized(valid)
     for patch in [dict(sub='user:other'), dict(role='member'), dict(nativeId='1'), dict(authzPolicy='unknown'), dict(authzPolicy=None, reauthUntil=True)]:
         assert not central_write_authorized({**valid, **patch})
+
+
+def test_attendance_personal_receipts_track_only_own_committed_web_changes(tmp_path, monkeypatch):
+    from app.db.models import CmlAttendanceActivity
+    from app.services.personal_activity import record_attendance_activity
+
+    key, jwks = fixture_key()
+    path = tmp_path / 'public.json'
+    path.write_text(json.dumps(jwks))
+    monkeypatch.setenv('CML_WEB_JWKS_PATH', str(path))
+    engine = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
+    CmlAttendanceActivity.__table__.create(engine)
+    factory = sessionmaker(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(text('CREATE TABLE cml_web_nonce(jti text PRIMARY KEY,expires_at bigint NOT NULL)'))
+    app = FastAPI()
+
+    @app.put('/api/v1/attendance/day-status')
+    async def save(request: Request):
+        with factory() as db:
+            record_attendance_activity(db, request, 'day_status')
+            db.commit()
+        return {'ok': True}
+
+    app.add_middleware(CmlWebBoundary, audience='dochazka', session_factory=factory,
+                       resolve_identity=lambda *_:{'state': {}, 'public': {'admin': False}}, ui_root=tmp_path)
+    headers = {'Origin':'https://kajovocml.hcasc.cz','X-CML-Web-Prefix':'/sections/dochazka/','X-CSRF-Token':'a'*43}
+    history = '/cml-web/api/personal-activity'
+    mutation = '/cml-web/api/v1/attendance/day-status'
+    with TestClient(app) as client:
+        def call(method, route, **claims):
+            token = assertion(key,'dochazka',path=route,method=method,body=b'',**claims)
+            return client.request(method,route,headers={**headers,'X-CML-Web-Assertion':token})
+
+        assert client.get(history).status_code==401
+        assert call('PUT', mutation).status_code==200
+        page = call('GET',history).json()
+        assert len(page['items'])==1 and page['items'][0]['action']=='day_status'
+        assert set(page['items'][0])=={'seq','at','action','status'}
+        assert call('GET',history,sub='user:'+str(uuid.uuid4()),nativeId='1',role='member').json()=={'items':[],'next':None}
+        assert call('GET',history+'?cursor=1&cursor=2').status_code==400
+    engine.dispose()

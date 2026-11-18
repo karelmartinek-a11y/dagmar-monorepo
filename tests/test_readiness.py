@@ -17,7 +17,7 @@ def _revision_engine(revision: str):
 
 
 def test_packaged_repository_has_exactly_one_alembic_head() -> None:
-    assert packaged_alembic_head() == "2026_11_13_0031"
+    assert packaged_alembic_head() == "2026_11_18_0032"
 
 
 def test_readiness_requires_exact_packaged_revision() -> None:

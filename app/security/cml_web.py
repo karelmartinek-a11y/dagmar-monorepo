@@ -123,6 +123,20 @@ class CmlWebBoundary:
                     profile_response = JSONResponse({'error': {'code': exc.code}}, status_code=exc.status, headers={'Cache-Control': 'no-store'})
                 await profile_response(scope, receive, send)
                 return
+            if self.audience == 'dochazka' and suffix == 'api/personal-activity':
+                from app.services.personal_activity import read_attendance_activity
+
+                if scope['method'] != 'GET':
+                    await JSONResponse({'error':'method_denied'}, status_code=405)(scope, receive, send)
+                    return
+                matched = re.fullmatch(r'cursor=([1-9][0-9]{0,18})', query) if query else None
+                cursor = int(matched[1]) if matched else None
+                if query and (cursor is None or cursor >= 2**63):
+                    await JSONResponse({'error':'invalid_cursor'}, status_code=400)(scope, receive, send)
+                    return
+                result = await asyncio.to_thread(read_attendance_activity, self.session_factory, claims['sub'], cursor)
+                await JSONResponse(result, headers={'Cache-Control': 'no-store'})(scope, receive, send)
+                return
             if suffix == 'identity':
                 await JSONResponse(identity['public'], headers={'Cache-Control': 'no-store'})(scope, receive, send)
                 return
