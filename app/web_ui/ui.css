@@ -234,3 +234,14 @@ html[lang=hi] .print-paper{font-family:Arial,"Noto Sans Devanagari",sans-serif}
 
 /* Native picker glyphs must remain legible on the established dark fields. */
 input[type="date"],input[type="month"],input[type="time"]{color-scheme:dark}
+
+/* Desktop work tables use the CML reading scale. Printed documents keep their own typesetting. */
+@media screen and (min-width:1024px){
+ #content :not(.print-paper)>.table-scroll:not(.print-paper .table-scroll){max-height:min(64vh,52rem)}
+ #content .table-scroll:not(.print-paper .table-scroll) table{border-collapse:separate;border-spacing:0}
+ #content .table-scroll:not(.print-paper .table-scroll) :is(th,td){padding:6px 8px;font-size:12px;line-height:1.4}
+ #content .table-scroll:not(.print-paper .table-scroll) th{position:sticky;top:0;background:var(--header);z-index:3}
+ #content .table-scroll:not(.print-paper .table-scroll) th:first-child{z-index:4}
+ #content .table-scroll:not(.print-paper .table-scroll) :is(td small,.clock){font-size:11px;line-height:1.35}
+ #content .table-scroll:not(.print-paper .table-scroll) :is(td button,.clock){min-height:28px}
+}
