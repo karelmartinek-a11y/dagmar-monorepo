@@ -13,7 +13,13 @@ const monthQuery=()=>new URLSearchParams({year:state.year,month:state.month});
 const adminBase=()=>state.identity.admin?'api/v1/admin/':'api/v1/';
 const hours=v=>v===null||v===undefined?'—':Number(v).toLocaleString(locale,{minimumFractionDigits:1,maximumFractionDigits:1})+' h';
 function dayName(date){return new Date(date+'T12:00:00').toLocaleDateString(locale,{weekday:'long'});}
-function monthBar(extra=[]){const label=el('strong',{},new Date(state.year,state.month-1,15).toLocaleDateString(locale,{month:'long',year:'numeric'}));return el('div',{class:'toolbar'},button('‹',()=>changeMonth(-1)),label,button('›',()=>changeMonth(1)),...extra,button(t('Obnovit'),refreshView));}
+function monthBar(extra=[]){
+ const label=el('strong',{},new Date(state.year,state.month-1,15).toLocaleDateString(locale,{month:'long',year:'numeric'}));
+ const previous=el('button',{type:'button',name:'previous-month','aria-label':t('Předchozí měsíc'),onclick:()=>changeMonth(-1)},'‹');
+ const next=el('button',{type:'button',name:'next-month','aria-label':t('Další měsíc'),onclick:()=>changeMonth(1)},'›');
+ const refresh=el('button',{type:'button',name:'refresh-month',onclick:refreshView},t('Obnovit'));
+ return el('div',{class:'toolbar'},previous,label,next,...extra,refresh);
+}
 async function refreshView(){const uncertain=new Set(state.uncertain);state.uncertain.clear();try{await render({propagate:true});}catch(e){for(const key of uncertain)state.uncertain.add(key);error(e);}}
 function changeMonth(delta){const next=new Date(state.year,state.month-1+delta,15);state.year=next.getFullYear();state.month=next.getMonth()+1;state.employment=null;state.uncertain.clear();render();}
 function heading(id,title,desc){const main=view(id,title,desc);main.append(el('div',{id:'operation-status','aria-live':'polite'}),languageSelector(state.identity.languages??['cs']));return main;}
@@ -69,17 +75,57 @@ async function lock(sheet,type,control){
  catch(e){if(accepted){document.querySelectorAll('input.clock').forEach(n=>n.readOnly=true);error(Error(t('Změna zámku byla přijata, ale stav se nepodařilo načíst. Obnovte přehled před další úpravou.')));}else error(e);}finally{if(control&&!accepted)control.disabled=false;}
 }
 
+function groupMatrix(rows, dayCell){
+ const days=rows[0].days;
+ return table([t('Úvazek'),...days.map(d=>new Date(d.date+'T12:00:00').getDate()+'. '+dayName(d.date)),t('Měsíční součet')],rows.map(row=>[
+  el('div',{class:'employment-identity'},el('strong',{},row.user_name??row.display_label),row.title?el('span',{},row.title):null,row.employment_type?el('small',{},employmentNames[row.employment_type]??row.employment_type):null),
+  ...row.days.map(day=>dayCell(row,day)),
+  hours(row.summary?.planned_hours??row.planned_hours),
+ ]));
+}
+
+async function memberGroups(){
+ const generation=state.generation,period=monthQuery();
+ const focused=document.activeElement;
+ const restoreGroupFocus=focused?.name==='group';
+ const main=heading('dochazka.employee.groups',t('Skupiny úvazků'),t('Vyberte skupinu a měsíc pro zobrazení členů a jejich plánu služeb.'));
+ const toolbar=monthBar();
+ main.append(toolbar);
+ if(focused?.matches('.toolbar button')){
+  [...toolbar.querySelectorAll('button')].find(control=>control.name===focused.name)?.focus();
+ }
+ const {groups}=await api('api/v1/shift-plan/groups?'+period);
+ if(generation!==state.generation)return;
+ const selected=groups.find(group=>group.id===state.group)??groups[0];
+ state.group=selected?.id;
+ if(!selected){
+  main.append(notice(t('V tomto měsíci nejste členem žádné skupiny.')));
+  return;
+ }
+ const picker=select(t('Skupina'),'group',groups.map(group=>[String(group.id),group.name]),String(selected.id));
+ const selectGroup=picker.querySelector('select');
+ selectGroup.addEventListener('change',event=>{state.group=Number(event.target.value);render();});
+ toolbar.lastElementChild.before(picker);
+ if(restoreGroupFocus&&document.activeElement===document.body)selectGroup.focus();
+ const {rows}=await api('api/v1/shift-plan/groups/'+selected.id+'?'+period);
+ if(generation!==state.generation)return;
+ if(!rows.length){main.append(notice(t('Ve výběru není žádný úvazek.')));return;}
+ const matrix=groupMatrix(rows,(_row,day)=>{
+  const times=[day.arrival_time,day.departure_time].filter(Boolean);
+  const value=day.status?(statuses[day.status]??day.status):times.join(' – ')||'—';
+  return el('span',{},value);
+ });
+ matrix.classList.add('member-group-plan');
+ const title=t('Plán služeb')+' · '+selected.name;
+ matrix.setAttribute('role','region');
+ matrix.setAttribute('aria-label',title);
+ main.append(panel(title,matrix,'group-plan'));
+}
+
 async function plan(){
- const generation=state.generation,period=monthQuery(),isAdmin=state.identity.admin,groupView=state.view==='group-plan',main=heading(groupView?'dochazka.employee.group-plan':isAdmin?'dochazka.admin.plan':'dochazka.employee.plan',groupView?t('Skupinový plán služeb'):t('Plán služeb'),t('Upravujte plán přímo v časových buňkách. Uložení je potvrzeno až po načtení skutečného stavu.'));
+ const generation=state.generation,period=monthQuery(),isAdmin=state.identity.admin,groupView=state.view==='group-plan',main=heading(isAdmin?'dochazka.admin.plan':'dochazka.employee.plan',groupView?t('Skupinový plán služeb'):t('Plán služeb'),t('Upravujte plán přímo v časových buňkách. Uložení je potvrzeno až po načtení skutečného stavu.'));
  let rows=[];
  if(isAdmin){const data=await api('api/v1/admin/shift-plan?'+period);if(generation!==state.generation)return;rows=data.rows;main.append(panel(t('Zobrazené úvazky'),[monthBar(),button(t('Vybrat úvazky'),()=>selection(data))],'group-plan'));}
- else if(groupView){
-  const {groups}=await api('api/v1/shift-plan/groups?'+period);if(generation!==state.generation)return;
-  if(!groups.some(g=>g.id===state.group))state.group=groups[0]?.id;
-  const choose=select(t('Skupina'),'group',groups.map(g=>[String(g.id),g.name]),String(state.group??''));
-  choose.querySelector('select').addEventListener('change',e=>{state.group=+e.target.value;render();});main.append(monthBar([choose]));
-  if(state.group)rows=(await api('api/v1/shift-plan/groups/'+state.group+'?'+period)).rows;
- }
  else{
   const emps=await api('api/v1/attendance/employments?'+period);if(generation!==state.generation)return;
   if(!emps.some(e=>e.id===state.employment))state.employment=emps[0]?.id;
@@ -90,15 +136,11 @@ async function plan(){
  if(generation!==state.generation)return;
  if(!rows.length){main.append(notice(t('Ve výběru není žádný úvazek.')));return;}
  if(groupView){
-  const days=rows[0].days;
-  const matrix=table([t('Úvazek'),...days.map(d=>new Date(d.date+'T12:00:00').getDate()+'. '+dayName(d.date)), t('Měsíční součet')],rows.map(row=>{
-   const identity=el('div',{class:'employment-identity'},row.user_name?el('strong',{},row.user_name):el('strong',{},row.display_label),row.title?el('span',{},row.title):null,row.employment_type?el('small',{},employmentNames[row.employment_type]??row.employment_type):null);
-   return [identity,...row.days.map(day=>{
-    const key=row.employment_id+':'+day.date,locked=row.shift_plan_locked||day.is_within_employment_period===false||(!isAdmin&&row.is_own_employment===false);
+  const matrix=groupMatrix(rows,(row,day)=>{
+    const key=row.employment_id+':'+day.date,locked=row.shift_plan_locked||day.is_within_employment_period===false;
     const controls=['arrival_time','departure_time'].map(side=>clock(day[side],{key,disabled:locked||!!day.status,label:day.date+' '+(side==='arrival_time'?t('Průchod 1'):t('Průchod 2'))+t(' úvazek ')+row.employment_id,save:async value=>{await api(adminBase()+'shift-plan',{method:'PUT',body:{employment_id:row.employment_id,date:day.date,arrival_time:side==='arrival_time'?value:day.arrival_time??null,departure_time:side==='departure_time'?value:day.departure_time??null,status:null}});}}));
     return el('div',{class:'plan-cell'},day.status?el('span',{},statuses[day.status]??day.status):controls,!locked?button('⋯',()=>dayMenu(row,day,'plan')):null);
-   }),hours(row.summary?.planned_hours??row.planned_hours)];
-  }));
+  });
   main.append(panel(t('Plán služeb'),matrix,'group-plan'));return;
  }
  for(const row of rows){
@@ -125,5 +167,5 @@ async function groups(){
  const editor=async group=>{const {available_employments}=await api('api/v1/admin/shift-plan?'+monthQuery());modal(group?t('Upravit skupinu'):t('Nová skupina'),close=>{const form=el('form',{},field(t('Název'),'name','text',group?.name??'',{required:true}),available_employments.map(e=>el('label',{class:'check-field'},el('input',{name:'employment',type:'checkbox',value:e.id,checked:!!group?.members.some(m=>m.employment_id===e.id)}),e.display_label)),el('button',{type:'submit',class:'primary'},t('Uložit')));form.addEventListener('submit',async e=>{e.preventDefault();try{const name=formData(form).name,ids=[...form.querySelectorAll('[name=employment]:checked')].map(n=>+n.value);if(group){await api('api/v1/admin/employment-groups/'+group.id,{method:'PUT',body:{name}});await api('api/v1/admin/employment-groups/'+group.id+'/members',{method:'PUT',body:{employment_ids:ids}});}else await api('api/v1/admin/employment-groups',{method:'POST',body:{name,employment_ids:ids}});close();await render();}catch(err){showError(form,err);}});return form;});};
  main.append(button(t('Nová skupina'),()=>editor()),panel(t('Skupiny'),table([t('Název'),t('Členové'),t('Akce')],groups.map(g=>[g.name,g.members.map(m=>el('p',{},m.display_label)),el('div',{class:'actions'},button(t('Upravit'),()=>editor(g)),button(t('Odstranit'),()=>confirm(t('Odstranit skupinu'),t('Úvazky ani jejich data nebudou odstraněny.'),async()=>{await api('api/v1/admin/employment-groups/'+g.id,{method:'DELETE'});await render();})))]))));
 }
-async function render({propagate=false}={}){const root=document.querySelector('#content'),previous=propagate?[...root.childNodes]:null;const generation=++state.generation;try{let task;if(state.view==='attendance')task=attendance;else if(['plan','group-plan'].includes(state.view))task=plan;else if(state.view==='groups')task=groups;else if(['overview','integrations','public-docs'].includes(state.view))task=()=>adminInfo({state,heading,render});else if(['prints','export','print-plan','print-summary'].includes(state.view))task=()=>printing({state,heading,error,render});else throw Error(t('Požadovaný pohled neexistuje.'));const pending=task();document.querySelector('#content').dataset.generation=String(generation);await pending;}catch(e){if(propagate){if(generation===state.generation)root.replaceChildren(...previous);throw e;}if(generation===state.generation)error(e);}}
+async function render({propagate=false}={}){const root=document.querySelector('#content'),previous=propagate?[...root.childNodes]:null;const generation=++state.generation;try{let task;if(state.view==='attendance')task=attendance;else if(!state.identity.admin&&['groups','group-plan'].includes(state.view))task=memberGroups;else if(['plan','group-plan'].includes(state.view))task=plan;else if(state.view==='groups')task=groups;else if(['overview','integrations','public-docs'].includes(state.view))task=()=>adminInfo({state,heading,render});else if(['prints','export','print-plan','print-summary'].includes(state.view))task=()=>printing({state,heading,error,render});else throw Error(t('Požadovaný pohled neexistuje.'));const pending=task();document.querySelector('#content').dataset.generation=String(generation);await pending;}catch(e){if(propagate){if(generation===state.generation)root.replaceChildren(...previous);throw e;}if(generation===state.generation)error(e);}}
 try{state.identity=await api('identity');if(!await restoreLocale(state.identity.languages??['cs']))await render();}catch(e){document.querySelector('#content').replaceChildren(notice(e.message,'error'));}

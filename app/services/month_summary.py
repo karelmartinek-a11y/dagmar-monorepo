@@ -123,6 +123,7 @@ def build_month_summaries(
     year: int,
     month: int,
     use_persisted: bool = True,
+    include_attendance: bool = True,
 ) -> dict[int, MonthSummary]:
     start, end = _month_range(year, month)
     result: dict[int, MonthSummary] = {}
@@ -133,7 +134,7 @@ def build_month_summaries(
                 .where(AttendanceEvent.employment_id == employment.id)
                 .order_by(AttendanceEvent.occurred_at, AttendanceEvent.id)
             ).scalars()
-        )
+        ) if include_attendance else []
         intervals = pair_events(events) if events else []
         closed_event_ids = paired_event_ids(events)
         attendance = {
@@ -145,7 +146,7 @@ def build_month_summaries(
                     Attendance.date < end,
                 )
             ).scalars()
-        }
+        } if include_attendance else {}
         plan_rows = list(
             db.execute(
                 select(ShiftPlan).where(
@@ -188,11 +189,13 @@ def build_month_summaries(
                 else None
             )
             day_status_metrics = calculate_day_status_metrics(employment, effective_status)
-            worked = (
-                _stored_metrics(stored.get((day, DailyMetricSource.ATTENDANCE)), employment)
-                if use_persisted
-                else calculate_daily_metrics(employment, day, intervals)
-            )
+            worked = None
+            if include_attendance:
+                worked = (
+                    _stored_metrics(stored.get((day, DailyMetricSource.ATTENDANCE)), employment)
+                    if use_persisted
+                    else calculate_daily_metrics(employment, day, intervals)
+                )
             planned = (
                 _stored_metrics(stored.get((day, DailyMetricSource.SHIFT_PLAN)), employment)
                 if use_persisted

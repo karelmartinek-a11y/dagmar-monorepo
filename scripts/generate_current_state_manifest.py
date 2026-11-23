@@ -322,6 +322,7 @@ def build_manifest() -> dict[str, object]:
             "export_transport": "declared CML CSV/PDF/ZIP bytes with live gesture; memory-only retry without another export request",
             "attendance_monthly_metrics": "canonical values wrap inside the visible panel, including 390/320 px",
             "plan_response_scope": "current generation, frozen period, available group",
+            "member_employment_groups": "read-only member roster and planned shifts when a granted own employment belongs to the group in the selected month",
             "clock_confirmation": "read back every completed save in the same view and period, including concurrent days",
             "plan_layout": "admin and own monthly day rows; group employment-day matrix",
             "plan_day_status": "PUT shift-plan with explicit null times, never attendance day-status",

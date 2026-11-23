@@ -757,6 +757,7 @@
     "entry_package": "scripts/package_cml_entry.py",
     "export_scope": "month plus employment_id CSV or bulk=true ZIP, never both",
     "export_transport": "declared CML CSV/PDF/ZIP bytes with live gesture; memory-only retry without another export request",
+    "member_employment_groups": "read-only member roster and planned shifts when a granted own employment belongs to the group in the selected month",
     "middleware_endpoints": [
       {
         "method": "POST",
@@ -1034,10 +1035,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2049,
+    "line_count": 2055,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "e00371c421ca34967ddec110df7668cd6a09c3df41b7d0cc00add87b80423087"
+    "sha256": "8b5a256e88c6c0e9933a597fb15bd792ed65d7a7103c8e984f9f3bd60687e6e9"
   },
   "production": {
     "api_base_path": "/api/v1/",

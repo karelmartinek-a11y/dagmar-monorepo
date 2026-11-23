@@ -59,26 +59,26 @@ async function stalePeriod(browser,width,view,{switchGroup=false,switchEmploymen
    const old=first;first=false;
    if(old){oldUrl=url.href;started.resolve();await release.promise;if(lateError)return {httpStatus:403,message:'Staré odmítnutí'};}
    const data=row(old?'Staré období':'Nové období',dateOf(url));
-   return view==='group-plan'?{rows:[data]}:data;
+   return view==='groups'?{rows:[data]}:data;
   }
  });
  try{
   await started.promise;
   if(switchGroup)await f.page.getByRole('combobox',{name:'Skupina'}).selectOption('20');
   else if(switchEmployment)await f.page.getByRole('combobox',{name:'Úvazek'}).selectOption('2');
-  else await f.page.getByRole('button',{name:'›',exact:true}).click();
+  else await f.page.getByRole('button',{name:'Další měsíc',exact:true}).click();
   await expect(f.page.getByText('Nové období',{exact:true})).toBeVisible();
   release.resolve();
   await f.page.waitForFunction(url=>globalThis.cmlSettled.includes(url),oldUrl);
   await expect(f.page.getByText('Staré období',{exact:true})).toHaveCount(0);
   await expect(f.page.getByRole('alert')).toHaveCount(0);
-  await expect(f.page.locator('input.clock')).toHaveCount(2);
+  await expect(f.page.locator('input.clock')).toHaveCount(view==='groups'?0:2);
  }finally{release.resolve();await f.close();}
 }
 
 async function groupFallback(browser,width){
  let period,invalidGroup=false;
- const f=await fixture(browser,width,'group-plan',({path,url})=>{
+ const f=await fixture(browser,width,'groups',({path,url})=>{
   if(path==='api/v1/shift-plan/groups'){
    const date=dateOf(url);period??=date;
    return {groups:[{id:date===period?10:20,name:date===period?'Původní skupina':'Nová skupina'}]};
@@ -91,8 +91,11 @@ async function groupFallback(browser,width){
  });
  try{
   await expect(f.page.getByText('Původní výběr',{exact:true})).toBeVisible();
-  await f.page.getByRole('button',{name:'›',exact:true}).click();
+  const next=f.page.getByRole('button',{name:'Další měsíc',exact:true});
+  await next.focus();
+  await next.press('Enter');
   await expect(f.page.getByText('Nový výběr',{exact:true})).toBeVisible();
+  await expect(next).toBeFocused();
   await expect(f.page.getByRole('combobox',{name:'Skupina'})).toHaveValue('20');
   assert.equal(invalidGroup,false,'The request must use an available group, matching the selector');
  }finally{await f.close();}
@@ -137,7 +140,7 @@ async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=fal
   await expect(arrival(0)).toHaveAttribute('readonly','');
   await expect(arrival(1)).not.toHaveAttribute('readonly','');
   if(navigate){
-   const oldDate=dates[0];await f.page.getByRole('button',{name:'›',exact:true}).click();
+   const oldDate=dates[0];await f.page.getByRole('button',{name:'Další měsíc',exact:true}).click();
    await expect(f.page.locator('input.clock')).toHaveCount(4);assert.equal(dates[0],oldDate,'Navigation waits for save and canonical read');
    releases[0].resolve();await expect.poll(()=>dates[0]).not.toBe(oldDate);const currentDate=dates[0];
    await f.page.waitForFunction(url=>globalThis.cmlSettled.includes(url),origin+prefix+'api/v1/shift-plan');
@@ -161,17 +164,45 @@ async function clockSaves(browser,width,{concurrent=false,navigate=false,tab=fal
  }finally{releases.forEach(r=>r.resolve());await f.close();}
 }
 
-async function planStatus(browser,width,{admin=false,group=false,clear=false,cancel=false,rejected=false}={}){
+async function memberGroupDetail(browser,width,{empty=false}={}){
+ let detailRequests=0;
+ const f=await fixture(browser,width,'groups',({path,url,request})=>{
+  assert.equal(request.method(),'GET');
+  if(path==='api/v1/shift-plan/groups')return {groups:empty?[]:[{id:10,name:'Recepce'}]};
+  if(path==='api/v1/shift-plan/groups/10'){
+   detailRequests++;
+   const own={...row('Vlastní úvazek',dateOf(url)),is_own_employment:true};
+   const peer={...row('Člen skupiny',dateOf(url)),employment_id:2};
+   peer.days[0]={...peer.days[0],arrival_time:null,departure_time:null,status:'OFF'};
+   return {rows:[own,peer]};
+  }
+ });
+ try{
+  await expect(f.page.getByRole('heading',{name:'Skupiny úvazků'})).toBeVisible();
+  if(empty){
+   await expect(f.page.getByRole('status').filter({hasText:'V tomto měsíci nejste členem žádné skupiny.'})).toBeVisible();
+   await expect(f.page.getByRole('combobox',{name:'Skupina'})).toHaveCount(0);
+   assert.equal(detailRequests,0);
+   return;
+  }
+  await expect(f.page.getByRole('combobox',{name:'Skupina'}).locator('option')).toHaveText(['Recepce']);
+  const matrix=f.page.getByRole('region',{name:'Plán služeb · Recepce'});
+  await expect(matrix.getByRole('row').filter({hasText:'Vlastní úvazek'})).toContainText('08:00 – 16:00');
+  await expect(matrix.getByRole('row').filter({hasText:'Člen skupiny'})).toContainText('Volno');
+  await expect(matrix.locator('input, button')).toHaveCount(0);
+  assert.equal(detailRequests,1);
+ }finally{await f.close();}
+}
+
+async function planStatus(browser,width,{admin=false,clear=false,cancel=false,rejected=false}={}){
  const writes=[];let date,dialogs=0;
- const f=await fixture(browser,width,group?'group-plan':'plan',({path,url,request})=>{
+ const f=await fixture(browser,width,'plan',({path,url,request})=>{
   if(request.method()==='PUT'){writes.push({path,body:request.postDataJSON()});return rejected?{httpStatus:409,message:'Změna vyžaduje vyřešení konfliktu'}:{};}
-  if(path==='api/v1/shift-plan/groups')return {groups:[{id:10,name:'Recepce'}]};
   if(path==='api/v1/attendance/employments')return [{id:1,label:'Recepce'}];
   date=dateOf(url);const data=row('Recepce',date);data.is_own_employment=true;
   data.days[0].arrival_time=data.days[0].departure_time=null;
   data.days[0].planned_arrival_time=data.days[0].planned_departure_time=null;
   if(path==='api/v1/admin/shift-plan')return {rows:[data],available_employments:[],selected_employment_ids:[1]};
-  if(path==='api/v1/shift-plan/groups/10')return {rows:[data]};
   if(path==='api/v1/attendance')return data;
  },admin);
  f.page.on('dialog',dialog=>{dialogs++;return cancel?dialog.dismiss():dialog.accept();});
@@ -283,12 +314,12 @@ for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
  assert.ok(['chromium','webkit'].includes(engine));
  const browser=await ({chromium,webkit}[engine]).launch();
  try{for(const width of [1440,390])for(const [name,test] of [
-  ['group-period',b=>stalePeriod(b,width,'group-plan')],
+  ['group-period',b=>stalePeriod(b,width,'groups')],
   ['own-period',b=>stalePeriod(b,width,'plan')],
   ['own-employment-selection',b=>ownEmployment(b,width)],
   ['own-employment-race',b=>stalePeriod(b,width,'plan',{switchEmployment:true})],
-  ['group-selection-race',b=>stalePeriod(b,width,'group-plan',{switchGroup:true})],
-  ['stale-error',b=>stalePeriod(b,width,'group-plan',{lateError:true})],
+  ['group-selection-race',b=>stalePeriod(b,width,'groups',{switchGroup:true})],
+  ['stale-error',b=>stalePeriod(b,width,'groups',{lateError:true})],
   ['available-group',b=>groupFallback(b,width)],
   ['concurrent-day-saves',b=>clockSaves(b,width,{concurrent:true})],
   ['save-keeps-focus',b=>clockSaves(b,width)],
@@ -296,7 +327,8 @@ for(const engine of (process.env.CML_BROWSER_ENGINES??'chromium').split(',')){
   ['save-after-month-navigation',b=>clockSaves(b,width,{navigate:true})],
   ['admin-plan-status-route',b=>planStatus(b,width,{admin:true})],
   ['own-plan-status-route',b=>planStatus(b,width)],
-  ['group-plan-status-route',b=>planStatus(b,width,{group:true})],
+  ['group-members-and-read-only-plan',b=>memberGroupDetail(b,width)],
+  ['empty-member-groups',b=>memberGroupDetail(b,width,{empty:true})],
   ['admin-plan-lock',b=>adminLock(b,width)],
   ['admin-plan-lock-error',b=>adminLock(b,width,{rejected:true})],
   ['admin-plan-lock-readback-error',b=>adminLock(b,width,{readFailure:true})],

@@ -834,6 +834,12 @@ Všechny přijímají browserovou portal cookie, u mutací s portálovým CSRF, 
 | PUT | `/api/v1/shift-plan/day-status` | vlastní holiday/off |
 | GET | `/api/v1/shift-plan/groups` | dostupné skupiny |
 | GET | `/api/v1/shift-plan/groups/{group_id}?year&month` | group month; vlastní editace, ostatní read-only |
+
+Ve vloženém webu CML jsou oba skupinové endpointy dostupné pro čtení ve
+Skupinách úvazků. `attendance.self` vyžaduje alespoň jeden přidělený vlastní
+úvazek ve skupině platný ve vybraném měsíci. Detail bez tohoto členství
+vrací 404. Členský skupinový pohled ukazuje platné členy a jejich plánované
+směny a plánové stavy. Vlastní směny se upravují v samostatném vlastním plánu.
 | GET | `/api/v1/portal/auth-methods` | metody a stav propojení |
 | POST | `/api/v1/portal/auth-methods/{provider}/link` | start link flow po hesle |
 | DELETE | `/api/v1/portal/auth-methods/{provider}` | unlink po hesle |

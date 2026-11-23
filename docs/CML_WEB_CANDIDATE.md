@@ -51,6 +51,19 @@ Nový profil má `PortalUserRole.EMPLOYEE`, vlastní aktivní WEB Instance,
 role. Limity původních sloupců jsou 128 znaků jména a 160 znaků e-mailu.
 CML potvrdí vazby/granty až po read-backu; pozvánka patří konečné revizi.
 
+## Skupiny úvazků pro členy
+
+V podsekci **Skupiny úvazků** si člen vybírá měsíc a skupinu. Seznam i
+přímý detail vyžadují vazbu mezi skupinou a alespoň jedním vlastním úvazkem,
+který mu povoluje `attendance.self` a který se překrývá s vybraným měsícem.
+Detail požadovaný bez tohoto členství vrací stejnou chybu 404 jako neznámá
+skupina. Přehled zobrazí členy platné pro období a jejich plánované směny a
+plánové stavy. Skutečná docházka se čte ve vlastním docházkovém listu.
+Skupinový webový pohled slouží ke čtení. Vlastní plán lze upravovat v
+podsekci **Můj plán služeb** a správce spravuje členství ve své podsekci
+**Skupiny úvazků**. Podepsané skupinové čtení testuje
+`tests/test_cml_browser_entry.py`, webové zobrazení `npm run test:cml-periods`.
+
 ## Průběžná kvalifikace
 
 První vydání prošlo cílenými backendovými kontrolami autorizace, importu
@@ -64,7 +77,7 @@ Následná oprava plánu odmítá opožděné odpovědi i chyby po změně obdob
 nebo skupiny. Dotaz používá zachycené období a skupinu dostupnou v novém
 seznamu. Prázdný adminský výběr zůstává prázdný při uložení i načtení.
 `CML_BROWSER_ENGINES=chromium,webkit npm run test:cml-periods` z `web/`
-ověřuje 23 scénářů na desktopu a telefonu v obou enginech (92 případů).
+ověřuje výběr skupiny a období na desktopu a telefonu v obou enginech.
 Po souběžných zápisech různých dnů se každý výsledek znovu načte, i když
 jiný zápis již obnovil stejný pohled. Dokončení starého zápisu nevrací UI
 do opuštěného měsíce. Enter zachová focus buňky; Tab přejde až po potvrzeném

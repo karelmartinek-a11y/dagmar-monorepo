@@ -182,6 +182,9 @@
 .icon-workday{mask-image:url('/assets/icons/workday.svg')}
 
 .employment-identity{display:flex;flex-direction:column;gap:5px;width:210px;white-space:normal;overflow-wrap:anywhere}.plan-cell{display:flex;flex-direction:column;gap:4px;min-height:55px}.plan-cell>button{min-height:24px;padding:1px 6px}.plan-cell .clock{width:70px}.table-scroll td:first-child:has(.employment-identity){background:#1b2b43;z-index:2}
+.member-group-plan .employment-identity{width:clamp(104px,33vw,210px)}
+.member-group-plan td:not(:first-child){white-space:nowrap}
+#content[data-view='dochazka.employee.groups'] .panel-title h2{overflow-wrap:anywhere}
 
 .table-scroll th,.table-scroll td{padding:3px 7px}.clock{height:24px;min-height:24px;padding:3px 6px;font-size:10px}.table-scroll td button{min-height:24px;padding:3px 6px}.table-scroll td small{line-height:1.1}.field input,.field select,.field textarea{font-weight:400}
 

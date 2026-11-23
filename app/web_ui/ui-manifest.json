@@ -46,24 +46,24 @@
       }
     },
     {
-      "id": "dochazka.employee.group-plan",
-      "title": "Skupinový plán služeb",
-      "path": "/sections/dochazka/?view=group-plan",
-      "icon": "group-plan",
+      "id": "dochazka.employee.groups",
+      "title": "Skupiny úvazků",
+      "path": "/sections/dochazka/?view=groups",
+      "icon": "users",
       "admin": false,
       "audienceRole": "member",
       "localizations": {
         "en": {
-          "title": "Group shift schedule"
+          "title": "Employment groups"
         },
         "sk": {
-          "title": "Skupinový plán služieb"
+          "title": "Skupiny úväzkov"
         },
         "de": {
-          "title": "Gruppendienstplan"
+          "title": "Beschäftigungsgruppen"
         },
         "hi": {
-          "title": "समूह पाली योजना"
+          "title": "नियोजन समूह"
         }
       }
     },

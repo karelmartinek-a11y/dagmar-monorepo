@@ -234,6 +234,30 @@ export const translations={
     "Beschäftigungsgruppen",
     "नियोजन समूह"
   ],
+  "Vyberte skupinu a měsíc pro zobrazení členů a jejich plánu služeb.": [
+    "Choose a group and month to see its members and their shift schedule.",
+    "Vyberte skupinu a mesiac na zobrazenie členov a ich plánu služieb.",
+    "Wählen Sie eine Gruppe und einen Monat, um die Mitglieder und ihren Dienstplan zu sehen.",
+    "सदस्यों और उनकी पाली योजना को देखने के लिए समूह और महीना चुनें।"
+  ],
+  "V tomto měsíci nejste členem žádné skupiny.": [
+    "You do not belong to any group this month.",
+    "V tomto mesiaci nie ste členom žiadnej skupiny.",
+    "In diesem Monat gehören Sie keiner Gruppe an.",
+    "इस महीने आप किसी समूह के सदस्य नहीं हैं।"
+  ],
+  "Předchozí měsíc": [
+    "Previous month",
+    "Predchádzajúci mesiac",
+    "Vorheriger Monat",
+    "पिछला महीना"
+  ],
+  "Další měsíc": [
+    "Next month",
+    "Nasledujúci mesiac",
+    "Nächster Monat",
+    "अगला महीना"
+  ],
   "Plánované hodiny": [
     "Scheduled hours",
     "Plánované hodiny",

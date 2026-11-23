@@ -171,6 +171,7 @@ def _accessible_group(
         or not auth.user.is_active
         or not any(
             member.employment.user_id == auth.user.id
+            and (auth.employment_ids is None or member.employment_id in auth.employment_ids)
             and member.employment.user is not None
             and member.employment.user.is_active
             and employment_overlaps_month(member.employment, month_start, month_end)
@@ -192,24 +193,23 @@ def portal_list_shift_plan_groups(
     if year < 2000 or year > 2100 or month < 1 or month > 12:
         raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_month", "Neplatný měsíc.")
     start, end = _month_range(year, month)
-    groups = (
-        db.execute(
-            select(EmploymentGroup)
-            .join(EmploymentGroupMember)
-            .join(Employment)
-            .join(PortalUser, PortalUser.id == Employment.user_id)
-            .where(
-                Employment.user_id == auth.user.id,
-                PortalUser.is_active.is_(True),
-                Employment.start_date < end,
-                Employment.end_date.is_(None) | (Employment.end_date >= start),
-            )
-            .distinct()
-            .order_by(EmploymentGroup.name.asc(), EmploymentGroup.id.asc())
+    query = (
+        select(EmploymentGroup)
+        .join(EmploymentGroupMember)
+        .join(Employment)
+        .join(PortalUser, PortalUser.id == Employment.user_id)
+        .where(
+            Employment.user_id == auth.user.id,
+            PortalUser.is_active.is_(True),
+            Employment.start_date < end,
+            Employment.end_date.is_(None) | (Employment.end_date >= start),
         )
-        .scalars()
-        .all()
+        .distinct()
+        .order_by(EmploymentGroup.name.asc(), EmploymentGroup.id.asc())
     )
+    if auth.employment_ids is not None:
+        query = query.where(Employment.id.in_(auth.employment_ids))
+    groups = db.scalars(query).all()
     return GroupListOut(groups=[GroupOptionOut(id=group.id, name=group.name) for group in groups])
 
 
@@ -232,23 +232,15 @@ def portal_get_group_shift_plan_month(
         and member.employment.user.is_active
         and employment_overlaps_month(member.employment, start, end)
     ]
-    employment_ids = [member.employment_id for member in active_members]
-    plans = (
-        db.execute(
-            select(ShiftPlan).where(
-                ShiftPlan.employment_id.in_(employment_ids),
-                ShiftPlan.date >= start,
-                ShiftPlan.date < end,
-            )
-        )
-        .scalars()
-        .all()
-    )
-    by_key = {(plan.employment_id, plan.date): plan for plan in plans}
     days = [start + dt.timedelta(days=index) for index in range((end - start).days)]
     member_employments = [member.employment for member in active_members]
     summaries = build_month_summaries(
-        db, employments=member_employments, year=year, month=month, use_persisted=False
+        db,
+        employments=member_employments,
+        year=year,
+        month=month,
+        use_persisted=False,
+        include_attendance=auth.employment_ids is None,
     )
     rows: list[GroupShiftPlanRowOut] = []
     for member in sorted(
@@ -264,8 +256,8 @@ def portal_get_group_shift_plan_month(
             current_employment: Employment = employment,
             current_day_summaries=day_summaries,
         ) -> GroupShiftPlanDayOut:
-            direct_plan = by_key.get((current_employment.id, day))
             day_summary = current_day_summaries[day]
+            direct_plan = day_summary.plan
             return GroupShiftPlanDayOut(
                 date=day.isoformat(),
                 arrival_time=direct_plan.arrival_time if direct_plan else None,
@@ -288,7 +280,8 @@ def portal_get_group_shift_plan_month(
             GroupShiftPlanRowOut(
                 employment_id=employment.id,
                 display_label=employment_label(employment, employment.user.name),
-                is_own_employment=employment.user_id == auth.user.id,
+                is_own_employment=employment.user_id == auth.user.id
+                and (auth.employment_ids is None or employment.id in auth.employment_ids),
                 shift_plan_locked=is_month_locked(
                     db,
                     lock_type=LockType.SHIFT_PLAN,

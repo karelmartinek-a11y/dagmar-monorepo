@@ -1,6 +1,6 @@
 ## Explicitní webová práva od 13. 11. 2026
 
-CML přiděluje `attendance.self` s výslovnými ID vlastních úvazků, nebo `attendance.manage`. Členský web zobrazuje jen vlastní docházku a plán pro přiřazené úvazky. Správa CML vytváří úvazky s neměnným `operation_id`. Lokální klienti zachovávají vlastní autorizaci.
+CML přiděluje `attendance.self` s výslovnými ID vlastních úvazků, nebo `attendance.manage`. Členský web zobrazuje vlastní docházku a plán pro přiřazené úvazky. Podsekce Skupiny úvazků čte členy a plán směn skupiny, pokud do ní ve vybraném měsíci patří alespoň jeden přidělený vlastní úvazek. Stejná podmínka platí pro seznam i přímý detail. Skupinový pohled je pouze ke čtení a pracuje výhradně s plánovanými směnami a plánovými stavy. Správa CML vytváří úvazky s neměnným `operation_id`. Lokální klienti zachovávají vlastní autorizaci.
 
 ## Delegovaná správa účtů v CML — 4. 11. 2026
 
