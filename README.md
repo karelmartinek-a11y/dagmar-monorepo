@@ -29,7 +29,7 @@ Strojově čitelný manifest je v [docs/current-state-manifest.yaml](docs/curren
 - admin autentizace: session cookie + CSRF
 - zaměstnanecká autentizace: bearer token
 - integrační autentizace: samostatný `dgi_` bearer token
-- čtecí Docházka MCP: `https://dagmar.hcasc.cz/mcp` s OAuth souhlasem vlastníka v CML
+- Docházka MCP na `https://dagmar.hcasc.cz/mcp` s čtecím OAuth souhlasem vlastníka v CML a samostatně schvalovaným oprávněním pro zápis průchodů, denních stavů a plánu směn
 - docházka, plán služeb, zámky a exporty jsou vedené podle `employment_id`
 - časová autorita: `Europe/Prague`
 - úvazky používají pouze `WORK_CONTRACT`, `DPP_DPC`, `TASK_SHIFT_BASED` a `EXTERNAL_HOURLY`; profil je uložený na konkrétním `Employment`

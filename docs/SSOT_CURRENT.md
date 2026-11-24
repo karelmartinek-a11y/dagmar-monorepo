@@ -92,6 +92,23 @@ volání `/cml-web/mcp` používá aktuální identitu a úvazkový rozsah CML.
 Skutečná docházka kolegy zůstává mimo skupinový výstup. Původní integrační
 REST používá vlastní tokeny a ověření schopností.
 
+Zápisové nástroje vidí vlastník s výslovným OAuth rozsahem `attendance:manage`
+a přihlášené CML role ve svém stávajícím úvazkovém rozsahu. Vstupy a pravidla
+odpovídají stávajícím formulářům včetně uzavřených měsíců a kolizí.
+
+| Nástroj | Účinek |
+| --- | --- |
+| `attendance_event_create` | Vloží jednotlivý nebo párový průchod s časovým pásmem. |
+| `attendance_event_update` | Změní čas jediného průchodu. |
+| `attendance_event_delete` | Smaže daný průchod nebo výslovně uvedený pár z denního přehledu. |
+| `attendance_day_status_set` | Nastaví nebo odvolá celodenní skutečný stav. |
+| `shift_plan_update` | Nastaví plánovaný čas či stav dne nebo odstraní jeho plán. |
+| `attendance_operation_get` | Přečte trvalou účtenku vlastního zápisu. |
+
+Každá změna vyžaduje nové UUIDv4. Při nejasné odpovědi se načte účtenka a
+případně zopakuje tentýž požadavek se stejným ID. Rozdílný obsah pod stejným
+ID skončí chybou. Vlastní účtenka se uloží v jedné transakci se změnou.
+
 Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
 - veřejné endpointy zahrnují DB-independent liveness `/api/v1/health` a `/api/health`, databázovou a migrační `/api/v1/readiness`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`;

@@ -48,6 +48,17 @@ class AttendanceOAuthGrant(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
+class AttendanceMCPOperation(Base):
+    __tablename__ = "attendance_mcp_operation"
+
+    actor: Mapped[str] = mapped_column(String(80), primary_key=True)
+    operation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    action: Mapped[str] = mapped_column(String(45), nullable=False)
+    request_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class InstanceStatus(StrEnum):
     PENDING = "PENDING"
     ACTIVE = "ACTIVE"

@@ -17,6 +17,7 @@ from app.db.models import AttendanceEvent, Employment
 from app.db.session import get_db
 from app.security.csrf import require_csrf
 from app.services.attendance_events import add_closed_interval_with_breaks, add_event_with_breaks
+from app.services.attendance_mcp_operations import commit_attendance_mutation
 from app.services.attendance_mutations import (
     changed_event_days,
     ensure_days_have_no_status,
@@ -354,7 +355,7 @@ def create_event(
         )
     sync_employment_metric_months(db, employment=employment, months=affected_months)
     record_attendance_activity(db, activity_actor, "create_event")
-    db.commit()
+    commit_attendance_mutation(db, event_id=event.id)
     db.refresh(event)
     return _out(event)
 
@@ -464,7 +465,7 @@ def update_event(
         )
     sync_employment_metric_months(db, employment=employment, months=affected_months)
     record_attendance_activity(db, activity_actor, "update_event")
-    db.commit()
+    commit_attendance_mutation(db, event_id=event.id)
     db.refresh(event)
     return _out(event)
 
@@ -523,5 +524,5 @@ def delete_event(
     db.flush()
     sync_employment_metric_months(db, employment=employment, months=affected_months)
     record_attendance_activity(db, activity_actor, "delete_event")
-    db.commit()
+    commit_attendance_mutation(db, event_id=event_id)
     return {"ok": True}

@@ -2,7 +2,7 @@
 
 CML přiděluje `attendance.self` s výslovnými ID vlastních úvazků, nebo `attendance.manage`. Členský web zobrazuje vlastní docházku a plán pro přiřazené úvazky. Podsekce Skupiny úvazků čte členy a plán směn skupiny, pokud do ní ve vybraném měsíci patří alespoň jeden přidělený vlastní úvazek. Stejná podmínka platí pro seznam i přímý detail. Skupinový pohled je pouze ke čtení a pracuje výhradně s plánovanými směnami a plánovými stavy. Správa CML vytváří úvazky s neměnným `operation_id`. Lokální klienti zachovávají vlastní autorizaci.
 
-Čtecí Docházka MCP používá oficiální SDK, přesný cíl `https://dagmar.hcasc.cz/mcp` a OAuth `attendance:read` schválené podepsaným vlastníkem CML. Podepsaný vstup `/cml-web/mcp` používá aktuální rozsah přihlášeného člena. V obou případech skupinový nástroj vrací pouze plán směn. Nové MCP oprávnění je oddělené od integračních tokenů `dgi_`.
+Docházka MCP používá oficiální SDK, přesný cíl `https://dagmar.hcasc.cz/mcp` a OAuth `attendance:read` schválené podepsaným vlastníkem CML. Zápis vyžaduje výslovně schválené `attendance:manage`. Opakovaný zápis musí nést původní `operation_id` a stejný obsah. Účtenka a změna se potvrzují v jediné transakci. Podepsaný vstup `/cml-web/mcp` používá aktuální rozsah přihlášeného člena. V obou případech skupinový nástroj vrací pouze plán směn. Nové MCP oprávnění je oddělené od integračních tokenů `dgi_`.
 
 Samostatný produkční HTTPS vhost musí načíst přesné MCP trasy z `ops/nginx/dagmar-attendance-mcp.conf`. Pokud už načítá `dagmar-location.conf`, jsou v něm zahrnuté. Po nasazení ověř veřejné OAuth metadata a výzvu 401 na `/mcp` s produkčním omezovačem požadavků.
 

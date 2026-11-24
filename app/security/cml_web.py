@@ -143,18 +143,16 @@ class CmlWebBoundary:
                     raise AssertionDenied('attendance_oauth_owner_required')
                 consent_response: Response
                 try:
-                    if scope['method'] == 'GET':
-                        params = parse_qs(query, keep_blank_values=True)
-                        if set(params) != {'ticket'} or len(params['ticket']) != 1:
-                            raise ValueError('invalid_ticket')
-                        await asyncio.to_thread(self.attendance_oauth.pending_scopes, params['ticket'][0])
+                    if scope['method'] == 'GET' and not query:
                         consent_response = HTMLResponse(
                             '<!doctype html><html lang="cs"><head><meta charset="utf-8">'
                             '<meta name="viewport" content="width=device-width, initial-scale=1">'
                             '<title>Připojit KájovoDocházku</title>'
                             '<link rel="stylesheet" href="/sections/dochazka/ui.css"></head>'
-                            '<body><main><h1>Připojit KájovoDocházku</h1><p>ChatGPT žádá o čtení docházky.</p>'
-                            '<button type="button" id="connect">Povolit připojení</button><p id="status"></p>'
+                            '<body><main><h1>Připojit KájovoDocházku</h1>'
+                            '<p id="requested-scope"></p>'
+                            '<button type="button" id="connect" disabled>Povolit připojení</button>'
+                            '<p id="status" role="status"></p>'
                             '<script src="/sections/dochazka/mcp-consent.js" defer></script></main></body></html>',
                             headers={'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer'},
                         )
@@ -162,10 +160,28 @@ class CmlWebBoundary:
                         if len(body) > 4096 or headers.get('content-type', '').split(';')[0] != 'application/json':
                             raise ValueError('invalid_ticket')
                         payload = json.loads(body)
-                        if not isinstance(payload, dict) or set(payload) != {'ticket'} or not isinstance(payload['ticket'], str):
+                        if (
+                            not isinstance(payload, dict)
+                            or set(payload) != {'ticket', 'action'}
+                            or not isinstance(payload['ticket'], str)
+                            or not re.fullmatch(r'[A-Za-z0-9_-]{43}', payload['ticket'])
+                        ):
                             raise ValueError('invalid_ticket')
-                        redirect = await asyncio.to_thread(self.attendance_oauth.approve, payload['ticket'], claims['sub'])
-                        consent_response = JSONResponse({'redirect':redirect},headers={'Cache-Control':'no-store'})
+                        if payload['action'] == 'inspect':
+                            from app.security.attendance_oauth import MANAGE_SCOPE
+
+                            scopes = await asyncio.to_thread(
+                                self.attendance_oauth.pending_scopes, payload['ticket']
+                            )
+                            result = {'manage': MANAGE_SCOPE in scopes}
+                        elif payload['action'] == 'approve':
+                            redirect = await asyncio.to_thread(
+                                self.attendance_oauth.approve, payload['ticket'], claims['sub']
+                            )
+                            result = {'redirect': redirect}
+                        else:
+                            raise ValueError('invalid_ticket')
+                        consent_response = JSONResponse(result, headers={'Cache-Control':'no-store'})
                     else:
                         consent_response = JSONResponse({'error':'method_denied'},status_code=405)
                 except (PermissionError, ValueError):

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 from ...api.errors import raise_api_error
 from ...db.models import Employment, EmploymentGroup, EmploymentGroupMember, PortalUser, ShiftPlan
 from ...db.session import get_db
+from ...services.attendance_mcp_operations import commit_attendance_mutation
 from ...services.daily_metrics import sync_employment_metric_months
 from ...services.day_status import (
     collect_day_status_conflicts,
@@ -432,7 +433,9 @@ def portal_upsert_shift_plan(
             db.delete(existing)
             db.flush()
             sync_employment_metric_months(db, employment=employment, months=affected_months)
-            db.commit()
+            commit_attendance_mutation(db)
+        else:
+            commit_attendance_mutation(db, only_receipt=True)
         return OkOut(ok=True)
 
     if existing is None:
@@ -452,7 +455,7 @@ def portal_upsert_shift_plan(
         existing.instance_id = auth.instance.id
     db.flush()
     sync_employment_metric_months(db, employment=employment, months=affected_months)
-    db.commit()
+    commit_attendance_mutation(db)
     return OkOut(ok=True)
 
 

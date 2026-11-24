@@ -33,7 +33,8 @@ RESOURCE = ORIGIN + "/mcp"
 CML = "https://kajovocml.hcasc.cz"
 OWNER = "KRMAR78"
 READ_SCOPE = "attendance:read"
-SCOPES = (READ_SCOPE,)
+MANAGE_SCOPE = "attendance:manage"
+SCOPES = (READ_SCOPE, MANAGE_SCOPE)
 
 
 def _digest(value: str) -> str:
@@ -77,6 +78,29 @@ def _grant(
         AttendanceOAuthGrant.expires_at > int(time.time()),
     )
     return db.scalar(statement.with_for_update() if lock else statement)
+
+
+def manage_access_digest(token: AccessToken) -> str | None:
+    return _digest(token.token) if MANAGE_SCOPE in token.scopes else None
+
+
+def has_manage_access(db: Session, digest: str) -> bool:
+    row = db.scalar(
+        select(AttendanceOAuthGrant)
+        .where(
+            AttendanceOAuthGrant.digest == digest,
+            AttendanceOAuthGrant.kind == "access",
+            AttendanceOAuthGrant.expires_at > int(time.time()),
+        )
+        .with_for_update()
+    )
+    return bool(
+        row is not None
+        and row.expires_at > int(time.time())
+        and row.payload["resource"] == RESOURCE
+        and row.payload["subject"] == OWNER
+        and MANAGE_SCOPE in row.payload["scopes"]
+    )
 
 
 def _lock_client(db: Session, client_id: str) -> bool:
@@ -151,7 +175,7 @@ class AttendanceOAuth(
                     "params": params.model_dump(mode="json"),
                 },
             )
-        return CML + "/sections/dochazka/oauth/consent?" + urlencode({"ticket": ticket})
+        return CML + "/sections/dochazka/oauth/consent#" + urlencode({"ticket": ticket})
 
     async def authorize(
         self, client: OAuthClientInformationFull, params: AuthorizationParams

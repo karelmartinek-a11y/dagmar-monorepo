@@ -21,6 +21,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.security.csrf import require_csrf
+from app.services.attendance_mcp_operations import commit_attendance_mutation
 from app.services.attendance_mutations import (
     changed_event_days,
     interval_signatures,
@@ -553,7 +554,9 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
             db.delete(existing)
             db.flush()
             sync_employment_metric_months(db, employment=employment, months=affected_months)
-            db.commit()
+            commit_attendance_mutation(db)
+        else:
+            commit_attendance_mutation(db, only_receipt=True)
         return OkOut(ok=True)
 
     if existing is None:
@@ -573,7 +576,7 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
 
     db.flush()
     sync_employment_metric_months(db, employment=employment, months=affected_months)
-    db.commit()
+    commit_attendance_mutation(db)
     return OkOut(ok=True)
 
 
@@ -684,7 +687,7 @@ def admin_upsert_day_status(
                 month=month,
             )
     sync_employment_metric_months(db, employment=employment, months=affected_months)
-    db.commit()
+    commit_attendance_mutation(db)
     return OkOut(ok=True)
 
 

@@ -20,10 +20,11 @@ from mcp.server.auth.routes import (
     create_protected_resource_routes,
 )
 from mcp.server.auth.settings import ClientRegistrationOptions, RevocationOptions
+from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
-from pydantic import AnyHttpUrl, Field
+from pydantic import UUID4, AnyHttpUrl, AwareDatetime, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, Headers
@@ -43,9 +44,17 @@ from app.security.attendance_oauth import (
     RESOURCE,
     SCOPES,
     AttendanceOAuth,
+    has_manage_access,
+    manage_access_digest,
 )
 from app.security.sessions import AdminSession
 from app.services import attendance_mcp_reads as reads
+from app.services import attendance_mcp_writes as writes
+from app.services.attendance_mcp_operations import (
+    AttendanceOperationOut,
+    invoke_operation,
+    operation_status,
+)
 
 RESOURCE_METADATA = "/.well-known/oauth-protected-resource/mcp"
 AUTH_METADATA = "/.well-known/oauth-authorization-server/attendance-oauth"
@@ -53,12 +62,29 @@ ISSUER_PATH = "/attendance-oauth"
 READ = ToolAnnotations(
     read_only_hint=True, destructive_hint=False, open_world_hint=False, idempotent_hint=True
 )
+WRITE = ToolAnnotations(
+    read_only_hint=False, destructive_hint=False, open_world_hint=False, idempotent_hint=True
+)
+UPDATE = ToolAnnotations(
+    read_only_hint=False, destructive_hint=True, open_world_hint=False, idempotent_hint=True
+)
+MANAGE_TOOLS = frozenset(
+    {
+        "attendance_event_create",
+        "attendance_event_update",
+        "attendance_event_delete",
+        "attendance_day_status_set",
+        "shift_plan_update",
+        "attendance_operation_get",
+    }
+)
 Year = Annotated[int, Field(strict=True, ge=2000, le=2100)]
 Month = Annotated[int, Field(strict=True, ge=1, le=12)]
 Identifier = Annotated[int, Field(strict=True, ge=1, le=2**31 - 1)]
 After = Annotated[int, Field(strict=True, ge=0, le=2**31 - 1)]
 PageSize = Annotated[int, Field(strict=True, ge=1, le=30)]
 GroupPageSize = Annotated[int, Field(strict=True, ge=1, le=12)]
+WallTime = Annotated[str, Field(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")]
 Result = TypeVar("Result")
 
 
@@ -68,9 +94,29 @@ class Principal:
     manager: bool
     user_id: int | None = None
     employment_ids: frozenset[int] | None = None
+    writer: bool = False
+    oauth_digest: str | None = None
 
 
 principal: ContextVar[Principal | None] = ContextVar("attendance_mcp_principal", default=None)
+
+
+async def _scope_catalog(
+    ctx: ServerRequestContext[Any, Any],
+    call_next: CallNext,
+) -> HandlerResult:
+    result = await call_next(ctx)
+    actor = principal.get()
+    if (
+        ctx.method == "tools/list"
+        and isinstance(result, dict)
+        and (actor is None or not actor.writer)
+    ):
+        return {
+            **result,
+            "tools": [tool for tool in result["tools"] if tool["name"] not in MANAGE_TOOLS],
+        }
+    return result
 
 
 class AttendanceMCP:
@@ -83,8 +129,10 @@ class AttendanceMCP:
             instructions="Najdi úvazek pro měsíc. Docházka vrací souhrn a na vyžádání dny. "
             "Skupinový přehled obsahuje plán směn.",
             subscriptions=False,
+            middleware=[_scope_catalog],
         )
         self._register_read_tools()
+        self._register_write_tools()
         self.transport = self.server.streamable_http_app(
             streamable_http_path="/mcp",
             stateless_http=True,
@@ -173,7 +221,7 @@ class AttendanceMCP:
             *create_protected_resource_routes(
                 AnyHttpUrl(RESOURCE),
                 [issuer],
-                scopes_supported=[READ_SCOPE],
+                scopes_supported=list(SCOPES),
                 resource_name="KájovoDocházka",
             ),
             *[
@@ -208,6 +256,7 @@ class AttendanceMCP:
                 isinstance(state.get("cml_admin"), AdminSession),
                 state.get("cml_user_id"),
                 state.get("cml_employment_ids"),
+                writer=True,
             )
         else:
             values = headers.getlist("authorization")
@@ -236,36 +285,42 @@ class AttendanceMCP:
                     },
                 )(scope, receive, send)
                 return
-            actor = Principal(OWNER, True)
+            digest = manage_access_digest(authenticated)
+            actor = Principal(OWNER, True, writer=digest is not None, oauth_digest=digest)
         bound = principal.set(actor)
         try:
             await self.transport(scope, receive, send)
         finally:
             principal.reset(bound)
 
+    def _reader(self, db: Session, actor: Principal) -> reads.AttendanceReader:
+        if actor.manager:
+            return reads.AttendanceReader(manager=True)
+        user = (
+            db.get(PortalUser, actor.user_id, populate_existing=True)
+            if actor.user_id is not None
+            else None
+        )
+        if (
+            user is None
+            or not user.is_active
+            or user.is_blocked
+            or user.instance is None
+            or user.instance.status != InstanceStatus.ACTIVE
+        ):
+            raise ToolError("attendance_scope_denied")
+        return reads.AttendanceReader(
+            manager=False,
+            member=PortalUserAuth(user.instance, user, actor.employment_ids),
+        )
+
     def _read(self, operation: Callable[[Session, reads.AttendanceReader], Result]) -> Result:
         actor = principal.get()
         if actor is None:
             raise ToolError("attendance_scope_denied")
         with self.sessions() as db:
-            if actor.manager:
-                reader = reads.AttendanceReader(manager=True)
-            else:
-                user = db.get(PortalUser, actor.user_id) if actor.user_id is not None else None
-                if (
-                    user is None
-                    or not user.is_active
-                    or user.is_blocked
-                    or user.instance is None
-                    or user.instance.status != InstanceStatus.ACTIVE
-                ):
-                    raise ToolError("attendance_scope_denied")
-                reader = reads.AttendanceReader(
-                    manager=False,
-                    member=PortalUserAuth(user.instance, user, actor.employment_ids),
-                )
             try:
-                return operation(db, reader)
+                return operation(db, self._reader(db, actor))
             except HTTPException as error:
                 detail: Any = error.detail
                 message = (
@@ -274,6 +329,57 @@ class AttendanceMCP:
                     else str(detail)
                 )
                 raise ToolError(message) from None
+
+    def _writer(self) -> Principal:
+        actor = principal.get()
+        if actor is None or not actor.writer:
+            raise ToolError("attendance_manage_required")
+        return actor
+
+    def _write(
+        self,
+        operation_id: UUID4,
+        action: str,
+        employment_id: int,
+        arguments: dict[str, Any],
+        mutate: Callable[[Session, reads.AttendanceReader, str], None],
+    ) -> AttendanceOperationOut:
+        actor = self._writer()
+
+        def check_authority(db: Session) -> None:
+            if actor.oauth_digest is not None and not has_manage_access(db, actor.oauth_digest):
+                raise ToolError("attendance_manage_required")
+            if not actor.manager:
+                writes.require_employment(db, self._reader(db, actor), employment_id)
+
+        def perform(db: Session, reader: reads.AttendanceReader) -> AttendanceOperationOut:
+            writes.require_employment(db, reader, employment_id)
+            check_authority(db)
+            return invoke_operation(
+                db,
+                actor=actor.subject,
+                operation_id=str(operation_id),
+                action=action,
+                arguments={"employment_id": employment_id, **arguments},
+                employment_id=employment_id,
+                check_authority=check_authority,
+                mutate=lambda: mutate(db, reader, actor.subject),
+            )
+
+        return self._read(perform)
+
+    def _operation_status(self, operation_id: UUID4) -> AttendanceOperationOut:
+        actor = self._writer()
+
+        def lookup(db: Session, reader: reads.AttendanceReader) -> AttendanceOperationOut:
+            if actor.oauth_digest is not None and not has_manage_access(db, actor.oauth_digest):
+                raise ToolError("attendance_manage_required")
+            receipt = operation_status(db, actor.subject, str(operation_id))
+            if receipt.employment_id is not None:
+                writes.require_employment(db, reader, receipt.employment_id)
+            return receipt
+
+        return self._read(lookup)
 
     def _register_read_tools(self) -> None:
         @self.server.tool(annotations=READ)
@@ -358,5 +464,153 @@ class AttendanceMCP:
                     day=day,
                     after=after,
                     limit=limit,
+                ),
+            )
+
+    def _register_write_tools(self) -> None:
+        @self.server.tool(annotations=READ)
+        async def attendance_operation_get(operation_id: UUID4) -> AttendanceOperationOut:
+            """Ověř výsledek vlastní operace. Při opakování použij stejné operation_id."""
+            return await run_in_threadpool(self._operation_status, operation_id)
+
+        @self.server.tool(annotations=WRITE)
+        async def attendance_event_create(
+            operation_id: UUID4,
+            employment_id: Identifier,
+            occurred_at: AwareDatetime,
+            paired_occurred_at: AwareDatetime | None = None,
+        ) -> AttendanceOperationOut:
+            """Přidej průchod nebo dvojici průchodů s časovým pásmem."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "attendance_event_create",
+                employment_id,
+                {
+                    "occurred_at": occurred_at.isoformat(),
+                    "paired_occurred_at": paired_occurred_at.isoformat()
+                    if paired_occurred_at
+                    else None,
+                },
+                lambda db, reader, subject: writes.create_event(
+                    db,
+                    reader,
+                    subject,
+                    employment_id,
+                    occurred_at,
+                    paired_occurred_at,
+                ),
+            )
+
+        @self.server.tool(annotations=UPDATE)
+        async def attendance_event_update(
+            operation_id: UUID4,
+            employment_id: Identifier,
+            event_id: Identifier,
+            occurred_at: AwareDatetime,
+        ) -> AttendanceOperationOut:
+            """Změň čas jednoho průchodu. Jeho ID vrať z denní docházky."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "attendance_event_update",
+                employment_id,
+                {"event_id": event_id, "occurred_at": occurred_at.isoformat()},
+                lambda db, reader, subject: writes.update_event(
+                    db,
+                    reader,
+                    subject,
+                    employment_id,
+                    event_id,
+                    occurred_at,
+                ),
+            )
+
+        @self.server.tool(annotations=UPDATE)
+        async def attendance_event_delete(
+            operation_id: UUID4,
+            employment_id: Identifier,
+            event_id: Identifier,
+            paired_event_id: Identifier | None = None,
+        ) -> AttendanceOperationOut:
+            """Smaž zadaný průchod. ID páru vezmi z deletion_partner_id v denní docházce."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "attendance_event_delete",
+                employment_id,
+                {"event_id": event_id, "paired_event_id": paired_event_id},
+                lambda db, reader, subject: writes.delete_event(
+                    db,
+                    reader,
+                    subject,
+                    employment_id,
+                    event_id,
+                    paired_event_id,
+                ),
+            )
+
+        @self.server.tool(annotations=UPDATE)
+        async def attendance_day_status_set(
+            operation_id: UUID4,
+            employment_id: Identifier,
+            day: date,
+            status: writes.DayStatus | None,
+            confirm_delete_conflicts: bool = False,
+        ) -> AttendanceOperationOut:
+            """Nastav celodenní stav docházky. null ho smaže. Konflikty maž jen se souhlasem."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "attendance_day_status_set",
+                employment_id,
+                {
+                    "day": day.isoformat(),
+                    "status": status,
+                    "confirm_delete_conflicts": confirm_delete_conflicts,
+                },
+                lambda db, reader, subject: writes.set_day_status(
+                    db,
+                    reader,
+                    subject,
+                    employment_id,
+                    day,
+                    status,
+                    confirm_delete_conflicts,
+                ),
+            )
+
+        @self.server.tool(annotations=UPDATE)
+        async def shift_plan_update(
+            operation_id: UUID4,
+            employment_id: Identifier,
+            day: date,
+            arrival_time: WallTime | None,
+            departure_time: WallTime | None,
+            status: writes.PlanStatus | None,
+            confirm_delete_conflicts: bool = False,
+        ) -> AttendanceOperationOut:
+            """Nastav plán dne v HH:MM. Tři null smažou plán. Konflikty maž jen se souhlasem."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "shift_plan_update",
+                employment_id,
+                {
+                    "day": day.isoformat(),
+                    "arrival_time": arrival_time,
+                    "departure_time": departure_time,
+                    "status": status,
+                    "confirm_delete_conflicts": confirm_delete_conflicts,
+                },
+                lambda db, reader, _subject: writes.update_shift_plan(
+                    db,
+                    reader,
+                    employment_id,
+                    day,
+                    arrival_time,
+                    departure_time,
+                    status,
+                    confirm_delete_conflicts,
                 ),
             )

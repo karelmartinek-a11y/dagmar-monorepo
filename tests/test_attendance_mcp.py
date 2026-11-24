@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import httpx2
+import pytest
 from fastapi import FastAPI
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -18,7 +19,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.attendance_mcp import AUTH_METADATA, AttendanceMCP
+from app.api.attendance_mcp import AUTH_METADATA, MANAGE_TOOLS, AttendanceMCP
 from app.db.models import (
     Attendance,
     Base,
@@ -28,7 +29,7 @@ from app.db.models import (
     PortalUserRole,
     ShiftPlan,
 )
-from app.security.attendance_oauth import CML, ISSUER, ORIGIN, READ_SCOPE, RESOURCE
+from app.security.attendance_oauth import CML, ISSUER, MANAGE_SCOPE, ORIGIN, READ_SCOPE, RESOURCE
 from app.security.cml_web import CmlWebBoundary
 from app.security.rate_limit import init_rate_limiting
 from app.services.cml_identity import resolve_identity
@@ -69,7 +70,9 @@ def _prepare(monkeypatch, tmp_path, factory):
     return app, mcp, key
 
 
-def test_owner_oauth_mcp_pkce_audience_and_revocation(tmp_path, monkeypatch):
+@pytest.mark.parametrize("manage", [False, True])
+def test_owner_oauth_mcp_pkce_audience_and_revocation(tmp_path, monkeypatch, manage):
+    scope = f"{READ_SCOPE} {MANAGE_SCOPE}" if manage else READ_SCOPE
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
@@ -98,7 +101,7 @@ def test_owner_oauth_mcp_pkce_audience_and_revocation(tmp_path, monkeypatch):
                     "token_endpoint_auth_method": "none",
                     "grant_types": ["authorization_code", "refresh_token"],
                     "response_types": ["code"],
-                    "scope": READ_SCOPE,
+                    "scope": scope,
                 },
             )
             assert registration.status_code == 201
@@ -110,28 +113,27 @@ def test_owner_oauth_mcp_pkce_audience_and_revocation(tmp_path, monkeypatch):
                     "client_id": client_id,
                     "response_type": "code",
                     "redirect_uri": callback,
-                    "scope": READ_SCOPE,
+                    "scope": scope,
                     "resource": RESOURCE,
                     "code_challenge_method": "S256",
                     "code_challenge": b64(hashlib.sha256(verifier.encode()).digest()),
                 },
             )
             assert started.status_code == 302
-            ticket = parse_qs(urlsplit(started.headers["location"]).query)["ticket"][0]
+            consent_url = urlsplit(started.headers["location"])
+            assert not consent_url.query
+            ticket = parse_qs(consent_url.fragment)["ticket"][0]
             url = "/cml-web/oauth/consent"
-            body = json.dumps({"ticket": ticket}).encode()
+            body = json.dumps({"ticket": ticket, "action": "approve"}).encode()
             owner = {"authzPolicy": "owner-no-additional-prompts/1"}
-            visible = await http.get(
-                url + "?ticket=" + ticket,
-                headers=_signed(
-                    key,
-                    url + "?ticket=" + ticket,
-                    "GET",
-                    b"",
-                    **owner,
-                ),
+            visible = await http.get(url, headers=_signed(key, url, "GET", b"", **owner))
+            assert visible.status_code == 200
+            assert "Připojit KájovoDocházku" in visible.text
+            check_body = json.dumps({"ticket": ticket, "action": "inspect"}).encode()
+            checked = await http.post(
+                url, content=check_body, headers=_signed(key, url, "POST", check_body, **owner)
             )
-            assert visible.status_code == 200 and "čtení docházky" in visible.text
+            assert checked.status_code == 200 and checked.json() == {"manage": manage}
             approved = await http.post(
                 url, content=body, headers=_signed(key, url, "POST", body, **owner)
             )
@@ -161,7 +163,7 @@ def test_owner_oauth_mcp_pkce_audience_and_revocation(tmp_path, monkeypatch):
                 async with ClientSession(reader, writer) as sdk:
                     await sdk.initialize()
                     names = {tool.name for tool in (await sdk.list_tools()).tools}
-                    assert names == {
+                    assert names == (MANAGE_TOOLS if manage else set()) | {
                         "attendance_employments_list",
                         "attendance_month_get",
                         "shift_groups_list",
@@ -171,17 +173,27 @@ def test_owner_oauth_mcp_pkce_audience_and_revocation(tmp_path, monkeypatch):
                         "attendance_employments_list", {"year": 2026, "month": 11}
                     )
                     assert rows.structured_content == {"items": [], "next_after": None}
+                    operation = await sdk.call_tool(
+                        "attendance_operation_get", {"operation_id": str(uuid.uuid4())}
+                    )
+                    if manage:
+                        assert operation.structured_content["state"] == "not_found"
+                    else:
+                        assert operation.is_error
+                        assert "attendance_manage_required" in operation.content[0].text
             refresh_payload = {
                 "grant_type": "refresh_token",
                 "client_id": client_id,
                 "refresh_token": token["refresh_token"],
                 "resource": RESOURCE,
             }
-            assert (
-                await http.post(
-                    ISSUER + "/token", data={**refresh_payload, "scope": "attendance:manage"}
-                )
-            ).status_code == 400
+            if not manage:
+                assert (
+                    await http.post(
+                        ISSUER + "/token",
+                        data={**refresh_payload, "scope": f"{READ_SCOPE} {MANAGE_SCOPE}"},
+                    )
+                ).status_code == 400
             refreshed = await http.post(ISSUER + "/token", data=refresh_payload)
             assert refreshed.status_code == 200
             assert (await http.post("/mcp", json={})).status_code == 401
@@ -304,6 +316,100 @@ def test_signed_member_mcp_only_sees_granted_attendance_and_planned_group_data(
                             }
                         ]
                         assert "SICKNESS" not in json.dumps(plans.structured_content)
+
+                        original_id = str(uuid.uuid4())
+                        args = {
+                            "operation_id": original_id,
+                            "employment_id": own.id,
+                            "occurred_at": "2026-10-05T09:00:00+02:00",
+                            "paired_occurred_at": "2026-10-05T15:00:00+02:00",
+                        }
+                        outside = await sdk.call_tool(
+                            "attendance_event_create", {**args, "employment_id": peer.id}
+                        )
+                        assert outside.is_error
+                        created = await sdk.call_tool("attendance_event_create", args)
+                        assert not created.is_error, created.content
+                        receipt = created.structured_content
+                        assert receipt["state"] == "completed"
+                        assert receipt["employment_id"] == own.id
+                        replay = await sdk.call_tool("attendance_event_create", args)
+                        assert replay.structured_content == receipt
+                        altered = await sdk.call_tool(
+                            "attendance_event_create",
+                            {**args, "occurred_at": "2026-10-05T10:00:00+02:00"},
+                        )
+                        assert altered.is_error and "operation_conflict" in altered.content[0].text
+                        lookup = await sdk.call_tool(
+                            "attendance_operation_get", {"operation_id": original_id}
+                        )
+                        assert lookup.structured_content == receipt
+
+                        day_args = {**period, "employment_id": own.id, "day": "2026-10-05"}
+                        saved = await sdk.call_tool("attendance_month_get", day_args)
+                        entries = saved.structured_content["days"][0]["events"]
+                        assert len(entries) == 2
+                        first, last = entries
+                        assert receipt["event_id"] == first["id"]
+                        updated = await sdk.call_tool(
+                            "attendance_event_update",
+                            {
+                                "operation_id": str(uuid.uuid4()),
+                                "employment_id": own.id,
+                                "event_id": last["id"],
+                                "occurred_at": "2026-10-05T16:00:00+02:00",
+                            },
+                        )
+                        assert not updated.is_error, updated.content
+                        saved = await sdk.call_tool("attendance_month_get", day_args)
+                        assert saved.structured_content["days"][0]["worked_minutes"] == 420
+
+                        delete_args = {
+                            "operation_id": str(uuid.uuid4()),
+                            "employment_id": own.id,
+                            "event_id": first["id"],
+                            "paired_event_id": last["id"],
+                        }
+                        deleted = await sdk.call_tool("attendance_event_delete", delete_args)
+                        assert not deleted.is_error, deleted.content
+                        delete_replay = await sdk.call_tool("attendance_event_delete", delete_args)
+                        assert delete_replay.structured_content == deleted.structured_content
+                        saved = await sdk.call_tool("attendance_month_get", day_args)
+                        assert saved.structured_content["days"][0]["events"] == []
+
+                        status = await sdk.call_tool(
+                            "attendance_day_status_set",
+                            {
+                                "operation_id": str(uuid.uuid4()),
+                                "employment_id": own.id,
+                                "day": "2026-10-05",
+                                "status": "SICKNESS",
+                            },
+                        )
+                        assert not status.is_error, status.content
+                        saved = await sdk.call_tool("attendance_month_get", day_args)
+                        assert saved.structured_content["days"][0]["status"] == "SICKNESS"
+
+                        shift_args = {
+                            "operation_id": str(uuid.uuid4()),
+                            "employment_id": own.id,
+                            "day": "2026-10-06",
+                            "arrival_time": "09:00",
+                            "departure_time": "15:00",
+                            "status": None,
+                        }
+                        planned = await sdk.call_tool("shift_plan_update", shift_args)
+                        assert not planned.is_error, planned.content
+                        planned_day = await sdk.call_tool(
+                            "shift_group_month_get",
+                            {**period, "group_id": group.id, "day": "2026-10-06"},
+                        )
+                        own_plan = next(
+                            item
+                            for item in planned_day.structured_content["items"]
+                            if item["employment_id"] == own.id
+                        )
+                        assert own_plan["shifts"][0]["arrival_time"] == "09:00"
 
         asyncio.run(run())
     finally:
