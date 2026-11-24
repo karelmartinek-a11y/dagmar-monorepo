@@ -225,6 +225,21 @@ def portal_get_group_shift_plan_month(
         raise_api_error(status.HTTP_400_BAD_REQUEST, "invalid_month", "Neplatný měsíc.")
     start, end = _month_range(year, month)
     group = _accessible_group(db, group_id=group_id, auth=auth, month_start=start, month_end=end)
+    return build_group_shift_plan_month(
+        db, group, year, month, viewer=auth, include_attendance=auth.employment_ids is None
+    )
+
+
+def build_group_shift_plan_month(
+    db: Session,
+    group: EmploymentGroup,
+    year: int,
+    month: int,
+    *,
+    viewer: PortalUserAuth | None = None,
+    include_attendance: bool = False,
+) -> GroupShiftPlanMonthOut:
+    start, end = _month_range(year, month)
     active_members = [
         member
         for member in group.members
@@ -240,7 +255,7 @@ def portal_get_group_shift_plan_month(
         year=year,
         month=month,
         use_persisted=False,
-        include_attendance=auth.employment_ids is None,
+        include_attendance=include_attendance,
     )
     rows: list[GroupShiftPlanRowOut] = []
     for member in sorted(
@@ -280,8 +295,9 @@ def portal_get_group_shift_plan_month(
             GroupShiftPlanRowOut(
                 employment_id=employment.id,
                 display_label=employment_label(employment, employment.user.name),
-                is_own_employment=employment.user_id == auth.user.id
-                and (auth.employment_ids is None or employment.id in auth.employment_ids),
+                is_own_employment=viewer is not None
+                and employment.user_id == viewer.user.id
+                and (viewer.employment_ids is None or employment.id in viewer.employment_ids),
                 shift_plan_locked=is_month_locked(
                     db,
                     lock_type=LockType.SHIFT_PLAN,

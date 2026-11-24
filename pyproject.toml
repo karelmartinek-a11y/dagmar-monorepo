@@ -23,6 +23,7 @@ dependencies = [
   "pydantic-settings>=2.2.0,<3.0.0",
 
   "python-multipart>=0.0.9,<1.0.0",
+  "mcp==2.3.0",
 
   # password hashing
   "argon2-cffi>=23.1.0,<24.0.0",

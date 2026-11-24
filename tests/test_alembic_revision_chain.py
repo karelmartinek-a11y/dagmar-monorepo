@@ -32,7 +32,7 @@ def test_alembic_revision_chain_resolves_head() -> None:
     script = ScriptDirectory.from_config(cfg)
     heads = script.get_heads()
 
-    assert heads == ["2026_11_18_0032"]
+    assert heads == ["2026_11_24_0033"]
 
 
 def test_migration_0002_drops_only_named_unique_constraint() -> None:

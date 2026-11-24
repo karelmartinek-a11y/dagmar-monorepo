@@ -77,6 +77,21 @@ Aktivní routy definuje [web/src/App.tsx](../web/src/App.tsx):
 
 ## Backend endpointy a autentizační model
 
+Docházka MCP na `https://dagmar.hcasc.cz/mcp` používá Streamable HTTP a
+vlastnické OAuth `attendance:read`. Souhlas se ověřuje podepsaným vstupem CML,
+výměna kódu používá PKCE a token má vlastní audience a revokaci. Podepsané
+volání `/cml-web/mcp` používá aktuální identitu a úvazkový rozsah CML.
+
+| Čtecí nástroj | Obsah |
+| --- | --- |
+| `attendance_employments_list` | Povolené úvazky pro měsíc a kurzor další stránky. |
+| `attendance_month_get` | Souhrn úvazku, volitelně dny nebo průchody zvoleného dne. |
+| `shift_groups_list` | Povolené skupiny pro měsíc a kurzor. |
+| `shift_group_month_get` | Plánované směny a plánové stavy členů dostupné skupiny. |
+
+Skutečná docházka kolegy zůstává mimo skupinový výstup. Původní integrační
+REST používá vlastní tokeny a ověření schopností.
+
 Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 
 - veřejné endpointy zahrnují DB-independent liveness `/api/v1/health` a `/api/health`, databázovou a migrační `/api/v1/readiness`, `/api/version`, `/api/v1/time`, `/api/v1/portal/login`, `/api/v1/portal/reset`, `/api/v1/auth/providers` a `/api/v1/auth/result`;

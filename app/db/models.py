@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -27,6 +28,24 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
     pass
+
+
+class AttendanceOAuthClient(Base):
+    __tablename__ = "attendance_oauth_client"
+
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class AttendanceOAuthGrant(Base):
+    __tablename__ = "attendance_oauth_grant"
+    __table_args__ = (Index("ix_attendance_oauth_grant_family", "family"),)
+
+    digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(12), nullable=False)
+    family: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class InstanceStatus(StrEnum):

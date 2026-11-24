@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
+from app.api.attendance_mcp import AttendanceMCP
 from app.api.errors import EnvelopedAPIError
 from app.api.integration_common import (
     INTEGRATION_NAMESPACE,
@@ -49,6 +50,7 @@ from app.db.schema_bootstrap import ensure_schema_up_to_date
 from app.db.session import get_sessionmaker
 from app.security.rate_limit import init_rate_limiting, limiter
 from app.services.attendance_reminders import run_attendance_reminders_once
+from app.services.cml_identity import resolve_identity, session_factory
 from app.services.prague_time import prague_time_payload
 from app.services.readiness import check_readiness
 
@@ -114,6 +116,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     settings.ensure_canonical_domain()
     settings.validate_external_auth()
+    attendance_mcp = AttendanceMCP(session_factory)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -137,7 +140,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.attendance_reminder_thread = thread
 
         try:
-            yield
+            async with attendance_mcp.transport.router.lifespan_context(app):
+                yield
         finally:
             if stop_event is not None:
                 stop_event.set()
@@ -377,6 +381,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_smtp_router, tags=["admin"])
     app.include_router(portal_auth_router, tags=["portal"])
     app.include_router(integration_router, tags=["integration"])
+    app.router.routes.extend(attendance_mcp.routes())
 
     # Consistent JSON error for unhandled exceptions in API paths.
     @app.exception_handler(Exception)
@@ -403,8 +408,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         raise exc
 
     from app.security.cml_web import CmlWebBoundary
-    from app.services.cml_identity import resolve_identity, session_factory
-    app.add_middleware(CmlWebBoundary, audience='dochazka', session_factory=session_factory, resolve_identity=resolve_identity, ui_root=Path(__file__).parent / 'web_ui')
+    app.add_middleware(
+        CmlWebBoundary,
+        audience="dochazka",
+        session_factory=session_factory,
+        resolve_identity=resolve_identity,
+        ui_root=Path(__file__).parent / "web_ui",
+        attendance_oauth=attendance_mcp.provider,
+    )
     return app
 
 

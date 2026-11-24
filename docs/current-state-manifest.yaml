@@ -1035,13 +1035,14 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2055,
+    "line_count": 2070,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "8b5a256e88c6c0e9933a597fb15bd792ed65d7a7103c8e984f9f3bd60687e6e9"
+    "sha256": "d0ff7913c48b8c85dbcd99e82baa9a462b064a6ab9f26b67a16029576d13739a"
   },
   "production": {
     "api_base_path": "/api/v1/",
+    "attendance_mcp": "/mcp",
     "backend_artifact": "tested_wheel_plus_hashed_offline_wheelhouse",
     "backend_bind": "127.0.0.1:8101",
     "deploy_workflow": ".github/workflows/ci-cd.yml",
@@ -1089,6 +1090,7 @@
   "runtime_invariants": {
     "admin_auth": "session_cookie_plus_csrf",
     "api_namespace": "/api/v1/",
+    "attendance_mcp_auth": "owner_oauth_attendance_read_or_current_signed_cml_scope",
     "backend_bind": "127.0.0.1:8101",
     "canonical_domain": "https://dagmar.hcasc.cz",
     "employee_auth": "portal_http_only_cookie_or_non_browser_bearer_plus_cookie_csrf",

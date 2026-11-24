@@ -7,18 +7,23 @@ LOCATION = (ROOT / "ops/nginx/dagmar-location.conf").read_text(encoding="utf-8")
 HEADERS = (ROOT / "ops/nginx/dagmar-security-headers.conf").read_text(encoding="utf-8")
 
 
-def test_security_headers_are_included_once_per_web_and_api_location() -> None:
+def test_security_headers_are_included_once_per_web_api_and_mcp_location() -> None:
     include = "include /etc/nginx/snippets/dagmar-security-headers.conf;"
-    assert LOCATION.count(include) == 3
+    assert LOCATION.count(include) == 4
     prefix, remainder = LOCATION.split("location ^~ /api/", 1)
     api, remainder = remainder.split("location ^~ /cml-web/", 1)
-    cml, web = remainder.split("location /", 1)
+    cml, remainder = remainder.split("location ~ ^/(mcp|", 1)
+    mcp, web = remainder.split("location /", 1)
     assert include not in prefix
     assert api.count(include) == 1
     assert cml.count(include) == 1
     assert "proxy_pass http://127.0.0.1:8101;" in cml
     assert "try_files" not in cml
     assert 'add_header Cache-Control "no-store" always;' in cml
+    assert mcp.count(include) == 1
+    assert "proxy_pass http://127.0.0.1:8101;" in mcp
+    assert "proxy_buffering off;" in mcp
+    assert 'add_header Cache-Control "no-store" always;' in mcp
     assert web.count(include) == 1
     assert "try_files" not in web
     assert 'return 302 "https://kajovocml.hcasc.cz/#dochazka";' in web

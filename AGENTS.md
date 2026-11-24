@@ -2,6 +2,8 @@
 
 CML přiděluje `attendance.self` s výslovnými ID vlastních úvazků, nebo `attendance.manage`. Členský web zobrazuje vlastní docházku a plán pro přiřazené úvazky. Podsekce Skupiny úvazků čte členy a plán směn skupiny, pokud do ní ve vybraném měsíci patří alespoň jeden přidělený vlastní úvazek. Stejná podmínka platí pro seznam i přímý detail. Skupinový pohled je pouze ke čtení a pracuje výhradně s plánovanými směnami a plánovými stavy. Správa CML vytváří úvazky s neměnným `operation_id`. Lokální klienti zachovávají vlastní autorizaci.
 
+Čtecí Docházka MCP používá oficiální SDK, přesný cíl `https://dagmar.hcasc.cz/mcp` a OAuth `attendance:read` schválené podepsaným vlastníkem CML. Podepsaný vstup `/cml-web/mcp` používá aktuální rozsah přihlášeného člena. V obou případech skupinový nástroj vrací pouze plán směn. Nové MCP oprávnění je oddělené od integračních tokenů `dgi_`.
+
 ## Delegovaná správa účtů v CML — 4. 11. 2026
 
 Výslovné zadání vlastníka nahrazuje omezení centrální správy jen na hlavní účet. Účelový kajovo-user-administration/1 přenáší skutečného user:UUID, pouze na vyjmenované cesty správy profilů a úvazků. Bez nativního osobního profilu správce, bez aliasu OWNER; další provozní agendy zůstávají oddělené. Viz docs/CML_USER_ADMINISTRATION_20261104.md.

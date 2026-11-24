@@ -13,7 +13,7 @@ from urllib.parse import parse_qs
 
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 from app.security.cml_assertion import AssertionDenied, WebVerifier, central_administrator
 
@@ -32,12 +32,13 @@ def central_write_authorized(claims):
 
 
 class CmlWebBoundary:
-    def __init__(self, app, *, audience, session_factory, resolve_identity, ui_root):
+    def __init__(self, app, *, audience, session_factory, resolve_identity, ui_root, attendance_oauth=None):
         self.app = app
         self.audience = audience
         self.session_factory = session_factory
         self.resolve_identity = resolve_identity
         self.ui_root = Path(ui_root).resolve()
+        self.attendance_oauth = attendance_oauth
         path = os.getenv('CML_WEB_JWKS_PATH')
         self.verifier = WebVerifier.from_file(audience, path) if path else None
         entry_only = os.getenv('CML_BROWSER_ENTRY_ONLY', '0')
@@ -137,6 +138,41 @@ class CmlWebBoundary:
                 result = await asyncio.to_thread(read_attendance_activity, self.session_factory, claims['sub'], cursor)
                 await JSONResponse(result, headers={'Cache-Control': 'no-store'})(scope, receive, send)
                 return
+            if self.audience == 'dochazka' and suffix == 'oauth/consent':
+                if self.attendance_oauth is None or claims['sub'] != 'KRMAR78' or not central_write_authorized(claims):
+                    raise AssertionDenied('attendance_oauth_owner_required')
+                consent_response: Response
+                try:
+                    if scope['method'] == 'GET':
+                        params = parse_qs(query, keep_blank_values=True)
+                        if set(params) != {'ticket'} or len(params['ticket']) != 1:
+                            raise ValueError('invalid_ticket')
+                        await asyncio.to_thread(self.attendance_oauth.pending_scopes, params['ticket'][0])
+                        consent_response = HTMLResponse(
+                            '<!doctype html><html lang="cs"><head><meta charset="utf-8">'
+                            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                            '<title>Připojit KájovoDocházku</title>'
+                            '<link rel="stylesheet" href="/sections/dochazka/ui.css"></head>'
+                            '<body><main><h1>Připojit KájovoDocházku</h1><p>ChatGPT žádá o čtení docházky.</p>'
+                            '<button type="button" id="connect">Povolit připojení</button><p id="status"></p>'
+                            '<script src="/sections/dochazka/mcp-consent.js" defer></script></main></body></html>',
+                            headers={'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer'},
+                        )
+                    elif scope['method'] == 'POST' and not query:
+                        if len(body) > 4096 or headers.get('content-type', '').split(';')[0] != 'application/json':
+                            raise ValueError('invalid_ticket')
+                        payload = json.loads(body)
+                        if not isinstance(payload, dict) or set(payload) != {'ticket'} or not isinstance(payload['ticket'], str):
+                            raise ValueError('invalid_ticket')
+                        redirect = await asyncio.to_thread(self.attendance_oauth.approve, payload['ticket'], claims['sub'])
+                        consent_response = JSONResponse({'redirect':redirect},headers={'Cache-Control':'no-store'})
+                    else:
+                        consent_response = JSONResponse({'error':'method_denied'},status_code=405)
+                except (PermissionError, ValueError):
+                    consent_response = JSONResponse({'error':'attendance_oauth_denied'}, status_code=400,
+                                            headers={'Cache-Control':'no-store'})
+                await consent_response(scope, receive, send)
+                return
             if suffix == 'identity':
                 await JSONResponse(identity['public'], headers={'Cache-Control': 'no-store'})(scope, receive, send)
                 return
@@ -145,7 +181,8 @@ class CmlWebBoundary:
                 manifest['views'] = [v for v in manifest['views'] if (identity['public']['admin'] or v['id'] in {'dochazka.employee.attendance', 'dochazka.employee.plan', 'dochazka.employee.groups'}) and (not v.get('admin') or identity['public']['admin']) and (v.get('audienceRole') is None or v['audienceRole']==('admin' if identity['public']['admin'] else 'member')) and (not v.get('permission') or v['permission'] in identity['public'].get('permissions', []))]
                 await JSONResponse(manifest, headers={'Cache-Control': 'no-store'})(scope, receive, send)
                 return
-            if not suffix.startswith('api/'):
+            attendance_mcp = self.audience == 'dochazka' and suffix == 'mcp' and self.attendance_oauth is not None
+            if not suffix.startswith('api/') and not attendance_mcp:
                 path = self.ui_root / (suffix or 'index.html')
                 if path.resolve().is_relative_to(self.ui_root) and path.is_file() and path.suffix in {'.html', '.js', '.css', '.svg', '.ttf', '.woff2'}:
                     response = FileResponse(path, media_type=mimetypes.guess_type(path)[0], headers={'Cache-Control': 'no-store'})
@@ -175,13 +212,13 @@ class CmlWebBoundary:
                     return
             # A signed request cannot start a local login or invoke a different public protocol.
             version_read = self.audience == 'dochazka' and suffix == 'api/version' and scope['method'] == 'GET'
-            if not version_read and (not suffix.startswith(('api/v1/', 'api/auth/')) or suffix.endswith(('/login', '/logout', '/reset-password', '/request-password-reset'))):
+            if not (version_read or attendance_mcp) and (not suffix.startswith(('api/v1/', 'api/auth/')) or suffix.endswith(('/login', '/logout', '/reset-password', '/request-password-reset'))):
                 raise AssertionDenied('route_denied')
             if self.audience == 'dochazka' and not identity['public']['admin']:
                 allowed = (suffix == 'api/v1/portal/session' and scope['method'] == 'GET') or suffix == 'api/version' or suffix == 'api/v1/attendance' or suffix.startswith('api/v1/attendance/') or suffix == 'api/v1/shift-plan' or suffix.startswith('api/v1/shift-plan/')
                 if suffix.startswith('api/v1/shift-plan/groups'):
                     allowed = scope['method'] == 'GET' and re.fullmatch(r'api/v1/shift-plan/groups(?:/[1-9][0-9]{0,9})?', suffix) is not None
-                if not allowed:
+                if not (allowed or attendance_mcp):
                     raise AssertionDenied('attendance_self_path_denied')
             forwarded = dict(scope)
             forwarded['path'] = '/' + suffix

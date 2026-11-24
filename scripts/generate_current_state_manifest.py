@@ -193,6 +193,7 @@ def build_manifest() -> dict[str, object]:
             "postgres_bind": "127.0.0.1:5433",
             "deploy_workflow": ".github/workflows/ci-cd.yml",
             "backend_artifact": "tested_wheel_plus_hashed_offline_wheelhouse",
+            "attendance_mcp": "/mcp",
         },
         "supply_chain": {
             "python_runtime_lock": "requirements-prod.lock",
@@ -210,6 +211,7 @@ def build_manifest() -> dict[str, object]:
             "admin_auth": "session_cookie_plus_csrf",
             "employee_auth": "portal_http_only_cookie_or_non_browser_bearer_plus_cookie_csrf",
             "integration_auth": "dgi_bearer_token",
+            "attendance_mcp_auth": "owner_oauth_attendance_read_or_current_signed_cml_scope",
             "employment_scope": "attendance_shift_plan_locks_exports_are_scoped_by_employment_id",
             "hours_authority": "backend_daily_tenths_monthly_sum_of_daily_tenths",
             "timezone": "Europe/Prague",
