@@ -108,15 +108,15 @@ def replace_members(
     if group is None:
         raise EmploymentGroupError("group_not_found", "Skupina nebyla nalezena.")
     _load_employments(db, ids)
-    db.query(EmploymentGroupMember).filter(EmploymentGroupMember.group_id == group.id).delete(
-        synchronize_session=False
-    )
-    db.add_all(
-        EmploymentGroupMember(group_id=group.id, employment_id=employment_id)
+    current = {member.employment_id: member for member in group.members}
+    group.members = [
+        current[employment_id]
+        if employment_id in current
+        else EmploymentGroupMember(group_id=group.id, employment_id=employment_id)
         for employment_id in ids
-    )
+    ]
     db.flush()
-    return get_group(db, group.id)
+    return group
 
 
 def rename_group(db: Session, *, group_id: int, name: str) -> EmploymentGroup:

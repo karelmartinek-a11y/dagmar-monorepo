@@ -6,6 +6,8 @@ Docházka MCP používá oficiální SDK, přesný cíl `https://dagmar.hcasc.cz
 
 Samostatný produkční HTTPS vhost musí načíst přesné MCP trasy z `ops/nginx/dagmar-attendance-mcp.conf`. Pokud už načítá `dagmar-location.conf`, jsou v něm zahrnuté. Po nasazení ověř veřejné OAuth metadata a výzvu 401 na `/mcp` s produkčním omezovačem požadavků.
 
+Správu skupin a souborové exporty vidí jen správce. Změna členství vyžaduje aktuální `membership_version` a účtenku operace. Exportní odkazy nesou jen ID souboru. Stažení ověřuje totožného aktéra, platnost a jeho aktuální správcovskou roli v CML.
+
 ## Delegovaná správa účtů v CML — 4. 11. 2026
 
 Výslovné zadání vlastníka nahrazuje omezení centrální správy jen na hlavní účet. Účelový kajovo-user-administration/1 přenáší skutečného user:UUID, pouze na vyjmenované cesty správy profilů a úvazků. Bez nativního osobního profilu správce, bez aliasu OWNER; další provozní agendy zůstávají oddělené. Viz docs/CML_USER_ADMINISTRATION_20261104.md.

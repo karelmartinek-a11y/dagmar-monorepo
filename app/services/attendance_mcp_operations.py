@@ -26,13 +26,14 @@ class AttendanceOperationOut(BaseModel):
     action: str | None = None
     employment_id: int | None = None
     event_id: int | None = None
+    group_id: int | None = None
     at: datetime | None = None
 
 
 @dataclass
 class Completion:
     row: AttendanceMCPOperation
-    employment_id: int
+    employment_id: int | None
     check_authority: Callable[[Session], None]
 
 
@@ -45,6 +46,7 @@ def _completed(row: AttendanceMCPOperation) -> AttendanceOperationOut:
         action=row.action,
         employment_id=row.result["employment_id"],
         event_id=row.result.get("event_id"),
+        group_id=row.result.get("group_id"),
         at=row.completed_at,
     )
 
@@ -84,7 +86,7 @@ def invoke_operation(
     operation_id: str,
     action: str,
     arguments: dict[str, Any],
-    employment_id: int,
+    employment_id: int | None,
     check_authority: Callable[[Session], None],
     mutate: Callable[[], object],
 ) -> AttendanceOperationOut:
@@ -114,12 +116,17 @@ def commit_attendance_mutation(
     db: Session,
     *,
     event_id: int | None = None,
+    group_id: int | None = None,
     only_receipt: bool = False,
 ) -> None:
     receipt = db.info.get(_PAYLOAD_KEY)
     if isinstance(receipt, Completion):
         receipt.check_authority(db)
-        receipt.row.result = {"employment_id": receipt.employment_id, "event_id": event_id}
+        receipt.row.result = {
+            "employment_id": receipt.employment_id,
+            "event_id": event_id,
+            "group_id": group_id,
+        }
         receipt.row.completed_at = datetime.now(UTC)
     elif only_receipt:
         return

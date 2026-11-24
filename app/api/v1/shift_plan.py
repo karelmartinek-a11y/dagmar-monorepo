@@ -544,5 +544,5 @@ def portal_upsert_day_status(
         employment=employment,
         months=affected_months,
     )
-    db.commit()
+    commit_attendance_mutation(db)
     return OkOut(ok=True)

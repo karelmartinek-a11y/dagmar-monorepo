@@ -19,9 +19,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.attendance_mcp import AUTH_METADATA, MANAGE_TOOLS, AttendanceMCP
+from app.api.attendance_mcp import (
+    ADMIN_READ_TOOLS,
+    ADMIN_WRITE_TOOLS,
+    AUTH_METADATA,
+    MANAGE_TOOLS,
+    AttendanceMCP,
+)
+from app.api.v1 import admin_export
 from app.db.models import (
     Attendance,
+    AttendanceMCPExport,
     Base,
     Employment,
     EmploymentType,
@@ -29,7 +37,16 @@ from app.db.models import (
     PortalUserRole,
     ShiftPlan,
 )
-from app.security.attendance_oauth import CML, ISSUER, MANAGE_SCOPE, ORIGIN, READ_SCOPE, RESOURCE
+from app.db.session import get_db
+from app.security.attendance_oauth import (
+    CML,
+    ISSUER,
+    MANAGE_SCOPE,
+    ORIGIN,
+    OWNER,
+    READ_SCOPE,
+    RESOURCE,
+)
 from app.security.cml_web import CmlWebBoundary
 from app.security.rate_limit import init_rate_limiting
 from app.services.cml_identity import resolve_identity
@@ -59,6 +76,13 @@ def _prepare(monkeypatch, tmp_path, factory):
     init_rate_limiting(app)
     mcp = AttendanceMCP(factory)
     app.router.routes.extend(mcp.routes())
+    app.include_router(admin_export.router)
+
+    def db_override():
+        with factory() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = db_override
     app.add_middleware(
         CmlWebBoundary,
         audience="dochazka",
@@ -163,7 +187,9 @@ def test_owner_oauth_mcp_pkce_audience_and_revocation(tmp_path, monkeypatch, man
                 async with ClientSession(reader, writer) as sdk:
                     await sdk.initialize()
                     names = {tool.name for tool in (await sdk.list_tools()).tools}
-                    assert names == (MANAGE_TOOLS if manage else set()) | {
+                    assert names == ADMIN_READ_TOOLS | (
+                        MANAGE_TOOLS | ADMIN_WRITE_TOOLS if manage else set()
+                    ) | {
                         "attendance_employments_list",
                         "attendance_month_get",
                         "shift_groups_list",
@@ -285,6 +311,12 @@ def test_signed_member_mcp_only_sees_granted_attendance_and_planned_group_data(
                 ):
                     async with ClientSession(read, write) as sdk:
                         await sdk.initialize()
+                        visible = {tool.name for tool in (await sdk.list_tools()).tools}
+                        assert not (ADMIN_READ_TOOLS | ADMIN_WRITE_TOOLS) & visible
+                        group_detail = await sdk.call_tool(
+                            "employment_group_get", {"group_id": group.id}
+                        )
+                        assert group_detail.is_error
                         period = {"year": 2026, "month": 10}
                         choices = await sdk.call_tool("attendance_employments_list", period)
                         assert [row["id"] for row in choices.structured_content["items"]] == [
@@ -410,6 +442,181 @@ def test_signed_member_mcp_only_sees_granted_attendance_and_planned_group_data(
                             if item["employment_id"] == own.id
                         )
                         assert own_plan["shifts"][0]["arrival_time"] == "09:00"
+
+        asyncio.run(run())
+    finally:
+        client.close()
+        db.close()
+
+
+def test_signed_owner_group_administration_and_private_file_download(tmp_path, monkeypatch):
+    client, db, user = _client()
+    try:
+        app, mcp, key = _prepare(monkeypatch, tmp_path, sessionmaker(bind=db.get_bind()))
+        own = user.employments[0]
+
+        def add_employment(title):
+            row = Employment(
+                user=user,
+                title=title,
+                employment_type=EmploymentType.WORK_CONTRACT,
+                start_date=date(2026, 1, 1),
+                workload_fraction=1,
+                night_hours_enabled=True,
+            )
+            db.add(row)
+            db.flush()
+            return row
+
+        second = add_employment("Fixture second")
+        third = add_employment("Fixture third")
+        db.commit()
+        actor = {"sub": OWNER, "authzPolicy": "owner-no-additional-prompts/1"}
+
+        class SignedOwner(httpx2.Auth):
+            async def async_auth_flow(self, request):
+                body = await request.aread()
+                request.headers.update(
+                    _signed(key, request.url.raw_path.decode(), request.method, body, **actor)
+                )
+                yield request
+
+        async def run():
+            async with (
+                mcp.transport.router.lifespan_context(app),
+                httpx2.AsyncClient(
+                    transport=httpx2.ASGITransport(app),
+                    auth=SignedOwner(),
+                    base_url=ORIGIN,
+                ) as http,
+                streamable_http_client(ORIGIN + "/cml-web/mcp", http_client=http) as (
+                    read,
+                    write,
+                    *_,
+                ),
+                ClientSession(read, write) as sdk,
+            ):
+                await sdk.initialize()
+
+                async def result(tool, args):
+                    value = await sdk.call_tool(tool, args)
+                    assert not value.is_error, value.content
+                    return value.structured_content
+
+                created = await result(
+                    "employment_group_create",
+                    {
+                        "operation_id": str(uuid.uuid4()),
+                        "name": "Fixture group",
+                        "employment_ids": [own.id, second.id],
+                    },
+                )
+                group_id = created["group_id"]
+                assert group_id and created["state"] == "completed"
+                assert created["employment_id"] is None
+                detail = await result("employment_group_get", {"group_id": group_id, "limit": 1})
+                assert detail["employment_ids"] == [own.id]
+                assert detail["next_after"] == own.id
+                await result(
+                    "employment_group_rename",
+                    {
+                        "operation_id": str(uuid.uuid4()),
+                        "group_id": group_id,
+                        "name": "New name",
+                        "expected_name": detail["name"],
+                    },
+                )
+                change = {
+                    "operation_id": str(uuid.uuid4()),
+                    "group_id": group_id,
+                    "expected_membership_version": detail["membership_version"],
+                    "employment_ids": [own.id, third.id],
+                }
+                changed = await result("employment_group_members_set", change)
+                assert changed == await result("employment_group_members_set", change)
+                final = await result("employment_group_get", {"group_id": group_id})
+                assert final["name"] == "New name"
+                assert final["employment_ids"] == [own.id, third.id]
+                stale = await sdk.call_tool(
+                    "employment_group_delete",
+                    {
+                        "operation_id": str(uuid.uuid4()),
+                        "group_id": group_id,
+                        "expected_membership_version": detail["membership_version"],
+                    },
+                )
+                assert stale.is_error and "group_changed" in stale.content[0].text
+                await result(
+                    "employment_group_delete",
+                    {
+                        "operation_id": str(uuid.uuid4()),
+                        "group_id": group_id,
+                        "expected_membership_version": final["membership_version"],
+                    },
+                )
+                missing = await sdk.call_tool("employment_group_get", {"group_id": group_id})
+                assert missing.is_error and "group_not_found" in missing.content[0].text
+
+                period = {"year": 2026, "month": 10}
+                plan_args = {"employment_id": own.id, "day": "2026-10-06", "status": None}
+                await result(
+                    "shift_plan_update",
+                    {
+                        **plan_args,
+                        "operation_id": str(uuid.uuid4()),
+                        "arrival_time": "09:00",
+                        "departure_time": "15:00",
+                    },
+                )
+                with sessionmaker(bind=db.get_bind()).begin() as legacy:
+                    mixed = (
+                        legacy.query(ShiftPlan)
+                        .filter_by(employment_id=own.id, date=date(2026, 10, 6))
+                        .one()
+                    )
+                    mixed.status = "OFF"
+                await result(
+                    "shift_plan_day_status_set",
+                    {**plan_args, "operation_id": str(uuid.uuid4())},
+                )
+                with sessionmaker(bind=db.get_bind())() as check:
+                    row = (
+                        check.query(ShiftPlan)
+                        .filter_by(employment_id=own.id, date=date(2026, 10, 6))
+                        .one()
+                    )
+                    assert row.arrival_time == "09:00" and row.departure_time == "15:00"
+                    assert row.status is None
+
+                def download_path(meta):
+                    return urlsplit(meta["download_url"]).path.replace(
+                        "/sections/dochazka/", "/cml-web/", 1
+                    )
+
+                csv = await result("attendance_report_export", {**period, "employment_id": own.id})
+                pdf = await result("shift_plan_export", {**period, "employment_ids": [own.id]})
+                csv_path = download_path(csv)
+                for info, path, signature in (
+                    (csv, csv_path, b""),
+                    (pdf, download_path(pdf), b"%PDF-"),
+                ):
+                    data = await http.get(path)
+                    assert data.status_code == 200
+                    assert data.content.startswith(signature)
+                    assert len(data.content) == info["size_bytes"]
+                    assert hashlib.sha256(data.content).hexdigest() == info["sha256"]
+
+                async with httpx2.AsyncClient(
+                    transport=httpx2.ASGITransport(app),
+                    base_url=ORIGIN,
+                ) as public:
+                    assert (await public.get(csv_path)).status_code == 401
+
+                with sessionmaker(bind=db.get_bind()).begin() as write:
+                    csv_id = csv_path.rsplit("/", 1)[1]
+                    item = write.get(AttendanceMCPExport, csv_id)
+                    item.expires_at = 1
+                assert (await http.get(csv_path)).status_code == 404
 
         asyncio.run(run())
     finally:

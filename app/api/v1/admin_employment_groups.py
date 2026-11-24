@@ -13,6 +13,7 @@ from app.api.errors import raise_api_error
 from app.db.models import EmploymentGroup
 from app.db.session import get_db
 from app.security.csrf import require_csrf
+from app.services.attendance_mcp_operations import commit_attendance_mutation
 from app.services.employment_access import employment_label
 from app.services.employment_groups import (
     EmploymentGroupError,
@@ -127,7 +128,7 @@ def admin_create_employment_group(
 ) -> EmploymentGroupOut:
     try:
         group = create_group(db, name=body.name, member_ids=body.employment_ids)
-        db.commit()
+        commit_attendance_mutation(db, group_id=group.id)
     except EmploymentGroupError as error:
         db.rollback()
         _error(error)
@@ -151,7 +152,7 @@ def admin_update_employment_group(
 ) -> EmploymentGroupOut:
     try:
         group = rename_group(db, group_id=group_id, name=body.name)
-        db.commit()
+        commit_attendance_mutation(db, group_id=group.id)
     except EmploymentGroupError as error:
         db.rollback()
         _error(error)
@@ -174,7 +175,7 @@ def admin_replace_employment_group_members(
 ) -> EmploymentGroupOut:
     try:
         group = replace_members(db, group_id=group_id, member_ids=body.employment_ids)
-        db.commit()
+        commit_attendance_mutation(db, group_id=group.id if group is not None else None)
     except EmploymentGroupError as error:
         db.rollback()
         _error(error)
@@ -199,7 +200,7 @@ def admin_remove_employment_group_members(
 ) -> EmploymentGroupDeleteOut:
     try:
         group_deleted = remove_members(db, group_id=group_id, member_ids=body.employment_ids)
-        db.commit()
+        commit_attendance_mutation(db, group_id=group_id)
     except EmploymentGroupError as error:
         db.rollback()
         _error(error)
@@ -219,5 +220,5 @@ def admin_delete_employment_group(
     if group is None:
         raise_api_error(status.HTTP_404_NOT_FOUND, "group_not_found", "Skupina nebyla nalezena.")
     db.delete(group)
-    db.commit()
+    commit_attendance_mutation(db, group_id=group_id)
     return EmploymentGroupDeleteOut(group_deleted=True)

@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -57,6 +58,19 @@ class AttendanceMCPOperation(Base):
     request_digest: Mapped[str] = mapped_column(String(64), nullable=False)
     result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AttendanceMCPExport(Base):
+    __tablename__ = "attendance_mcp_export"
+    __table_args__ = (Index("ix_attendance_mcp_export_expiration", "expires_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    actor: Mapped[str] = mapped_column(String(80), nullable=False)
+    filename: Mapped[str] = mapped_column(String(200), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
 
 class InstanceStatus(StrEnum):

@@ -103,11 +103,24 @@ odpovídají stávajícím formulářům včetně uzavřených měsíců a koliz
 | `attendance_event_delete` | Smaže daný průchod nebo výslovně uvedený pár z denního přehledu. |
 | `attendance_day_status_set` | Nastaví nebo odvolá celodenní skutečný stav. |
 | `shift_plan_update` | Nastaví plánovaný čas či stav dne nebo odstraní jeho plán. |
+| `shift_plan_day_status_set` | Nastaví či odvolá pouze celodenní stav v plánu směn. |
 | `attendance_operation_get` | Přečte trvalou účtenku vlastního zápisu. |
 
 Každá změna vyžaduje nové UUIDv4. Při nejasné odpovědi se načte účtenka a
 případně zopakuje tentýž požadavek se stejným ID. Rozdílný obsah pod stejným
 ID skončí chybou. Vlastní účtenka se uloží v jedné transakci se změnou.
+
+Správcovské `employment_group_get` stránkuje úvazky skupiny a vrací verzi
+úplného členství. Nástroje `employment_group_create`, `employment_group_rename`,
+`employment_group_members_set` a `employment_group_delete` vyžadují stávající
+správcovskou roli a zápisové oprávnění. Změna členství a smazání ověřují
+`membership_version` pod zámkem. Odebrání pod dva zbývající úvazky může skupinu smazat.
+
+`attendance_report_export` připraví CSV vybraného úvazku nebo ZIP za měsíc.
+`shift_plan_export` připraví PDF plánu vybrané sady úvazků. MCP vrátí velikost,
+SHA-256 a odkaz s platností deset minut. Stažení přes CML vyžaduje aktuální
+správcovskou roli a identitu aktéra, který soubor vytvořil. Bajty souboru se
+načtou samostatně. Vypršelá data se odstraňují při přípravě dalšího exportu.
 
 Aktivní API registruje [app/main.py](../app/main.py) z routerů v `app/api/v1/` a z integračního namespace.
 

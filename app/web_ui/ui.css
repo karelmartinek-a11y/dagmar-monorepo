@@ -248,3 +248,15 @@ input[type="date"],input[type="month"],input[type="time"]{color-scheme:dark}
  #content .table-scroll:not(.print-paper .table-scroll) :is(td small,.clock){font-size:11px;line-height:1.35}
  #content .table-scroll:not(.print-paper .table-scroll) :is(td button,.clock){min-height:28px}
 }
+.attendance-oauth-consent {
+  width: min(34rem, calc(100% - 2rem));
+  margin: 8vh auto;
+  padding: 1.5rem;
+}
+.attendance-oauth-consent h1 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+.attendance-oauth-consent [role=status]:empty {
+  display: none;
+}

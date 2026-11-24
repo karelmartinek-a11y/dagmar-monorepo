@@ -190,3 +190,37 @@ def update_shift_plan(
             db,
             reader.require_member(),
         )
+
+
+def set_shift_plan_day_status(
+    db: Session,
+    reader: AttendanceReader,
+    employment_id: int,
+    day: date,
+    status: PlanStatus | None,
+    confirm_delete_conflicts: bool,
+) -> None:
+    if reader.manager:
+        admin_shift_plan._admin_upsert_shift_plan_impl(
+            db,
+            admin_shift_plan.ShiftPlanUpsertIn(
+                employment_id=employment_id,
+                date=day.isoformat(),
+                arrival_time=None,
+                departure_time=None,
+                status=status,
+                confirm_delete_conflicts=confirm_delete_conflicts,
+            ),
+            clear_status_only=status is None,
+        )
+    else:
+        shift_plan.portal_upsert_day_status(
+            shift_plan.PortalDayStatusUpsertIn(
+                employment_id=employment_id,
+                date=day.isoformat(),
+                status=status,
+                confirm_delete_conflicts=confirm_delete_conflicts,
+            ),
+            db,
+            reader.require_member(),
+        )

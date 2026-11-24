@@ -431,7 +431,9 @@ def admin_upsert_shift_plan(
     return _admin_upsert_shift_plan_impl(db=db, body=body)
 
 
-def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut:
+def _admin_upsert_shift_plan_impl(
+    db: Session, body: ShiftPlanUpsertIn, *, clear_status_only: bool = False,
+) -> OkOut:
     employment = _get_employment(body.employment_id, db)
     employment = lock_employment_for_time_mutation(db, employment.id)
     if not locked_employment_has_active_user(db, employment):
@@ -507,6 +509,12 @@ def _admin_upsert_shift_plan_impl(db: Session, body: ShiftPlanUpsertIn) -> OkOut
             ShiftPlan.date == day,
         )
     ).scalar_one_or_none()
+    if clear_status_only:
+        if existing is None or existing.status is None:
+            commit_attendance_mutation(db, only_receipt=True)
+            return OkOut(ok=True)
+        arrival = existing.arrival_time
+        departure = existing.departure_time
     candidate = (
         None
         if arrival is None and departure is None and body.status is None

@@ -149,9 +149,9 @@ class CmlWebBoundary:
                             '<meta name="viewport" content="width=device-width, initial-scale=1">'
                             '<title>Připojit KájovoDocházku</title>'
                             '<link rel="stylesheet" href="/sections/dochazka/ui.css"></head>'
-                            '<body><main><h1>Připojit KájovoDocházku</h1>'
+                            '<body><main class="panel attendance-oauth-consent"><h1>Připojit KájovoDocházku</h1>'
                             '<p id="requested-scope"></p>'
-                            '<button type="button" id="connect" disabled>Povolit připojení</button>'
+                            '<button type="button" class="primary" id="connect" disabled>Povolit připojení</button>'
                             '<p id="status" role="status"></p>'
                             '<script src="/sections/dochazka/mcp-consent.js" defer></script></main></body></html>',
                             headers={'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer'},

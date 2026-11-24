@@ -6,7 +6,7 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date
-from typing import Annotated, Any, TypeVar, cast
+from typing import Annotated, Any, Literal, TypeVar, cast
 
 from fastapi import HTTPException
 from mcp.server import MCPServer
@@ -34,6 +34,7 @@ from starlette.routing import Route
 from starlette.types import Receive, Scope, Send
 
 from app.api.deps import PortalUserAuth
+from app.api.v1.admin_export import ShiftPlanPdfRequestIn, build_csv_or_zip, build_pdf_export
 from app.db.models import InstanceStatus, PortalUser
 from app.security.attendance_oauth import (
     CML,
@@ -48,6 +49,8 @@ from app.security.attendance_oauth import (
     manage_access_digest,
 )
 from app.security.sessions import AdminSession
+from app.services import attendance_mcp_exports as exports
+from app.services import attendance_mcp_groups as groups
 from app.services import attendance_mcp_reads as reads
 from app.services import attendance_mcp_writes as writes
 from app.services.attendance_mcp_operations import (
@@ -75,7 +78,19 @@ MANAGE_TOOLS = frozenset(
         "attendance_event_delete",
         "attendance_day_status_set",
         "shift_plan_update",
+        "shift_plan_day_status_set",
         "attendance_operation_get",
+    }
+)
+ADMIN_READ_TOOLS = frozenset(
+    {"employment_group_get", "attendance_report_export", "shift_plan_export"}
+)
+ADMIN_WRITE_TOOLS = frozenset(
+    {
+        "employment_group_create",
+        "employment_group_rename",
+        "employment_group_members_set",
+        "employment_group_delete",
     }
 )
 Year = Annotated[int, Field(strict=True, ge=2000, le=2100)]
@@ -85,6 +100,10 @@ After = Annotated[int, Field(strict=True, ge=0, le=2**31 - 1)]
 PageSize = Annotated[int, Field(strict=True, ge=1, le=30)]
 GroupPageSize = Annotated[int, Field(strict=True, ge=1, le=12)]
 WallTime = Annotated[str, Field(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")]
+GroupName = Annotated[str, Field(min_length=1, max_length=160)]
+MembershipVersion = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+MemberIds = Annotated[list[Identifier], Field(min_length=2, max_length=2000)]
+EditedMemberIds = Annotated[list[Identifier], Field(min_length=1, max_length=2000)]
 Result = TypeVar("Result")
 
 
@@ -101,22 +120,42 @@ class Principal:
 principal: ContextVar[Principal | None] = ContextVar("attendance_mcp_principal", default=None)
 
 
+def _compact_schema(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_compact_schema(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: item if key in {"default", "const", "enum", "examples"} else _compact_schema(item)
+            for key, item in value.items()
+            if key != "title" or not isinstance(item, str)
+        }
+    return value
+
+
 async def _scope_catalog(
     ctx: ServerRequestContext[Any, Any],
     call_next: CallNext,
 ) -> HandlerResult:
     result = await call_next(ctx)
+    if ctx.method != "tools/list" or not isinstance(result, dict):
+        return result
     actor = principal.get()
-    if (
-        ctx.method == "tools/list"
-        and isinstance(result, dict)
-        and (actor is None or not actor.writer)
-    ):
-        return {
-            **result,
-            "tools": [tool for tool in result["tools"] if tool["name"] not in MANAGE_TOOLS],
+    hidden: set[str] = set()
+    if actor is None or not actor.writer:
+        hidden.update(MANAGE_TOOLS | ADMIN_WRITE_TOOLS)
+    if actor is None or not actor.manager:
+        hidden.update(ADMIN_READ_TOOLS | ADMIN_WRITE_TOOLS)
+    visible = []
+    for tool in result["tools"]:
+        if tool["name"] in hidden:
+            continue
+        schemas = {
+            name: _compact_schema(tool[name])
+            for name in ("inputSchema", "outputSchema")
+            if name in tool
         }
-    return result
+        visible.append({**tool, **schemas})
+    return {**result, "tools": visible}
 
 
 class AttendanceMCP:
@@ -133,6 +172,8 @@ class AttendanceMCP:
         )
         self._register_read_tools()
         self._register_write_tools()
+        self._register_group_tools()
+        self._register_export_tools()
         self.transport = self.server.streamable_http_app(
             streamable_http_path="/mcp",
             stateless_http=True,
@@ -340,20 +381,23 @@ class AttendanceMCP:
         self,
         operation_id: UUID4,
         action: str,
-        employment_id: int,
+        employment_id: int | None,
         arguments: dict[str, Any],
         mutate: Callable[[Session, reads.AttendanceReader, str], None],
     ) -> AttendanceOperationOut:
         actor = self._writer()
+        if employment_id is None and not actor.manager:
+            raise ToolError("attendance_admin_required")
 
         def check_authority(db: Session) -> None:
             if actor.oauth_digest is not None and not has_manage_access(db, actor.oauth_digest):
                 raise ToolError("attendance_manage_required")
-            if not actor.manager:
+            if not actor.manager and employment_id is not None:
                 writes.require_employment(db, self._reader(db, actor), employment_id)
 
         def perform(db: Session, reader: reads.AttendanceReader) -> AttendanceOperationOut:
-            writes.require_employment(db, reader, employment_id)
+            if employment_id is not None:
+                writes.require_employment(db, reader, employment_id)
             check_authority(db)
             return invoke_operation(
                 db,
@@ -375,11 +419,19 @@ class AttendanceMCP:
             if actor.oauth_digest is not None and not has_manage_access(db, actor.oauth_digest):
                 raise ToolError("attendance_manage_required")
             receipt = operation_status(db, actor.subject, str(operation_id))
+            if receipt.group_id is not None and not actor.manager:
+                raise ToolError("attendance_admin_required")
             if receipt.employment_id is not None:
                 writes.require_employment(db, reader, receipt.employment_id)
             return receipt
 
         return self._read(lookup)
+
+    def _read_admin(self, operation: Callable[[Session, str], Result]) -> Result:
+        actor = principal.get()
+        if actor is None or not actor.manager:
+            raise ToolError("attendance_admin_required")
+        return self._read(lambda db, _reader: operation(db, actor.subject))
 
     def _register_read_tools(self) -> None:
         @self.server.tool(annotations=READ)
@@ -614,3 +666,175 @@ class AttendanceMCP:
                     confirm_delete_conflicts,
                 ),
             )
+
+        @self.server.tool(annotations=UPDATE)
+        async def shift_plan_day_status_set(
+            operation_id: UUID4,
+            employment_id: Identifier,
+            day: date,
+            status: writes.PlanStatus | None,
+            confirm_delete_conflicts: bool = False,
+        ) -> AttendanceOperationOut:
+            """Nastav plánované volno či dovolenou. null odvolá stav plánu. Konflikt vyžaduje souhlas."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "shift_plan_day_status_set",
+                employment_id,
+                {
+                    "day": day.isoformat(),
+                    "status": status,
+                    "confirm_delete_conflicts": confirm_delete_conflicts,
+                },
+                lambda db, reader, _subject: writes.set_shift_plan_day_status(
+                    db,
+                    reader,
+                    employment_id,
+                    day,
+                    status,
+                    confirm_delete_conflicts,
+                ),
+            )
+
+    def _register_group_tools(self) -> None:
+        @self.server.tool(annotations=READ)
+        async def employment_group_get(
+            group_id: Identifier,
+            after: After = 0,
+            limit: PageSize = 15,
+        ) -> groups.GroupDetail:
+            """Načti úvazky skupiny a membership_version. Pokračuj pomocí next_after."""
+            return await run_in_threadpool(
+                self._read_admin,
+                lambda db, _actor: groups.group_details(db, group_id, after, limit),
+            )
+
+        @self.server.tool(annotations=WRITE)
+        async def employment_group_create(
+            operation_id: UUID4,
+            name: GroupName,
+            employment_ids: MemberIds,
+        ) -> AttendanceOperationOut:
+            """Založ skupinu nejméně dvou různých úvazků."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "employment_group_create",
+                None,
+                {"name": name, "employment_ids": sorted(employment_ids)},
+                lambda db, _reader, actor: groups.create(db, actor, name, employment_ids),
+            )
+
+        @self.server.tool(annotations=UPDATE)
+        async def employment_group_rename(
+            operation_id: UUID4,
+            group_id: Identifier,
+            name: GroupName,
+            expected_name: GroupName,
+        ) -> AttendanceOperationOut:
+            """Přejmenuj skupinu. expected_name vezmi z employment_group_get."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "employment_group_rename",
+                None,
+                {"group_id": group_id, "name": name, "expected_name": expected_name},
+                lambda db, _reader, actor: groups.rename(db, actor, group_id, name, expected_name),
+            )
+
+        @self.server.tool(annotations=UPDATE)
+        async def employment_group_members_set(
+            operation_id: UUID4,
+            group_id: Identifier,
+            employment_ids: EditedMemberIds,
+            expected_membership_version: MembershipVersion,
+            action: Literal["replace", "remove"] = "replace",
+        ) -> AttendanceOperationOut:
+            """Nahraď členství nebo odeber úvazky. Pod dvěma úvazky odebrání smaže skupinu."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "employment_group_members_set",
+                None,
+                {
+                    "group_id": group_id,
+                    "employment_ids": sorted(employment_ids),
+                    "expected_membership_version": expected_membership_version,
+                    "action": action,
+                },
+                lambda db, _reader, actor: groups.edit_members(
+                    db,
+                    actor,
+                    group_id,
+                    action,
+                    expected_membership_version,
+                    employment_ids,
+                ),
+            )
+
+        @self.server.tool(annotations=UPDATE)
+        async def employment_group_delete(
+            operation_id: UUID4,
+            group_id: Identifier,
+            expected_membership_version: MembershipVersion,
+        ) -> AttendanceOperationOut:
+            """Smaž určenou skupinu. Verzi nejdřív načti přes employment_group_get."""
+            return await run_in_threadpool(
+                self._write,
+                operation_id,
+                "employment_group_delete",
+                None,
+                {"group_id": group_id, "expected_membership_version": expected_membership_version},
+                lambda db, _reader, actor: groups.edit_members(
+                    db,
+                    actor,
+                    group_id,
+                    "delete",
+                    expected_membership_version,
+                    [],
+                ),
+            )
+
+    def _register_export_tools(self) -> None:
+        @self.server.tool(annotations=READ)
+        async def attendance_report_export(
+            year: Year,
+            month: Month,
+            employment_id: Identifier | None = None,
+            all_employments: bool = False,
+        ) -> exports.AttendanceExportOut:
+            """Připrav CSV úvazku nebo ZIP při all_employments=true. Odkaz otevři v přihlášeném CML."""
+
+            def export(db: Session, actor: str) -> exports.AttendanceExportOut:
+                filename, media_type, content = build_csv_or_zip(
+                    db,
+                    f"{year:04d}-{month:02d}",
+                    employment_id,
+                    all_employments,
+                )
+                return exports.store(db, actor, filename, media_type, content)
+
+            return await run_in_threadpool(self._read_admin, export)
+
+        @self.server.tool(annotations=READ)
+        async def shift_plan_export(
+            year: Year,
+            month: Month,
+            employment_ids: Annotated[list[Identifier], Field(max_length=2000)],
+            locale: Literal["cs", "en", "sk", "de"] = "cs",
+        ) -> exports.AttendanceExportOut:
+            """Připrav PDF plánu vybraných úvazků. Prázdný seznam zahrne všechny platné úvazky."""
+
+            def export(db: Session, actor: str) -> exports.AttendanceExportOut:
+                filename, content = build_pdf_export(
+                    db,
+                    ShiftPlanPdfRequestIn(
+                        year=year,
+                        month=month,
+                        employment_ids=employment_ids,
+                        locale=locale,
+                    ),
+                )
+                return exports.store(db, actor, filename, "application/pdf", content)
+
+            return await run_in_threadpool(self._read_admin, export)

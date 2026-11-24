@@ -8,9 +8,9 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import UUID4, BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
@@ -19,6 +19,7 @@ from ...api.v1.attendance import _build_month
 from ...db.models import Employment
 from ...db.session import get_db
 from ...security.csrf import require_csrf
+from ...services.attendance_mcp_exports import load as load_mcp_export
 from ...services.employment_access import employment_is_currently_valid
 from ...services.prague_time import PRAGUE_TIMEZONE
 from ...services.shift_plan_reports import (
@@ -221,6 +222,21 @@ def export_csv_or_zip(
     _admin=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    filename, media_type, data = build_csv_or_zip(db, month, employment_id, bulk)
+    return _file_response(filename, media_type, data)
+
+
+def _file_response(filename: str, media_type: str, data: bytes) -> StreamingResponse:
+    return StreamingResponse(
+        _iter_bytes(data),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def build_csv_or_zip(
+    db: Session, month: str, employment_id: int | None, bulk: bool | None,
+) -> tuple[str, str, bytes]:
     start, end = _month_range(month)
 
     if bulk and employment_id:
@@ -257,11 +273,7 @@ def export_csv_or_zip(
         fname = f"{filename_safe(display)}_{month}.csv"
         content = _csv_for_employment(db=db, employment=employment, start=start, end=end)
 
-        return StreamingResponse(
-            _iter_bytes(content),
-            media_type="text/csv; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="{fname}"'},
-        )
+        return fname, "text/csv; charset=utf-8", content
 
     employments = _load_relevant_employments(db, start, end)
 
@@ -276,11 +288,7 @@ def export_csv_or_zip(
     zip_bytes = zip_buf.getvalue()
     zip_name = f"export_{month}.zip"
 
-    return StreamingResponse(
-        _iter_bytes(zip_bytes),
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
-    )
+    return zip_name, "application/zip", zip_bytes
 
 
 @router.post("/api/v1/admin/export/shift-plan/report")
@@ -309,6 +317,11 @@ def export_shift_plan_pdf(
     _: None = Depends(require_csrf),
     db: Session = Depends(get_db),
 ):
+    filename, pdf_bytes = build_pdf_export(db, body)
+    return _file_response(filename, "application/pdf", pdf_bytes)
+
+
+def build_pdf_export(db: Session, body: ShiftPlanPdfRequestIn) -> tuple[str, bytes]:
     try:
         report = build_shift_plan_report(
             db,
@@ -326,9 +339,22 @@ def export_shift_plan_pdf(
             )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    filename = shift_plan_pdf_filename(year=body.year, month=body.month)
-    return StreamingResponse(
-        _iter_bytes(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return shift_plan_pdf_filename(year=body.year, month=body.month), pdf_bytes
+
+
+@router.get("/api/v1/admin/export/mcp/{export_id}")
+def download_mcp_export(
+    export_id: UUID4,
+    request: Request,
+    _admin=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    claims = getattr(request.state, "cml_web_claims", None)
+    if claims is None:
+        raise_api_error(403, "attendance_admin_required", "Otevři export přes KájovoCML.")
+    row = load_mcp_export(db, claims["sub"], str(export_id))
+    response = _file_response(row.filename, row.media_type, row.content)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Content-Length"] = str(len(row.content))
+    response.headers["ETag"] = f'"sha256:{row.sha256}"'
+    return response

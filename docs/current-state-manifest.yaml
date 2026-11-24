@@ -169,6 +169,14 @@
       "path": "/api/v1/admin/export"
     },
     {
+      "auth_mode": "admin_session",
+      "handler": "app.api.v1.admin_export.download_mcp_export",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/admin/export/mcp/{export_id}"
+    },
+    {
       "auth_mode": "admin_session_csrf",
       "handler": "app.api.v1.admin_export.export_shift_plan_pdf",
       "methods": [
@@ -1035,10 +1043,10 @@
     "public_instance_registration"
   ],
   "normative_ssot": {
-    "line_count": 2087,
+    "line_count": 2100,
     "path": "docs/SSOT_CURRENT.md",
     "revision": "FORENSIC-FINAL-2026-08-03",
-    "sha256": "ec744a011e17c7e932b36322acc218f9a2fb0f7ad9b0ed6ea8f59d91d30da889"
+    "sha256": "a2ad71e102b763a6d037661839b8b05b2e902089fa930f8d45226dea68530a77"
   },
   "production": {
     "api_base_path": "/api/v1/",
