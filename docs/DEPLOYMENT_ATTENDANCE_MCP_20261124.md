@@ -14,7 +14,8 @@ Nginx směruje MCP a OAuth přes vyhrazený include. Běžný webový vstup dál
 - Živá dynamická registrace a PKCE přesměrovaly na souhlas v CML. Dočasná registrace i její žádost byly odstraněny. Přihlášený CML prohlížeč načetl stránku souhlasu a ověřil odmítnutí chybějící žádosti.
 - Produkční ZIP měl 22 B a PDF vybraného úvazku 281 143 B. U obou se shodovala délka i SHA-256 uloženého souboru. Anonymní stažení bylo odmítnuto. Soubory a dočasná ověřovací oprávnění byly odstraněny.
 - V izolovaných DB proběhly zápis a čtení průchodů, odlišení plánu od skutečnosti, změny členství, odmítnutí zastaralé verze, zápis a účtenka v jedné transakci, souběžné opakování v PostgreSQL a stažení souboru přes platný podepsaný CML vstup včetně expirace.
-- Přímé připojení v uživatelově ChatGPT čeká na odemčení Macu. Odhady níže vycházejí z živého katalogu a tokenizeru `o200k_base`.
+- V ChatGPT byl připojen soukromý čtecí plugin s rozsahem `attendance:read` přes dynamickou registraci klienta a potvrzení v CML. ChatGPT skutečně zavolal `shift_groups_list` pro listopad 2026 s limitem 1 a vrátil jednu položku. [Plugin](https://chatgpt.com/plugins/plugin_asdk_app_6b060bdc78848191935dffb46e4654a6) · [Zkušební chat](https://chatgpt.com/local/6b060d12-6890-83eb-880b-de704390f07d)
+- Odhady vycházejí z živého katalogu a tokenizeru `o200k_base`. ChatGPT počet vstupních tokenů v ověřovacím chatu nezobrazil.
 
 ## Katalog
 
