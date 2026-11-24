@@ -30,6 +30,7 @@ from app.db.models import (
 )
 from app.security.attendance_oauth import CML, ISSUER, ORIGIN, READ_SCOPE, RESOURCE
 from app.security.cml_web import CmlWebBoundary
+from app.security.rate_limit import init_rate_limiting
 from app.services.cml_identity import resolve_identity
 from app.services.employment_groups import create_group
 from tests.test_cml_browser_entry import _client
@@ -54,6 +55,7 @@ def _prepare(monkeypatch, tmp_path, factory):
     keyfile.write_text(json.dumps(jwks))
     monkeypatch.setenv("CML_WEB_JWKS_PATH", str(keyfile))
     app = FastAPI()
+    init_rate_limiting(app)
     mcp = AttendanceMCP(factory)
     app.router.routes.extend(mcp.routes())
     app.add_middleware(

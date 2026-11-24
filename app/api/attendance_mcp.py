@@ -29,7 +29,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, Headers
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.routing import Mount, Route
+from starlette.routing import Route
 from starlette.types import Receive, Scope, Send
 
 from app.api.deps import PortalUserAuth
@@ -96,7 +96,7 @@ class AttendanceMCP:
             ),
         )
 
-    def routes(self) -> list[Route | Mount]:
+    def routes(self) -> list[Route]:
         registration = ClientRegistrationOptions(
             enabled=True, valid_scopes=list(SCOPES), default_scopes=[READ_SCOPE]
         )
@@ -162,12 +162,13 @@ class AttendanceMCP:
                 ),
             ]
         )
-        return [
-            Route("/mcp", self, methods=["GET", "POST", "DELETE"]),
+        routes = [
+            Route("/mcp", self, methods=["GET", "POST", "DELETE"], name="attendance_mcp"),
             Route(
                 AUTH_METADATA,
                 cors_middleware(auth_metadata, ["GET", "OPTIONS"]),
                 methods=["GET", "OPTIONS"],
+                name="attendance_oauth_metadata",
             ),
             *create_protected_resource_routes(
                 AnyHttpUrl(RESOURCE),
@@ -175,8 +176,21 @@ class AttendanceMCP:
                 scopes_supported=[READ_SCOPE],
                 resource_name="KájovoDocházka",
             ),
-            Mount(ISSUER_PATH, routes=oauth_routes),
+            *[
+                Route(
+                    ISSUER_PATH + route.path,
+                    route.app,
+                    methods=route.methods,
+                    name="attendance_oauth_" + route.path.removeprefix("/"),
+                )
+                for route in oauth_routes
+            ],
         ]
+        # SlowAPI identifies handlers by name, including SDK-generated ASGI middleware.
+        for route in routes:
+            if not hasattr(route.endpoint, "__name__"):
+                route.endpoint.__name__ = route.name
+        return routes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         headers = Headers(scope=scope)

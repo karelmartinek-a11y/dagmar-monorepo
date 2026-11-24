@@ -28,6 +28,7 @@ def _copy_nginx_fixtures(name: str, tls: Path) -> None:
     files = {
         ROOT / "tests/fixtures/nginx/nginx.conf": "etc/nginx/nginx.conf",
         ROOT / "ops/nginx/dagmar-location.conf": "etc/nginx/conf.d/dagmar-location.conf",
+        ROOT / "ops/nginx/dagmar-attendance-mcp.conf": "etc/nginx/snippets/dagmar-attendance-mcp.conf",
         ROOT
         / "ops/nginx/dagmar-security-headers.conf": "etc/nginx/snippets/dagmar-security-headers.conf",
         ROOT / "web/index.html": "var/www/dagmar/frontend/index.html",
@@ -130,6 +131,11 @@ def _run_nginx_assertions(tls: Path) -> None:
             ("/index.html", 302),
             ("/api/v1/health", 502),
             ("/cml-web/identity", 502),
+            ("/mcp", 502),
+            ("/mcp-other", 302),
+            ("/.well-known/oauth-protected-resource/mcp", 502),
+            ("/.well-known/oauth-authorization-server/attendance-oauth", 502),
+            ("/attendance-oauth/authorize", 502),
             ("/cml-web/api/profiles/00000000-0000-4000-8000-000000000001", 502),
             ("/api/v1/auth/google/callback", 502),
         ):

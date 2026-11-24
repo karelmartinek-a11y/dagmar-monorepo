@@ -335,6 +335,7 @@ jobs:
             install -m 0644 "$BACK_RELEASE/ops/systemd/"*.service "$BACK_RELEASE/ops/systemd/"*.timer /etc/systemd/system/
             install -d /etc/nginx/snippets
             install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-security-headers.conf" /etc/nginx/snippets/dagmar-security-headers.conf
+            install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-attendance-mcp.conf" /etc/nginx/snippets/dagmar-attendance-mcp.conf
             install -m 0644 "$BACK_RELEASE/ops/nginx/dagmar-location.conf" /etc/nginx/snippets/dagmar-location.conf
 
             while IFS= read -r -d '' config; do

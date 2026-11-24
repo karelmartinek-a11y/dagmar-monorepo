@@ -4,6 +4,8 @@ CML přiděluje `attendance.self` s výslovnými ID vlastních úvazků, nebo `a
 
 Čtecí Docházka MCP používá oficiální SDK, přesný cíl `https://dagmar.hcasc.cz/mcp` a OAuth `attendance:read` schválené podepsaným vlastníkem CML. Podepsaný vstup `/cml-web/mcp` používá aktuální rozsah přihlášeného člena. V obou případech skupinový nástroj vrací pouze plán směn. Nové MCP oprávnění je oddělené od integračních tokenů `dgi_`.
 
+Samostatný produkční HTTPS vhost musí načíst přesné MCP trasy z `ops/nginx/dagmar-attendance-mcp.conf`. Pokud už načítá `dagmar-location.conf`, jsou v něm zahrnuté. Po nasazení ověř veřejné OAuth metadata a výzvu 401 na `/mcp` s produkčním omezovačem požadavků.
+
 ## Delegovaná správa účtů v CML — 4. 11. 2026
 
 Výslovné zadání vlastníka nahrazuje omezení centrální správy jen na hlavní účet. Účelový kajovo-user-administration/1 přenáší skutečného user:UUID, pouze na vyjmenované cesty správy profilů a úvazků. Bez nativního osobního profilu správce, bez aliasu OWNER; další provozní agendy zůstávají oddělené. Viz docs/CML_USER_ADMINISTRATION_20261104.md.
