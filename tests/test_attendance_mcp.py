@@ -594,6 +594,10 @@ def test_signed_owner_group_administration_and_private_file_download(tmp_path, m
                     )
 
                 csv = await result("attendance_report_export", {**period, "employment_id": own.id})
+                empty = await sdk.call_tool(
+                    "shift_plan_export", {**period, "employment_ids": []}
+                )
+                assert empty.is_error
                 pdf = await result("shift_plan_export", {**period, "employment_ids": [own.id]})
                 csv_path = download_path(csv)
                 for info, path, signature in (

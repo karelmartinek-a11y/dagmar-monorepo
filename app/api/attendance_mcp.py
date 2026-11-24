@@ -820,10 +820,10 @@ class AttendanceMCP:
         async def shift_plan_export(
             year: Year,
             month: Month,
-            employment_ids: Annotated[list[Identifier], Field(max_length=2000)],
+            employment_ids: Annotated[list[Identifier], Field(min_length=1, max_length=2000)],
             locale: Literal["cs", "en", "sk", "de"] = "cs",
         ) -> exports.AttendanceExportOut:
-            """Připrav PDF plánu vybraných úvazků. Prázdný seznam zahrne všechny platné úvazky."""
+            """Připrav PDF plánu zadaných úvazků. Odkaz otevři v přihlášeném CML."""
 
             def export(db: Session, actor: str) -> exports.AttendanceExportOut:
                 filename, content = build_pdf_export(
