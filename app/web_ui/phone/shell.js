@@ -16,6 +16,7 @@ const state = {
 const root = document.querySelector('#workspace');
 const output = document.querySelector('#notice');
 const nav = document.querySelector('nav');
+const choices = document.querySelector('#sections');
 const locales = new Map([['cs','Čeština'],['en','English'],['sk','Slovenčina'],['de','Deutsch'],['hi','हिन्दी']]);
 let manifest;
 let renderController;
@@ -46,7 +47,7 @@ function setPeriod(delta) {
   return render();
 }
 
-function periodBar(context) {
+function periodBar() {
   const calendar = new Intl.DateTimeFormat(state.locale,{timeZone:'Europe/Prague',year:'numeric',month:'long'});
   const label = calendar.format(new Date(Date.UTC(state.year,state.month-1,15,12)));
   const previous = press('‹',guard(()=>setPeriod(-1)));
@@ -58,8 +59,11 @@ function periodBar(context) {
   const refresh = press('Obnovit',guard(async()=>{
     await render();
     const prefix = state.year+':'+state.month+':';
-    for (const key of state.unconfirmed) if (key.startsWith(prefix)) state.unconfirmed.delete(key);
-    await render();
+    const verified = [...state.unconfirmed].filter(key=>key.startsWith(prefix));
+    if (verified.length) {
+      for (const key of verified) state.unconfirmed.delete(key);
+      await render();
+    }
   }));
   return [pane,refresh];
 }
@@ -100,6 +104,7 @@ function redrawMenu() {
     const control = press(translated(entry,state.locale),guard(async()=>{
       state.view = page;
       state.employment = null;
+      choices.open = false;
       await render();
     }));
     if(page===state.view) control.setAttribute('aria-current','page');
@@ -114,13 +119,14 @@ async function render(options = {}) {
   const active = manifest.views.find(entry=>viewId(entry)===state.view);
   if (!active) throw Error('Požadovanou agendu aktuální účet nemá k dispozici.');
   redrawMenu();
+  choices.querySelector('summary').textContent = t('Agendy');
   const scroll = window.scrollY;
   root.replaceChildren(node('h1',translated(active,state.locale),{tabindex:'-1'}));
   document.title = translated(active,state.locale)+' · KájovoDocházka';
   notify();
   const context = {
     state, root, signal, month, guard, notify, request, render,
-    period:()=>periodBar(context),
+    period:periodBar,
     go:async page=>{state.view=page;await render();},
     update:(key,task,focus)=>update(context,key,task,focus),
   };
@@ -146,21 +152,20 @@ void guard(async()=>{
   [state.identity,manifest] = await Promise.all([request('identity'),request('ui-manifest.json')]);
   const languages = state.identity.languages.filter(id=>locales.has(id));
   state.locale = languages.includes(property.get('lang')) ? property.get('lang') : languages[0] ?? 'cs';
+  setLanguage();
   const language = select(languages.map(value=>[value,locales.get(value)]),state.locale);
   if (languages.length>1) {
+    const widget = field('Jazyk',language);
     language.addEventListener('change',guard(async()=>{
       state.locale = language.value;
       setLanguage();
+      language.setAttribute('aria-label',t('Jazyk'));
+      widget.firstChild.textContent = t('Jazyk');
       await render();
     }));
-    root.before(field('Jazyk',language));
-    language.addEventListener('change',()=>{
-      language.setAttribute('aria-label',t('Jazyk'));
-      language.parentNode.firstChild.textContent = t('Jazyk');
-    });
+    root.before(widget);
   }
   const requested = property.get('view')==='group-plan' && !state.identity.admin ? 'groups' : property.get('view');
   state.view = manifest.views.some(entry=>viewId(entry)===requested) ? requested : 'attendance';
-  setLanguage();
   await render();
 })();

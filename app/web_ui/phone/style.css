@@ -21,6 +21,15 @@ header a { color: inherit; }
 main { padding: 12px 12px 36px; margin: auto; max-width: 45rem; }
 nav, .group { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 10px; }
 nav button { flex: 1 1 42%; }
+#sections { margin-bottom: 10px; }
+#sections > summary {
+  padding: 8px 12px;
+  border: 1px solid #8991b9;
+  border-radius: 8px;
+  background: #fff;
+}
+#sections > nav { margin-top: 8px; }
+#workspace h1:focus { outline: none; }
 h1, h2, h3 { margin: 0 0 10px; line-height: 1.25; overflow-wrap: anywhere; }
 h1 { font-size: 1.66rem; }
 h2 { font-size: 1.28rem; }
@@ -68,7 +77,7 @@ label > :is(input, select, textarea):not([type=checkbox]) {
   gap: 8px;
   margin-bottom: 10px;
 }
-.month + button { margin-bottom: 10px; }
+.month + button { display: block; margin-bottom: 10px; }
 dl { margin: 0 0 8px; }
 dt { margin-top: 4px; font-weight: 650; }
 dd { margin: 0 0 4px 9px; }
@@ -93,7 +102,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @media print {
   :root { background: white; color: black; }
-  body > header, nav, #notice, .hide-print, main > label { display: none !important; }
+  body > header, #sections, #notice, .hide-print, main > label { display: none !important; }
   main { max-width: none; padding: 0; }
   .paper { border: 0; margin: 0; padding: 0; break-before: page; }
   .paper:first-of-type { break-before: auto; }
