@@ -16,3 +16,14 @@ Osm izolovaných snímků zachytilo čtyři pohledy. Prohlížečový průchod o
 Projektové prohlížečové sady pro období a čas prošly v Chromiu a WebKitu. Třináct backendových testů v `tests/test_cml_browser_entry.py` a `tests/test_attendance_mcp.py` pokrylo také omezení členského plánu na oprávněné skupiny a ochranu při zastaralém rozsahu oprávnění. Prohlížečový editor skupin v tomto vydání nepoužívá parametr verze změny členství z MCP kontraktu.
 
 Lokální index `outputs/cml-mobile-20261125/attendance-desktop-fixture/index.json` má SHA-256 `d140a0465f11d642eef47a75f07ae106dd046a98de03e934fe79d53b32d3dbd3`.
+
+## Doplňující audit administrace a osobního přehledu
+
+| Desktopový vstup | Podklady, validace a operace |
+| --- | --- |
+| Docházka vlastního úvazku | Seznam platných úvazků a výpočet měsíce vrací `attendance/employments` a `attendance`. Přidání a úprava chronologického průchodu používají POST a PUT na `attendance/events`; DELETE může nést `paired_event_id`. Duplicitní průchody, uzamčené období a práce mimo platnost úvazku odmítá backend. Hodinové metriky se zobrazují z výsledku backendu, včetně měsíčních součtů po desetinném zaokrouhlení a doložených celodenních stavů. |
+| Docházkové listy správce | `admin/attendance/month` vrací stejné metriky všech dostupných úvazků. Administrace používá vlastní varianty změn průchodů a denních stavů. Zámky používají `admin/locks`. Doplnění historických pauz vyžaduje potvrzení a `admin/attendance/breaks` s úvazkem a obdobím. Po zápisu se čte kanonický stav. |
+| Můj plán a administrace plánů | Zobrazení drží identitu obou uložených časů i samostatného časového pole. `shift-plan` má date, employment_id, arrival_time, departure_time a status. Zadaný konec musí být po začátku a ve stejném dni. Členská oprávnění se omezují na vlastní úvazky. Výběr administrace lze uložit pro období. Celkový plánový součet poskytuje server i u úvazku bez metriky total. |
+| Přehled a integrační informace | Vlastník čte stav sekce a nativní integrační cesty. Oprávnění klientů oddělují lidskou relaci CML od integračních oprávnění. Dokumentace a dostupnost jednotlivých režimů se řídí skutečným katalogem. |
+| Export a tisk | Export vybraného úvazku nebo správcovského rozsahu se váže na konkrétní období. Náhledy plánu a docházky používají serverová data, dlouhé identity, oddělené dny a plánové stavy. Párování denních časů a hodin se v prohlížeči nepočítá. PDF a ZIP/CSV mají formátový limit a samostatné potvrzené stažení. |
+| Přístup a jazyk | Podepsaný kontext CML identifikuje skutečnou roli a úvazky. Nativní identita dodává dostupné jazyky a manifest viditelné agendy. Souhlas k MCP vyžaduje identitu vlastníka a jednorázovou žádost; čtení rozsahu a schválení se provádějí samostatně přes `oauth/consent`. |
