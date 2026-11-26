@@ -143,12 +143,7 @@ class CmlWebBoundary:
                     raise AssertionDenied('attendance_oauth_owner_required')
                 consent_response: Response
                 try:
-                    if scope['method'] == 'GET' and query == 'ui=phone':
-                        consent_response = FileResponse(
-                            self.ui_root / 'phone' / 'consent.html', media_type='text/html',
-                            headers={'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer'},
-                        )
-                    elif scope['method'] == 'GET' and not query:
+                    if scope['method'] == 'GET' and not query:
                         consent_response = HTMLResponse(
                             '<!doctype html><html lang="cs"><head><meta charset="utf-8">'
                             '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -204,10 +199,7 @@ class CmlWebBoundary:
                 return
             attendance_mcp = self.audience == 'dochazka' and suffix == 'mcp' and self.attendance_oauth is not None
             if not suffix.startswith('api/') and not attendance_mcp:
-                if self.audience == 'dochazka' and suffix == 'phone/consent.html':
-                    raise AssertionDenied('attendance_oauth_owner_required')
-                phone = self.audience == 'dochazka' and suffix in {'', 'index.html'} and parse_qs(query).get('ui') == ['phone']
-                path = self.ui_root / ('phone/index.html' if phone else (suffix or 'index.html'))
+                path = self.ui_root / (suffix or 'index.html')
                 if path.resolve().is_relative_to(self.ui_root) and path.is_file() and path.suffix in {'.html', '.js', '.css', '.svg', '.ttf', '.woff2'}:
                     response = FileResponse(path, media_type=mimetypes.guess_type(path)[0], headers={'Cache-Control': 'no-store'})
                     await response(scope, receive, send)

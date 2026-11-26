@@ -135,17 +135,6 @@ def test_cml_member_groups_only_share_the_plan_inside_granted_memberships(tmp_pa
                 headers["X-CSRF-Token"] = "a" * 43
             return client.request(method, path, headers=headers)
 
-        phone_path = "/cml-web/?view=attendance&ui=phone"
-        assert client.get(phone_path).status_code == 401
-        phone = signed(phone_path)
-        assert phone.status_code == 200 and "/phone/shell.js" in phone.text
-        assert phone.headers["cache-control"] == "no-store"
-        desktop = signed("/cml-web/?view=attendance")
-        assert desktop.status_code == 200 and "/sections/dochazka/app.js" in desktop.text
-        assert "/phone/shell.js" not in desktop.text
-        assert signed("/cml-web/oauth/consent?ui=phone").status_code == 401
-        assert signed("/cml-web/phone/consent.html").status_code == 401
-
         manifest = "/cml-web/ui-manifest.json"
         member_views = signed(manifest).json()["views"]
         assert all(not view["admin"] for view in member_views)
